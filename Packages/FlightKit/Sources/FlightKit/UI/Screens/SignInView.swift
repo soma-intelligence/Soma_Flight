@@ -37,24 +37,24 @@ public struct SignInView: View {
     private var canSend: Bool { emailLooksValid && onEmail != nil && emailState != .sending }
 
     public var body: some View {
-        // Fits on one screen: the form sits low with the intro above it. Past that (large text, keyboard
-        // up) the same content scrolls.
-        ViewThatFits(in: .vertical) {
-            layout(spacers: true)
-            ScrollView { layout(spacers: false) }.scrollBounceBehavior(.basedOnSize)
+        // One stable layout: a scroll view whose content is at least as tall as the screen, so the form sits
+        // low with the intro above it. Large text or the keyboard make it scroll. The view tree never
+        // changes with the available height, so the email field keeps focus when the keyboard rises.
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 40)
+                    intro
+                    Spacer(minLength: 40)
+                    form
+                }
+                .frame(minHeight: geo.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
         .background(Theme.background)
-    }
-
-    private func layout(spacers: Bool) -> some View {
-        VStack(spacing: 0) {
-            if spacers { Spacer(minLength: 40) } else { Color.clear.frame(height: 40) }
-            intro
-            if spacers { Spacer(minLength: 40) } else { Color.clear.frame(height: 40) }
-            form
-        }
     }
 
     private var intro: some View {

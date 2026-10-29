@@ -155,7 +155,7 @@ enum ScreenFormat {
         return m < 1 ? floor : Format.minutes(m)
     }
 
-    /// "Apr 25, 2026" in `tz`, worded for the user's locale.
+    /// "Apr 25, 2026" in `tz`, in English like the rest of the app (v1 strings are English, so no partial localisation).
     static func day(_ date: Date, _ tz: TimeZone) -> String {
         var style = mediumDay
         style.timeZone = tz
@@ -169,8 +169,8 @@ enum ScreenFormat {
         return date.formatted(style)
     }
 
-    private static let mediumDay = Date.FormatStyle(locale: .autoupdatingCurrent).month(.abbreviated).day().year()
-    private static let shortDay = Date.FormatStyle(locale: .autoupdatingCurrent).weekday(.abbreviated).month(.abbreviated).day()
+    private static let mediumDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).month(.abbreviated).day().year()
+    private static let shortDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.abbreviated).month(.abbreviated).day()
 }
 
 #if DEBUG

@@ -69,12 +69,14 @@ public struct MyFlightsView: View {
                     ErrorBanner(error: error, retry: reload)
                         .padding(.bottom, 14)
                 }
-                if !groups.isEmpty {
+                // A live subscription that is healthy keeps the list current even when nothing changes.
+                if !groups.isEmpty, !store.isLiveSynced {
                     SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now, bottom: 14)
                 }
             }
             if groups.isEmpty {
-                if !store.hasLoaded {
+                if !store.hasLoaded || (store.error != nil && store.isLoading) {
+                    // First load, or a retry after a failed one with nothing saved.
                     ProgressView()
                         .frame(maxWidth: .infinity, minHeight: 200)
                         .accessibilityLabel("Loading your flights")

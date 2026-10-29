@@ -31,6 +31,14 @@ public final class MyFlightsStore {
     /// When the list was last confirmed: now after a successful load or pushed update, the cache's save
     /// time while offline. Unlike `lastUpdated` (newest flight change) it measures how fresh the whole list is.
     public internal(set) var fetchedAt: Date?
+    /// True while a `load()` is running (the latest one, when calls overlap). Lets a retry after a failed
+    /// first load show progress instead of a frozen banner.
+    public private(set) var isLoading = false
+    /// True while the list is kept current by a healthy realtime subscription: the last load worked, the
+    /// device is online and the update loop is running. A quiet stream then means "nothing changed", not
+    /// "nothing heard", so screens skip the age badge. Offline, after a failed refresh, before the loop
+    /// starts and after it ends this is false and `fetchedAt` against the TTL decides.
+    public private(set) var isLiveSynced = false
     private var all: [Flight.ID: Flight] = [:]
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var unfollowedDuringLoad: Set<Flight.ID> = []
@@ -62,6 +70,8 @@ public final class MyFlightsStore {
         loadGeneration += 1
         let gen = loadGeneration
         unfollowedDuringLoad = []
+        isLoading = true
+        defer { if gen == loadGeneration { isLoading = false } }
         do {
             let list = try await service.followed()
             guard gen == loadGeneration else { return }
@@ -74,6 +84,7 @@ public final class MyFlightsStore {
             lastUpdated = merged.values.map(\.updatedAt).max()
             fetchedAt = Date.now
             error = nil; isOffline = false; hasLoaded = true
+            isLiveSynced = updatesTask != nil
             if updatesTask != nil, Set(all.keys) != subscribed { subscribe() }
             await cache?.save(flights: Array(merged.values))
         } catch {
@@ -81,6 +92,7 @@ public final class MyFlightsStore {
             self.error = error
             isOffline = error == .offline
             hasLoaded = true
+            isLiveSynced = false
             if isOffline, all.isEmpty, let cache {
                 let cached = await cache.flights()
                 let savedAt = await cache.flightsSavedAt()
@@ -96,6 +108,7 @@ public final class MyFlightsStore {
     public func startUpdates() {
         guard updatesTask == nil else { return }
         subscribe()
+        isLiveSynced = hasLoaded && error == nil && !isOffline
     }
 
     private func subscribe() {
@@ -107,6 +120,10 @@ public final class MyFlightsStore {
                 guard let self else { return }
                 self.apply(f)
             }
+            // The stream ended (cancelled by a re-subscribe leaves a newer task in place).
+            guard let self, !Task.isCancelled else { return }
+            self.updatesTask = nil
+            self.isLiveSynced = false
         }
     }
 

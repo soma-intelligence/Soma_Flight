@@ -186,3 +186,58 @@ import Testing
     }
     #endif
 }
+
+/// Task 6b fix round 2: live freshness, retry progress, hour labels and pinned wording.
+@Suite @MainActor struct ScreenReviewFixRound2Tests {
+    @Test func liveStreamIsFreshWhateverTheAge() async {
+        let svc = FakeFlightService(now: PreviewData.now)
+        let store = MyFlightsStore(flights: svc)
+        #expect(!store.isLiveSynced)
+        await store.load()
+        #expect(!store.isLiveSynced)            // loaded, but no update loop yet
+        store.startUpdates()
+        #expect(store.isLiveSynced)
+        store.fetchedAt = Date.now.addingTimeInterval(-3600)
+        #expect(store.isLiveSynced)             // quiet stream, still fresh
+
+        await svc.setNextError(.providerUnavailable)
+        await store.load()
+        #expect(!store.isLiveSynced)            // failed refresh: age decides again
+        await store.load()
+        #expect(store.isLiveSynced)             // recovered
+
+        let offline = MyFlightsStore(flights: svc, cache: PreviewCache(age: 600))
+        offline.startUpdates()
+        await svc.setNextError(.offline)
+        await offline.load()
+        #expect(!offline.isLiveSynced)
+    }
+
+    @Test func retryShowsLoading() async {
+        let svc = FakeFlightService(now: PreviewData.now)
+        let store = MyFlightsStore(flights: svc, cache: EmptyPreviewCache())
+        #expect(!store.isLoading)
+        await svc.setNextError(.providerUnavailable)
+        await store.load()
+        #expect(store.hasLoaded && store.error != nil && !store.isLoading)
+        let retry = Task { await store.load() }
+        await Task.yield()
+        await retry.value
+        #expect(!store.isLoading && store.error == nil)
+    }
+
+    @Test func hourLabelsFollowTheClock() {
+        #expect(DelayTrendChart.hourLabel(0, .h24) == "0")
+        #expect(DelayTrendChart.hourLabel(18, .h24) == "18")
+        #expect(DelayTrendChart.hourLabel(0, .h12) == "12 AM")
+        #expect(DelayTrendChart.hourLabel(12, .h12) == "12 PM")
+        #expect(DelayTrendChart.hourLabel(18, .h12) == "6 PM")
+    }
+
+    @Test func dayWordingIsEnglishWhateverTheDeviceLocale() {
+        let d = ISO8601DateFormatter().date(from: "2026-10-23T12:00:00Z")!
+        let utc = TimeZone(identifier: "UTC")!
+        #expect(ScreenFormat.day(d, utc) == "Oct 23, 2026")
+        #expect(ScreenFormat.chipDay(d, utc) == "Fri, Oct 23")
+    }
+}

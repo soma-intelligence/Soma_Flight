@@ -172,7 +172,13 @@ public struct DelayTrendChart: View {
         return abs(d.timeIntervalSince(nowBin)) > binLength * 1.5 || binMinutes < 60
     }
 
-    private func hourLabel(_ d: Date) -> String { "\(calendar.component(.hour, from: d))" }
+    private func hourLabel(_ d: Date) -> String { Self.hourLabel(calendar.component(.hour, from: d), units.clock) }
+
+    /// "18" on the 24-hour clock, "6 PM" on the 12-hour one.
+    static func hourLabel(_ hour: Int, _ style: TimeStyle) -> String {
+        guard style == .h12 else { return "\(hour)" }
+        return "\(hour % 12 == 0 ? 12 : hour % 12) \(hour < 12 ? "AM" : "PM")"
+    }
 }
 
 #if DEBUG
