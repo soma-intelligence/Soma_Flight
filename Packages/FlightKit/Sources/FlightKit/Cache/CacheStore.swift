@@ -41,6 +41,13 @@ public actor CacheStore: FlightListCache, PastFlightCache {
     public func flightsSavedAt() -> Date? { savedAt(.flights) }
     public func pastSavedAt() -> Date? { savedAt(.past) }
 
+    /// Drops every saved payload, so the next account on the device starts empty.
+    public func clear() {
+        let all = (try? modelContext.fetch(FetchDescriptor<CachedBlob>())) ?? []
+        for b in all { modelContext.delete(b) }
+        try? modelContext.save()
+    }
+
     private func blob(_ key: CacheKey) -> CachedBlob? {
         let raw = key.rawValue
         var d = FetchDescriptor<CachedBlob>(predicate: #Predicate { $0.key == raw })

@@ -12,7 +12,7 @@ public final class SearchStore {
     public private(set) var recent: [String] = []
 
     public static let recentLimit = 6
-    static let recentKey = "recentSearches"
+    nonisolated static let recentKey = "recentSearches"
 
     private let flights: any FlightService
     @ObservationIgnored private let defaults: UserDefaults?

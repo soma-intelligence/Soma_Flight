@@ -37,18 +37,46 @@ public enum GlobeSelection: Hashable, Sendable {
     case flight(Flight.ID)
 }
 
+/// What the shell wants the camera on: one flight's arc or one airport.
+public enum GlobeFocus: Hashable, Sendable {
+    case route(Route)
+    case airport(Airport)
+}
+
 /// Satellite globe with route arcs, airport dots and live planes.
 public struct GlobeMap: View {
     var routes: [Route]
     var planes: [FlightAnnotationModel]
     var airports: [Airport]
     @Binding var selection: GlobeSelection?
+    var focus: GlobeFocus?
+    var labels: Bool
     @State private var position: MapCameraPosition
 
-    public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>) {
+    /// - Parameters:
+    ///   - focus: moves the camera onto an arc or an airport; back to nil returns to the whole globe.
+    ///   - labels: place names over the imagery.
+    public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>,
+                focus: GlobeFocus? = nil, labels: Bool = false) {
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
-        _position = State(initialValue: .camera(Self.camera(routes: routes, planes: planes, airports: airports)))
+        self.focus = focus; self.labels = labels
+        let start = focus.map(Self.camera(for:)) ?? Self.camera(routes: routes, planes: planes, airports: airports)
+        _position = State(initialValue: .camera(start))
+    }
+
+    /// Centred on the middle of the arc, far enough out to see both ends; close in on an airport.
+    static func camera(for focus: GlobeFocus) -> MapCamera {
+        switch focus {
+        case .route(let r):
+            let pts = r.runs.flatMap { $0 }
+            let mid = pts.isEmpty ? r.from : pts[pts.count / 2]
+            let span = distanceKm(r.from, r.to) * 1000
+            return MapCamera(centerCoordinate: mid, distance: min(30_000_000, max(1_200_000, span * 2.8)), heading: 0, pitch: 0)
+        case .airport(let a):
+            return MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lon),
+                             distance: 22_000, heading: 0, pitch: 0)
+        }
     }
 
     /// Far enough out to see the whole globe, centred on what is shown (North America when empty).
@@ -98,11 +126,16 @@ public struct GlobeMap: View {
                 .tag(GlobeSelection.flight(p.id))
             }
         }
-        .mapStyle(.imagery(elevation: .realistic))
+        .mapStyle(labels ? .hybrid(elevation: .realistic, pointsOfInterest: .excludingAll) : .imagery(elevation: .realistic))
         .onChange(of: routes) {
-            // Follow new content unless the user has panned or zoomed the globe.
-            if !position.positionedByUser {
+            // Follow new content unless the user has panned or zoomed the globe, or a focus holds the camera.
+            if focus == nil, !position.positionedByUser {
                 position = .camera(Self.camera(routes: routes, planes: planes, airports: airports))
+            }
+        }
+        .onChange(of: focus) {
+            withAnimation(.smooth(duration: 0.9)) {
+                position = .camera(focus.map(Self.camera(for:)) ?? Self.camera(routes: routes, planes: planes, airports: airports))
             }
         }
         .mapControls {

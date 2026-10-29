@@ -1,0 +1,399 @@
+import FlightKit
+import SwiftUI
+
+/// The two tabs of the home sheet.
+enum RootTab: Hashable {
+    case flights, passport
+}
+
+/// A screen pushed inside the home sheet.
+enum SheetRoute: Hashable {
+    case flight(Flight.ID)
+    case airport(String)
+}
+
+/// The iOS home: the satellite globe full screen, a resizable sheet over it holding My Flights or
+/// Passport, a floating tab pill with a round search button, and a gear for Settings. Flights and
+/// airports open inside the sheet while the globe moves onto them.
+struct RootTabView: View {
+    let env: AppEnvironment
+
+    @State private var session: SessionStore
+    @State private var myFlights: MyFlightsStore
+    @State private var passport: PassportStore
+    @State private var tab: RootTab = .flights
+    @State private var path: [SheetRoute] = []
+    @State private var detent: PresentationDetent = .medium
+    @State private var selection: GlobeSelection?
+    @State private var labels = true
+    @State private var showSearch = false
+    @State private var showSettings = false
+    @State private var sheetHeight: CGFloat = 0
+    @AppStorage("units.distance") private var distance: DistanceUnit = .km
+    @AppStorage("units.clock24") private var clock24 = true
+
+    static let detents: Set<PresentationDetent> = [.height(120), .medium, .large]
+
+    init(env: AppEnvironment) {
+        self.env = env
+        _session = State(initialValue: env.makeSessionStore())
+        _myFlights = State(initialValue: env.makeMyFlightsStore())
+        _passport = State(initialValue: env.makePassportStore())
+    }
+
+    private var units: Units { Units(distance: distance, clock: clock24 ? .h24 : .h12) }
+
+    private var unitsBinding: Binding<Units> {
+        Binding(get: { units }, set: { distance = $0.distance; clock24 = $0.clock == .h24 })
+    }
+
+    private var followed: [Flight] { myFlights.live + myFlights.upcoming }
+
+    private var globe: GlobeContent {
+        switch tab {
+        case .flights: .followed(followed, lookup: env.lookup)
+        case .passport: .past(passport.flights, lookup: env.lookup)
+        }
+    }
+
+    /// The camera follows the screen on top of the sheet.
+    private var focus: GlobeFocus? {
+        switch path.last {
+        case .flight(let id):
+            followed.first { $0.id == id }.flatMap { GlobeContent.route(for: $0, lookup: env.lookup) }.map(GlobeFocus.route)
+        case .airport(let code):
+            env.lookup(code).map(GlobeFocus.airport)
+        case nil:
+            nil
+        }
+    }
+
+    var body: some View {
+        let content = globe
+        GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports,
+                 selection: $selection, focus: focus, labels: labels)
+            // The map draws full bleed on its own and keeps its controls clear of the status bar. The sheet
+            // covers the lower part, so its height joins the bottom inset and the camera centres above it.
+            .safeAreaPadding(.bottom, sheetHeight)
+            .overlay(alignment: .topTrailing) { mapButtons }
+            .sheet(isPresented: .constant(true)) { sheet }
+            .onChange(of: selection) { _, picked in
+                guard let picked else { return }
+                selection = nil
+                switch picked {
+                case .airport(let code): open(airport: code)
+                case .flight(let id): if let f = followed.first(where: { $0.id == id }) { open(flight: f) }
+                }
+            }
+            .onChange(of: session.session?.userId) { old, _ in
+                // A different account (or none) must not see the previous one's flights.
+                if old != nil { resetStores() }
+            }
+            .task {
+                session.start()
+                await load()
+                #if DEBUG
+                applyLaunchRoute()
+                #endif
+            }
+            .environment(\.units, units)
+    }
+
+    // MARK: Sheet
+
+    private var sheet: some View {
+        NavigationStack(path: $path) {
+            tabRoot
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: SheetRoute.self) { route in
+                    destination(route)
+                        .toolbar(.hidden, for: .navigationBar)
+                }
+        }
+        .presentationDetents(Self.detents, selection: $detent)
+        .presentationBackgroundInteraction(.enabled)
+        .presentationBackground(Theme.background)
+        .presentationCornerRadius(Theme.sheetRadius)
+        .interactiveDismissDisabled()
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
+        .sheet(isPresented: $showSearch) {
+            SearchSheet(env: env, onFollowed: { _ in Task { await myFlights.load() } })
+                .environment(\.units, units)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet(session: session, units: unitsBinding)
+                .environment(\.units, units)
+        }
+        .environment(\.units, units)
+    }
+
+    @ViewBuilder private var tabRoot: some View {
+        Group {
+            switch tab {
+            case .flights:
+                MyFlightsView(store: myFlights, onSelect: open(flight:), onSearch: { showSearch = true },
+                              lookup: env.lookup)
+            case .passport:
+                PassportView(store: passport, lookup: env.lookup)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            RoundButton(systemImage: "gearshape", label: "Settings") { showSettings = true }
+                .padding(.top, 19)
+                .padding(.trailing, 16)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            TabPill(tab: $tab, onSearch: { showSearch = true })
+        }
+    }
+
+    @ViewBuilder private func destination(_ route: SheetRoute) -> some View {
+        switch route {
+        case .flight(let id):
+            FlightScreen(env: env, id: id, onAirport: open(airport:), onClose: close)
+        case .airport(let code):
+            AirportScreen(env: env, code: code, onClose: close)
+        }
+    }
+
+    // MARK: Map controls
+
+    private var mapButtons: some View {
+        Button { labels.toggle() } label: {
+            Image(systemName: labels ? "map.fill" : "map")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+        }
+        .glassEffect(.regular.interactive(), in: .circle)
+        .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
+        // Under the map's own 3D toggle.
+        .padding(.trailing, 12)
+        .padding(.top, 58)
+    }
+
+    // MARK: Actions
+
+    private func open(flight: Flight) {
+        path = [.flight(flight.id)]
+        raiseIfCollapsed()
+    }
+
+    private func open(airport code: String) {
+        if path.last != .airport(code) { path.append(.airport(code)) }
+        raiseIfCollapsed()
+    }
+
+    private func close() {
+        if !path.isEmpty { path.removeLast() }
+    }
+
+    private func raiseIfCollapsed() {
+        if detent == .height(120) { detent = .medium }
+    }
+
+    private func load() async {
+        await myFlights.load()
+        myFlights.startUpdates()
+        await passport.load()
+    }
+
+    #if DEBUG
+    /// Screenshot runs open a screen without taps: `-tab passport`, `-open flight` (the first one in the
+    /// air) or `-open airport:KAUS`, and `-detent large` or `-detent small`.
+    private func applyLaunchRoute() {
+        let args = UserDefaults.standard
+        if args.string(forKey: "tab") == "passport" { tab = .passport }
+        switch args.string(forKey: "detent") {
+        case "large": detent = .large
+        case "small": detent = .height(120)
+        default: break
+        }
+        guard let target = args.string(forKey: "open") else { return }
+        if target == "flight", let f = myFlights.live.first ?? myFlights.upcoming.first {
+            open(flight: f)
+        } else if target.hasPrefix("airport:") {
+            open(airport: String(target.dropFirst("airport:".count)))
+        }
+    }
+    #endif
+
+    private func resetStores() {
+        path = []
+        myFlights = env.makeMyFlightsStore()
+        passport = env.makePassportStore()
+        Task { await load() }
+    }
+}
+
+// MARK: - Pushed screens
+
+/// Flight detail with its own store, loaded on appear.
+private struct FlightScreen: View {
+    @State private var store: FlightDetailStore
+    var onAirport: (String) -> Void
+    var onClose: () -> Void
+
+    init(env: AppEnvironment, id: Flight.ID, onAirport: @escaping (String) -> Void, onClose: @escaping () -> Void) {
+        _store = State(initialValue: env.makeFlightDetailStore(id: id))
+        self.onAirport = onAirport; self.onClose = onClose
+    }
+
+    var body: some View {
+        FlightDetailView(store: store, onAirport: onAirport)
+            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
+            .task { await store.load() }
+    }
+}
+
+/// Airport sheet with its own store; far-end city names come from the shared airport list.
+private struct AirportScreen: View {
+    @State private var store: AirportStore
+    var lookup: (String) -> Airport?
+    var onClose: () -> Void
+
+    init(env: AppEnvironment, code: String, onClose: @escaping () -> Void) {
+        _store = State(initialValue: env.makeAirportStore(code: code))
+        self.lookup = env.lookup; self.onClose = onClose
+    }
+
+    var body: some View {
+        AirportView(store: store, lookup: lookup)
+            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
+            .task { await store.load() }
+    }
+}
+
+/// Search in its own sheet over the home sheet.
+private struct SearchSheet: View {
+    @State private var store: SearchStore
+    var lookup: (String) -> Airport?
+    var onFollowed: (Flight) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    init(env: AppEnvironment, onFollowed: @escaping (Flight) -> Void) {
+        _store = State(initialValue: env.makeSearchStore())
+        self.lookup = env.lookup; self.onFollowed = onFollowed
+    }
+
+    var body: some View {
+        SearchView(store: store, onFollowed: onFollowed, lookup: lookup)
+            .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
+            .presentationDetents([.large])
+            .presentationBackground(Theme.background)
+            .presentationCornerRadius(Theme.sheetRadius)
+    }
+}
+
+private struct SettingsSheet: View {
+    var session: SessionStore
+    @Binding var units: Units
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        SettingsView(session: session, units: $units)
+            .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
+            .presentationDetents([.large])
+            .presentationBackground(Theme.background)
+            .presentationCornerRadius(Theme.sheetRadius)
+    }
+}
+
+// MARK: - Chrome
+
+/// Floating pill with the two tabs and the round search button beside it.
+private struct TabPill: View {
+    @Binding var tab: RootTab
+    var onSearch: () -> Void
+    @Namespace private var selectionSpace
+
+    /// Darkens the glass so the cards scrolling under it stay quiet, as in the reference.
+    static let tint = Color(light: 0xFFFFFF, dark: 0x1C1C1E).opacity(0.55)
+
+    var body: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 0) {
+                item(.flights, title: "My Flights", systemImage: "airplane.circle.fill")
+                item(.passport, title: "Passport", systemImage: "person.text.rectangle.fill")
+            }
+            .padding(4)
+            .glassEffect(.regular.tint(Self.tint), in: .capsule)
+
+            Button(action: onSearch) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 59, height: 59)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.tint(Self.tint).interactive(), in: .circle)
+            .accessibilityLabel("Search")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        // Sits 20 pt above the sheet's bottom edge, partly inside the home indicator inset, as in the reference.
+        .padding(.bottom, -14)
+    }
+
+    private func item(_ value: RootTab, title: String, systemImage: String) -> some View {
+        let selected = tab == value
+        return Button {
+            withAnimation(.snappy) { tab = value }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 21, weight: .medium))
+                    .frame(height: 25)
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(selected ? Theme.accent : Theme.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 51)
+            .background {
+                if selected {
+                    Capsule()
+                        .fill(Theme.primary.opacity(0.1))
+                        .matchedGeometryEffect(id: "selection", in: selectionSpace)
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Round grey button for the sheet header (Settings) and the close X, filled as in the reference.
+private struct RoundButton: View {
+    static let fill = Color(light: 0xE3E3E8, dark: 0x3A3A3C)
+
+    var systemImage: String
+    var label: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(Self.fill))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The circular X at the top right of a pushed screen or a modal sheet.
+private struct CloseButton: View {
+    var action: () -> Void
+
+    var body: some View {
+        RoundButton(systemImage: "xmark", label: "Close", action: action)
+            .padding(.top, 16)
+            .padding(.trailing, 16)
+    }
+}

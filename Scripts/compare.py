@@ -9,6 +9,9 @@ the page background to the same height.
 Screen slices (docs/screens/screens/airport-N.png) are set beside the reference screens they
 cover, stacked, as docs/screens/compare/screen-airport-N.png.
 
+iOS shell screenshots (docs/screens/ios/NAME.png, simulator captures at half of @3x) are set
+beside the whole reference screen, also halved, as docs/screens/compare/ios-NAME.png.
+
 Usage: python3 Scripts/compare.py [--refs "/Users/quentin/Desktop/Screenshot FLight app"]
 Needs Pillow (python3 -m pip install --user pillow).
 """
@@ -49,6 +52,23 @@ SCREEN_REFS = {
     "passport-2": [("10.50.56", (20, 50, 612, 1290), 1.5)],
     "settings": [("IMG_0313.PNG", (0, 190, 1320, 2868)), ("IMG_0314.PNG", (0, 380, 1320, 2868))],
 }
+
+
+# iOS shell: our simulator capture beside the full reference screen it matches.
+IOS = ROOT / "docs/screens/ios"
+IOS_REFS = {
+    "home": "IMG_0292.PNG",
+    "detail": "IMG_0294.PNG",  # no flight sheet in the references: compared for the sheet chrome
+    "airport": "IMG_0294.PNG",
+    "passport": "IMG_0310.PNG",
+}
+
+
+def compose_ios(name: str, refs: Path) -> Path:
+    ref = open_ref(refs, IOS_REFS[name])
+    left = ref.resize((ref.width // 2, ref.height // 2), Image.LANCZOS)
+    right = Image.open(IOS / f"{name}.png").convert("RGB")
+    return side_by_side(left, right, OUT / f"ios-{name}.png")
 
 
 def open_ref(refs: Path, name: str) -> Image.Image:
@@ -112,10 +132,14 @@ def compose(name: str, refs: Path) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--refs", default="/Users/quentin/Desktop/Screenshot FLight app")
-    ap.add_argument("names", nargs="*", default=list(CROPS) + list(SCREEN_REFS))
+    ap.add_argument("names", nargs="*", default=list(CROPS) + list(SCREEN_REFS) + [f"ios-{n}" for n in IOS_REFS])
     args = ap.parse_args()
     for n in args.names:
-        print(compose_screen(n, Path(args.refs)) if n in SCREEN_REFS else compose(n, Path(args.refs)))
+        refs = Path(args.refs)
+        if n.startswith("ios-"):
+            print(compose_ios(n.removeprefix("ios-"), refs))
+        else:
+            print(compose_screen(n, refs) if n in SCREEN_REFS else compose(n, refs))
 
 
 if __name__ == "__main__":
