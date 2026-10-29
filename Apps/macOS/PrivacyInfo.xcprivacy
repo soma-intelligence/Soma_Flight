@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Soma Flight (macOS). Same data as iOS: email, user id, followed flights and flight history, linked, app function only, no tracking. UserDefaults: the app's own settings and recent searches (CA92.1); the Mac has no App Group. No other required-reason API. -->
+<!-- Soma Flight (macOS). Same as iOS without push tokens (the Mac registers none): email, user id, followed flights and flight history, per-user rate-limit events; linked, app function only, no tracking. UserDefaults: the app's own settings and recent searches (CA92.1); the Mac has no App Group. No other required-reason API. -->
 <plist version="1.0">
 <dict>
 	<key>NSPrivacyTracking</key>
@@ -36,6 +36,18 @@
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>

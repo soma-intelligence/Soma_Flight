@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Synchronization
 import SwiftData
 
@@ -32,12 +33,35 @@ public actor CacheStore: FlightListCache, PastFlightCache {
         try make(configuration: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
-    /// On-disk store at `url`, by default `Application Support/SomaFlight/cache.store` (its folder is made
-    /// when missing). A store left at SwiftData's default location by earlier builds is not migrated: it is
-    /// a cache, the next load fills the new one.
-    public static func onDisk(url: URL = defaultURL) throws -> CacheStore {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    /// On-disk store at `url`, by default `Application Support/SomaFlight/cache.store`. Its folder is made
+    /// when missing and kept out of iCloud and device backups (a cache of personal data, rebuilt from the
+    /// backend). The store earlier builds left at SwiftData's default location (`default.store` and its
+    /// `-wal` and `-shm` files in `legacyDirectory`) is deleted rather than migrated, so a sign-out or an
+    /// account deletion leaves no older copy of the account's flights behind.
+    public static func onDisk(url: URL = defaultURL,
+                              legacyDirectory: URL = .applicationSupportDirectory) throws -> CacheStore {
+        removeLegacyStore(in: legacyDirectory)
+        var folder = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        do { try folder.setResourceValues(values) } catch {
+            log.error("Excluding the cache from backups failed: \(String(describing: error), privacy: .public)")
+        }
         return try make(configuration: ModelConfiguration("cache", url: url))
+    }
+
+    private static let log = Logger(subsystem: "me.somalabs.flight", category: "cache")
+
+    /// Best effort: a file that cannot go is logged and tried again at the next launch.
+    static func removeLegacyStore(in directory: URL) {
+        for name in ["default.store", "default.store-wal", "default.store-shm"] {
+            let file = directory.appending(path: name, directoryHint: .notDirectory)
+            guard FileManager.default.fileExists(atPath: file.path()) else { continue }
+            do { try FileManager.default.removeItem(at: file) } catch {
+                log.error("Removing the old cache \(name, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     /// `Application Support/SomaFlight/cache.store` (inside the app's container on both platforms).

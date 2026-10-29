@@ -74,8 +74,9 @@ import Testing
 
     @Test func exportFileIsWrittenUnderItsName() async throws {
         let export = HistoryExport(format: .csv, history: FakeHistoryService())
-        let url = try await export.writeFile()
-        defer { try? FileManager.default.removeItem(at: url) }
+        let tmp = FileManager.default.temporaryDirectory.appending(path: "export-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let url = try await export.writeFile(in: tmp)
         #expect(url.lastPathComponent == HistoryExport.fileName(for: .csv, on: .now))
         let rows = Self.records(try Data(contentsOf: url))
         #expect(rows.first == Self.header)
@@ -87,5 +88,50 @@ import Testing
         await history.setNextError(.offline)
         let export = HistoryExport(format: .json, history: history)
         await #expect(throws: APIError.offline) { try await export.writeFile() }
+    }
+
+    @Test func leftoverExportFilesAreRemoved() async throws {
+        let tmp = FileManager.default.temporaryDirectory.appending(path: "export-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let a = try await HistoryExport(format: .csv, history: FakeHistoryService()).writeFile(in: tmp)
+        let b = try await HistoryExport(format: .json, history: FakeHistoryService()).writeFile(in: tmp)
+        let other = tmp.appending(path: "keep.txt")
+        try Data("x".utf8).write(to: other)
+        HistoryExport.removeTemporaryFiles(in: tmp)
+        #expect(!FileManager.default.fileExists(atPath: a.path()))
+        #expect(!FileManager.default.fileExists(atPath: b.path()))
+        #expect(FileManager.default.fileExists(atPath: other.path()))
+    }
+}
+
+/// Review round 1: spreadsheet formula injection.
+@Suite struct ExportFormulaTests {
+    @Test func formulaTextCellsAreDefused() {
+        let f = ExportTests.flight(airline: "=SUM(A1)", seat: "-1+1")
+        var g = f
+        g.registration = "@x"
+        g.aircraftType = "+cmd"
+        let rows = ExportTests.records(PastFlight.csv([f, g]))
+        #expect(rows[1].contains(",'=SUM(A1),"))
+        #expect(rows[1].contains(",'-1+1,"))
+        #expect(rows[2].contains(",'@x,"))
+        #expect(rows[2].contains(",'+cmd,"))
+    }
+
+    @Test func tabAndCarriageReturnAreDefused() {
+        #expect(PastFlight.csvText("\tx") == "'\tx")
+        #expect(PastFlight.csvText("\rx") == "'\rx")
+        #expect(PastFlight.csvText("AF84") == "AF84")
+        #expect(PastFlight.csvText("") == "")
+        // Quoting still applies after the prefix.
+        let row = ExportTests.records(PastFlight.csv([ExportTests.flight(airline: "=a,b")]))[1]
+        #expect(row.contains(",\"'=a,b\","))
+    }
+
+    @Test func negativeDelayStaysNumeric() {
+        var f = ExportTests.flight()
+        f.delayMinutes = -5
+        let row = ExportTests.records(PastFlight.csv([f]))[1]
+        #expect(row.hasSuffix(",690,-5,completed"))
     }
 }

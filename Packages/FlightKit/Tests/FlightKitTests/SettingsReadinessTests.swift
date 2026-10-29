@@ -114,7 +114,68 @@ import Testing
             == "Delete your account? Your followed flights and flight history will be removed. This can't be undone.")
     }
 
+    @Test func oldDefaultStoreIsDeletedAndCacheSkipsBackups() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "legacy-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let names = ["default.store", "default.store-wal", "default.store-shm"]
+        for n in names { try Data("old".utf8).write(to: root.appending(path: n)) }
+        let unrelated = root.appending(path: "other.store")
+        try Data("keep".utf8).write(to: unrelated)
+        let url = root.appending(path: "SomaFlight/cache.store")
+        _ = try CacheStore.onDisk(url: url, legacyDirectory: root)
+        for n in names { #expect(!FileManager.default.fileExists(atPath: root.appending(path: n).path())) }
+        #expect(FileManager.default.fileExists(atPath: unrelated.path()))
+        let folder = url.deletingLastPathComponent()
+        #expect(try folder.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+        // Nothing to delete the second time.
+        _ = try CacheStore.onDisk(url: url, legacyDirectory: root)
+    }
+
+    @Test func deletionClearsASessionTheAuthStreamKept() async throws {
+        let auth = SilentDeleteAuth()
+        let session = SessionStore(auth: auth)
+        session.start()
+        await eventually { session.session != nil }
+        #expect(await session.deleteAccount())
+        #expect(session.session == nil)
+        #expect(session.error == nil)
+    }
+
+    @Test func failedDeletionReportsFalse() async throws {
+        let auth = FakeAuthService()
+        let session = SessionStore(auth: auth)
+        session.start()
+        try await auth.signInWithApple(idToken: "t", nonce: "n")
+        await eventually { session.session != nil }
+        await auth.setNextError(.offline)
+        #expect(await session.deleteAccount() == false)
+        #expect(session.session != nil)
+    }
+
+    @Test func endedFlightsShowNoAlertSwitch() {
+        #expect(!DetailFacts.takesAlerts(PreviewData.canceled))
+        #expect(DetailFacts.takesAlerts(PreviewData.enRoute))
+        #expect(DetailFacts.takesAlerts(PreviewData.diverted))
+    }
+
     private func eventually(_ cond: () -> Bool) async {
         for _ in 0..<300 where !cond() { try? await Task.sleep(for: .milliseconds(10)) }
     }
+}
+
+/// Signed in from the start; deleting succeeds on the server but the local sign-out reports nothing (the
+/// `try? signOut(scope: .local)` failure case).
+private final class SilentDeleteAuth: AuthService {
+    let session: AsyncStream<UserSession?>
+    init() {
+        let (stream, cont) = AsyncStream<UserSession?>.makeStream()
+        cont.yield(UserSession(userId: UUID(), email: "a@b.c", plan: .free))
+        session = stream
+        // The continuation is dropped on purpose: no further event ever arrives.
+    }
+    func signInWithApple(idToken: String, nonce: String) async throws(APIError) {}
+    func signInWithEmail(_ email: String) async throws(APIError) {}
+    func signOut() async {}
+    func deleteAccount() async throws(APIError) {}
 }

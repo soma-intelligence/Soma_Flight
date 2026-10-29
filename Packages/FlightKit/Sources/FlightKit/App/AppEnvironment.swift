@@ -58,7 +58,8 @@ public struct AppEnvironment: Sendable {
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
     /// over an in-memory cache (screenshot runs), anything else the backend (`live()`). Both shells call this.
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
-        arguments.contains("-useFakes") ? try await fake() : try await live()
+        HistoryExport.removeTemporaryFiles()
+        return arguments.contains("-useFakes") ? try await fake() : try await live()
     }
 
     /// Airport by ICAO or IATA, for the screens' `lookup`.
@@ -78,6 +79,7 @@ public struct AppEnvironment: Sendable {
     public func adopt(user: UUID?) async throws {
         guard await !cache.isOwned(by: user) else { return }
         recentsDefaults?.removeObject(forKey: SearchStore.recentKey)
+        HistoryExport.removeTemporaryFiles()
         try await cache.claim(for: user)
     }
 

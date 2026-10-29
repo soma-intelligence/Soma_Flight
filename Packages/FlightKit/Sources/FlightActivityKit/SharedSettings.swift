@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Settings the app shares with its widget extension through the App Group. Only the clock today: the
 /// Live Activity shows times the way Settings asks (24 or 12 hour).
@@ -12,7 +13,10 @@ public enum SharedSettings {
     /// extension and no App Group. Falls back to the app's own when the group cannot be opened.
     public static var defaults: UserDefaults {
         #if os(iOS)
-        UserDefaults(suiteName: appGroup) ?? .standard
+        if let group = UserDefaults(suiteName: appGroup) { return group }
+        Logger(subsystem: "me.somalabs.flight", category: "settings")
+            .error("App Group \(appGroup, privacy: .public) unavailable: the Live Activity will not see the clock setting")
+        return .standard
         #else
         .standard
         #endif

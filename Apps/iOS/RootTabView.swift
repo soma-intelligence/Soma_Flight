@@ -173,7 +173,7 @@ private struct SettingsSheet: View {
     var session: SessionStore
     @Binding var units: Units
     var history: any HistoryService
-    var onDeleteAccount: () async -> Void
+    var onDeleteAccount: () async -> Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

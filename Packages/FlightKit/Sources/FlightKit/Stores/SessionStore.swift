@@ -120,13 +120,22 @@ public final class SessionStore {
         await auth.signOut()
     }
 
-    /// On failure `error` is set and the session stays.
-    public func deleteAccount() async {
+    /// True once the server erased the account; the session is then gone, even when the local sign-out
+    /// that follows did not report it (the user no longer exists). On failure `error` is set, the session
+    /// stays and the result is false.
+    @discardableResult
+    public func deleteAccount() async -> Bool {
         do {
             try await auth.deleteAccount()
-            error = nil
-            await handOver(to: nil)
-        } catch { self.error = error }
+        } catch {
+            self.error = error
+            return false
+        }
+        error = nil
+        retryTask?.cancel()
+        await handOver(to: nil)
+        session = nil
+        return true
     }
 
     @discardableResult

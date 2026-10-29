@@ -8,7 +8,7 @@ public struct SettingsView: View {
     @Binding var units: Units
     var onSignIn: (() -> Void)?
     var history: (any HistoryService)?
-    var onDeleteAccount: (() async -> Void)?
+    var onDeleteAccount: (() async -> Bool)?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -39,15 +39,15 @@ public struct SettingsView: View {
     ///   - history: where the JSON and CSV exports are read from, built on the device and handed to the
     ///     share sheet; nil hides the export rows.
     ///   - onDeleteAccount: runs after the user confirms deleting the account (`SessionStore.deleteAccount()`);
-    ///     nil hides the row. When it returns with the account still signed in, its error is shown.
+    ///     nil hides the row. When it returns false, the session's error is shown.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Void)? = nil) {
+                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
                   onDeleteAccount: onDeleteAccount, scrolls: true)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Void)? = nil, scrolls: Bool,
+         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil, scrolls: Bool,
          dataNote: Bool = SettingsView.defaultDataNote) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
         self.onDeleteAccount = onDeleteAccount; self.scrolls = scrolls; self.dataNote = dataNote
@@ -107,7 +107,11 @@ public struct SettingsView: View {
                     if onDeleteAccount != nil, session.session != nil {
                         SettingsRow(icon: "trash.fill", title: "Delete Account", tint: Theme.veryLate, last: true,
                                     action: deleting ? nil : { confirming = .deleteAccount }) {
-                            if deleting { ProgressView().controlSize(.small) }
+                            if deleting {
+                                ProgressView().controlSize(.small)
+                                    .accessibilityLabel("Deleting account")
+                                    .accessibilityAddTraits(.updatesFrequently)
+                            }
                         }
                     }
                 }
@@ -158,9 +162,9 @@ public struct SettingsView: View {
         guard let onDeleteAccount, !deleting else { return }
         deleting = true
         Task {
-            await onDeleteAccount()
+            let deleted = await onDeleteAccount()
             deleting = false
-            if session.session != nil, let error = session.error { deleteFailure = error }
+            if !deleted { deleteFailure = session.error ?? .providerUnavailable }
         }
     }
 
@@ -257,6 +261,8 @@ struct ExportRow: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint("Opens the share sheet")
     }
 }
 
@@ -345,7 +351,7 @@ struct SettingsPreview: View {
             if let session {
                 if full {
                     SettingsView(session: session, units: $units, onSignIn: {}, history: FakeHistoryService(),
-                                 onDeleteAccount: {})
+                                 onDeleteAccount: { true })
                 } else {
                     SettingsView(session: session, units: $units, onSignIn: {})
                 }

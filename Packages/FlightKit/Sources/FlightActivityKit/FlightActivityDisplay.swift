@@ -89,7 +89,8 @@ public struct FlightActivityDisplay: Sendable, Hashable {
     public var originZone: TimeZone { attributes.originTimeZone.flatMap(TimeZone.init(identifier:)) ?? .current }
     public var destinationZone: TimeZone { attributes.destinationTimeZone.flatMap(TimeZone.init(identifier:)) ?? .current }
 
-    /// "18:25", or "6:25 PM" with `twelveHour`, local time at the airport.
+    /// "18:25", or "6:25 PM" with `twelveHour`, local time at the airport. English only, like the rest of
+    /// v1: AM and PM are not localized.
     public static func clock(_ date: Date?, _ tz: TimeZone, twelveHour: Bool = false) -> String {
         guard let date else { return "--:--" }
         var cal = Calendar(identifier: .gregorian)

@@ -45,17 +45,27 @@ extension PastFlight {
 
     /// RFC 4180 CSV: CRLF between records, a field holding a comma, a double quote, CR or LF is wrapped in
     /// double quotes with its quotes doubled. Dates are ISO 8601 in UTC; a missing value is an empty field.
+    /// Text cells are defused against spreadsheet formulas (`csvText`); dates and numbers are left as they
+    /// are, so a negative delay stays a number. No byte order mark: plain UTF-8 (Excel needs the BOM to
+    /// read non-ASCII airline names, an owner call).
     public static func csv(_ past: [PastFlight]) -> Data {
         var records = [csvHeader]
         for p in past {
-            let fields: [String] = [
-                PastFlightExport.utc.string(from: p.date), p.ident, p.originIcao, p.destinationIcao, p.airline ?? "",
-                p.aircraftType ?? "", p.registration ?? "", p.seat ?? "", String(p.distanceKm),
-                p.blockMinutes.map(String.init) ?? "", String(p.delayMinutes), p.status.rawValue,
+            let text = [p.ident, p.originIcao, p.destinationIcao, p.airline ?? "", p.aircraftType ?? "",
+                        p.registration ?? "", p.seat ?? ""].map(csvText)
+            let fields: [String] = [PastFlightExport.utc.string(from: p.date)] + text + [
+                String(p.distanceKm), p.blockMinutes.map(String.init) ?? "", String(p.delayMinutes), p.status.rawValue,
             ]
             records.append(fields.map(csvField).joined(separator: ","))
         }
         return Data(records.joined(separator: "\r\n").utf8)
+    }
+
+    /// A text cell a spreadsheet would run as a formula (first character `=`, `+`, `-`, `@`, TAB or CR)
+    /// gets a leading single quote, which shows it as text.
+    static func csvText(_ s: String) -> String {
+        guard let first = s.unicodeScalars.first, "=+-@\t\r".unicodeScalars.contains(first) else { return s }
+        return "'" + s
     }
 
     static func csvField(_ s: String) -> String {
@@ -89,15 +99,28 @@ public struct HistoryExport: Transferable, Sendable {
         return "soma-flight-history-\(day).\(format == .csv ? "csv" : "json")"
     }
 
-    /// Writes the export into its own temporary folder and returns the file. Throws the service's error.
-    func writeFile() async throws(APIError) -> URL {
+    static let folderPrefix = "HistoryExport-"
+
+    /// Writes the export into its own temporary folder and returns the file. Throws the service's error;
+    /// the share sheet then fails without a message of its own (v1).
+    func writeFile(in temporary: URL = FileManager.default.temporaryDirectory) async throws(APIError) -> URL {
         let data = try await history.export(format)
-        let dir = FileManager.default.temporaryDirectory.appending(path: "HistoryExport-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let dir = temporary.appending(path: Self.folderPrefix + UUID().uuidString, directoryHint: .isDirectory)
         let url = dir.appending(path: Self.fileName(for: format, on: .now))
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
         } catch { throw .localData }
         return url
+    }
+
+    /// Deletes every export file left in the temporary folder (they hold the whole history). Runs at launch
+    /// and whenever the device's data is wiped for another account.
+    public static func removeTemporaryFiles(in temporary: URL = FileManager.default.temporaryDirectory) {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: temporary.path()) else { return }
+        for name in names where name.hasPrefix(folderPrefix) {
+            try? fm.removeItem(at: temporary.appending(path: name, directoryHint: .isDirectory))
+        }
     }
 }

@@ -83,7 +83,7 @@ public struct FlightDetailView: View {
                     .scaledPadding(.bottom, 12)
                 AircraftRow(type: flight.aircraftType, registration: flight.registration)
             }
-            if let notify = store.notify {
+            if let notify = store.notify, DetailFacts.takesAlerts(flight) {
                 section {
                     SectionHeader("Alerts")
                         .scaledPadding(.bottom, 8)
@@ -418,6 +418,11 @@ struct EventRow: View {
 
 enum DetailFacts {
     /// "Air France  ·  In the air" style caption under the title.
+    /// Canceled and finished flights send no more alerts, so they show no switch.
+    static func takesAlerts(_ f: Flight) -> Bool {
+        ![.canceled, .landed, .arrived].contains(f.status)
+    }
+
     static func caption(_ f: Flight) -> String {
         let status: String = switch f.status {
         case .scheduled, .unknown: "Scheduled"

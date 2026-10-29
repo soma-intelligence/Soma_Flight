@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Soma Flight (iOS). Collected, linked to the account, for app function only: the sign-in email, the account's user id, and the flights the user follows and their flight history (other user content). No tracking. UserDefaults: the app's own settings and recent searches (CA92.1) and the clock setting in the App Group shared with the widget extension (1C8F.1). No file timestamp, disk space, boot time or keyboard APIs. -->
+<!-- Soma Flight (iOS). Collected, linked to the account, for app function only, never for tracking: the sign-in email, the account's user id, the flights the user follows and their flight history (other user content), the APNs device and Live Activity push tokens stored against the user in push_tokens (device id), and per-user rate-limit events (which backend function was called and when, in rate_events: product interaction). Searches are not stored per user (route_cache is shared). UserDefaults: the app's own settings and recent searches (CA92.1) and the clock setting in the App Group shared with the widget extension (1C8F.1). No file timestamp, disk space, boot time or keyboard APIs. -->
 <plist version="1.0">
 <dict>
 	<key>NSPrivacyTracking</key>
@@ -36,6 +36,30 @@
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
