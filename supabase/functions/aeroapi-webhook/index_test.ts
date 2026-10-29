@@ -750,14 +750,17 @@ wtest(
     assertEquals(again.data?.actual_out, first);
     const events = await eventsOf(id);
     assertEquals(events.filter((e) => e.kind === "cancel").length, 1);
-    // Each delay event starts from the previous one's value: the chain was serialised.
-    const delays = events.filter((e) => e.kind === "delay").sort((a, b) =>
-      a.received_at < b.received_at ? -1 : 1
-    );
-    let last: number | null = null;
-    for (const d of delays) {
-      assertEquals(d.payload.previous_delay_minutes, last);
-      last = d.payload.delay_minutes;
+    // Each delay event starts from the previous one's value, whatever the commit order:
+    // exactly one starts from nothing and every other start is another event's value.
+    const delays = events.filter((e) => e.kind === "delay");
+    if (delays.length > 0) {
+      const values = delays.map((d) => d.payload.delay_minutes);
+      const prevs = delays.map((d) => d.payload.previous_delay_minutes);
+      assertEquals(prevs.filter((x) => x === null).length, 1);
+      assertEquals(new Set(prevs).size, prevs.length);
+      for (const pv of prevs.filter((x) => x !== null)) {
+        assert(values.includes(pv));
+      }
     }
     assertEquals(p.calls.length, events.length);
   },
@@ -846,4 +849,152 @@ wtest("a literal backslash-u0000 in a text field is not a NUL", async () => {
   );
   assertEquals(res.status, 200);
   assertEquals((await eventsOf(id)).length, 1);
+});
+
+wtest(
+  "status never goes down from en_route or landed; diverted stays diverted",
+  async () => {
+    const p = fakePush();
+    const quiet = { gate_origin: null, terminal_origin: null };
+    const send = (
+      providerId: string,
+      code: string,
+      alertId: number,
+      f: Record<string, unknown>,
+    ) =>
+      handler(
+        post(
+          delivery(gateFixture, providerId, { ...quiet, ...f }, {
+            event_code: code,
+            alert_id: alertId,
+          }),
+        ),
+        deps(p),
+      );
+    const status = async (id: string) =>
+      (await db.from("flights").select("status").eq("id", id).single()).data
+        ?.status;
+
+    const a = await followedFlight();
+    await send(a.providerId, "off", 1, {
+      actual_out: "2026-11-03T22:41:00Z",
+      actual_off: "2026-11-03T22:58:00Z",
+    });
+    assertEquals(await status(a.id), "en_route");
+    await send(a.providerId, "change", 2, {}); // older body, no actuals
+    await send(a.providerId, "out", 3, { actual_out: "2026-11-03T22:41:00Z" }); // only the gate-out
+    assertEquals(await status(a.id), "en_route");
+    await send(a.providerId, "on", 4, { actual_on: "2026-11-04T08:55:00Z" });
+    assertEquals(await status(a.id), "landed");
+    await send(a.providerId, "off", 5, { actual_off: "2026-11-03T22:58:00Z" });
+    await send(a.providerId, "change", 6, {});
+    assertEquals(await status(a.id), "landed");
+
+    const b = await followedFlight();
+    await send(b.providerId, "diverted", 1, {
+      diverted: true,
+      destination_icao: "KOAK",
+    });
+    assertEquals(await status(b.id), "diverted");
+    await send(b.providerId, "cancelled", 2, { cancelled: true });
+    await send(b.providerId, "off", 3, {
+      actual_out: "2026-11-03T22:41:00Z",
+      actual_off: "2026-11-03T22:58:00Z",
+    });
+    await send(b.providerId, "in", 4, { actual_in: "2026-11-04T09:05:00Z" });
+    assertEquals(await status(b.id), "diverted");
+    assertEquals((await eventsOf(b.id)).map((e) => e.kind), ["diversion"]);
+  },
+);
+
+wtest(
+  "an estimate in later bodies is ignored once the actual exists, under parallel load",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    await handler(
+      post(delivery(departureFixture, providerId, {}, { alert_id: 1 })),
+      deps(p),
+    );
+    const before = await db.from("flights").select(
+      "estimated_out, actual_out, estimated_in",
+    ).eq("id", id).single();
+    const bodies = [0, 1, 2, 3, 4, 5].map((i) =>
+      handler(
+        post(delivery(gateFixture, providerId, {
+          gate_origin: null,
+          terminal_origin: null,
+          estimated_out: `2026-11-03T23:${10 + i}:00Z`,
+          estimated_in: `2026-11-04T10:${10 + i}:00Z`,
+        }, { alert_id: 10 + i })),
+        deps(p),
+      )
+    );
+    await Promise.all(bodies);
+    const after = await db.from("flights").select(
+      "estimated_out, actual_out, estimated_in",
+    ).eq("id", id).single();
+    assertEquals(after.data?.estimated_out, before.data?.estimated_out);
+    assertEquals(after.data?.actual_out, before.data?.actual_out);
+    // estimated_in has no actual yet, so one of the new values lands.
+    assert(after.data?.estimated_in !== before.data?.estimated_in);
+  },
+);
+
+wtest(
+  "a timestamp Postgres would reject is an inbox error with 200, never a retry loop",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    const u0 = await usage();
+    const bad: unknown[] = [
+      "2026-13-45T99:00:00Z",
+      "2026-02-30T10:00:00Z",
+      "yesterday",
+      "2026-11-03 22:30:00",
+      "2026-11-03T22:30:00",
+      12345,
+      "0000-01-01T00:00:00Z",
+    ];
+    for (const t of bad) {
+      const res = await handler(
+        post(delivery(gateFixture, providerId, { actual_out: t })),
+        deps(p),
+      );
+      assertEquals(res.status, 200, String(t));
+    }
+    assertEquals((await eventsOf(id)).length, 0);
+    assertEquals(p.calls.length, 0);
+    assertEquals((await usage())?.calls, u0?.calls);
+    const rows = await db.from("webhook_inbox").select("error, processed_at")
+      .order("id", { ascending: false }).limit(bad.length);
+    assertEquals((rows.data ?? []).length, bad.length);
+    for (const r of rows.data ?? []) {
+      assert(r.error);
+      assert(r.processed_at);
+    }
+    // Valid offsets still work.
+    const ok = await handler(
+      post(
+        delivery(gateFixture, providerId, {
+          actual_out: "2026-11-03T23:41:00+01:00",
+        }),
+      ),
+      deps(p),
+    );
+    assertEquals(ok.status, 200);
+  },
+);
+
+wtest("changes keep an explicit null for a first-time value", async () => {
+  const p = fakePush();
+  const { id, providerId } = await followedFlight();
+  await handler(
+    post(delivery(gateFixture, providerId, { gate_origin: "K50" })),
+    deps(p),
+  );
+  const ev = (await eventsOf(id))[0];
+  assert("from" in ev.payload.changes.gate_origin);
+  assertEquals(ev.payload.changes.gate_origin.from, null);
+  assertEquals(ev.payload.changes.gate_origin.to, "K50");
 });

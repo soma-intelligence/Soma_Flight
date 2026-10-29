@@ -146,28 +146,29 @@ begin
       v_primary := 'gate_change';
     end if;
 
-    v_changes := jsonb_strip_nulls(jsonb_build_object(
-      'scheduled_out', case when n_sched_out is distinct from f.scheduled_out then jsonb_build_object('from', f.scheduled_out, 'to', n_sched_out) end,
-      'scheduled_in', case when n_sched_in is distinct from f.scheduled_in then jsonb_build_object('from', f.scheduled_in, 'to', n_sched_in) end,
-      'estimated_out', case when n_est_out is distinct from f.estimated_out then jsonb_build_object('from', f.estimated_out, 'to', n_est_out) end,
-      'estimated_in', case when n_est_in is distinct from f.estimated_in then jsonb_build_object('from', f.estimated_in, 'to', n_est_in) end,
-      'actual_out', case when n_act_out is distinct from f.actual_out then jsonb_build_object('from', f.actual_out, 'to', n_act_out) end,
-      'actual_off', case when n_act_off is distinct from f.actual_off then jsonb_build_object('from', f.actual_off, 'to', n_act_off) end,
-      'actual_on', case when n_act_on is distinct from f.actual_on then jsonb_build_object('from', f.actual_on, 'to', n_act_on) end,
-      'actual_in', case when n_act_in is distinct from f.actual_in then jsonb_build_object('from', f.actual_in, 'to', n_act_in) end,
-      'gate_origin', case when n_gate_o is distinct from f.gate_origin then jsonb_build_object('from', f.gate_origin, 'to', n_gate_o) end,
-      'gate_destination', case when n_gate_d is distinct from f.gate_destination then jsonb_build_object('from', f.gate_destination, 'to', n_gate_d) end,
-      'terminal_origin', case when n_term_o is distinct from f.terminal_origin then jsonb_build_object('from', f.terminal_origin, 'to', n_term_o) end,
-      'terminal_destination', case when n_term_d is distinct from f.terminal_destination then jsonb_build_object('from', f.terminal_destination, 'to', n_term_d) end,
-      'baggage_belt', case when n_belt is distinct from f.baggage_belt then jsonb_build_object('from', f.baggage_belt, 'to', n_belt) end,
-      'aircraft_type', case when n_ac is distinct from f.aircraft_type then jsonb_build_object('from', f.aircraft_type, 'to', n_ac) end,
-      'registration', case when n_reg is distinct from f.registration then jsonb_build_object('from', f.registration, 'to', n_reg) end,
-      'origin_icao', case when n_o_icao is distinct from f.origin_icao then jsonb_build_object('from', f.origin_icao, 'to', n_o_icao) end,
-      'origin_iata', case when n_o_iata is distinct from f.origin_iata then jsonb_build_object('from', f.origin_iata, 'to', n_o_iata) end,
-      'destination_icao', case when n_d_icao is distinct from f.destination_icao then jsonb_build_object('from', f.destination_icao, 'to', n_d_icao) end,
-      'destination_iata', case when n_d_iata is distinct from f.destination_iata then jsonb_build_object('from', f.destination_iata, 'to', n_d_iata) end,
-      'status', case when n_status is distinct from f.status then jsonb_build_object('from', f.status, 'to', n_status) end
-    ));
+    -- Keep explicit nulls inside each entry ({"from": null, "to": ...}); drop only unchanged fields.
+    v_changes := coalesce((select jsonb_object_agg(t.k, t.v) from (values
+      ('scheduled_out', case when n_sched_out is distinct from f.scheduled_out then jsonb_build_object('from', f.scheduled_out, 'to', n_sched_out) end),
+      ('scheduled_in', case when n_sched_in is distinct from f.scheduled_in then jsonb_build_object('from', f.scheduled_in, 'to', n_sched_in) end),
+      ('estimated_out', case when n_est_out is distinct from f.estimated_out then jsonb_build_object('from', f.estimated_out, 'to', n_est_out) end),
+      ('estimated_in', case when n_est_in is distinct from f.estimated_in then jsonb_build_object('from', f.estimated_in, 'to', n_est_in) end),
+      ('actual_out', case when n_act_out is distinct from f.actual_out then jsonb_build_object('from', f.actual_out, 'to', n_act_out) end),
+      ('actual_off', case when n_act_off is distinct from f.actual_off then jsonb_build_object('from', f.actual_off, 'to', n_act_off) end),
+      ('actual_on', case when n_act_on is distinct from f.actual_on then jsonb_build_object('from', f.actual_on, 'to', n_act_on) end),
+      ('actual_in', case when n_act_in is distinct from f.actual_in then jsonb_build_object('from', f.actual_in, 'to', n_act_in) end),
+      ('gate_origin', case when n_gate_o is distinct from f.gate_origin then jsonb_build_object('from', f.gate_origin, 'to', n_gate_o) end),
+      ('gate_destination', case when n_gate_d is distinct from f.gate_destination then jsonb_build_object('from', f.gate_destination, 'to', n_gate_d) end),
+      ('terminal_origin', case when n_term_o is distinct from f.terminal_origin then jsonb_build_object('from', f.terminal_origin, 'to', n_term_o) end),
+      ('terminal_destination', case when n_term_d is distinct from f.terminal_destination then jsonb_build_object('from', f.terminal_destination, 'to', n_term_d) end),
+      ('baggage_belt', case when n_belt is distinct from f.baggage_belt then jsonb_build_object('from', f.baggage_belt, 'to', n_belt) end),
+      ('aircraft_type', case when n_ac is distinct from f.aircraft_type then jsonb_build_object('from', f.aircraft_type, 'to', n_ac) end),
+      ('registration', case when n_reg is distinct from f.registration then jsonb_build_object('from', f.registration, 'to', n_reg) end),
+      ('origin_icao', case when n_o_icao is distinct from f.origin_icao then jsonb_build_object('from', f.origin_icao, 'to', n_o_icao) end),
+      ('origin_iata', case when n_o_iata is distinct from f.origin_iata then jsonb_build_object('from', f.origin_iata, 'to', n_o_iata) end),
+      ('destination_icao', case when n_d_icao is distinct from f.destination_icao then jsonb_build_object('from', f.destination_icao, 'to', n_d_icao) end),
+      ('destination_iata', case when n_d_iata is distinct from f.destination_iata then jsonb_build_object('from', f.destination_iata, 'to', n_d_iata) end),
+      ('status', case when n_status is distinct from f.status then jsonb_build_object('from', f.status, 'to', n_status) end)
+    ) as t(k, v) where t.v is not null), '{}'::jsonb);
     v_payload := jsonb_build_object(
       'event_code', p_event_code, 'alert_id', p_alert_id,
       'short_description', p_texts->'short_description', 'summary', p_texts->'summary',

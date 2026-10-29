@@ -142,7 +142,12 @@ function asAlert(v: unknown): Alert | null {
   const o = v as Row;
   const f = o.flight as Row | undefined;
   if (typeof o.event_code !== "string") return null;
-  if (!Number.isInteger(o.alert_id)) return null;
+  if (!Number.isSafeInteger(o.alert_id)) return null;
+  const fl = o.flight as Row | undefined;
+  for (const k of TIME_KEYS) {
+    const t = fl?.[k];
+    if (t !== undefined && t !== null && instant(t) === null) return null;
+  }
   if (!f || typeof f !== "object" || typeof f.fa_flight_id !== "string") {
     return null;
   }
@@ -150,8 +155,18 @@ function asAlert(v: unknown): Alert | null {
   return o as unknown as Alert;
 }
 
+const ISO_TS =
+  /^(\d{4})-(\d{2})-(\d{2})T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d{1,6})?)?(Z|[+-]([01]\d|2[0-3]):?[0-5]\d)$/;
+
+/** Strict ISO 8601 with an offset, a real calendar day, years 1990 to 2100. Else null. */
 function instant(v: unknown): number | null {
   if (typeof v !== "string") return null;
+  const m = ISO_TS.exec(v);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (y < 1990 || y > 2100) return null;
+  const day = new Date(Date.UTC(y, mo - 1, d));
+  if (day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) return null;
   const t = Date.parse(v);
   return Number.isNaN(t) ? null : t;
 }
@@ -164,7 +179,7 @@ function str(v: unknown, max = 500): string | null {
 function normalise(f: Row): Row {
   const out: Row = {};
   for (const k of TIME_KEYS) {
-    if (typeof f[k] === "string" && instant(f[k]) !== null) out[k] = f[k];
+    if (f[k] !== undefined && f[k] !== null) out[k] = f[k];
   }
   for (const [from, to] of TEXT_KEYS) {
     if (typeof f[from] === "string" && f[from] !== "") {
