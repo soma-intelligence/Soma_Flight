@@ -103,6 +103,7 @@ public final class HomeModel {
         await load()
         await push?.refresh()
         await processInbox()
+        await reconcileActivities()
     }
 
     /// Loads both lists for the current owner and starts My Flights' live updates.
@@ -122,7 +123,7 @@ public final class HomeModel {
         push?.accountChanged(owner: owner)
         Task {
             // The previous account's activity goes, whoever signs in next (nobody, at sign-out).
-            await activities?.endAll()
+            await reconcileActivities()
             await load()
             await processInbox()
         }
@@ -148,7 +149,23 @@ public final class HomeModel {
 
     private func wireActivities() {
         guard let activities else { return }
-        myFlights.onListChange = { list in Task { await activities.sync(list) } }
+        // Scheduled synchronously, so the controller runs the lists in the order the store changed.
+        myFlights.onListChange = { list in activities.scheduleSync(list) }
+    }
+
+    /// Settles the activities for the account signed in now: signed out ends them all, otherwise the
+    /// controller adopts the owner (ending any other account's) and re-runs its rules on the list when
+    /// the list is trusted (loaded, not offline). Waits while the stored session is still being read.
+    /// Called at start, on every account change, when the session resolves and when the app becomes
+    /// active.
+    public func reconcileActivities() async {
+        guard let activities, !awaitingSession else { return }
+        if env.requiresSignIn, owner == nil {
+            await activities.endAll()
+            return
+        }
+        await activities.adopt(owner: owner)
+        if myFlights.hasLoaded, myFlights.error == nil { await activities.sync(followed) }
     }
 
     // MARK: Notifications
@@ -228,7 +245,7 @@ public final class HomeModel {
     public func applyLiveActivityLaunchArguments(_ args: UserDefaults = .standard) async {
         guard let activities, let path = args.string(forKey: "liveActivityPush"),
               let data = FileManager.default.contents(atPath: path) else { return }
-        await activities.sync(followed)
+        await reconcileActivities()
         await activities.applyDebugPush(data)
     }
     #endif

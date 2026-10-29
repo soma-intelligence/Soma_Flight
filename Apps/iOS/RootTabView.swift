@@ -13,6 +13,7 @@ struct RootTabView: View {
     @State private var showSettings = false
     @State private var screenHeight: CGFloat = 874
     @StoredUnits private var units: Units
+    @Environment(\.scenePhase) private var scenePhase
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -45,6 +46,12 @@ struct RootTabView: View {
                 home.select(picked)
             }
             .onChange(of: home.owner) { home.userChanged() }
+            // The Live Activity rules: once the stored session is read, and each time the app comes to
+            // the front (an activity can only start in the foreground).
+            .onChange(of: home.awaitingSession) { Task { await home.reconcileActivities() } }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await home.reconcileActivities() } }
+            }
             .task {
                 await home.start()
                 #if DEBUG

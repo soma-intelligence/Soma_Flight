@@ -107,6 +107,39 @@ public struct FlightActivityDisplay: Sendable, Hashable {
         return Self.clock(scheduled, tz)
     }
 
+    /// "+1" when the flight lands on a later local date than it leaves ("-1" across the date line the
+    /// other way), nil on the same day or when a time is missing.
+    public var arrivalDayMark: String? {
+        guard let out = state.estimatedOut, let inn = state.estimatedIn else { return nil }
+        func day(_ d: Date, _ tz: TimeZone) -> DateComponents {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = tz
+            return cal.dateComponents([.year, .month, .day], from: d)
+        }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = .gmt
+        guard let a = utc.date(from: day(out, originZone)), let b = utc.date(from: day(inn, destinationZone)),
+              let diff = utc.dateComponents([.day], from: a, to: b).day, diff != 0 else { return nil }
+        return diff > 0 ? "+\(diff)" : "\(diff)"
+    }
+
+    /// What VoiceOver reads for an end of the trip: "Departs SFO 13:08, scheduled 12:18, gate F11".
+    public func spokenEnd(departure: Bool) -> String {
+        let code = departure ? attributes.originIata : attributes.destinationIata
+        let time = departure ? departureTime : arrivalTime
+        var parts = ["\(departure ? "Departs" : "Arrives") \(code) \(time)"]
+        if !departure, let mark = arrivalDayMark { parts[0] += " (\(mark) day)" }
+        if let s = departure ? scheduledDeparture : scheduledArrival { parts.append("scheduled \(s)") }
+        let gate = departure ? state.gateOrigin : state.gateDestination
+        if let gate { parts.append("gate \(gate)") }
+        return parts.joined(separator: ", ")
+    }
+
+    /// What VoiceOver reads for the island's compact and minimal forms.
+    public var spokenSummary: String {
+        "\(ident), \(statusText), progress \(Int((progress * 100).rounded())) percent"
+    }
+
     public var originGate: String { "Gate \(state.gateOrigin ?? "--")" }
     public var destinationGate: String { "Gate \(state.gateDestination ?? "--")" }
 

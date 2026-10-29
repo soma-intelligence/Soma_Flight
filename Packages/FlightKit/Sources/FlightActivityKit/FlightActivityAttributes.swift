@@ -7,11 +7,14 @@ import ActivityKit
 /// widget extension (which draws it).
 ///
 /// The static part is set once, at start. Besides the ident and the two codes it keeps the flight id
-/// (to find the activity of a flight again after a relaunch), the scheduled times (the content state
+/// (to find the activity of a flight again after a relaunch), the account it was started for (another
+/// account, or nobody, ends it), the scheduled times (the content state
 /// only has the best times, and the delay colour needs both) and the two airports' time zones (times
 /// show in local time, as everywhere in the app).
 public struct FlightActivityAttributes: Codable, Hashable, Sendable {
     public var flightId: UUID
+    /// The signed-in user it was started for; nil when the app runs without accounts (fakes).
+    public var ownerId: UUID?
     public var ident: String
     public var originIata: String
     public var destinationIata: String
@@ -21,10 +24,10 @@ public struct FlightActivityAttributes: Codable, Hashable, Sendable {
     public var originTimeZone: String?
     public var destinationTimeZone: String?
 
-    public init(flightId: UUID, ident: String, originIata: String, destinationIata: String,
+    public init(flightId: UUID, ownerId: UUID? = nil, ident: String, originIata: String, destinationIata: String,
                 scheduledOut: Date? = nil, scheduledIn: Date? = nil,
                 originTimeZone: String? = nil, destinationTimeZone: String? = nil) {
-        self.flightId = flightId; self.ident = ident
+        self.flightId = flightId; self.ownerId = ownerId; self.ident = ident
         self.originIata = originIata; self.destinationIata = destinationIata
         self.scheduledOut = scheduledOut; self.scheduledIn = scheduledIn
         self.originTimeZone = originTimeZone; self.destinationTimeZone = destinationTimeZone
@@ -89,6 +92,24 @@ public struct FlightActivityAttributes: Codable, Hashable, Sendable {
 
         /// The flight is over for the activity: the backend ends it on these too.
         public var isFinal: Bool { status == .arrived || status == .canceled }
+
+        /// When the system greys the card as outdated: an hour after the expected arrival.
+        public var staleDate: Date? { estimatedIn?.addingTimeInterval(3600) }
+
+        /// Same card on screen: equal but for date noise under a second (the ISO round trip keeps
+        /// milliseconds) and progress moves under 0.01. Saves updates that would change nothing.
+        public func looksLike(_ other: Self) -> Bool {
+            func near(_ a: Date?, _ b: Date?) -> Bool {
+                switch (a, b) {
+                case (nil, nil): true
+                case let (x?, y?): abs(x.timeIntervalSince(y)) < 1
+                default: false
+                }
+            }
+            return status == other.status && gateOrigin == other.gateOrigin && gateDestination == other.gateDestination
+                && near(estimatedOut, other.estimatedOut) && near(estimatedIn, other.estimatedIn)
+                && abs(progress - other.progress) < 0.01
+        }
     }
 }
 

@@ -5,10 +5,12 @@ import os
 public struct RunningFlightActivity: Sendable, Hashable {
     public var id: String
     public var flightId: UUID
+    /// The account it was started for (`FlightActivityAttributes.ownerId`).
+    public var ownerId: UUID?
     public var state: FlightActivityAttributes.ContentState
 
-    public init(id: String, flightId: UUID, state: FlightActivityAttributes.ContentState) {
-        self.id = id; self.flightId = flightId; self.state = state
+    public init(id: String, flightId: UUID, ownerId: UUID? = nil, state: FlightActivityAttributes.ContentState) {
+        self.id = id; self.flightId = flightId; self.ownerId = ownerId; self.state = state
     }
 }
 
@@ -28,13 +30,18 @@ public struct RunningFlightActivity: Sendable, Hashable {
     func end(id: String, state: FlightActivityAttributes.ContentState?, dismissAt: Date?) async
 }
 
-/// Keeps at most one Live Activity running, for the next followed flight:
-/// - starts one for the flight in the air, else the next one departing within 4 hours, when activities
-///   are enabled and none is running;
-/// - updates it from the app's own data (the backend also pushes updates to its token);
-/// - ends it when its flight arrives or is canceled (the final state stays up 30 min, 60 min for a
-///   cancellation, as the backend's end push does), and at once when it is unfollowed;
-/// - `endAll()` at sign-out and account change.
+/// Keeps at most one Live Activity running, for the best followed flight:
+/// - nothing runs or starts until `adopt(owner:)` names the account signed in; activities of another
+///   account (or of nobody) end then and at every later sync;
+/// - the candidate is the flight in the air, else the soonest one departing within 4 hours; it replaces
+///   an activity running for another flight, and starts when activities are enabled;
+/// - the running one is updated from the app's own data (the backend also pushes to its token), only
+///   when the card would change;
+/// - it ends when its flight arrives or is canceled (the final state stays up 30 min, 60 min for a
+///   cancellation, as the backend's end push does), 6 h after the expected arrival of a flight left
+///   landed or diverted, and at once when it is unfollowed; `endAll()` at sign-out;
+/// - a timer re-runs the rules when the next flight reaches the 4 hour line; the shell also syncs
+///   when the app becomes active (`Activity.request` only works in the foreground).
 /// Each new push token is registered as `live_activity` for the flight.
 @MainActor
 public final class FlightActivityController {
@@ -42,16 +49,26 @@ public final class FlightActivityController {
     public static let lead: TimeInterval = 4 * 3600
     /// A scheduled flight this long past its departure without news is not started.
     static let staleDeparture: TimeInterval = 2 * 3600
+    /// A flight left landed or diverted this long after its expected arrival is over for the activity.
+    static let stuckAfterArrival: TimeInterval = 6 * 3600
     static let log = Logger(subsystem: "me.somalabs.flight", category: "live-activity")
 
     private let host: any FlightActivityHost
     private let push: any PushService
     private let lookup: @Sendable (String) -> Airport?
     private let now: @Sendable () -> Date
-    /// Calls run one after another: two overlapping syncs must not both start an activity.
+    /// Work runs one item after another, in the order it was enqueued.
     private var tail: Task<Void, Never>?
     /// Tokens whose registration failed, retried at the next sync.
-    private var pendingTokens: [Data: UUID] = [:]
+    private(set) var pendingTokens: [Data: UUID] = [:]
+    /// The account signed in; nil with `ownerKnown` false until `adopt(owner:)`.
+    private var owner: UUID?
+    private var ownerKnown = false
+    /// The last list synced, for the timer.
+    private var lastFlights: [Flight] = []
+    private var wake: Task<Void, Never>?
+    /// When the timer fires next (tests read it).
+    private(set) var wakeAt: Date?
 
     public init(host: any FlightActivityHost, push: any PushService,
                 lookup: @escaping @Sendable (String) -> Airport?,
@@ -61,59 +78,124 @@ public final class FlightActivityController {
     }
 
     /// Brings the activities in line with the followed list (the whole list, after a successful load,
-    /// a pushed change or an unfollow).
+    /// a pushed change, an unfollow, or when the app becomes active).
     public func sync(_ flights: [Flight]) async {
-        await serial { await self.apply(flights) }
+        await enqueue { await self.apply(flights) }.value
     }
 
-    /// Ends every activity at once (sign-out, another account).
+    /// `sync` without waiting: the order of calls is the order the work runs in, so the latest list
+    /// always wins. The store's change hook uses it.
+    public func scheduleSync(_ flights: [Flight]) {
+        enqueue { await self.apply(flights) }
+    }
+
+    /// The account signed in now (nil: the app has no accounts, the fakes). Ends every activity started
+    /// for anyone else. Starts are held until the first call.
+    public func adopt(owner: UUID?) async {
+        await enqueue {
+            self.owner = owner
+            self.ownerKnown = true
+            for a in self.host.running() where a.ownerId != owner {
+                await self.host.end(id: a.id, state: nil, dismissAt: nil)
+            }
+        }.value
+    }
+
+    /// Ends every activity at once (signed out). Nothing starts again until `adopt(owner:)`.
     public func endAll() async {
-        await serial {
+        await enqueue {
             self.pendingTokens = [:]
+            self.ownerKnown = false
+            self.owner = nil
+            self.lastFlights = []
+            self.setWake(nil)
             for a in self.host.running() { await self.host.end(id: a.id, state: nil, dismissAt: nil) }
-        }
+        }.value
     }
 
-    private func serial(_ work: @escaping @MainActor () async -> Void) async {
+    @discardableResult
+    private func enqueue(_ work: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
         let previous = tail
         let task = Task { @MainActor in
             await previous?.value
             await work()
         }
         tail = task
-        await task.value
+        return task
     }
 
     private func apply(_ flights: [Flight]) async {
+        guard ownerKnown else { return }
         let clock = now()
+        lastFlights = flights
         let byId = Dictionary(flights.map { ($0.id, $0) }, uniquingKeysWith: { a, b in a.updatedAt >= b.updatedAt ? a : b })
-        var kept: [RunningFlightActivity] = []
+        let best = Self.candidate(in: flights, now: clock)
+        var alive: [(RunningFlightActivity, FlightActivityAttributes.ContentState)] = []
         for activity in host.running() {
-            guard let flight = byId[activity.flightId] else {
-                await host.end(id: activity.id, state: nil, dismissAt: nil) // unfollowed
+            guard activity.ownerId == owner, let flight = byId[activity.flightId] else {
+                await host.end(id: activity.id, state: nil, dismissAt: nil) // unfollowed or another account
                 continue
             }
             let state = FlightActivityAttributes.ContentState.from(flight, now: clock)
             if state.isFinal {
                 let linger: TimeInterval = state.status == .canceled ? 3600 : 1800
                 await host.end(id: activity.id, state: state, dismissAt: clock.addingTimeInterval(linger))
-            } else if !kept.isEmpty {
-                await host.end(id: activity.id, state: nil, dismissAt: nil) // one at a time
+            } else if Self.isStuck(state, now: clock) {
+                await host.end(id: activity.id, state: state, dismissAt: clock.addingTimeInterval(1800))
             } else {
-                if state != activity.state { await host.update(id: activity.id, state: state) }
-                kept.append(activity)
+                alive.append((activity, state))
+            }
+        }
+        // One at a time: the candidate's own activity if it has one, else the first still going when
+        // there is no candidate. Everything else ends, and a candidate without one starts.
+        let keepIndex = best.map { b in alive.firstIndex { $0.0.flightId == b.id } } ?? (alive.isEmpty ? nil : 0)
+        for (i, (activity, state)) in alive.enumerated() {
+            if i == keepIndex {
+                if !state.looksLike(activity.state) { await host.update(id: activity.id, state: state) }
+            } else {
+                await host.end(id: activity.id, state: nil, dismissAt: nil)
             }
         }
         await retryPendingTokens()
-        guard kept.isEmpty, let next = Self.candidate(in: flights, now: clock) else { return }
+        defer { setWake(Self.nextWake(in: flights, now: clock)) }
+        guard keepIndex == nil, let next = best else { return }
         guard host.areActivitiesEnabled else {
             Self.log.info("live activities are off, none started")
             return
         }
         do {
-            _ = try host.start(attributes: .from(next, lookup: lookup), state: .from(next, now: clock))
+            _ = try host.start(attributes: .from(next, owner: owner, lookup: lookup), state: .from(next, now: clock))
         } catch {
             Self.log.error("live activity not started: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// A flight left landed or diverted long after it was due: no arrived status will come.
+    static func isStuck(_ state: FlightActivityAttributes.ContentState, now: Date) -> Bool {
+        guard state.status == .landed || state.status == .diverted, let due = state.estimatedIn else { return false }
+        return now.timeIntervalSince(due) > stuckAfterArrival
+    }
+
+    /// The next time a followed flight crosses the 4 hour line, nil when none will.
+    static func nextWake(in flights: [Flight], now: Date) -> Date? {
+        flights.compactMap { f -> Date? in
+            guard f.status == .scheduled || f.status == .unknown, let out = f.estimatedOut ?? f.scheduledOut else { return nil }
+            let at = out.addingTimeInterval(-lead)
+            return at > now ? at : nil
+        }.min()
+    }
+
+    private func setWake(_ date: Date?) {
+        guard date != wakeAt else { return }
+        wake?.cancel()
+        wakeAt = date
+        guard let date else { wake = nil; return }
+        let delay = max(1, date.timeIntervalSince(now()))
+        wake = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.wakeAt = nil
+            self.scheduleSync(self.lastFlights)
         }
     }
 
@@ -135,7 +217,7 @@ public final class FlightActivityController {
             var aps: APS
         }
         guard let aps = try? JSONDecoder().decode(Body.self, from: payload).aps else { return false }
-        await serial {
+        await enqueue {
             for a in self.host.running() {
                 if aps.event == "end" {
                     await self.host.end(id: a.id, state: aps.contentState,
@@ -144,14 +226,17 @@ public final class FlightActivityController {
                     await self.host.update(id: a.id, state: aps.contentState)
                 }
             }
-        }
+        }.value
         return true
     }
     #endif
 
-    /// The flight an activity starts for: in the air first, else the soonest departing within `lead`.
+    /// The flight an activity is for: one in the air beats a scheduled one, then the soonest departure.
     static func candidate(in flights: [Flight], now: Date) -> Flight? {
-        flights.filter { canStart($0, now: now) }.min { departure($0) < departure($1) }
+        func airborne(_ f: Flight) -> Bool { f.status == .departed || f.status == .enRoute }
+        return flights.filter { canStart($0, now: now) }.min { a, b in
+            airborne(a) != airborne(b) ? airborne(a) : departure(a) < departure(b)
+        }
     }
 
     static func canStart(_ f: Flight, now: Date) -> Bool {

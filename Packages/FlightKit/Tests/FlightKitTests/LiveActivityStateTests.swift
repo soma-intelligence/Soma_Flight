@@ -137,15 +137,18 @@ import Testing
 
     // MARK: Controller
 
+    /// Adopts "no account" (the fakes) so the rules run, as the home does after start.
     func controller(_ host: FakeActivityHost, _ push: FakePushService = FakePushService(),
-                    at time: Date? = nil) -> FlightActivityController {
-        let t = time ?? now
-        return FlightActivityController(host: host, push: push, lookup: { _ in nil }, now: { t })
+                    clock: TestClock? = nil, owner: UUID? = nil) async -> FlightActivityController {
+        let t = clock ?? TestClock(now)
+        let c = FlightActivityController(host: host, push: push, lookup: { _ in nil }, now: { t.now })
+        await c.adopt(owner: owner)
+        return c
     }
 
     @Test func startsForTheNextFlightWithinFourHours() async {
         let host = FakeActivityHost()
-        let c = controller(host)
+        let c = await controller(host)
         let soon = flight("AA1", outIn: 3.5), later = flight("AA2", outIn: 3.9), far = flight("AA3", outIn: 5)
         await c.sync([far, later, soon])
         #expect(host.started.map(\.ident) == ["AA1"])
@@ -171,7 +174,7 @@ import Testing
 
     @Test func updatesThenEndsOnArrival() async throws {
         let host = FakeActivityHost()
-        let c = controller(host)
+        let c = await controller(host)
         var f = flight(outIn: 1)
         await c.sync([f])
         f.gateOrigin = "F12"
@@ -187,7 +190,7 @@ import Testing
 
     @Test func endsOnCancelLocallyWithAnHour() async throws {
         let host = FakeActivityHost()
-        let c = controller(host)
+        let c = await controller(host)
         var f = flight(outIn: 1)
         await c.sync([f])
         f.status = .canceled
@@ -199,7 +202,7 @@ import Testing
 
     @Test func unfollowAndSignOutEndAtOnce() async throws {
         let host = FakeActivityHost()
-        let c = controller(host)
+        let c = await controller(host)
         let a = flight("AA1", outIn: 1), b = flight("AA2", outIn: 2)
         await c.sync([a, b])
         await c.sync([b]) // AA1 unfollowed: ended, AA2 takes over
@@ -213,7 +216,7 @@ import Testing
     @Test func pushTokensRegisterAsLiveActivity() async {
         let host = FakeActivityHost()
         let push = FakePushService()
-        let c = controller(host, push)
+        let c = await controller(host, push)
         let f = flight(outIn: 1)
         await c.sync([f])
         await push.setNextError(.offline)
@@ -228,7 +231,7 @@ import Testing
 
     @Test func theDebugPushActsLikeAnActivityKitPush() async throws {
         let host = FakeActivityHost()
-        let c = controller(host)
+        let c = await controller(host)
         await c.sync([flight(outIn: 1)])
         let update = #"{"aps":{"timestamp":1,"event":"update","content-state":{"status":"departed","gateOrigin":"F12","gateDestination":null,"estimatedOut":"2026-10-23T16:42:00+00:00","estimatedIn":null,"progress":0.05}}}"#
         #expect(await c.applyDebugPush(Data(update.utf8)))
@@ -239,6 +242,170 @@ import Testing
         #expect(host.ends.last?.state?.status == .canceled)
         #expect(host.ends.last?.dismissAt == Date(timeIntervalSince1970: 1_792_773_720))
         #expect(await !c.applyDebugPush(Data("{}".utf8)))
+    }
+
+    // MARK: Review round 1
+
+    @Test func anotherAccountsActivityEnds() async {
+        let host = FakeActivityHost()
+        let me = UUID(), them = UUID()
+        let f = flight(outIn: 1)
+        host.seed(.init(id: "old", flightId: f.id, ownerId: them, state: .from(f, now: now)))
+        let c = await controller(host, owner: me)
+        #expect(host.running().isEmpty) // ended on adopt
+        await c.sync([f])
+        #expect(host.started.map(\.ownerId) == [me]) // restarted for the account signed in
+        await c.adopt(owner: them)
+        #expect(host.running().isEmpty)
+    }
+
+    @Test func nothingStartsBeforeTheOwnerIsKnown() async {
+        let host = FakeActivityHost()
+        let c = FlightActivityController(host: host, push: FakePushService(), lookup: { _ in nil }, now: { [now] in now })
+        await c.sync([flight(outIn: 1)])
+        #expect(host.started.isEmpty)
+        await c.adopt(owner: nil)
+        await c.sync([flight(outIn: 1)])
+        #expect(host.started.count == 1)
+    }
+
+    @Test func aSignedOutLaunchEndsTheActivity() async throws {
+        let base = try await AppEnvironment.fake(now: now)
+        let env = AppEnvironment(flights: base.flights, airports: base.airports, auth: base.auth, history: base.history,
+                                 push: base.push, cache: base.cache, requiresSignIn: true)
+        let home = HomeModel(env: env)
+        let host = FakeActivityHost()
+        let f = try #require(try await env.flights.followed().first)
+        host.seed(.init(id: "left", flightId: f.id, ownerId: UUID(), state: .from(f, now: now)))
+        home.attachLiveActivities(FlightActivityController(host: host, push: env.push, lookup: env.lookup, now: { [now] in now }))
+        await home.start()
+        for _ in 0..<200 where home.awaitingSession { try? await Task.sleep(for: .milliseconds(10)) }
+        await home.reconcileActivities() // what the shell runs when the session resolves
+        #expect(home.needsSignIn)
+        #expect(host.running().isEmpty)
+        #expect(host.started.isEmpty)
+    }
+
+    @Test func theFourHourLine() async {
+        let host = FakeActivityHost()
+        let clock = TestClock(now)
+        let c = await controller(host, clock: clock)
+        let f = flight(outIn: 4 + 1.0 / 60) // 4 h 1 min out
+        await c.sync([f])
+        #expect(host.started.isEmpty)
+        #expect(c.wakeAt == f.scheduledOut!.addingTimeInterval(-4 * 3600))
+        clock.now = now.addingTimeInterval(60) // exactly 4 h out
+        await c.sync([f])
+        #expect(host.started.count == 1)
+        #expect(c.wakeAt == nil)
+    }
+
+    @Test func theStaleDepartureLine() {
+        let inside = flight(outIn: -2 + 1.0 / 60), outside = flight(outIn: -2 - 1.0 / 60)
+        #expect(FlightActivityController.canStart(inside, now: now))
+        #expect(!FlightActivityController.canStart(outside, now: now))
+    }
+
+    @Test func theBestCandidateReplacesTheRunningOne() async {
+        let host = FakeActivityHost()
+        let c = await controller(host)
+        let scheduled = flight("AA1", outIn: 3)
+        var other = flight("AF84", outIn: 6, duration: 11)
+        await c.sync([scheduled, other])
+        #expect(host.started.map(\.ident) == ["AA1"])
+        other.status = .enRoute // in the air beats scheduled
+        await c.sync([scheduled, other])
+        #expect(host.started.map(\.ident) == ["AA1", "AF84"])
+        #expect(host.running().map(\.flightId) == [other.id])
+        #expect(host.ends.last?.state == nil && host.ends.last?.dismissAt == nil)
+    }
+
+    @Test func aRelaunchReattaches() async {
+        let host = FakeActivityHost()
+        let a = flight("AA1", outIn: 1), b = flight("AA2", outIn: 2)
+        host.seed(.init(id: "b", flightId: b.id, state: .from(b, now: now)))
+        host.seed(.init(id: "a", flightId: a.id, state: .from(a, now: now)))
+        let c = await controller(host)
+        await c.sync([a, b])
+        #expect(host.started.isEmpty) // the candidate's activity is kept
+        #expect(host.running().map(\.id) == ["a"]) // the extra one ended
+        #expect(host.updates.isEmpty) // nothing changed on the card
+    }
+
+    @Test func onlyRealChangesUpdate() async {
+        let host = FakeActivityHost()
+        let clock = TestClock(now)
+        let c = await controller(host, clock: clock)
+        let f = flight(status: .enRoute, outIn: -1, duration: 10)
+        await c.sync([f])
+        clock.now = now.addingTimeInterval(30) // progress moves by 0.0008
+        await c.sync([f])
+        #expect(host.updates.isEmpty)
+        clock.now = now.addingTimeInterval(600)
+        await c.sync([f])
+        #expect(host.updates.count == 1)
+    }
+
+    @Test func aDivertedFlightEndsAfterSixHours() async throws {
+        let host = FakeActivityHost()
+        let clock = TestClock(now)
+        let c = await controller(host, clock: clock)
+        var f = flight(status: .enRoute, outIn: -2, duration: 3)
+        await c.sync([f])
+        f.status = .diverted
+        await c.sync([f])
+        #expect(host.running().count == 1)
+        clock.now = f.scheduledIn!.addingTimeInterval(6 * 3600 + 60)
+        await c.sync([f])
+        #expect(host.running().isEmpty)
+        #expect(host.ends.last?.state?.status == .diverted)
+    }
+
+    @Test func endAllForgetsPendingTokens() async {
+        let host = FakeActivityHost()
+        let push = FakePushService()
+        let c = await controller(host, push)
+        let f = flight(outIn: 1)
+        await c.sync([f])
+        await push.setNextError(.offline)
+        await host.emitToken(Data([9]), for: f.id)
+        #expect(c.pendingTokens.count == 1)
+        await c.endAll()
+        #expect(c.pendingTokens.isEmpty)
+        #expect(host.running().isEmpty)
+        await c.sync([f]) // signed out: nothing starts until an owner is adopted
+        #expect(host.started.count == 1)
+    }
+
+    @Test func scheduledSyncsRunInOrder() async {
+        let host = FakeActivityHost()
+        let c = await controller(host)
+        let f = flight(outIn: 1)
+        c.scheduleSync([f])
+        c.scheduleSync([]) // unfollowed right after
+        await c.sync([])
+        #expect(host.running().isEmpty)
+        #expect(host.started.count == 1)
+        c.scheduleSync([])
+        c.scheduleSync([f])
+        await c.adopt(owner: nil) // waits for the queue
+        #expect(host.running().count == 1)
+    }
+
+    @Test func dayMarkAndStaleDate() {
+        let out = Date(timeIntervalSince1970: 1_792_803_600) // 2026-10-24T01:00Z, 18:00 in San Francisco
+        let attrs = FlightActivityAttributes(flightId: UUID(), ident: "AF83", originIata: "SFO", destinationIata: "CDG",
+                                             originTimeZone: "America/Los_Angeles", destinationTimeZone: "Europe/Paris")
+        let state = State(status: .enRoute, estimatedOut: out, estimatedIn: out.addingTimeInterval(10.5 * 3600))
+        let d = FlightActivityDisplay(attrs, state)
+        #expect(d.arrivalTime == "13:30")
+        #expect(d.arrivalDayMark == "+1")
+        #expect(d.spokenEnd(departure: false).hasPrefix("Arrives CDG 13:30 (+1 day)"))
+        #expect(state.staleDate == out.addingTimeInterval(11.5 * 3600))
+        var short = attrs
+        short.destinationTimeZone = "America/Los_Angeles" // an hour in the same zone, same evening
+        #expect(FlightActivityDisplay(short, State(status: .enRoute, estimatedOut: out, estimatedIn: out.addingTimeInterval(3600)))
+            .arrivalDayMark == nil)
     }
 
     // MARK: Store and home wiring
@@ -290,7 +457,7 @@ import Testing
     func start(attributes: FlightActivityAttributes, state: FlightActivityAttributes.ContentState) throws -> String {
         started.append(attributes)
         let id = "activity-\(started.count)"
-        live.append(.init(id: id, flightId: attributes.flightId, state: state))
+        live.append(.init(id: id, flightId: attributes.flightId, ownerId: attributes.ownerId, state: state))
         return id
     }
 
@@ -305,6 +472,15 @@ import Testing
     }
 
     func emitToken(_ token: Data, for flightId: UUID) async { await onPushToken?(token, flightId) }
+
+    /// Activities left running by an earlier launch.
+    func seed(_ activity: RunningFlightActivity) { live.append(activity) }
+}
+
+/// A clock the tests move by hand.
+final class TestClock: @unchecked Sendable {
+    var now: Date
+    init(_ now: Date) { self.now = now }
 }
 
 #if os(macOS)

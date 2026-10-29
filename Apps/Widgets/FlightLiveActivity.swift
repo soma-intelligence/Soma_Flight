@@ -19,7 +19,9 @@ struct FlightLiveActivity: Widget {
                                               alignment: .leading)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    FlightActivityExpandedEnd(code: context.attributes.destinationIata, time: display.arrivalTime,
+                    FlightActivityExpandedEnd(code: context.attributes.destinationIata,
+                                              time: [display.arrivalTime, display.arrivalDayMark].compactMap { $0 }
+                                                  .joined(separator: " "),
                                               alignment: .trailing)
                 }
                 DynamicIslandExpandedRegion(.center) {

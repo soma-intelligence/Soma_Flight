@@ -26,9 +26,10 @@ public extension FlightActivityAttributes.ContentState {
 }
 
 public extension FlightActivityAttributes {
-    /// The static part for `flight`: IATA codes (ICAO when there is none) and the airports' time zones.
-    static func from(_ flight: Flight, lookup: (String) -> Airport?) -> Self {
-        Self(flightId: flight.id, ident: flight.ident,
+    /// The static part for `flight`, started for `owner`: IATA codes (ICAO when there is none) and the
+    /// airports' time zones.
+    static func from(_ flight: Flight, owner: UUID? = nil, lookup: (String) -> Airport?) -> Self {
+        Self(flightId: flight.id, ownerId: owner, ident: flight.ident,
              originIata: flight.originIata ?? flight.originIcao,
              destinationIata: flight.destinationIata ?? flight.destinationIcao,
              scheduledOut: flight.scheduledOut, scheduledIn: flight.scheduledIn,

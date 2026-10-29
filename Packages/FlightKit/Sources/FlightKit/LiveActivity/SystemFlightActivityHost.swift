@@ -7,7 +7,7 @@ import Foundation
 @MainActor
 public final class SystemFlightActivityHost: FlightActivityHost {
     public var onPushToken: (@MainActor (Data, UUID) async -> Void)? {
-        didSet { Activity<FlightActivityAttributes>.activities.forEach(watch) }
+        didSet { live.forEach(watch) }
     }
     private var watched: [String: Task<Void, Never>] = [:]
 
@@ -20,11 +20,14 @@ public final class SystemFlightActivityHost: FlightActivityHost {
     }
 
     public func running() -> [RunningFlightActivity] {
-        live.map { RunningFlightActivity(id: $0.id, flightId: $0.attributes.flightId, state: $0.content.state) }
+        live.map {
+            RunningFlightActivity(id: $0.id, flightId: $0.attributes.flightId, ownerId: $0.attributes.ownerId,
+                                  state: $0.content.state)
+        }
     }
 
     public func start(attributes: FlightActivityAttributes, state: FlightActivityAttributes.ContentState) throws -> String {
-        let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil),
+        let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: state.staleDate),
                                             pushType: .token)
         watch(activity)
         return activity.id
@@ -43,7 +46,7 @@ public final class SystemFlightActivityHost: FlightActivityHost {
     // crosses an isolation boundary.
     private nonisolated static func update(id: String, state: FlightActivityAttributes.ContentState) async {
         guard let a = Activity<FlightActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
-        await a.update(.init(state: state, staleDate: nil))
+        await a.update(.init(state: state, staleDate: state.staleDate))
     }
 
     private nonisolated static func end(id: String, state: FlightActivityAttributes.ContentState?, dismissAt: Date?) async {
@@ -54,12 +57,14 @@ public final class SystemFlightActivityHost: FlightActivityHost {
     /// Each token, the first and every new one, goes to `onPushToken` with the activity's flight.
     private func watch(_ activity: Activity<FlightActivityAttributes>) {
         guard watched[activity.id] == nil else { return }
-        let flightId = activity.attributes.flightId
-        watched[activity.id] = Task { [weak self] in
+        let flightId = activity.attributes.flightId, id = activity.id
+        watched[id] = Task { [weak self] in
             for await token in activity.pushTokenUpdates {
                 guard let self else { return }
                 if let handler = self.onPushToken { await handler(token, flightId) }
             }
+            // The activity ended, here or by the system or the user: stop tracking it.
+            self?.watched[id] = nil
         }
     }
 }
