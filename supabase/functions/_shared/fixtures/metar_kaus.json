@@ -1,0 +1,31 @@
+[
+  {
+    "icaoId": "KAUS",
+    "receiptTime": "2026-10-29T17:48:04.395Z",
+    "obsTime": 1793295840,
+    "reportTime": "2026-10-29T17:44:00.000Z",
+    "temp": 21.7,
+    "dewp": 20,
+    "wdir": "VRB",
+    "wspd": 3,
+    "visib": "10+",
+    "altim": 1021.1,
+    "qcField": 4,
+    "wxString": "-RA",
+    "precip": 0.01,
+    "metarType": "SPECI",
+    "rawOb": "SPECI KAUS 291744Z VRB03KT 10SM -RA BKN009 BKN026 BKN046 OVC130 22/20 A3015 RMK AO2 P0001 T02170200",
+    "lat": 30.1831,
+    "lon": -97.6806,
+    "elev": 148,
+    "name": "Austin/Bergstrom Intl, TX, US",
+    "cover": "OVC",
+    "clouds": [
+      { "cover": "BKN", "base": 900 },
+      { "cover": "BKN", "base": 2600 },
+      { "cover": "BKN", "base": 4600 },
+      { "cover": "OVC", "base": 13000 }
+    ],
+    "fltCat": "IFR"
+  }
+]
