@@ -5,7 +5,9 @@ export type ErrorCode =
   | "not_found"
   | "rate_limited"
   | "plan_limit"
-  | "unauthorized";
+  | "unauthorized"
+  | "invalid_request"
+  | "out_of_window";
 
 export class ApiError extends Error {
   readonly code: ErrorCode;
