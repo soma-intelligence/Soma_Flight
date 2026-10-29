@@ -19,6 +19,16 @@ import Testing
         #expect(DelayLevel.for(delay: .seconds(-5 * 60), status: .scheduled) == .onTime)
     }
 
+    @Test func labelAndColourAgreeAtTheEdge() {
+        // 14m 30s: truncated to 14 for both the text and the level.
+        let d = Duration.seconds(14 * 60 + 30)
+        #expect(Format.minutes(d) == 14)
+        #expect(DelayLevel.for(delay: d, status: .scheduled) == .onTime)
+        let d2 = Duration.seconds(44 * 60 + 50)
+        #expect(Format.minutes(d2) == 44)
+        #expect(DelayLevel.for(delay: d2, status: .scheduled) == .late)
+    }
+
     @Test func errorCopy() {
         #expect(APIError.providerUnavailable.message == "Flight data is temporarily unavailable. Showing the last update.")
         #expect(APIError.notFound.message == "No flight found. Check the number and date.")

@@ -15,9 +15,9 @@ public struct StaleBadge: View {
     public var body: some View {
         HStack(spacing: 5) {
             Image(systemName: isStale ? "exclamationmark.arrow.trianglehead.counterclockwise" : "clock")
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(11, weight: .semibold)
             Text(isStale ? "Last update \(Format.ago(fetchedAt, now: now))" : "Updated \(Format.ago(fetchedAt, now: now))")
-                .font(.system(size: 12, weight: .medium))
+                .scaledFont(12, weight: .medium)
         }
         .foregroundStyle(isStale ? Theme.late : Theme.secondary)
         .padding(.horizontal, 9)

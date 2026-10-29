@@ -54,19 +54,21 @@ public struct BoardRow: View {
         return flight.gateOrigin
     }
 
+    @ScaledMetric(relativeTo: .body) private var timeColumn: CGFloat = 84
+
     public var body: some View {
         HStack(alignment: .top, spacing: 0) {
             times
-                .frame(width: 84, alignment: .leading)
+                .frame(width: timeColumn, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(place)
-                    .font(.system(size: 16.5))
+                    .scaledFont(16.5)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                 HStack(spacing: 5) {
                     Circle().fill(level.color).frame(width: 8, height: 8)
                     Text(statusText)
-                        .font(.system(size: 15))
+                        .scaledFont(15)
                         .foregroundStyle(level == .onTime || level == .canceled ? Theme.secondary : level.color)
                         .lineLimit(1)
                 }
@@ -74,10 +76,10 @@ public struct BoardRow: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 3) {
                 Text(Format.ident(flight.ident))
-                    .font(.system(size: 15.5))
+                    .scaledFont(15.5)
                     .foregroundStyle(Theme.primary)
                 Text(gateLine ?? " ")
-                    .font(.system(size: 15))
+                    .scaledFont(15)
                     .foregroundStyle(Theme.secondary)
             }
         }
@@ -86,6 +88,8 @@ public struct BoardRow: View {
         .padding(.vertical, 7)
         .frame(minHeight: 54)
         .background(striped ? Theme.rowAlt : Theme.background)
+        // Three fixed columns: past accessibility2 the row would truncate the city.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .accessibilityElement(children: .combine)
     }
 
@@ -94,13 +98,13 @@ public struct BoardRow: View {
         VStack(alignment: .leading, spacing: 2) {
             if let scheduled {
                 Text(Format.clock(scheduled, timeZone))
-                    .font(.system(size: 16.5, weight: .medium))
+                    .scaledFont(16.5, weight: .medium)
                     .strikethrough(changed || level == .canceled, color: Theme.secondary)
                     .foregroundStyle(changed || level == .canceled ? Theme.secondary : Theme.primary)
             }
             if changed, let best, level != .canceled {
                 Text(Format.clock(best, timeZone))
-                    .font(.system(size: 15.5, weight: .medium))
+                    .scaledFont(15.5, weight: .medium)
                     .foregroundStyle(level == .onTime ? Theme.onTime : level.color)
             }
         }

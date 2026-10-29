@@ -39,7 +39,7 @@ public struct FlightAnnotation: View {
     public var body: some View {
         // The SF Symbol points east; rotate so 0 means north.
         Image(systemName: "airplane")
-            .font(.system(size: selected ? 22 : 17, weight: .bold))
+            .scaledFont(selected ? 22 : 17, weight: .bold)
             .foregroundStyle(model.level == .onTime ? Color.white : model.level.color)
             .shadow(color: .black.opacity(0.6), radius: 1.5)
             .rotationEffect(.degrees(model.heading - 90))

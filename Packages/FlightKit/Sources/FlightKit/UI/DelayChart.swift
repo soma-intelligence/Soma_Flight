@@ -49,8 +49,11 @@ public struct DelayChart: View {
             legend
             plot
         }
+        // Bars, grid and labels are laid out by hand; cap growth so labels keep their slots.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Flights per hour by delay")
+        .accessibilityValue(accessibilitySummary)
     }
 
     private var legend: some View {
@@ -64,7 +67,7 @@ public struct DelayChart: View {
             }
             item("Diverted", Theme.diverted)
         }
-        .font(.system(size: 11.5))
+        .scaledFont(11.5)
         .foregroundStyle(Theme.secondary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
@@ -91,7 +94,7 @@ public struct DelayChart: View {
                         Rectangle().fill(Theme.grid).frame(width: plotWidth, height: 1)
                             .offset(y: y)
                         Text("\(v)")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .foregroundStyle(Theme.secondary.opacity(0.7))
                             .frame(width: Self.axisWidth - 4, alignment: .leading)
                             .offset(x: plotWidth + 4, y: y - 8)
@@ -106,7 +109,7 @@ public struct DelayChart: View {
                         }
                         .stroke(Theme.secondary.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
                         Text("NOW")
-                            .font(.system(size: 12, weight: .medium))
+                            .scaledFont(12, weight: .medium)
                             .foregroundStyle(Theme.secondary)
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(Capsule().strokeBorder(Theme.grid, lineWidth: 1.5))
@@ -131,7 +134,7 @@ public struct DelayChart: View {
                 ForEach(Array(stride(from: 0, to: 24, by: 2)), id: \.self) { i in
                     let hour = calendar.component(.hour, from: slots[i].start)
                     Text("\(hour % 12 == 0 ? 12 : hour % 12)")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Theme.secondary.opacity(0.7))
                         .frame(width: 30)
                         .offset(x: slot * (CGFloat(i) + 0.5) - 15)
@@ -163,4 +166,20 @@ public struct DelayChart: View {
     .padding(16)
     .background(Theme.background)
     .preferredColorScheme(.dark)
+}
+
+extension DelayChart {
+    /// "Busiest hour 8 AM with 3 flights. 40 percent on time, 44 percent late, 16 percent canceled."
+    var accessibilitySummary: String {
+        let all = perHour.reduce(into: (on: 0, late: 0, canceled: 0, total: 0)) { acc, b in
+            acc.on += b.onTime; acc.late += b.late15 + b.late45; acc.canceled += b.canceled
+            acc.total += b.onTime + b.late15 + b.late45 + b.canceled + b.diverted
+        }
+        guard all.total > 0, let peak = perHour.max(by: { total($0) < total($1) }) else { return "No flights" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US"); f.timeZone = timeZone; f.dateFormat = "h a"
+        func pct(_ n: Int) -> Int { Int((Double(n) / Double(all.total) * 100).rounded()) }
+        return "Busiest hour \(f.string(from: peak.hour)) with \(total(peak)) flights. "
+            + "\(pct(all.on)) percent on time, \(pct(all.late)) percent late, \(pct(all.canceled)) percent canceled."
+    }
 }

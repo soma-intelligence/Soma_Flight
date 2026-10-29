@@ -14,6 +14,7 @@ public struct WeatherBlock: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                 .padding(.bottom, 20)
             categoryCard
                 .padding(.bottom, 18)
@@ -23,9 +24,9 @@ public struct WeatherBlock: View {
             Rectangle().fill(Theme.separator).frame(height: 1)
             HStack(spacing: 6) {
                 Text("METAR OBSERVED \(Format.ago(weather.observedAt, now: now).uppercased())")
-                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                Image(systemName: "chevron.right").scaledFont(11, weight: .semibold)
             }
-            .font(.system(size: 12).monospaced())
+            .scaledFont(12, design: .monospaced)
             .foregroundStyle(Theme.secondary)
             .padding(.top, 14)
         }
@@ -39,22 +40,23 @@ public struct WeatherBlock: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 2) {
                     Text(weather.tempC.map { "\(Int($0.rounded()))" } ?? "--")
-                        .font(.system(size: 67, weight: .regular))
+                        .scaledFont(67, weight: .regular)
                         .foregroundStyle(Theme.primary)
                     Text("°C")
-                        .font(.system(size: 31, weight: .regular))
+                        .scaledFont(31, weight: .regular)
                         .foregroundStyle(Theme.primary)
                         .padding(.top, 8)
                 }
                 .padding(.bottom, -4)
                 Text(Sky(metar: weather.metarRaw).description)
-                    .font(.system(size: 16, weight: .semibold))
+                    .scaledFont(16, weight: .semibold)
                     .foregroundStyle(Theme.primary)
             }
             Spacer()
             Image(systemName: Sky(metar: weather.metarRaw).symbol(night: isNight))
+                .accessibilityHidden(true)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 62))
+                .scaledFont(62)
                 .padding(.top, 4)
                 .padding(.trailing, 8)
         }
@@ -73,17 +75,17 @@ public struct WeatherBlock: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
                 Text(weather.category.rawValue)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .scaledFont(13.5, weight: .semibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(weather.category.color))
                 Text(weather.category.name)
-                    .font(.system(size: 16, weight: .medium))
+                    .scaledFont(16, weight: .medium)
                     .foregroundStyle(weather.category.color)
             }
             Text(weather.category.summary)
-                .font(.system(size: 13.5))
+                .scaledFont(13.5)
                 .foregroundStyle(Theme.secondary)
                 .padding(.top, 6)
             HStack(alignment: .top, spacing: 16) {
@@ -163,12 +165,12 @@ private struct ScaleColumn: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 12))
-                Text(label).font(.system(size: 13.5))
+                Image(systemName: icon).scaledFont(12)
+                Text(label).scaledFont(13.5)
             }
             .foregroundStyle(Theme.secondary)
             Text(value)
-                .font(.system(size: 17, weight: .semibold))
+                .scaledFont(17, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .padding(.top, 1)
             GeometryReader { geo in
@@ -188,7 +190,7 @@ private struct ScaleColumn: View {
                         .offset(x: knobX - 4)
                     let idx = CGFloat(FlightCategory.scale.firstIndex(of: category) ?? 3)
                     Text(category.rawValue)
-                        .font(.system(size: 12, weight: .medium))
+                        .scaledFont(12, weight: .medium)
                         .foregroundStyle(category.color)
                         .frame(width: seg, alignment: .trailing)
                         .offset(x: idx * (seg + gap), y: 14)
@@ -207,6 +209,9 @@ private struct WindColumn: View {
     var knots: Int?
     var compassDeg: Int?
 
+    @ScaledMetric(relativeTo: .body) private var valueSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .subheadline) private var unitSize: CGFloat = 14
+
     private var kmh: Int? { knots.map { Int((Double($0) * 1.852).rounded()) } }
 
     var body: some View {
@@ -214,15 +219,15 @@ private struct WindColumn: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
-                        Image(systemName: "wind").font(.system(size: 12))
-                        Text(label).font(.system(size: 13.5))
+                        Image(systemName: "wind").scaledFont(12)
+                        Text(label).scaledFont(13.5)
                     }
                     .foregroundStyle(Theme.secondary)
                     if let kmh {
-                        Text("\(Text("\(kmh) ").font(.system(size: 17, weight: .semibold)))\(Text("KM/H").font(.system(size: 14, weight: .semibold)))")
+                        Text("\(Text("\(kmh) ").font(.system(size: valueSize, weight: .semibold)))\(Text("KM/H").font(.system(size: unitSize, weight: .semibold)))")
                             .foregroundStyle(Theme.primary)
                     } else {
-                        Text("None").font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.primary)
+                        Text("None").scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
                     }
                 }
                 Spacer(minLength: 0)

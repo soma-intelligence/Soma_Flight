@@ -88,7 +88,7 @@ public struct DelayTrendChart: View {
                     let y = base - h * CGFloat(v) / topValue
                     Rectangle().fill(Theme.grid).frame(width: plotWidth + 4, height: 1).offset(x: -4, y: y)
                     Text(axisLabel(v))
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(Theme.secondary)
                         .fixedSize()
                         .offset(x: plotWidth + 8, y: y - 8)
@@ -113,7 +113,7 @@ public struct DelayTrendChart: View {
                             Circle().fill(color(bins[i])).frame(width: 6, height: 6)
                         }
                         Text(axisLabel(m))
-                            .font(.system(size: 14.5, weight: .semibold))
+                            .scaledFont(14.5, weight: .semibold)
                             .foregroundStyle(color(bins[i]))
                     }
                     .fixedSize()
@@ -125,7 +125,7 @@ public struct DelayTrendChart: View {
                     let isNow = bin.start == nowBin
                     if isNow || labelled(bin.start) {
                         Text(isNow ? "Now" : hourLabel(bin.start))
-                            .font(.system(size: 13, weight: isNow ? .bold : .regular))
+                            .scaledFont(13, weight: isNow ? .bold : .regular)
                             .foregroundStyle(isNow ? Theme.primary : Theme.secondary)
                             .fixedSize()
                             .frame(width: 44)
@@ -136,8 +136,10 @@ public struct DelayTrendChart: View {
         }
         .frame(height: Self.top + h + 28)
         .monospacedDigit()
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Average delay over time")
+        .accessibilityValue(accessibilitySummary)
     }
 
     private var calendar: Calendar {
@@ -166,4 +168,17 @@ public struct DelayTrendChart: View {
     .padding(16)
     .background(Theme.background)
     .preferredColorScheme(.dark)
+}
+
+extension DelayTrendChart {
+    /// "Now 30 minutes on average. Worst 1h 5m at 9:00."
+    var accessibilitySummary: String {
+        let bins = self.bins
+        guard let worst = bins.filter({ $0.minutes != nil }).max(by: { ($0.minutes ?? 0) < ($1.minutes ?? 0) }) else {
+            return "No delay data"
+        }
+        let current = bins.first { $0.start == nowBin }?.minutes
+        let nowPart = current.map { "Now \(Format.minutes(Int($0.rounded()))) on average. " } ?? ""
+        return nowPart + "Worst \(Format.minutes(Int((worst.minutes ?? 0).rounded()))) at \(Format.clock(worst.start, timeZone))."
+    }
 }

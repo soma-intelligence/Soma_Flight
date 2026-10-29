@@ -1,28 +1,33 @@
 import MapKit
 import SwiftUI
 
-/// A route arc on the globe.
+/// A route arc on the globe. The arc is computed once, at init.
 public struct Route: Identifiable, Hashable, Sendable {
     public var id: String
-    public var fromLatitude: Double, fromLongitude: Double
-    public var toLatitude: Double, toLongitude: Double
+    public let from: CLLocationCoordinate2D
+    public let to: CLLocationCoordinate2D
     public var level: DelayLevel
     public var isPast: Bool
+    /// Great-circle runs from the Rust core, normalised and split at the antimeridian for MapKit.
+    public let runs: [[CLLocationCoordinate2D]]
 
     public init(id: String? = nil, from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, level: DelayLevel, isPast: Bool) {
-        self.fromLatitude = from.latitude; self.fromLongitude = from.longitude
-        self.toLatitude = to.latitude; self.toLongitude = to.longitude
-        self.level = level; self.isPast = isPast
+        self.from = from; self.to = to; self.level = level; self.isPast = isPast
         self.id = id ?? "\(from.latitude),\(from.longitude)-\(to.latitude),\(to.longitude)-\(isPast)"
+        let n = max(16, min(128, Int(distanceKm(from, to) / 80)))
+        self.runs = mapSegments(greatCircle(from: from, to: to, segments: n))
     }
 
-    public var from: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: fromLatitude, longitude: fromLongitude) }
-    public var to: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: toLatitude, longitude: toLongitude) }
+    // Runs derive from the endpoints, so equality skips them.
+    public static func == (a: Route, b: Route) -> Bool {
+        a.id == b.id && a.level == b.level && a.isPast == b.isPast
+            && a.from.latitude == b.from.latitude && a.from.longitude == b.from.longitude
+            && a.to.latitude == b.to.latitude && a.to.longitude == b.to.longitude
+    }
 
-    /// Great-circle runs from the Rust core, normalised and split at the antimeridian for MapKit.
-    public var runs: [[CLLocationCoordinate2D]] {
-        let n = max(16, min(128, Int(distanceKm(from, to) / 80)))
-        return mapSegments(greatCircle(from: from, to: to, segments: n))
+    public func hash(into h: inout Hasher) {
+        h.combine(id); h.combine(level); h.combine(isPast)
+        h.combine(from.latitude); h.combine(from.longitude); h.combine(to.latitude); h.combine(to.longitude)
     }
 }
 
@@ -94,6 +99,12 @@ public struct GlobeMap: View {
             }
         }
         .mapStyle(.imagery(elevation: .realistic))
+        .onChange(of: routes) {
+            // Follow new content unless the user has panned or zoomed the globe.
+            if !position.positionedByUser {
+                position = .camera(Self.camera(routes: routes, planes: planes, airports: airports))
+            }
+        }
         .mapControls {
             MapCompass()
             MapPitchToggle()

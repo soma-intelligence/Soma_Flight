@@ -16,13 +16,13 @@ public struct ErrorBanner: View {
                 Circle().fill(Theme.veryLate).frame(width: 9, height: 9)
             }
             Text(error.message)
-                .font(.system(size: 15))
+                .scaledFont(15)
                 .foregroundStyle(Theme.primary.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let retry {
                 Button("Try again", action: retry)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 12)

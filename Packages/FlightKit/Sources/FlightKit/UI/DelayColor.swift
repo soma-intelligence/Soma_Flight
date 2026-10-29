@@ -13,7 +13,7 @@ public enum DelayLevel: String, Sendable, Hashable, CaseIterable {
         default: break
         }
         guard let delay else { return .onTime }
-        let minutes = Double(delay.components.seconds) / 60
+        let minutes = Format.minutes(delay)
         if minutes >= 45 { return .veryLate }
         if minutes >= 15 { return .late }
         return .onTime

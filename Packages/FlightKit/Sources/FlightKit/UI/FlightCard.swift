@@ -33,16 +33,16 @@ public struct FlightCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text(Format.ident(flight.ident))
-                    .font(.system(size: 17, weight: .semibold))
+                    .scaledFont(17, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                 if let type = flight.aircraftType {
-                    Text(type).font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                    Text(type).scaledFont(13).foregroundStyle(Theme.secondary)
                 }
                 Spacer()
                 HStack(spacing: 5) {
                     Circle().fill(level.color).frame(width: 8, height: 8)
                     Text(statusText)
-                        .font(.system(size: 15, weight: .medium))
+                        .scaledFont(15, weight: .medium)
                         .foregroundStyle(level == .onTime || level == .canceled ? Theme.primary : level.color)
                 }
             }
@@ -56,7 +56,7 @@ public struct FlightCard: View {
             ProgressLine(progress: flight.progress(at: now), color: level == .onTime ? Theme.primary : level.color,
                          dimmed: flight.status == .canceled)
             if let info = gateInfo {
-                Text(info).font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                Text(info).scaledFont(13).foregroundStyle(Theme.secondary)
             }
         }
         .monospacedDigit()
@@ -79,10 +79,11 @@ public struct FlightCard: View {
         let changed = scheduled != nil && best != nil && abs(best!.timeIntervalSince(scheduled!)) >= 60
         return VStack(alignment: alignment, spacing: 2) {
             Text(code)
-                .font(.system(size: 34, weight: .bold))
+                .scaledFont(34, weight: .bold)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                 .foregroundStyle(Theme.primary)
             Text(city ?? " ")
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
             HStack(spacing: 6) {
@@ -95,7 +96,7 @@ public struct FlightCard: View {
                     Text(Format.clock(best, zone)).foregroundStyle(level == .onTime ? Theme.onTime : level.color)
                 }
             }
-            .font(.system(size: 17, weight: .medium))
+            .scaledFont(17, weight: .medium)
             .padding(.top, 4)
         }
     }
@@ -117,7 +118,7 @@ struct ProgressLine: View {
                 Capsule().fill(color).frame(width: max(0, x), height: 2.5).offset(y: 0)
                     .frame(height: 18)
                 Image(systemName: "airplane")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(dimmed ? Theme.secondary : color)
                     .offset(x: x - 8)
             }

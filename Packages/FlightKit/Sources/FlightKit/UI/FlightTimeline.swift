@@ -56,8 +56,8 @@ public struct FlightTimeline: View {
                     }
                     .frame(width: 12)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(step.title).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.primary)
-                        Text(step.place).font(.system(size: 13)).foregroundStyle(Theme.secondary)
+                        Text(step.title).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
+                        Text(step.place).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
                     .padding(.bottom, 18)
                     Spacer()
@@ -88,11 +88,11 @@ public struct FlightTimeline: View {
             }
             if step.actual == nil, best != nil || step.scheduled != nil {
                 Text(step.estimated != nil ? "Estimated" : "Scheduled")
-                    .font(.system(size: 11, weight: .medium))
+                    .scaledFont(11, weight: .medium)
                     .foregroundStyle(Theme.secondary)
             }
         }
-        .font(.system(size: 16, weight: .medium))
+        .scaledFont(16, weight: .medium)
     }
 }
 

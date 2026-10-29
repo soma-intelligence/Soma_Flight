@@ -41,6 +41,13 @@ import Testing
         #expect(abs(segments[1].last!.longitude - sfo.longitude) < 1e-9)
     }
 
+    @Test func routeRunsAreComputedOnceAndIgnoredByEquality() {
+        let r = Route(from: hnd, to: sfo, level: .late, isPast: false)
+        #expect(r.runs.count == 2)
+        #expect(r == Route(from: hnd, to: sfo, level: .late, isPast: false))
+        #expect(r != Route(from: hnd, to: sfo, level: .veryLate, isPast: false))
+    }
+
     @Test func mapSegmentsKeepsNonCrossingRouteWhole() {
         #expect(mapSegments(greatCircle(from: cdg, to: sfo)).count == 1)
     }

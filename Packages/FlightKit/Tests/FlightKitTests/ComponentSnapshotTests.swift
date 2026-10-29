@@ -6,11 +6,18 @@ import Testing
 import UniformTypeIdentifiers
 @testable import FlightKit
 
-/// Renders each shared component from seed data (dark, 393 pt wide, @3x) into
-/// docs/screens/components/<Name>.png for visual review. Map views cannot go through
+/// Renders each shared component from seed data (dark, 393 pt wide, @3x, default Dynamic Type)
+/// into docs/screens/components/<Name>.png for visual review. Map views cannot go through
 /// ImageRenderer, so GlobeMap is not here.
+///
+/// Off by default so a normal test run leaves the tree clean. Refresh the PNGs, then the
+/// side-by-side reference comparisons, with:
+///
+///     SNAPSHOTS=1 swift test --package-path Packages/FlightKit --filter ComponentSnapshotTests
+///     python3 Scripts/compare.py
 @MainActor
-@Suite(.serialized) struct ComponentSnapshotTests {
+@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["SNAPSHOTS"] == "1"))
+struct ComponentSnapshotTests {
     static let width: CGFloat = 393
     static let outDir: URL = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

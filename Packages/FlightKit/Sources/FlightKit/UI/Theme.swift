@@ -51,15 +51,35 @@ public enum Theme {
     public static let wind = Color(light: 0x2F86E0, dark: 0x5AAEF0)
 
     // MARK: Type
+    /// Text styles whose default iOS size matches the reference, so they follow Dynamic Type.
+    /// macOS text styles are smaller (body is 13 pt) and macOS has no Dynamic Type, so the Mac
+    /// gets the same point sizes as fixed system fonts.
     public enum Font {
-        public static let sheetTitle = SwiftUI.Font.system(size: 20, weight: .bold)
-        public static let sectionTitle = SwiftUI.Font.system(size: 17, weight: .semibold)
-        public static let sectionSubtitle = SwiftUI.Font.system(size: 13)
-        public static let bigNumber = SwiftUI.Font.system(size: 22, weight: .semibold)
-        public static let body = SwiftUI.Font.system(size: 17)
-        public static let label = SwiftUI.Font.system(size: 15)
-        public static let axis = SwiftUI.Font.system(size: 12)
-        public static let chip = SwiftUI.Font.system(size: 11, weight: .medium).monospaced()
+        /// 20 pt bold.
+        public static let sheetTitle = pick(SwiftUI.Font.title3.bold(), 20, .bold)
+        /// 17 pt semibold.
+        public static let sectionTitle = pick(.headline, 17, .semibold)
+        /// 13 pt.
+        public static let sectionSubtitle = pick(.footnote, 13)
+        /// 15 pt.
+        public static let label = pick(.subheadline, 15)
+        /// 22 pt semibold.
+        public static let bigNumber = pick(SwiftUI.Font.title2.weight(.semibold), 22, .semibold)
+        /// 17 pt.
+        public static let body = pick(.body, 17)
+        /// 12 pt.
+        public static let axis = pick(.caption, 12)
+        /// 11 pt medium, monospaced.
+        public static let chip = pick(SwiftUI.Font.caption2.weight(.medium).monospaced(), 11, .medium, .monospaced)
+
+        private static func pick(_ style: SwiftUI.Font, _ size: CGFloat, _ weight: SwiftUI.Font.Weight = .regular,
+                                 _ design: SwiftUI.Font.Design = .default) -> SwiftUI.Font {
+            #if os(macOS)
+            .system(size: size, weight: weight, design: design)
+            #else
+            style
+            #endif
+        }
     }
 
     // MARK: Metrics
@@ -97,6 +117,48 @@ private extension NSColor {
 }
 #endif
 
+/// System font at a reference point size that still follows Dynamic Type: the size is a
+/// `@ScaledMetric` tied to the nearest text style, so the default (Large) setting renders the
+/// exact reference size. Use it for the custom sizes the screenshots call for.
+struct ScaledFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    var weight: SwiftUI.Font.Weight
+    var design: SwiftUI.Font.Design
+
+    init(size: CGFloat, weight: SwiftUI.Font.Weight, design: SwiftUI.Font.Design, relativeTo style: SwiftUI.Font.TextStyle?) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style ?? Self.style(for: size))
+        self.weight = weight; self.design = design
+    }
+
+    /// The text style whose default size is closest, so scaling follows Apple's curve for it.
+    static func style(for size: CGFloat) -> SwiftUI.Font.TextStyle {
+        switch size {
+        case ..<11.5: .caption2
+        case ..<12.5: .caption
+        case ..<14: .footnote
+        case ..<15.5: .subheadline
+        case ..<16.5: .callout
+        case ..<18.5: .body
+        case ..<21: .title3
+        case ..<25: .title2
+        case ..<30: .title
+        default: .largeTitle
+        }
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: design))
+    }
+}
+
+extension View {
+    /// `.font(.system(size:weight:design:))` that scales with Dynamic Type.
+    func scaledFont(_ size: CGFloat, weight: SwiftUI.Font.Weight = .regular, design: SwiftUI.Font.Design = .default,
+                    relativeTo style: SwiftUI.Font.TextStyle? = nil) -> some View {
+        modifier(ScaledFont(size: size, weight: weight, design: design, relativeTo: style))
+    }
+}
+
 /// Section heading used across airport and flight sheets: semibold title, grey subtitle.
 public struct SectionHeader: View {
     var title: String
@@ -113,9 +175,10 @@ public struct SectionHeader: View {
                 .font(large ? Theme.Font.sheetTitle : Theme.Font.sectionTitle)
                 .foregroundStyle(Theme.primary)
             if let subtitle {
-                Text(subtitle)
-                    .font(large ? .system(size: 14) : Theme.Font.sectionSubtitle)
-                    .foregroundStyle(Theme.secondary)
+                Group {
+                    if large { Text(subtitle).scaledFont(14) } else { Text(subtitle).font(Theme.Font.sectionSubtitle) }
+                }
+                .foregroundStyle(Theme.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

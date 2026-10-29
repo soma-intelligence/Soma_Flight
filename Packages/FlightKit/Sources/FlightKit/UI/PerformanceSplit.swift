@@ -36,21 +36,24 @@ public struct PerformanceSplit: View {
             }
             bar
         }
-        .accessibilityElement(children: .combine)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Performance")
+        .accessibilityValue(parts.map { "\($0.label) \(share($0.count)) percent, \($0.count) flights" }.joined(separator: ", "))
     }
 
     private func column(_ part: Part) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 1).fill(part.color).frame(width: 2.5, height: 12)
-                Text(part.label).font(.system(size: 13)).foregroundStyle(Theme.primary)
+                Text(part.label).scaledFont(13).foregroundStyle(Theme.primary)
             }
             .padding(.bottom, 4)
             Text("\(share(part.count))%")
-                .font(.system(size: 22, weight: .semibold))
+                .scaledFont(22, weight: .semibold)
                 .foregroundStyle(Theme.primary)
             Text("\(part.count)")
-                .font(.system(size: 14.5))
+                .scaledFont(14.5)
                 .foregroundStyle(Theme.secondary)
         }
         .monospacedDigit()

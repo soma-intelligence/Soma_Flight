@@ -18,7 +18,9 @@ enum Format {
         return r == 0 ? "\(h)h" : "\(h)h \(r)m"
     }
 
-    static func minutes(_ d: Duration) -> Int { Int((Double(d.components.seconds) / 60).rounded()) }
+    /// Whole minutes, truncated toward zero. `DelayLevel` uses the same value, so a label and its
+    /// colour always agree (14m 30s is "14m", on time).
+    static func minutes(_ d: Duration) -> Int { Int(d.components.seconds / 60) }
 
     /// "AA 2178", "B6 717", "EJM 444": airline code, space, number.
     static func ident(_ raw: String) -> String {
