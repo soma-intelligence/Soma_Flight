@@ -1,10 +1,23 @@
 import Foundation
 import Observation
 
-/// Offline copy of the followed list. Task 5 supplies the SwiftData implementation.
+/// Offline copy of the followed list. `CacheStore` is the SwiftData implementation.
 public protocol FlightListCache: Sendable {
     func save(flights: [Flight]) async
     func flights() async -> [Flight]
+    /// When the list was last saved; nil when unknown.
+    func flightsSavedAt() async -> Date?
+}
+
+public extension FlightListCache {
+    func flightsSavedAt() async -> Date? { nil }
+}
+
+/// Offline copy of the Passport history.
+public protocol PastFlightCache: Sendable {
+    func save(past: [PastFlight]) async
+    func past() async -> [PastFlight]
+    func pastSavedAt() async -> Date?
 }
 
 @MainActor @Observable
@@ -62,9 +75,10 @@ public final class MyFlightsStore {
             isOffline = error == .offline
             if isOffline, all.isEmpty, let cache {
                 let cached = await cache.flights()
+                let savedAt = await cache.flightsSavedAt()
                 guard gen == loadGeneration, all.isEmpty else { return }
                 all = Dictionary(cached.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
-                lastUpdated = cached.map(\.updatedAt).max()
+                lastUpdated = savedAt ?? cached.map(\.updatedAt).max()
             }
         }
     }

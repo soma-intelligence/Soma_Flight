@@ -13,9 +13,10 @@ public final class FlightDetailStore {
     private let id: Flight.ID
     private let flights: any FlightService
     private let airports: any AirportService
+    private let cache: (any FlightListCache)?
 
-    public init(id: Flight.ID, flights: any FlightService, airports: any AirportService) {
-        self.id = id; self.flights = flights; self.airports = airports
+    public init(id: Flight.ID, flights: any FlightService, airports: any AirportService, cache: (any FlightListCache)? = nil) {
+        self.id = id; self.flights = flights; self.airports = airports; self.cache = cache
     }
 
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
@@ -23,6 +24,11 @@ public final class FlightDetailStore {
     public func load() async {
         var firstError: APIError?
         func note(_ e: APIError) { if firstError == nil { firstError = e } }
+        // Last known state first, so the screen is not blank while the network answers or when it is down.
+        if flight == nil, let cache {
+            let cached = await cache.flights().first { $0.id == id }
+            if flight == nil { flight = cached }
+        }
         let f: Flight
         do { f = try await flights.flight(id) } catch { self.error = error; return }
         flight = f

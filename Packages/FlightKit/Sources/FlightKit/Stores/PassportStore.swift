@@ -6,11 +6,17 @@ public final class PassportStore {
     /// nil = all time.
     public var year: Int?
     public private(set) var error: APIError?
+    public private(set) var isOffline = false
+    /// Save time of the cached history while offline, nil when the data is live.
+    public private(set) var lastUpdated: Date?
     private var all: [PastFlight] = []
 
     private let history: any HistoryService
+    private let cache: (any PastFlightCache)?
 
-    public init(history: any HistoryService) { self.history = history }
+    public init(history: any HistoryService, cache: (any PastFlightCache)? = nil) {
+        self.history = history; self.cache = cache
+    }
 
     /// Flights in the selected year (by local departure date), newest first.
     public var flights: [PastFlight] {
@@ -21,9 +27,18 @@ public final class PassportStore {
     public var years: [Int] { Array(Set(all.map(\.localYear))).sorted(by: >) }
 
     public func load() async {
+        if all.isEmpty, let cache {
+            let cached = await cache.past()
+            if all.isEmpty { all = cached }
+        }
         do {
             all = try await history.pastFlights()
-            error = nil
-        } catch { self.error = error }
+            error = nil; isOffline = false; lastUpdated = nil
+            await cache?.save(past: all)
+        } catch {
+            self.error = error
+            isOffline = error == .offline
+            if isOffline, let cache { lastUpdated = await cache.pastSavedAt() }
+        }
     }
 }
