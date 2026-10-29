@@ -8,11 +8,22 @@ public final class SearchStore {
     public private(set) var results: [Flight] = []
     public private(set) var error: APIError?
     public private(set) var isSearching = false
+    /// Queries that found something, newest first, at most `recentLimit`.
+    public private(set) var recent: [String] = []
+
+    public static let recentLimit = 6
+    static let recentKey = "recentSearches"
 
     private let flights: any FlightService
+    @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private var searchGeneration = 0
 
-    public init(flights: any FlightService) { self.flights = flights }
+    /// - Parameter defaults: where recent searches persist; nil keeps them in memory only.
+    public init(flights: any FlightService, defaults: UserDefaults? = nil) {
+        self.flights = flights
+        self.defaults = defaults
+        recent = defaults?.stringArray(forKey: Self.recentKey) ?? []
+    }
 
     /// On any error `text` stays as typed. The latest call wins; a superseded call drops its result.
     public func search() async {
@@ -27,6 +38,7 @@ public final class SearchStore {
             guard gen == searchGeneration else { return }
             results = found
             error = nil
+            remember(text)
         } catch {
             guard gen == searchGeneration else { return }
             self.error = error
@@ -45,5 +57,23 @@ public final class SearchStore {
             self.error = error
             return false
         }
+    }
+
+    public func clearRecent() {
+        recent = []
+        defaults?.removeObject(forKey: Self.recentKey)
+    }
+
+    /// Replaces the recent list without persisting it (previews and snapshots).
+    func seedRecent(_ queries: [String]) {
+        recent = Array(queries.prefix(Self.recentLimit))
+    }
+
+    /// Normalised (trimmed, upper case), moved to the front, deduplicated, capped.
+    private func remember(_ raw: String) {
+        let q = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !q.isEmpty else { return }
+        recent = Array(([q] + recent.filter { $0 != q }).prefix(Self.recentLimit))
+        defaults?.set(recent, forKey: Self.recentKey)
     }
 }

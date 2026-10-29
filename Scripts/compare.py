@@ -42,7 +42,29 @@ SCREEN_REFS = {
     "airport-2": [("IMG_0296.PNG", SHEET), ("IMG_0297.PNG", SHEET)],
     "airport-3": [("IMG_0298.PNG", SHEET), ("IMG_0299.PNG", SHEET), ("IMG_0300.PNG", SHEET)],
     "airport-4": [("IMG_0301.PNG", SHEET), ("IMG_0302.PNG", (0, 600, 1320, 2868)), ("IMG_0306.PNG", SHEET)],
+    # Task 6b screens. Mac screenshots are @2x, scaled by 1.5 to sit at @3x beside ours.
+    "my-flights-empty": [("IMG_0292.PNG", (0, 1912, 1320, 2868))],
+    "search": [("IMG_0308.PNG", (0, 190, 1320, 2868))],
+    "passport-1": [("IMG_0310.PNG", (0, 1227, 1320, 2868)), ("10.50.29", (36, 50, 612, 1300), 1.5)],
+    "passport-2": [("10.50.56", (20, 50, 612, 1290), 1.5)],
+    "settings": [("IMG_0313.PNG", (0, 190, 1320, 2868)), ("IMG_0314.PNG", (0, 380, 1320, 2868))],
 }
+
+
+def open_ref(refs: Path, name: str) -> Image.Image:
+    """A reference by file name, or by a fragment of it (the Mac screenshots' names hold odd spaces)."""
+    path = refs / name
+    if not path.exists():
+        path = next(p for p in sorted(refs.iterdir()) if name in p.name)
+    return Image.open(path).convert("RGB")
+
+
+def ref_crop(refs: Path, entry) -> Image.Image:
+    name, box, *scale = entry
+    crop = open_ref(refs, name).crop(box)
+    if scale:
+        crop = crop.resize((round(crop.width * scale[0]), round(crop.height * scale[0])), Image.LANCZOS)
+    return crop
 
 
 def side_by_side(left: Image.Image, right: Image.Image, path: Path) -> Path:
@@ -59,7 +81,7 @@ def side_by_side(left: Image.Image, right: Image.Image, path: Path) -> Path:
 
 
 def compose_screen(name: str, refs: Path) -> Path:
-    crops = [Image.open(refs / f).convert("RGB").crop(box) for f, box in SCREEN_REFS[name]]
+    crops = [ref_crop(refs, e) for e in SCREEN_REFS[name]]
     left = Image.new("RGB", (max(c.width for c in crops), sum(c.height for c in crops) + GAP * (len(crops) - 1)), BG)
     y = 0
     for c in crops:

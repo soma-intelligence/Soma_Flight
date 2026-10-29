@@ -163,14 +163,14 @@ import Testing
     @Test func historyAndExport() async throws {
         let svc = FakeHistoryService()
         let past = try await svc.pastFlights()
-        #expect(past.count == 8)
+        #expect(past.count == 42)
         #expect(past.contains { $0.status == .canceled })
         let years = Set(past.map { Calendar(identifier: .gregorian).component(.year, from: $0.date) })
-        #expect(years == [2024, 2025, 2026])
+        #expect(years == [2023, 2024, 2025, 2026])
         let csv = String(decoding: try await svc.export(.csv), as: UTF8.self)
-        #expect(csv.split(separator: "\n").count == 9)
+        #expect(csv.split(separator: "\n").count == 43)
         let json = try await svc.export(.json)
-        #expect(try FlightJSON.decoder.decode([PastFlight].self, from: json).count == 8)
+        #expect(try FlightJSON.decoder.decode([PastFlight].self, from: json).count == 42)
     }
 
     @Test func authFlow() async throws {

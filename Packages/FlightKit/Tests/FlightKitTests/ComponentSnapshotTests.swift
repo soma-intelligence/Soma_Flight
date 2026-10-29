@@ -27,7 +27,7 @@ struct ComponentSnapshotTests {
     static let screensDir: URL = outDir.deletingLastPathComponent().appending(path: "screens")
 
     @discardableResult
-    private func render<V: View>(_ name: String, to dir: URL = outDir, write: Bool = true, light: Bool = false,
+    func render<V: View>(_ name: String, to dir: URL = outDir, write: Bool = true, light: Bool = false,
                                  @ViewBuilder _ content: () -> V) throws -> CGImage {
         let view = content()
             .frame(width: Self.width)
@@ -43,7 +43,7 @@ struct ComponentSnapshotTests {
         return cg
     }
 
-    private func save(_ cg: CGImage, _ name: String, to dir: URL) throws {
+    func save(_ cg: CGImage, _ name: String, to dir: URL) throws {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appending(path: "\(name).png")
         let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))

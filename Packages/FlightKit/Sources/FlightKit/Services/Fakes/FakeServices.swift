@@ -103,8 +103,10 @@ public actor FakeFlightService: FlightService {
     private let airports: [Airport]
     private let hub = UpdateHub()
 
-    public init() {
-        let s = FakeSeed.shift()
+    /// - Parameter now: the clock the seed is shifted to. `FakeSeed.reference` keeps the seed's own times
+    ///   (previews and snapshots).
+    public init(now: Date = .now) {
+        let s = FakeSeed.shift(now: now)
         let followed = FakeSeed.flights("followed", shift: s)
         for f in followed { pool[f.id] = f }
         followedIDs = followed.map(\.id)

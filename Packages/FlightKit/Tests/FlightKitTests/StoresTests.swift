@@ -106,11 +106,11 @@ private let wn4410 = UUID(uuidString: "20fae9c5-79ee-5ec3-a45a-015ed6c7fd9d")!
     @Test func passportStoreFiltersByYear() async {
         let store = PassportStore(history: FakeHistoryService())
         await store.load()
-        #expect(store.years == [2026, 2025, 2024])
-        #expect(store.flights.count == 8)
+        #expect(store.years == [2026, 2025, 2024, 2023])
+        #expect(store.flights.count == 42)
         store.year = 2025
-        #expect(store.flights.count == 3)
-        #expect(store.stats.flights == 2) // one 2025 flight is canceled
+        #expect(store.flights.count == 13)
+        #expect(store.stats.flights == 12) // one 2025 flight is canceled
     }
 
     @Test func sessionStoreFollowsAuth() async throws {
