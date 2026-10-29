@@ -1,6 +1,6 @@
 # Backend API contract
 
-Base URL: `<project>/functions/v1/<name>`. Every endpoint except `aeroapi-webhook` and `push-sender` needs
+Base URL: `<project>/functions/v1/<name>`. Every endpoint except `aeroapi-webhook`, `push-sender`, `maintenance` and `usage-alert` needs
 `Authorization: Bearer <user JWT>`. Errors are `{ "error": { "code", "message" } }` with codes
 `unauthorized` (401), `invalid_request` (400/405), `not_found` (404), `rate_limited` (429),
 `plan_limit` (403), `provider_unavailable` (503 or 500 for internal errors).
@@ -20,6 +20,8 @@ seconds (the Rust core emits it that way and `HourBucket` decodes `Int64`).
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
+| `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
+| `usage-alert` | POST | none | service role only (pg_cron) |
 
 The rows above the line are summaries; the sources are the header comments in each `handler.ts`.
 

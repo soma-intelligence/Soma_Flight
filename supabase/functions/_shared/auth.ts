@@ -1,6 +1,7 @@
 // Auth helpers: caller identity from the bearer token, and a service role client.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { ApiError } from "./errors.ts";
+import { safeEqual } from "./apns.ts";
 
 function env(name: string): string {
   const v = Deno.env.get(name);
@@ -46,4 +47,30 @@ export async function requireUser(
     throw new ApiError("unauthorized", 401, "Invalid token");
   }
   return { userId: data.user.id };
+}
+
+/**
+ * Service role check for internal functions (push-sender, maintenance, usage-alert). Two layers:
+ * the bearer token must equal `key` (constant time), and when it is a JWT its `role` claim must
+ * be service_role. The gateway's verify_jwt is a third.
+ */
+export async function isServiceCaller(
+  req: Request,
+  key: string | undefined,
+): Promise<boolean> {
+  const bearer = /^Bearer\s+(\S+)$/i.exec(
+    req.headers.get("authorization") ?? "",
+  )?.[1];
+  if (!key || !bearer || !(await safeEqual(bearer, key))) return false;
+  const parts = bearer.split(".");
+  if (parts.length !== 3) return true; // opaque secret key (sb_secret_...), no claims to read
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(
+      atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, "=")),
+    );
+    return claims?.role === "service_role";
+  } catch {
+    return false;
+  }
 }

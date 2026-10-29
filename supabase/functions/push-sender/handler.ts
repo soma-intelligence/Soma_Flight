@@ -2,6 +2,7 @@
 // Service role only. The gateway checks the JWT signature (verify_jwt); this checks its role claim.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
+import { isServiceCaller } from "../_shared/auth.ts";
 import {
   alertCopy,
   apnsJwt,
@@ -12,7 +13,6 @@ import {
   isDeadToken,
   isProviderTokenRejected,
   mapLimit,
-  safeEqual,
   sendApns,
 } from "../_shared/apns.ts";
 
@@ -61,30 +61,6 @@ export function configFromEnv(): ApnsConfig | undefined {
     bundleId,
     sandbox: g("APNS_SANDBOX") === "true",
   };
-}
-
-/**
- * Two layers. The bearer token must equal SUPABASE_SERVICE_ROLE_KEY (constant time), and when it
- * is a JWT its `role` claim must be service_role. The gateway's verify_jwt is a third.
- */
-async function isServiceCaller(req: Request, deps: Deps): Promise<boolean> {
-  const key =
-    (deps.serviceKey ?? (() => Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")))();
-  const bearer = /^Bearer\s+(\S+)$/i.exec(
-    req.headers.get("authorization") ?? "",
-  )?.[1];
-  if (!key || !bearer || !(await safeEqual(bearer, key))) return false;
-  const parts = bearer.split(".");
-  if (parts.length !== 3) return true; // opaque secret key (sb_secret_...), no claims to read
-  try {
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const claims = JSON.parse(
-      atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, "=")),
-    );
-    return claims?.role === "service_role";
-  } catch {
-    return false;
-  }
 }
 
 type Row = Record<string, unknown>;
@@ -287,7 +263,9 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (req.method !== "POST") {
       throw new ApiError("invalid_request", 405, "Use POST");
     }
-    if (!(await isServiceCaller(req, deps))) {
+    const key = (deps.serviceKey ?? (() =>
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")))();
+    if (!(await isServiceCaller(req, key))) {
       throw new ApiError("unauthorized", 401, "Service role only");
     }
     let body: { flightId?: unknown; eventId?: unknown };
