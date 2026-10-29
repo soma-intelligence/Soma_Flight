@@ -44,6 +44,30 @@ struct AcknowledgementsTests {
         #expect(all.contains("Apache License"))
     }
 
+    /// Every logo kept in assets/logos/commons has a credit line in the app: author, licence, source.
+    @Test func everyCommonsLogoHasAnAttributionLine() throws {
+        struct Manifest: Decodable {
+            struct Logo: Decodable { let license: String; let source_page: String }
+            let logos: [String: Logo]
+        }
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "assets/logos/commons/manifest.json")
+        let logos = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url)).logos
+        #expect(logos.count >= 100)
+        let credits = Dictionary(uniqueKeysWithValues: AcknowledgementsView.logoCredits.map { ($0.icao, $0) })
+        #expect(credits.count == logos.count)
+        for (icao, logo) in logos {
+            let credit = try #require(credits[icao], "no attribution for \(icao)")
+            #expect(!credit.author.isEmpty && !credit.name.isEmpty)
+            #expect(credit.license == logo.license)
+            #expect(credit.source == logo.source_page && credit.source.hasPrefix("https://commons.wikimedia.org/wiki/File:"))
+            #expect(credit.attribution.contains("via Wikimedia Commons"))
+        }
+        let entry = try #require(AcknowledgementsView.entries.first { $0.name == "Airline logos (Wikimedia Commons)" })
+        #expect(entry.license.hasPrefix("Public domain"))
+    }
+
     @Test func flagLabelsNameTheCountry() {
         #expect(CountryFlag.accessibilityName("fr") == "France")
         #expect(CountryFlag.accessibilityName("ZZ") == "Unknown country")

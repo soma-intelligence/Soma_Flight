@@ -1,7 +1,8 @@
 # Data sources
 
 Reference data that ships in the repo, where it comes from, under which licence, and when it was retrieved.
-No dataset here is share-alike.
+No dataset here is share-alike. Two airline logo images are CC BY-SA (see Airline logos); they are shipped
+unchanged or only scaled, and nothing is derived from them.
 
 ## Airports
 
@@ -86,3 +87,35 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
 - Processing: every ring simplified with Douglas-Peucker at 0.15 degrees, coordinates rounded to 2 decimals,
   rings under 4 points dropped. The app draws it flat (equirectangular, standard parallel 40 degrees) and
   cuts Antarctica and the far north.
+
+## Airline logos (Wikimedia Commons)
+
+- Files: `assets/logos/commons/<ICAO>.svg` (as published on Commons) or `<ICAO>.png` (PNG sources, scaled to
+  192 px on the longest side), `assets/logos/commons/png/<ICAO>.png` (every logo rendered at 192 px on the
+  longest side, transparent), `manifest.json` (per ICAO: file, sha256, Wikidata item, source page, licence short
+  name and URL, author, credit, attribution text, retrieval date) and `rejected.json` (every airline without a
+  usable logo, with the reason). The app's credit list `Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json`
+  is written from the manifest and shown in Acknowledgements under "Airline logos (Wikimedia Commons)".
+- Built by `python3 -I Scripts/logos/fetch_commons.py`; review sheet `docs/logos/library.png` by
+  `python3 -I Scripts/logos/build_sheets.py` (which also draws `docs/logos/flags.png`, the 251 bundled flags).
+- Retrieved: 2026-10-29.
+- Method: for each of the 138 airlines in `supabase/seed/airlines.csv`, the Wikidata item with that ICAO airline
+  code (P230) is chosen by the reference seed rule (not dissolved, matching IATA code, most sitelinks), and its
+  logo image (P154) is looked up on the Commons API (`prop=imageinfo`, `extmetadata`). SVG is preferred over PNG;
+  JPEG is not taken. Downloads are checked against the SHA-1 Commons reports and against the declared type, and
+  are rendered only through an `<img>` element in headless Chromium. One request per second at most, with a
+  descriptive User-Agent; every answer is cached so a rerun does not hit the network.
+- Licences accepted: public domain (including PD-textlogo, too simple for copyright), CC0, CC BY and CC BY-SA.
+  Anything else (non-free, fair use, NC or ND, unknown) is rejected and recorded.
+- Counts: 109 accepted (102 SVG, 7 PNG): 107 public domain, 2 CC BY-SA (`OMA` Oman Air, CC BY-SA 4.0;
+  `ROT` TAROM, CC BY-SA 3.0). 29 without a usable logo: 26 whose Wikidata item has no logo image (usually
+  because the logo is non-free and lives only on a Wikipedia as fair use; `KAL` and `ARG` were found), 3 whose
+  only logo is a JPEG (`ASH`, `MEA`, `RJA`). No file was rejected for its licence: Commons hosts free files only.
+- Size: about 1.9 MB for `assets/logos` (SVGs 1.3 MB, 192 px PNGs 0.8 MB).
+- Use: `LOGO_PROVIDER=commons` makes `brand-assets-sync` load this library into the private `brand-assets`
+  bucket (`supabase/functions/_shared/brand/commons.ts`), from `COMMONS_LOGO_BASE` when set (an http URL
+  serving this folder, since the edge runtime cannot read the repo), else the repo copy. Main logo only:
+  no dark variant, no tail, no brand colours.
+- Trademark: a copyright licence (or public domain status) does not grant trademark rights. Airline names and
+  logos remain the airlines' trademarks, and 104 of the files carry the Commons "trademarked" notice. The Airhex
+  licence replaces this library once signed; until then the legal note of the v1.1 spec (section 4) applies.

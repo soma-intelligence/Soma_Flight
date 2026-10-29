@@ -1,0 +1,983 @@
+[
+  {
+    "attribution": "AA Symbol by American Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:AA_Symbol.svg)",
+    "author": "American Airlines",
+    "icao": "AAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "American Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:AA_Symbol.svg"
+  },
+  {
+    "attribution": "Asiana Airlines by Asiana Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Asiana_Airlines.svg)",
+    "author": "Asiana Airlines",
+    "icao": "AAR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Asiana Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Asiana_Airlines.svg"
+  },
+  {
+    "attribution": "Allegiant Air logo by Allegiant Air, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Allegiant_Air_logo.svg)",
+    "author": "Allegiant Air",
+    "icao": "AAY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Allegiant Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Allegiant_Air_logo.svg"
+  },
+  {
+    "attribution": "Air Arabia Logo by Air Arabia, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Arabia_Logo.svg)",
+    "author": "Air Arabia",
+    "icao": "ABY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Arabia",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Arabia_Logo.svg"
+  },
+  {
+    "attribution": "Air Canada 2017 by Air Canada, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Canada_2017.svg)",
+    "author": "Air Canada",
+    "icao": "ACA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Canada",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Canada_2017.svg"
+  },
+  {
+    "attribution": "Air Europa Logo (2015) by Air Europa, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Europa_Logo_(2015).svg)",
+    "author": "Air Europa",
+    "icao": "AEA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Europa",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Europa_Logo_(2015).svg"
+  },
+  {
+    "attribution": "Aegean Airlines Logo 2020 by Aegean Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Aegean_Airlines_Logo_2020.svg)",
+    "author": "Aegean Airlines",
+    "icao": "AEE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Aegean Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Aegean_Airlines_Logo_2020.svg"
+  },
+  {
+    "attribution": "Aeroflot Russian Airlines logo (en) by Aeroflot Russian Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Aeroflot_Russian_Airlines_logo_(en).svg)",
+    "author": "Aeroflot Russian Airlines",
+    "icao": "AFL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Aeroflot",
+    "source": "https://commons.wikimedia.org/wiki/File:Aeroflot_Russian_Airlines_logo_(en).svg"
+  },
+  {
+    "attribution": "Air France Logo by Air France, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_France_Logo.svg)",
+    "author": "Air France",
+    "icao": "AFR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air France",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_France_Logo.svg"
+  },
+  {
+    "attribution": "Azerbaijan Airlines logo by Azerbaijan Hava Yollari, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Azerbaijan_Airlines_logo.svg)",
+    "author": "Azerbaijan Hava Yollari",
+    "icao": "AHY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Azerbaijan Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Azerbaijan_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Air India 2023 by Air India, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_India_2023.svg)",
+    "author": "Air India",
+    "icao": "AIC",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air India",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_India_2023.svg"
+  },
+  {
+    "attribution": "Aeroméxico wordmark by Aeroméxico, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Aerom%C3%A9xico_wordmark.svg)",
+    "author": "Aeroméxico",
+    "icao": "AMX",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Aeroméxico",
+    "source": "https://commons.wikimedia.org/wiki/File:Aerom%C3%A9xico_wordmark.svg"
+  },
+  {
+    "attribution": "All Nippon Airways Logo by All Nippon Airways Co., Ltd., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:All_Nippon_Airways_Logo.svg)",
+    "author": "All Nippon Airways Co., Ltd.",
+    "icao": "ANA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "All Nippon Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:All_Nippon_Airways_Logo.svg"
+  },
+  {
+    "attribution": "Air New Zealand logo by Air New Zealand, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_New_Zealand_logo.svg)",
+    "author": "Air New Zealand",
+    "icao": "ANZ",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air New Zealand",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_New_Zealand_logo.svg"
+  },
+  {
+    "attribution": "Logo wordmark Aerolíneas Argentinas (2010) by Aerolíneas Argentinas, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_wordmark_Aerol%C3%ADneas_Argentinas_(2010).svg)",
+    "author": "Aerolíneas Argentinas",
+    "icao": "ARG",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Aerolíneas Argentinas",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_wordmark_Aerol%C3%ADneas_Argentinas_(2010).svg"
+  },
+  {
+    "attribution": "Alaska Airlines logo by Alaska Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Alaska_Airlines_logo.svg)",
+    "author": "Alaska Airlines",
+    "icao": "ASA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Alaska Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Alaska_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Austrian Airlines Logo 2018 by Austrian Airlines AG, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Austrian_Airlines_Logo_2018.svg)",
+    "author": "Austrian Airlines AG",
+    "icao": "AUA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Austrian Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Austrian_Airlines_Logo_2018.svg"
+  },
+  {
+    "attribution": "Avianca 2023 wordmark by Avianca S.A., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Avianca_2023_wordmark.svg)",
+    "author": "Avianca S.A.",
+    "icao": "AVA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Avianca",
+    "source": "https://commons.wikimedia.org/wiki/File:Avianca_2023_wordmark.svg"
+  },
+  {
+    "attribution": "Air Wisconsin Logo, December 2022 by Air Wisconsin Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Wisconsin_Logo,_December_2022.svg)",
+    "author": "Air Wisconsin Airlines",
+    "icao": "AWI",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Wisconsin",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Wisconsin_Logo,_December_2022.svg"
+  },
+  {
+    "attribution": "AirAsia New Logo by AirAsia, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:AirAsia_New_Logo.svg)",
+    "author": "AirAsia",
+    "icao": "AWQ",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Indonesia AirAsia",
+    "source": "https://commons.wikimedia.org/wiki/File:AirAsia_New_Logo.svg"
+  },
+  {
+    "attribution": "Air India Express logo by Air India, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_India_Express_logo.svg)",
+    "author": "Air India",
+    "icao": "AXB",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air India Express",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_India_Express_logo.svg"
+  },
+  {
+    "attribution": "AirAsia New Logo (2020) by AirAsia, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:AirAsia_New_Logo_(2020).svg)",
+    "author": "AirAsia",
+    "icao": "AXM",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "AirAsia",
+    "source": "https://commons.wikimedia.org/wiki/File:AirAsia_New_Logo_(2020).svg"
+  },
+  {
+    "attribution": "Logo wordmark British Airways by British Airways, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_wordmark_British_Airways.png)",
+    "author": "British Airways",
+    "icao": "BAW",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "British Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_wordmark_British_Airways.png"
+  },
+  {
+    "attribution": "Brussels airlines logo 2021 by Brussels Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Brussels_airlines_logo_2021.svg)",
+    "author": "Brussels Airlines",
+    "icao": "BEL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Brussels Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Brussels_airlines_logo_2021.svg"
+  },
+  {
+    "attribution": "AirBaltic logo by AirBaltic, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:AirBaltic_logo.svg)",
+    "author": "AirBaltic",
+    "icao": "BTI",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "airBaltic",
+    "source": "https://commons.wikimedia.org/wiki/File:AirBaltic_logo.svg"
+  },
+  {
+    "attribution": "Air China wordmark by Air China Limited, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_China_wordmark.svg)",
+    "author": "Air China Limited",
+    "icao": "CCA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air China",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_China_wordmark.svg"
+  },
+  {
+    "attribution": "Cebu Pacific logo by Cebu Pacific, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Cebu_Pacific_logo.png)",
+    "author": "Cebu Pacific",
+    "icao": "CEB",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Cebu Pacific",
+    "source": "https://commons.wikimedia.org/wiki/File:Cebu_Pacific_logo.png"
+  },
+  {
+    "attribution": "Copa airlines logo by EEIM, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Copa_airlines_logo.png)",
+    "author": "EEIM",
+    "icao": "CMP",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Copa Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Copa_airlines_logo.png"
+  },
+  {
+    "attribution": "Cathay Pacific Ltd. logo by Cathay Pacific, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Cathay_Pacific_Ltd._logo.svg)",
+    "author": "Cathay Pacific",
+    "icao": "CPA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Cathay Pacific",
+    "source": "https://commons.wikimedia.org/wiki/File:Cathay_Pacific_Ltd._logo.svg"
+  },
+  {
+    "attribution": "Croatia Airlines 2024 logo by Croatia Airlines Ltd., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Croatia_Airlines_2024_logo.svg)",
+    "author": "Croatia Airlines Ltd.",
+    "icao": "CTN",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Croatia Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Croatia_Airlines_2024_logo.svg"
+  },
+  {
+    "attribution": "Logo Air Algérie by Mouh2jijel, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_Air_Alg%C3%A9rie.svg)",
+    "author": "Mouh2jijel",
+    "icao": "DAH",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Algérie",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_Air_Alg%C3%A9rie.svg"
+  },
+  {
+    "attribution": "Delta logo by Delta Air Lines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Delta_logo.svg)",
+    "author": "Delta Air Lines",
+    "icao": "DAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Delta Air Lines",
+    "source": "https://commons.wikimedia.org/wiki/File:Delta_logo.svg"
+  },
+  {
+    "attribution": "Lufthansa Logo 2018 by Lufthansa Group, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Lufthansa_Logo_2018.svg)",
+    "author": "Lufthansa Group",
+    "icao": "DLH",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Lufthansa",
+    "source": "https://commons.wikimedia.org/wiki/File:Lufthansa_Logo_2018.svg"
+  },
+  {
+    "attribution": "Edelweiss Air wordmark by Edelweiss Air AG, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Edelweiss_Air_wordmark.svg)",
+    "author": "Edelweiss Air AG",
+    "icao": "EDW",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Edelweiss Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Edelweiss_Air_wordmark.svg"
+  },
+  {
+    "attribution": "Aer Lingus 2022 logo by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Aer_Lingus_2022_logo.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "EIN",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Aer Lingus",
+    "source": "https://commons.wikimedia.org/wiki/File:Aer_Lingus_2022_logo.svg"
+  },
+  {
+    "attribution": "El Al logo by El Al, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:El_Al_logo.svg)",
+    "author": "El Al",
+    "icao": "ELY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "El Al",
+    "source": "https://commons.wikimedia.org/wiki/File:El_Al_logo.svg"
+  },
+  {
+    "attribution": "Envoy air logo by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Envoy_air_logo.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "ENY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Envoy Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Envoy_air_logo.svg"
+  },
+  {
+    "attribution": "Etihad-airways-logo by Moheen Reeyad, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Etihad-airways-logo.svg)",
+    "author": "Moheen Reeyad",
+    "icao": "ETD",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Etihad Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Etihad-airways-logo.svg"
+  },
+  {
+    "attribution": "Ethiopian Airlines Logo by Ethiopian Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Ethiopian_Airlines_Logo.svg)",
+    "author": "Ethiopian Airlines",
+    "icao": "ETH",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Ethiopian Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Ethiopian_Airlines_Logo.svg"
+  },
+  {
+    "attribution": "Logo EVA Air by EVA Air, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_EVA_Air.svg)",
+    "author": "EVA Air",
+    "icao": "EVA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "EVA Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_EVA_Air.svg"
+  },
+  {
+    "attribution": "Eurowings Logo 2026 by Eurowings GmbH, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Eurowings_Logo_2026.svg)",
+    "author": "Eurowings GmbH",
+    "icao": "EWG",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Eurowings",
+    "source": "https://commons.wikimedia.org/wiki/File:Eurowings_Logo_2026.svg"
+  },
+  {
+    "attribution": "Jet2Logo by Jet2.com, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Jet2Logo.svg)",
+    "author": "Jet2.com",
+    "icao": "EXS",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Jet2.com",
+    "source": "https://commons.wikimedia.org/wiki/File:Jet2Logo.svg"
+  },
+  {
+    "attribution": "EasyJet logo by easyJet ., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:EasyJet_logo.svg)",
+    "author": "easyJet .",
+    "icao": "EZY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "easyJet",
+    "source": "https://commons.wikimedia.org/wiki/File:EasyJet_logo.svg"
+  },
+  {
+    "attribution": "Fly Dubai logo 2010 03 by Fly Dubai, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Fly_Dubai_logo_2010_03.svg)",
+    "author": "Fly Dubai",
+    "icao": "FDB",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "flydubai",
+    "source": "https://commons.wikimedia.org/wiki/File:Fly_Dubai_logo_2010_03.svg"
+  },
+  {
+    "attribution": "Frontier Airlines logo by Frontier Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Frontier_Airlines_logo.svg)",
+    "author": "Frontier Airlines",
+    "icao": "FFT",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Frontier Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Frontier_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Finnair Logo by Finnair, Mikael Kivelä, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Finnair_Logo.svg)",
+    "author": "Finnair, Mikael Kivelä",
+    "icao": "FIN",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Finnair",
+    "source": "https://commons.wikimedia.org/wiki/File:Finnair_Logo.svg"
+  },
+  {
+    "attribution": "Air Pacific logo by Air Pacific, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Pacific_logo.svg)",
+    "author": "Air Pacific",
+    "icao": "FJI",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Fiji Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Pacific_logo.svg"
+  },
+  {
+    "attribution": "Flair Airlines logo (2019) by Flair Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Flair_Airlines_logo_(2019).svg)",
+    "author": "Flair Airlines",
+    "icao": "FLE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Flair Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Flair_Airlines_logo_(2019).svg"
+  },
+  {
+    "attribution": "Gulf Air 2018 wordmark by Gulf Air Company G.S.C., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Gulf_Air_2018_wordmark.svg)",
+    "author": "Gulf Air Company G.S.C.",
+    "icao": "GFA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Gulf Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Gulf_Air_2018_wordmark.svg"
+  },
+  {
+    "attribution": "Gol Linhas Aéreas Inteligentes logo (2015, without the slogan) by Gol Linhas Aéreas Inteligentes, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Gol_Linhas_A%C3%A9reas_Inteligentes_logo_(2015,_without_the_slogan).svg)",
+    "author": "Gol Linhas Aéreas Inteligentes",
+    "icao": "GLO",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "GOL Linhas Aéreas",
+    "source": "https://commons.wikimedia.org/wiki/File:Gol_Linhas_A%C3%A9reas_Inteligentes_logo_(2015,_without_the_slogan).svg"
+  },
+  {
+    "attribution": "Hawaiian Airlines 2017 wordmark by Hawaiian Airlines, Inc., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Hawaiian_Airlines_2017_wordmark.svg)",
+    "author": "Hawaiian Airlines, Inc.",
+    "icao": "HAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Hawaiian Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Hawaiian_Airlines_2017_wordmark.svg"
+  },
+  {
+    "attribution": "HK express logo 2013 by HK Express, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:HK_express_logo_2013.svg)",
+    "author": "HK Express",
+    "icao": "HKE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "HK Express",
+    "source": "https://commons.wikimedia.org/wiki/File:HK_express_logo_2013.svg"
+  },
+  {
+    "attribution": "Vietnam Airlines 2015 wordmark by Vietnam Airlines JSC, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Vietnam_Airlines_2015_wordmark.svg)",
+    "author": "Vietnam Airlines JSC",
+    "icao": "HVN",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Vietnam Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Vietnam_Airlines_2015_wordmark.svg"
+  },
+  {
+    "attribution": "Logotipo de Iberia by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logotipo_de_Iberia.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "IBE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Iberia",
+    "source": "https://commons.wikimedia.org/wiki/File:Logotipo_de_Iberia.svg"
+  },
+  {
+    "attribution": "Icelandairlogo by Icelandair, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Icelandairlogo.svg)",
+    "author": "Icelandair",
+    "icao": "ICE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Icelandair",
+    "source": "https://commons.wikimedia.org/wiki/File:Icelandairlogo.svg"
+  },
+  {
+    "attribution": "IndiGo Airlines logo by IndiGo, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:IndiGo_Airlines_logo.svg)",
+    "author": "IndiGo",
+    "icao": "IGO",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "IndiGo",
+    "source": "https://commons.wikimedia.org/wiki/File:IndiGo_Airlines_logo.svg"
+  },
+  {
+    "attribution": "ITA Airways Logo by ITA Airways, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:ITA_Airways_Logo.svg)",
+    "author": "ITA Airways",
+    "icao": "ITY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "ITA Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:ITA_Airways_Logo.svg"
+  },
+  {
+    "attribution": "Japan Airlines Wordmark (2011) by Copyright©Japan Airlines. All rights reserved., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Japan_Airlines_Wordmark_(2011).svg)",
+    "author": "Copyright©Japan Airlines. All rights reserved.",
+    "icao": "JAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Japan Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Japan_Airlines_Wordmark_(2011).svg"
+  },
+  {
+    "attribution": "JetBlue Airways Logo by JetBlue Airways, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:JetBlue_Airways_Logo.svg)",
+    "author": "JetBlue Airways",
+    "icao": "JBU",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "JetBlue Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:JetBlue_Airways_Logo.svg"
+  },
+  {
+    "attribution": "Jeju Air Logo by Jeju Air, Vectorization: Jeromi Mikhael, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Jeju_Air_Logo.svg)",
+    "author": "Jeju Air, Vectorization: Jeromi Mikhael",
+    "icao": "JJA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Jeju Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Jeju_Air_Logo.svg"
+  },
+  {
+    "attribution": "Jetstar logo by Jetstar Group, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Jetstar_logo.svg)",
+    "author": "Jetstar Group",
+    "icao": "JST",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Jetstar Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Jetstar_logo.svg"
+  },
+  {
+    "attribution": "Kuwait Airways wordmark by Kuwait Airways Company K.S.C., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Kuwait_Airways_wordmark.svg)",
+    "author": "Kuwait Airways Company K.S.C.",
+    "icao": "KAC",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Kuwait Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Kuwait_Airways_wordmark.svg"
+  },
+  {
+    "attribution": "Korean Air 2025 by Korean Air (designed by Lippincott), public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Korean_Air_2025.svg)",
+    "author": "Korean Air (designed by Lippincott)",
+    "icao": "KAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Korean Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Korean_Air_2025.svg"
+  },
+  {
+    "attribution": "KLM logo by Designed by F.H.K. Henrion, in 1961. Modified by Chris Ludlow at Henrion, Ludlow & Schmidt, in 1991., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:KLM_logo.svg)",
+    "author": "Designed by F.H.K. Henrion, in 1961. Modified by Chris Ludlow at Henrion, Ludlow & Schmidt, in 1991.",
+    "icao": "KLM",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "KLM Royal Dutch Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:KLM_logo.svg"
+  },
+  {
+    "attribution": "Kenya Airways logo by Kenya Airways Ltd., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Kenya_Airways_logo.svg)",
+    "author": "Kenya Airways Ltd.",
+    "icao": "KQA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Kenya Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Kenya_Airways_logo.svg"
+  },
+  {
+    "attribution": "AirAstanaNewLogo by Air Astana, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:AirAstanaNewLogo.png)",
+    "author": "Air Astana",
+    "icao": "KZR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Astana",
+    "source": "https://commons.wikimedia.org/wiki/File:AirAstanaNewLogo.png"
+  },
+  {
+    "attribution": "Latam-logo -v (Indigo) by Sao Paolo, Santiago and Madrid offices of Interbrand [1] vector file: Mliu92, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Latam-logo_-v_(Indigo).svg)",
+    "author": "Sao Paolo, Santiago and Madrid offices of Interbrand [1] vector file: Mliu92",
+    "icao": "LAN",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "LATAM Airlines Chile",
+    "source": "https://commons.wikimedia.org/wiki/File:Latam-logo_-v_(Indigo).svg"
+  },
+  {
+    "attribution": "Luxair Logo 2007 by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Luxair_Logo_2007.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "LGL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Luxair",
+    "source": "https://commons.wikimedia.org/wiki/File:Luxair_Logo_2007.svg"
+  },
+  {
+    "attribution": "LOT Polish Airlines wordmark by Polskie Linie Lotnicze LOT S.A., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:LOT_Polish_Airlines_wordmark.svg)",
+    "author": "Polskie Linie Lotnicze LOT S.A.",
+    "icao": "LOT",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "LOT Polish Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:LOT_Polish_Airlines_wordmark.svg"
+  },
+  {
+    "attribution": "Egyptair-Logo-2010 by Egyptair, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Egyptair-Logo-2010.svg)",
+    "author": "Egyptair",
+    "icao": "MSR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "EgyptAir",
+    "source": "https://commons.wikimedia.org/wiki/File:Egyptair-Logo-2010.svg"
+  },
+  {
+    "attribution": "BreezeAirwayslogo by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:BreezeAirwayslogo.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "MXY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Breeze Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:BreezeAirwayslogo.svg"
+  },
+  {
+    "attribution": "Spirit Airlines logo 2014 by Barkley (Agency of Record; Kansas City), public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Spirit_Airlines_logo_2014.svg)",
+    "author": "Barkley (Agency of Record; Kansas City)",
+    "icao": "NKS",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Spirit Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Spirit_Airlines_logo_2014.svg"
+  },
+  {
+    "attribution": "Norwegian Logo 2024 by Norwegian Air Shuttle ASA, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Norwegian_Logo_2024.svg)",
+    "author": "Norwegian Air Shuttle ASA",
+    "icao": "NOZ",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Norwegian Air Shuttle",
+    "source": "https://commons.wikimedia.org/wiki/File:Norwegian_Logo_2024.svg"
+  },
+  {
+    "attribution": "Oman Air logo by Rajcurator, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Oman_Air_logo.png)",
+    "author": "Rajcurator",
+    "icao": "OMA",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "name": "Oman Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Oman_Air_logo.png"
+  },
+  {
+    "attribution": "Philippine Airlines logo by Philippine Airlines, Inc., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Philippine_Airlines_logo.svg)",
+    "author": "Philippine Airlines, Inc.",
+    "icao": "PAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Philippine Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Philippine_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Pegasus Airlines logo by Pegasus Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Pegasus_Airlines_logo.svg)",
+    "author": "Pegasus Airlines",
+    "icao": "PGT",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Pegasus Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Pegasus_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Qantas wordmark 2016 by Qantas Airways Limited, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Qantas_wordmark_2016.svg)",
+    "author": "Qantas Airways Limited",
+    "icao": "QFA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Qantas Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Qantas_wordmark_2016.svg"
+  },
+  {
+    "attribution": "Qatar Airways logo by Qatar Airways, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Qatar_Airways_logo.svg)",
+    "author": "Qatar Airways",
+    "icao": "QTR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Qatar Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Qatar_Airways_logo.svg"
+  },
+  {
+    "attribution": "Horizon Air Logo by Alaska Air Group, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Horizon_Air_Logo.svg)",
+    "author": "Alaska Air Group",
+    "icao": "QXE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Horizon Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Horizon_Air_Logo.svg"
+  },
+  {
+    "attribution": "Logo Royal Air Maroc by Royal Air Maroc, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_Royal_Air_Maroc.svg)",
+    "author": "Royal Air Maroc",
+    "icao": "RAM",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Royal Air Maroc",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_Royal_Air_Maroc.svg"
+  },
+  {
+    "attribution": "TAROM Logo tail (blue) by Great Brightstar, CC BY-SA 3.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:TAROM_Logo_tail_(blue).svg)",
+    "author": "Great Brightstar",
+    "icao": "ROT",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "name": "TAROM",
+    "source": "https://commons.wikimedia.org/wiki/File:TAROM_Logo_tail_(blue).svg"
+  },
+  {
+    "attribution": "RwandAir Logotype by Rwandair, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:RwandAir_Logotype.png)",
+    "author": "Rwandair",
+    "icao": "RWD",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "RwandAir",
+    "source": "https://commons.wikimedia.org/wiki/File:RwandAir_Logotype.png"
+  },
+  {
+    "attribution": "Ryanair wordmark by Ryanair Holdings plc, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Ryanair_wordmark.svg)",
+    "author": "Ryanair Holdings plc",
+    "icao": "RYR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Ryanair",
+    "source": "https://commons.wikimedia.org/wiki/File:Ryanair_wordmark.svg"
+  },
+  {
+    "attribution": "South African Airways 2019 logo by South African Airways SOC Ltd., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:South_African_Airways_2019_logo.svg)",
+    "author": "South African Airways SOC Ltd.",
+    "icao": "SAA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "South African Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:South_African_Airways_2019_logo.svg"
+  },
+  {
+    "attribution": "Scandinavian Airlines logo by Scandinavian Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Scandinavian_Airlines_logo.svg)",
+    "author": "Scandinavian Airlines",
+    "icao": "SAS",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Scandinavian Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Scandinavian_Airlines_logo.svg"
+  },
+  {
+    "attribution": "Singapore Airlines wordmark by Singapore Airlines Limited, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Singapore_Airlines_wordmark.svg)",
+    "author": "Singapore Airlines Limited",
+    "icao": "SIA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Singapore Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Singapore_Airlines_wordmark.svg"
+  },
+  {
+    "attribution": "Sky Airline Logo by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Sky_Airline_Logo.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "SKU",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Sky Airline",
+    "source": "https://commons.wikimedia.org/wiki/File:Sky_Airline_Logo.svg"
+  },
+  {
+    "attribution": "SkyWest Airlines (United States) logo by SkyWest Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:SkyWest_Airlines_(United_States)_logo.svg)",
+    "author": "SkyWest Airlines",
+    "icao": "SKW",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "SkyWest Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:SkyWest_Airlines_(United_States)_logo.svg"
+  },
+  {
+    "attribution": "Southwest Airlines logo 2014 by Lippincott Studio, NY, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Southwest_Airlines_logo_2014.svg)",
+    "author": "Lippincott Studio, NY",
+    "icao": "SWA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Southwest Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Southwest_Airlines_logo_2014.svg"
+  },
+  {
+    "attribution": "Swiss International Air Lines Logo 2011 by Swiss International Air Lines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Swiss_International_Air_Lines_Logo_2011.svg)",
+    "author": "Swiss International Air Lines",
+    "icao": "SWR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Swiss International Air Lines",
+    "source": "https://commons.wikimedia.org/wiki/File:Swiss_International_Air_Lines_Logo_2011.svg"
+  },
+  {
+    "attribution": "SunExpress Logo by SunExpress, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:SunExpress_Logo.svg)",
+    "author": "SunExpress",
+    "icao": "SXS",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "SunExpress",
+    "source": "https://commons.wikimedia.org/wiki/File:SunExpress_Logo.svg"
+  },
+  {
+    "attribution": "TAP-Portugal-Logo by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:TAP-Portugal-Logo.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "TAP",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "TAP Air Portugal",
+    "source": "https://commons.wikimedia.org/wiki/File:TAP-Portugal-Logo.svg"
+  },
+  {
+    "attribution": "Scoot logo by flyscoot.com, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Scoot_logo.svg)",
+    "author": "flyscoot.com",
+    "icao": "TGW",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Scoot",
+    "source": "https://commons.wikimedia.org/wiki/File:Scoot_logo.svg"
+  },
+  {
+    "attribution": "Turkish Airlines logo 2019 compact by Turkish Airlines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Turkish_Airlines_logo_2019_compact.svg)",
+    "author": "Turkish Airlines",
+    "icao": "THY",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Turkish Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Turkish_Airlines_logo_2019_compact.svg"
+  },
+  {
+    "attribution": "TUI Logo 2016 by TUI Group, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:TUI_Logo_2016.svg)",
+    "author": "TUI Group",
+    "icao": "TOM",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "TUI Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:TUI_Logo_2016.svg"
+  },
+  {
+    "attribution": "Transavia 2025 logo by Transavia Airlines C.V. / Transavia France S.A.S., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Transavia_2025_logo.svg)",
+    "author": "Transavia Airlines C.V. / Transavia France S.A.S.",
+    "icao": "TRA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Transavia",
+    "source": "https://commons.wikimedia.org/wiki/File:Transavia_2025_logo.svg"
+  },
+  {
+    "attribution": "Air Transat logo by Air Transat, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Air_Transat_logo.svg)",
+    "author": "Air Transat",
+    "icao": "TSC",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Air Transat",
+    "source": "https://commons.wikimedia.org/wiki/File:Air_Transat_logo.svg"
+  },
+  {
+    "attribution": "Transavia logo by Transavia, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Transavia_logo.svg)",
+    "author": "Transavia",
+    "icao": "TVF",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Transavia France",
+    "source": "https://commons.wikimedia.org/wiki/File:Transavia_logo.svg"
+  },
+  {
+    "attribution": "Trinity Airways by Trinity Airways Co., Ltd., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Trinity_Airways.svg)",
+    "author": "Trinity Airways Co., Ltd.",
+    "icao": "TWB",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Trinity Airways",
+    "source": "https://commons.wikimedia.org/wiki/File:Trinity_Airways.svg"
+  },
+  {
+    "attribution": "Emirates banner logo by Fly Emirates Group, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Emirates_banner_logo.svg)",
+    "author": "Fly Emirates Group",
+    "icao": "UAE",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Emirates",
+    "source": "https://commons.wikimedia.org/wiki/File:Emirates_banner_logo.svg"
+  },
+  {
+    "attribution": "United Airlines wordmark by United Airlines, Inc., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:United_Airlines_wordmark.svg)",
+    "author": "United Airlines, Inc.",
+    "icao": "UAL",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "United Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:United_Airlines_wordmark.svg"
+  },
+  {
+    "attribution": "Logo wordmark CommuteAir (2025) by CommuteAir, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_wordmark_CommuteAir_(2025).png)",
+    "author": "CommuteAir",
+    "icao": "UCA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "CommuteAir",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_wordmark_CommuteAir_(2025).png"
+  },
+  {
+    "attribution": "Virgin Atlantic logo 2018 by Virgin Atlantic, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Virgin_Atlantic_logo_2018.svg)",
+    "author": "Virgin Atlantic",
+    "icao": "VIR",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Virgin Atlantic",
+    "source": "https://commons.wikimedia.org/wiki/File:Virgin_Atlantic_logo_2018.svg"
+  },
+  {
+    "attribution": "VietJet Air logo by VietJet Air, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:VietJet_Air_logo.svg)",
+    "author": "VietJet Air",
+    "icao": "VJC",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "VietJet Air",
+    "source": "https://commons.wikimedia.org/wiki/File:VietJet_Air_logo.svg"
+  },
+  {
+    "attribution": "Logo Vueling by Vueling Airlines SA, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_Vueling.svg)",
+    "author": "Vueling Airlines SA",
+    "icao": "VLG",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Vueling",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_Vueling.svg"
+  },
+  {
+    "attribution": "Volaris-logo by volaris, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Volaris-logo.svg)",
+    "author": "volaris",
+    "icao": "VOI",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Volaris",
+    "source": "https://commons.wikimedia.org/wiki/File:Volaris-logo.svg"
+  },
+  {
+    "attribution": "Logo of Avelo Airlines by Unknown author Unknown author, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Logo_of_Avelo_Airlines.svg)",
+    "author": "Unknown author Unknown author",
+    "icao": "VXP",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Avelo Airlines",
+    "source": "https://commons.wikimedia.org/wiki/File:Logo_of_Avelo_Airlines.svg"
+  },
+  {
+    "attribution": "WestJetLogo2018 by WestJet, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:WestJetLogo2018.svg)",
+    "author": "WestJet",
+    "icao": "WJA",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "WestJet",
+    "source": "https://commons.wikimedia.org/wiki/File:WestJetLogo2018.svg"
+  },
+  {
+    "attribution": "Wizz Air logo 2015 by Wizz Air, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Wizz_Air_logo_2015.svg)",
+    "author": "Wizz Air",
+    "icao": "WZZ",
+    "license": "Public domain",
+    "license_url": null,
+    "name": "Wizz Air",
+    "source": "https://commons.wikimedia.org/wiki/File:Wizz_Air_logo_2015.svg"
+  }
+]

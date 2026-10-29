@@ -1,0 +1,176 @@
+{
+  "ALK": {
+    "detail": "Q853293 has no logo image (P154)",
+    "name": "SriLankan Airlines",
+    "reason": "not found",
+    "wikidata": "Q853293"
+  },
+  "ASH": {
+    "detail": "MesaAirlinesLogo2.jpg: image/jpeg",
+    "name": "Mesa Airlines",
+    "reason": "unsupported type",
+    "wikidata": "Q1922297"
+  },
+  "ASQ": {
+    "detail": "Q46676 has no logo image (P154)",
+    "name": "ExpressJet",
+    "reason": "not found",
+    "wikidata": "Q46676"
+  },
+  "CAL": {
+    "detail": "Q51756 has no logo image (P154)",
+    "name": "China Airlines",
+    "reason": "not found",
+    "wikidata": "Q51756"
+  },
+  "CES": {
+    "detail": "Q291796 has no logo image (P154)",
+    "name": "China Eastern Airlines",
+    "reason": "not found",
+    "wikidata": "Q291796"
+  },
+  "CHH": {
+    "detail": "Q292428 has no logo image (P154)",
+    "name": "Hainan Airlines",
+    "reason": "not found",
+    "wikidata": "Q292428"
+  },
+  "CQH": {
+    "detail": "Q1340408 has no logo image (P154)",
+    "name": "Spring Airlines",
+    "reason": "not found",
+    "wikidata": "Q1340408"
+  },
+  "CSC": {
+    "detail": "Q291944 has no logo image (P154)",
+    "name": "Sichuan Airlines",
+    "reason": "not found",
+    "wikidata": "Q291944"
+  },
+  "CSN": {
+    "detail": "Q291090 has no logo image (P154)",
+    "name": "China Southern Airlines",
+    "reason": "not found",
+    "wikidata": "Q291090"
+  },
+  "CSZ": {
+    "detail": "Q974899 has no logo image (P154)",
+    "name": "Shenzhen Airlines",
+    "reason": "not found",
+    "wikidata": "Q974899"
+  },
+  "CXA": {
+    "detail": "Q147208 has no logo image (P154)",
+    "name": "Xiamen Airlines",
+    "reason": "not found",
+    "wikidata": "Q147208"
+  },
+  "FLG": {
+    "detail": "Q1145445 has no logo image (P154)",
+    "name": "Endeavor Air",
+    "reason": "not found",
+    "wikidata": "Q1145445"
+  },
+  "GIA": {
+    "detail": "Q512468 has no logo image (P154)",
+    "name": "Garuda Indonesia",
+    "reason": "not found",
+    "wikidata": "Q512468"
+  },
+  "GJS": {
+    "detail": "Q1533365 has no logo image (P154)",
+    "name": "GoJet Airlines",
+    "reason": "not found",
+    "wikidata": "Q1533365"
+  },
+  "JIA": {
+    "detail": "Q1536988 has no logo image (P154)",
+    "name": "PSA Airlines",
+    "reason": "not found",
+    "wikidata": "Q1536988"
+  },
+  "KLC": {
+    "detail": "Q1061296 has no logo image (P154)",
+    "name": "KLM Cityhopper",
+    "reason": "not found",
+    "wikidata": "Q1061296"
+  },
+  "LOG": {
+    "detail": "Q934983 has no logo image (P154)",
+    "name": "Loganair",
+    "reason": "not found",
+    "wikidata": "Q934983"
+  },
+  "MAS": {
+    "detail": "Q308952 has no logo image (P154)",
+    "name": "Malaysia Airlines",
+    "reason": "not found",
+    "wikidata": "Q308952"
+  },
+  "MEA": {
+    "detail": "Logo Middle East Airlines (Lebanon).jpg: image/jpeg",
+    "name": "Middle East Airlines",
+    "reason": "unsupported type",
+    "wikidata": "Q859510"
+  },
+  "RJA": {
+    "detail": "Royal Jordanian logo.jpg: image/jpeg",
+    "name": "Royal Jordanian",
+    "reason": "unsupported type",
+    "wikidata": "Q824225"
+  },
+  "RPA": {
+    "detail": "Q1669658 has no logo image (P154)",
+    "name": "Republic Airways",
+    "reason": "not found",
+    "wikidata": "Q1669658"
+  },
+  "SCX": {
+    "detail": "Q866289 has no logo image (P154)",
+    "name": "Sun Country Airlines",
+    "reason": "not found",
+    "wikidata": "Q866289"
+  },
+  "SEJ": {
+    "detail": "Q943813 has no logo image (P154)",
+    "name": "SpiceJet",
+    "reason": "not found",
+    "wikidata": "Q943813"
+  },
+  "SVA": {
+    "detail": "Q541179 has no logo image (P154)",
+    "name": "Saudia",
+    "reason": "not found",
+    "wikidata": "Q541179"
+  },
+  "TAR": {
+    "detail": "Q692811 has no logo image (P154)",
+    "name": "Tunisair",
+    "reason": "not found",
+    "wikidata": "Q692811"
+  },
+  "THA": {
+    "detail": "Q188710 has no logo image (P154)",
+    "name": "Thai Airways",
+    "reason": "not found",
+    "wikidata": "Q188710"
+  },
+  "UZB": {
+    "detail": "Q610003 has no logo image (P154)",
+    "name": "Uzbekistan Airways",
+    "reason": "not found",
+    "wikidata": "Q610003"
+  },
+  "VIV": {
+    "detail": "Q795990 has no logo image (P154)",
+    "name": "Viva Aerobus",
+    "reason": "not found",
+    "wikidata": "Q795990"
+  },
+  "VOZ": {
+    "detail": "Q727074 has no logo image (P154)",
+    "name": "Virgin Australia",
+    "reason": "not found",
+    "wikidata": "Q727074"
+  }
+}

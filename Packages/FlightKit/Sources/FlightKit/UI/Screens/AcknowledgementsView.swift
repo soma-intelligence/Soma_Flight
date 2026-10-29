@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The open data and software Soma Flight builds on, with the full licence text of the one that
-/// asks for it (circle-flags, MIT).
+/// asks for it (circle-flags, MIT) and a credit line for every airline logo taken from Wikimedia Commons.
 public struct AcknowledgementsView: View {
     var scrolls: Bool
     /// Shows a Done button in the header row; nil leaves it out (a pushed screen has its own back button).
@@ -22,8 +22,37 @@ public struct AcknowledgementsView: View {
         var id: String { name }
     }
 
+    /// One airline logo from Wikimedia Commons, as written by Scripts/logos/fetch_commons.py into
+    /// Resources/Licenses/airline-logos.json (from assets/logos/commons/manifest.json).
+    struct LogoCredit: Decodable, Identifiable, Equatable {
+        var icao: String
+        var name: String
+        var author: String
+        var license: String
+        var license_url: String?
+        var source: String
+        var attribution: String
+        var id: String { icao }
+    }
+
+    static let logoCredits: [LogoCredit] = {
+        guard let url = Bundle.module.url(forResource: "airline-logos", withExtension: "json", subdirectory: "Licenses")
+                ?? Bundle.module.url(forResource: "airline-logos", withExtension: "json"),
+              let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([LogoCredit].self, from: data)) ?? []
+    }()
+
+    /// The licences the logos are under, public domain first (for the summary row).
+    static var logoLicenses: String {
+        let all = Set(logoCredits.map(\.license))
+        return all.sorted { ($0 == "Public domain" ? 0 : 1, $0) < ($1 == "Public domain" ? 0 : 1, $1) }
+            .joined(separator: ", ")
+    }
+
     static let entries = [
         Entry(name: "circle-flags", detail: "Round country flags by HatScripts", license: "MIT"),
+        Entry(name: "Airline logos (Wikimedia Commons)",
+              detail: "Credited one by one below. Logos are the airlines' trademarks.", license: logoLicenses),
         Entry(name: "OurAirports", detail: "Airport and runway reference data", license: "Public domain"),
         Entry(name: "Wikidata", detail: "Country and aircraft reference data", license: "CC0"),
         Entry(name: "Natural Earth", detail: "Country borders and map data", license: "Public domain"),
@@ -99,6 +128,16 @@ public struct AcknowledgementsView: View {
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.vertical, 14)
             Hairline().scaledPadding(.horizontal, 16)
+            CapsHeader("Airline logos (Wikimedia Commons)")
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 34)
+                .scaledPadding(.bottom, 8)
+            Hairline().scaledPadding(.horizontal, 16)
+            let credits = Array(Self.logoCredits.prefix(textLimit ?? .max))
+            ForEach(credits) { credit in
+                logoCredit(credit)
+                Hairline().scaledPadding(.horizontal, 16)
+            }
             CapsHeader("Third-party licences")
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.top, 34)
@@ -116,6 +155,23 @@ public struct AcknowledgementsView: View {
             }
         }
         .scaledPadding(.bottom, 32)
+    }
+
+    private func logoCredit(_ credit: LogoCredit) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(credit.name) (\(credit.icao))").scaledFont(15).foregroundStyle(Theme.primary)
+            Text("\(credit.author), \(credit.license)").scaledFont(13).foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let url = URL(string: credit.source) {
+                Link(destination: url) {
+                    Text("Source on Wikimedia Commons").scaledFont(13).foregroundStyle(Theme.accent)
+                }
+                .accessibilityHint(credit.source)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 10)
     }
 
     private func row(_ entry: Entry, last: Bool) -> some View {

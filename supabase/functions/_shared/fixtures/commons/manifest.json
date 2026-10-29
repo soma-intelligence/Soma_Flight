@@ -1,0 +1,91 @@
+{
+  "generated_by": "Scripts/logos/fetch_commons.py",
+  "logos": {
+    "DAL": {
+      "attribution": "Delta logo by Delta Air Lines, public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Delta_logo.svg)",
+      "attribution_required": false,
+      "author": "Delta Air Lines",
+      "bytes": 1976,
+      "credit": "Delta.com ( Transferred from en.wikipedia to Commons by Minna Sora no Shita . )",
+      "file": "DAL.svg",
+      "format": "svg",
+      "iata": "DL",
+      "license": "Public domain",
+      "license_kind": "public-domain",
+      "license_url": null,
+      "name": "Delta Air Lines",
+      "png": "png/DAL.png",
+      "png_sha256": "e8ba5917b2fc6468ac506a4f0eb9d5547455c24b5642a907828073d9487e1fe2",
+      "png_size": [
+        192,
+        30
+      ],
+      "resized_from_source": false,
+      "retrieved": "2026-10-29",
+      "sha256": "5bb7dfe8c865366a5cc2bc4e5f0e2c7f2db8b4e6caf146011127ca14f1216378",
+      "source_file": "Delta logo.svg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Delta_logo.svg",
+      "source_sha1": "0da240dcc0ff4e7bd33a1baef78d024b56448236",
+      "trademarked": true,
+      "wikidata": "Q188920"
+    },
+    "OMA": {
+      "attribution": "Oman Air logo by Rajcurator, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Oman_Air_logo.png)",
+      "attribution_required": true,
+      "author": "Rajcurator",
+      "bytes": 13077,
+      "credit": "Own work",
+      "file": "OMA.png",
+      "format": "png",
+      "iata": "WY",
+      "license": "CC BY-SA 4.0",
+      "license_kind": "cc-by-sa",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "name": "Oman Air",
+      "png": "png/OMA.png",
+      "png_sha256": "bdf11b2c4ec89f45343cd2f155dbc6b3a185d4f9215d1573f090530fee67a0fa",
+      "png_size": [
+        192,
+        47
+      ],
+      "resized_from_source": true,
+      "retrieved": "2026-10-29",
+      "sha256": "bdf11b2c4ec89f45343cd2f155dbc6b3a185d4f9215d1573f090530fee67a0fa",
+      "source_file": "Oman Air logo.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Oman_Air_logo.png",
+      "source_sha1": "d6bab958e33dd46c10e9b04211f33625c6896d6f",
+      "trademarked": false,
+      "wikidata": "Q860379"
+    },
+    "UAL": {
+      "attribution": "United Airlines wordmark by United Airlines, Inc., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:United_Airlines_wordmark.svg)",
+      "attribution_required": false,
+      "author": "United Airlines, Inc.",
+      "bytes": 4869,
+      "credit": "Extracted the official United Airlines corporate vector materials from Wikipedia English (en.wikipedia.org) and cropped to text-only wordmark.",
+      "file": "UAL.svg",
+      "format": "svg",
+      "iata": "UA",
+      "license": "Public domain",
+      "license_kind": "public-domain",
+      "license_url": null,
+      "name": "United Airlines",
+      "png": "png/UAL.png",
+      "png_sha256": "4315cb1f568d32aba20008a05767bc9eeda2a88c950ac1f7857e06bb74bf66e2",
+      "png_size": [
+        192,
+        30
+      ],
+      "resized_from_source": false,
+      "retrieved": "2026-10-29",
+      "sha256": "6ddbd5630c092acd5252c9b8416984aa140f3dc20b5575f515fb9a56b98ab75e",
+      "source_file": "United Airlines wordmark.svg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:United_Airlines_wordmark.svg",
+      "source_sha1": "7eed8b44b1f6b011eb9bf25607b475526ef61caf",
+      "trademarked": true,
+      "wikidata": "Q174769"
+    }
+  },
+  "retrieved": "2026-10-29",
+  "source": "Wikimedia Commons via Wikidata P230 (ICAO airline code) and P154 (logo image)"
+}
