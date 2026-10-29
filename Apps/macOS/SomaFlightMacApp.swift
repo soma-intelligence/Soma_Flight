@@ -91,9 +91,9 @@ struct SomaFlightMacApp: App {
         Settings {
             Group {
                 if let home {
-                    // Export arrives with Task 12.
-                    SettingsView(session: home.session, units: $units,
-                                 onDeleteAccount: { Task { await home.session.deleteAccount() } })
+                    // Export only once there is someone to export for (signed in, or the fakes).
+                    SettingsView(session: home.session, units: $units, history: home.needsSignIn ? nil : home.env.history,
+                                 onDeleteAccount: { await home.session.deleteAccount() })
                 } else {
                     // Settings opened before the window has built its environment.
                     LaunchPlaceholder(failure: failure, showsProgress: true)

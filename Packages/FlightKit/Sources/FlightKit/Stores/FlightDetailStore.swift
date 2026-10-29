@@ -9,6 +9,10 @@ public final class FlightDetailStore {
     /// The airport the flight actually ended at: the diversion target when diverted.
     public private(set) var destination: Airport?
     public private(set) var error: APIError?
+    /// Alerts for this flight: true or false while the user follows it, nil when not followed or unknown.
+    public private(set) var notify: Bool?
+    /// A notify change is on its way to the server.
+    public private(set) var isSavingNotify = false
 
     private let id: Flight.ID
     private let flights: any FlightService
@@ -32,6 +36,8 @@ public final class FlightDetailStore {
         let f: Flight
         do { f = try await flights.flight(id) } catch { self.error = error; return }
         flight = f
+        // The switch only: a failure hides it rather than covering the flight with an error.
+        if !isSavingNotify, let n = try? await flights.notifies(id), !isSavingNotify { notify = n }
 
         var eventsFailed = false
         do { events = try await flights.events(id) } catch { note(error); eventsFailed = true }
@@ -51,5 +57,20 @@ public final class FlightDetailStore {
             destination = nil
         }
         error = firstError
+    }
+
+    /// Turns alerts for the followed flight on or off (`follow(_:notify:)`). The switch moves at once and
+    /// goes back, with `error` set, when the server refuses.
+    public func setNotify(_ on: Bool) async {
+        guard let before = notify, before != on, !isSavingNotify else { return }
+        notify = on
+        isSavingNotify = true
+        defer { isSavingNotify = false }
+        do {
+            try await flights.follow(id, notify: on)
+        } catch {
+            notify = before
+            self.error = error
+        }
     }
 }

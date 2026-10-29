@@ -27,6 +27,8 @@ public protocol FlightService: Sendable {
     func followed() async throws(APIError) -> [Flight]
     func follow(_ id: Flight.ID, notify: Bool) async throws(APIError)
     func unfollow(_ id: Flight.ID) async throws(APIError)
+    /// Whether the signed-in user gets alerts for a followed flight; nil when the flight is not followed.
+    func notifies(_ id: Flight.ID) async throws(APIError) -> Bool?
     func flight(_ id: Flight.ID) async throws(APIError) -> Flight
     func events(_ id: Flight.ID) async throws(APIError) -> [FlightEvent]
     func updates(for ids: [Flight.ID]) -> AsyncStream<Flight>

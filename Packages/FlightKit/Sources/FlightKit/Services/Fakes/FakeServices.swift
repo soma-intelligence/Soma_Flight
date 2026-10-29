@@ -157,6 +157,11 @@ public actor FakeFlightService: FlightService {
         self.notify[id] = notify
     }
 
+    public func notifies(_ id: Flight.ID) async throws(APIError) -> Bool? {
+        try check()
+        return followedIDs.contains(id) ? notify[id] ?? true : nil
+    }
+
     public func unfollow(_ id: Flight.ID) async throws(APIError) {
         try check()
         followedIDs.removeAll { $0 == id }

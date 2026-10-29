@@ -2,37 +2,55 @@ import SwiftUI
 
 /// Account, units, alerts, privacy, data export, account deletion and about, as a grouped list
 /// of icon rows. A row whose action the shell has not supplied is not drawn, so nothing taps to
-/// no effect: export and account deletion appear once Task 12 passes their closures.
+/// no effect.
 public struct SettingsView: View {
     var session: SessionStore
     @Binding var units: Units
     var onSignIn: (() -> Void)?
-    var onExport: ((ExportFormat) -> Void)?
-    var onDeleteAccount: (() -> Void)?
+    var history: (any HistoryService)?
+    var onDeleteAccount: (() async -> Void)?
     var scrolls: Bool
+    /// The closing data note of the Mac settings page.
+    var dataNote: Bool
+
+    #if os(macOS)
+    static let defaultDataNote = true
+    #else
+    static let defaultDataNote = false
+    #endif
 
     @Environment(\.openURL) private var openURL
     @State private var confirming: Confirmation?
+    @State private var deleting = false
+    /// The deletion failed and the account is still signed in.
+    @State private var deleteFailure: APIError?
 
     private enum Confirmation: Identifiable {
         case signOut, deleteAccount
         var id: Self { self }
     }
 
+    /// The deletion dialog's copy.
+    static let deleteTitle = "Delete your account?"
+    static let deleteMessage = "Your followed flights and flight history will be removed. This can't be undone."
+
     /// - Parameters:
     ///   - onSignIn: shows the sign-in screen from the signed-out account row; nil hides the button.
-    ///   - onExport: starts a history export in the chosen format; nil hides the export rows.
-    ///   - onDeleteAccount: runs after the user confirms deleting the account; nil hides the row.
+    ///   - history: where the JSON and CSV exports are read from, built on the device and handed to the
+    ///     share sheet; nil hides the export rows.
+    ///   - onDeleteAccount: runs after the user confirms deleting the account (`SessionStore.deleteAccount()`);
+    ///     nil hides the row. When it returns with the account still signed in, its error is shown.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-                onExport: ((ExportFormat) -> Void)? = nil, onDeleteAccount: (() -> Void)? = nil) {
-        self.init(session: session, units: units, onSignIn: onSignIn, onExport: onExport,
+                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Void)? = nil) {
+        self.init(session: session, units: units, onSignIn: onSignIn, history: history,
                   onDeleteAccount: onDeleteAccount, scrolls: true)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-         onExport: ((ExportFormat) -> Void)? = nil, onDeleteAccount: (() -> Void)? = nil, scrolls: Bool) {
-        self.session = session; self._units = units; self.onSignIn = onSignIn; self.onExport = onExport
-        self.onDeleteAccount = onDeleteAccount; self.scrolls = scrolls
+         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Void)? = nil, scrolls: Bool,
+         dataNote: Bool = SettingsView.defaultDataNote) {
+        self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
+        self.onDeleteAccount = onDeleteAccount; self.scrolls = scrolls; self.dataNote = dataNote
     }
 
     static let privacyURL = URL(string: "https://somalabs.me/privacy")!
@@ -76,22 +94,21 @@ public struct SettingsView: View {
                 SettingsRow(icon: "lock.shield.fill", title: "What We Keep",
                             subtitle: "Flights you follow and your flight history, nothing else", last: true) { EmptyView() }
             }
-            if let onExport {
+            if let history {
                 group("Your Data") {
-                    SettingsRow(icon: "curlybraces", title: "Export History as JSON", action: { onExport(.json) }) { RowChevron() }
-                    SettingsRow(icon: "tablecells.fill", title: "Export History as CSV", last: true,
-                                action: { onExport(.csv) }) { RowChevron() }
+                    ExportRow(icon: "curlybraces", title: "Export History as JSON", format: .json, history: history)
+                    ExportRow(icon: "tablecells.fill", title: "Export History as CSV", format: .csv, history: history, last: true)
                 }
             }
-            if session.session != nil || onDeleteAccount != nil {
+            if session.session != nil {
                 group("Account") {
-                    if session.session != nil {
-                        SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out",
-                                    last: onDeleteAccount == nil, action: { confirming = .signOut }) { EmptyView() }
-                    }
-                    if onDeleteAccount != nil {
+                    SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out",
+                                last: onDeleteAccount == nil, action: { confirming = .signOut }) { EmptyView() }
+                    if onDeleteAccount != nil, session.session != nil {
                         SettingsRow(icon: "trash.fill", title: "Delete Account", tint: Theme.veryLate, last: true,
-                                    action: { confirming = .deleteAccount }) { EmptyView() }
+                                    action: deleting ? nil : { confirming = .deleteAccount }) {
+                            if deleting { ProgressView().controlSize(.small) }
+                        }
                     }
                 }
             }
@@ -103,23 +120,47 @@ public struct SettingsView: View {
                     Text(Self.version).scaledFont(17).foregroundStyle(Theme.secondary)
                 }
             }
+            if dataNote {
+                MinimalDataNote()
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, 28)
+            }
         }
         .scaledPadding(.bottom, 32)
-        .confirmationDialog(confirming == .deleteAccount ? "Delete your account?" : "Sign out?",
+        .confirmationDialog(confirming == .deleteAccount ? Self.deleteTitle : "Sign out?",
                             isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
                             titleVisibility: .visible, presenting: confirming) { action in
             switch action {
             case .signOut:
                 Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
             case .deleteAccount:
-                Button("Delete Account", role: .destructive) { onDeleteAccount?() }
+                Button("Delete Account", role: .destructive) { deleteAccount() }
             }
             Button("Cancel", role: .cancel) {}
         } message: { action in
             switch action {
             case .signOut: Text("Flights you follow stay on your account. The saved copy on this device is cleared.")
-            case .deleteAccount: Text("This removes your account, the flights you follow and your history. It can't be undone.")
+            case .deleteAccount: Text(Self.deleteMessage)
             }
+        }
+        .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteFailure != nil },
+                                                                   set: { if !$0 { deleteFailure = nil } }),
+               presenting: deleteFailure) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text("\(error.message) You're still signed in.")
+        }
+    }
+
+    /// Runs the deletion; on success the session ends and the shells show Sign In, on failure the account
+    /// stays signed in and the error shows in an alert (and in the banner on top).
+    private func deleteAccount() {
+        guard let onDeleteAccount, !deleting else { return }
+        deleting = true
+        Task {
+            await onDeleteAccount()
+            deleting = false
+            if session.session != nil, let error = session.error { deleteFailure = error }
         }
     }
 
@@ -200,6 +241,51 @@ struct AccountRow: View {
     }
 }
 
+/// A history export row: opens the share sheet with `soma-flight-history-YYYY-MM-DD.<ext>`, built on
+/// the device when the sheet asks for it.
+struct ExportRow: View {
+    var icon: String
+    var title: String
+    var format: ExportFormat
+    var history: any HistoryService
+    var last = false
+
+    var body: some View {
+        ShareLink(item: HistoryExport(format: format, history: history),
+                  preview: SharePreview(HistoryExport.fileName(for: format, on: .now))) {
+            SettingsRow(icon: icon, title: title, last: last) { RowChevron() }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The Mac settings page's closing note, a green card like the reference's data note.
+struct MinimalDataNote: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "checkmark.shield.fill")
+                .scaledFont(20, weight: .medium)
+                .foregroundStyle(Theme.onTime)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Soma Flight keeps minimal data")
+                    .scaledFont(15, weight: .semibold)
+                    .foregroundStyle(Theme.onTime)
+                Text("Your email, the flights you follow and your flight history. No location, no contacts, no tracking. Exports are built on this device.")
+                    .scaledFont(14)
+                    .foregroundStyle(Theme.primary.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .scaledPadding(.all, 14)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.onTime.opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.onTime.opacity(0.25), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Icon, title (and optional grey line), trailing accessory; a hairline under it from the title.
 struct SettingsRow<Accessory: View>: View {
     var icon: String
@@ -258,7 +344,8 @@ struct SettingsPreview: View {
         Group {
             if let session {
                 if full {
-                    SettingsView(session: session, units: $units, onSignIn: {}, onExport: { _ in }, onDeleteAccount: {})
+                    SettingsView(session: session, units: $units, onSignIn: {}, history: FakeHistoryService(),
+                                 onDeleteAccount: {})
                 } else {
                     SettingsView(session: session, units: $units, onSignIn: {})
                 }

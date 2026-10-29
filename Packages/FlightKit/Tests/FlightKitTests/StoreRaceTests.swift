@@ -42,6 +42,7 @@ final class ScriptedFlights: FlightService, Sendable {
     }
     func follow(_ id: Flight.ID, notify: Bool) async throws(APIError) { try await inner.follow(id, notify: notify) }
     func unfollow(_ id: Flight.ID) async throws(APIError) { try await inner.unfollow(id) }
+    func notifies(_ id: Flight.ID) async throws(APIError) -> Bool? { try await inner.notifies(id) }
     func flight(_ id: Flight.ID) async throws(APIError) -> Flight {
         if let f = flightOverride { return f }
         return try await inner.flight(id)

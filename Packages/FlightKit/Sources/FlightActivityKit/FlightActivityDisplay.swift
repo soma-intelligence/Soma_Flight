@@ -5,9 +5,12 @@ import Foundation
 public struct FlightActivityDisplay: Sendable, Hashable {
     public var attributes: FlightActivityAttributes
     public var state: FlightActivityAttributes.ContentState
+    /// "6:25 PM" rather than "18:25": the app's clock setting, read by the extension from the App Group.
+    public var twelveHour: Bool
 
-    public init(_ attributes: FlightActivityAttributes, _ state: FlightActivityAttributes.ContentState) {
-        self.attributes = attributes; self.state = state
+    public init(_ attributes: FlightActivityAttributes, _ state: FlightActivityAttributes.ContentState,
+                twelveHour: Bool = false) {
+        self.attributes = attributes; self.state = state; self.twelveHour = twelveHour
     }
 
     public var isAirborne: Bool { [.departed, .enRoute].contains(state.status) }
@@ -86,25 +89,26 @@ public struct FlightActivityDisplay: Sendable, Hashable {
     public var originZone: TimeZone { attributes.originTimeZone.flatMap(TimeZone.init(identifier:)) ?? .current }
     public var destinationZone: TimeZone { attributes.destinationTimeZone.flatMap(TimeZone.init(identifier:)) ?? .current }
 
-    /// "18:25", local time at the airport. 24 hour like the app's default: the extension cannot read the
-    /// app's clock setting (no shared defaults).
-    public static func clock(_ date: Date?, _ tz: TimeZone) -> String {
+    /// "18:25", or "6:25 PM" with `twelveHour`, local time at the airport.
+    public static func clock(_ date: Date?, _ tz: TimeZone, twelveHour: Bool = false) -> String {
         guard let date else { return "--:--" }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = tz
         let c = cal.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+        let h = c.hour ?? 0, m = c.minute ?? 0
+        guard twelveHour else { return String(format: "%02d:%02d", h, m) }
+        return String(format: "%d:%02d %@", h % 12 == 0 ? 12 : h % 12, m, h < 12 ? "AM" : "PM")
     }
 
-    public var departureTime: String { Self.clock(state.estimatedOut, originZone) }
-    public var arrivalTime: String { Self.clock(state.estimatedIn, destinationZone) }
+    public var departureTime: String { Self.clock(state.estimatedOut, originZone, twelveHour: twelveHour) }
+    public var arrivalTime: String { Self.clock(state.estimatedIn, destinationZone, twelveHour: twelveHour) }
     /// The schedule, when the best time moved off it by a minute or more (shown struck through).
     public var scheduledDeparture: String? { moved(attributes.scheduledOut, state.estimatedOut, originZone) }
     public var scheduledArrival: String? { moved(attributes.scheduledIn, state.estimatedIn, destinationZone) }
 
     private func moved(_ scheduled: Date?, _ best: Date?, _ tz: TimeZone) -> String? {
         guard let scheduled, let best, abs(best.timeIntervalSince(scheduled)) >= 60 else { return nil }
-        return Self.clock(scheduled, tz)
+        return Self.clock(scheduled, tz, twelveHour: twelveHour)
     }
 
     /// "+1" when the flight lands on a later local date than it leaves ("-1" across the date line the

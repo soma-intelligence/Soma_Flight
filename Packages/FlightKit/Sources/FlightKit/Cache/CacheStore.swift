@@ -32,9 +32,18 @@ public actor CacheStore: FlightListCache, PastFlightCache {
         try make(configuration: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
-    /// On-disk store; `url` nil uses the default location.
-    public static func onDisk(url: URL? = nil) throws -> CacheStore {
-        try make(configuration: url.map { ModelConfiguration(url: $0) } ?? ModelConfiguration())
+    /// On-disk store at `url`, by default `Application Support/SomaFlight/cache.store` (its folder is made
+    /// when missing). A store left at SwiftData's default location by earlier builds is not migrated: it is
+    /// a cache, the next load fills the new one.
+    public static func onDisk(url: URL = defaultURL) throws -> CacheStore {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        return try make(configuration: ModelConfiguration("cache", url: url))
+    }
+
+    /// `Application Support/SomaFlight/cache.store` (inside the app's container on both platforms).
+    public static var defaultURL: URL {
+        URL.applicationSupportDirectory.appending(path: "SomaFlight", directoryHint: .isDirectory)
+            .appending(path: "cache.store", directoryHint: .notDirectory)
     }
 
     private static func make(configuration: ModelConfiguration) throws -> CacheStore {

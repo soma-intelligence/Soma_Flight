@@ -270,12 +270,13 @@ public final class HomeModel {
 }
 
 /// Distance and clock units kept in the app's defaults, as one `Units` value for the screens and a
-/// binding for Settings. The iOS app and both Mac scenes read the same keys, so they stay in step.
+/// binding for Settings. The iOS app and both Mac scenes read the same keys, so they stay in step. The
+/// clock lives in the App Group's defaults on iOS (`SharedSettings`), where the Live Activity reads it.
 /// Main actor only: the setter writes through `@AppStorage`, which views read on the main actor.
 @MainActor @propertyWrapper
 public struct StoredUnits: DynamicProperty {
     @AppStorage("units.distance") private var distance: DistanceUnit = .km
-    @AppStorage("units.clock24") private var clock24 = true
+    @AppStorage(SharedSettings.clock24Key, store: SharedSettings.defaults) private var clock24 = true
 
     public init() {}
 

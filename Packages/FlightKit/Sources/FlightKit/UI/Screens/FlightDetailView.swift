@@ -83,6 +83,13 @@ public struct FlightDetailView: View {
                     .scaledPadding(.bottom, 12)
                 AircraftRow(type: flight.aircraftType, registration: flight.registration)
             }
+            if let notify = store.notify {
+                section {
+                    SectionHeader("Alerts")
+                        .scaledPadding(.bottom, 8)
+                    NotifyRow(isOn: notify, saving: store.isSavingNotify) { on in Task { await store.setNotify(on) } }
+                }
+            }
             if !store.events.isEmpty {
                 section {
                     SectionHeader("Changes", subtitle: "What moved since you started tracking")
@@ -151,6 +158,52 @@ public struct FlightDetailView: View {
 }
 
 // MARK: - Pieces
+
+/// The flight's own alert switch (`follow(_:notify:)`); which kinds of alert go out is the system's
+/// notification settings, not a per-type filter, in v1.
+struct NotifyRow: View {
+    var isOn: Bool
+    var saving: Bool
+    var onChange: @MainActor @Sendable (Bool) -> Void
+    @Environment(\.metricsScale) private var scale
+
+    var body: some View {
+        // Drawn by hand: a system Toggle does not render in ImageRenderer snapshots.
+        Button { onChange(!isOn) } label: {
+            HStack(spacing: 14) {
+                Image(systemName: isOn ? "bell.badge.fill" : "bell.slash.fill")
+                    .scaledFont(18, weight: .medium)
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notify Me").scaledFont(17).foregroundStyle(Theme.primary)
+                    Text("Gate changes, delays of 15 minutes or more, take-off, landing, cancellation and diversion")
+                        .scaledFont(13)
+                        .foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                Capsule()
+                    .fill(isOn ? Theme.onTime : Theme.secondary.opacity(0.35))
+                    .frame(width: 51 * scale, height: 31 * scale)
+                    .overlay(alignment: isOn ? .trailing : .leading) {
+                        Circle().fill(.white).padding(2).shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                    }
+                    .opacity(saving ? 0.6 : 1)
+                    .animation(.snappy(duration: 0.2), value: isOn)
+            }
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(saving)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Notify Me")
+        .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityHint("Alerts for this flight")
+        .accessibilityAddTraits(.isToggle)
+    }
+}
 
 /// Chips (flight number, aircraft, day), "Paris to San Francisco", airline and status in caps.
 struct FlightHeader: View {

@@ -101,7 +101,7 @@ extension ComponentSnapshotTests {
         let session = SettingsPreview.makeSession(plan: .free, failDelete: false)
         #expect(session.session != nil)
         try screen("settings") {
-            SettingsView(session: session, units: .constant(Units()), scrolls: false)
+            SettingsView(session: session, units: .constant(Units()), scrolls: false, dataNote: false)
         }
         let signedOut = SessionStore(auth: FakeAuthService())
         try screen("sign-in", height: 852) {

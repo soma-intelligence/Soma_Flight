@@ -56,6 +56,12 @@ struct RootTabView: View {
                 await home.start()
                 #if DEBUG
                 home.applyLaunchArguments()
+                // Screenshot runs: `-sheet settings` or `-sheet search` opens that sheet over the home.
+                switch UserDefaults.standard.string(forKey: "sheet") {
+                case "settings": showSettings = true
+                case "search": showSearch = true
+                default: break
+                }
                 await home.applyPushLaunchArguments()
                 await home.applyLiveActivityLaunchArguments()
                 #endif
@@ -90,7 +96,8 @@ struct RootTabView: View {
                 .environment(\.units, units)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsSheet(session: home.session, units: $units, onDeleteAccount: { Task { await home.session.deleteAccount() } })
+            SettingsSheet(session: home.session, units: $units, history: home.env.history,
+                          onDeleteAccount: { await home.session.deleteAccount() })
                 .environment(\.units, units)
         }
         .environment(\.units, units)
@@ -165,12 +172,13 @@ private struct SearchSheet: View {
 private struct SettingsSheet: View {
     var session: SessionStore
     @Binding var units: Units
-    var onDeleteAccount: () -> Void
+    var history: any HistoryService
+    var onDeleteAccount: () async -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        // Export arrives with Task 12.
-        SettingsView(session: session, units: $units, onDeleteAccount: onDeleteAccount)
+        // Signed out, the gate shows Sign In instead of the home, so this sheet closes with it.
+        SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)

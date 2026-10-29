@@ -8,11 +8,12 @@ import WidgetKit
 struct FlightLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FlightActivityAttributes.self) { context in
-            FlightActivityLockScreenView(FlightActivityDisplay(context.attributes, context.state))
+            FlightActivityLockScreenView(FlightActivityDisplay(context.attributes, context.state,
+                                                               twelveHour: SharedSettings.twelveHour()))
                 .activityBackgroundTint(ActivityPalette.background)
                 .activitySystemActionForegroundColor(ActivityPalette.primary)
         } dynamicIsland: { context in
-            let display = FlightActivityDisplay(context.attributes, context.state)
+            let display = FlightActivityDisplay(context.attributes, context.state, twelveHour: SharedSettings.twelveHour())
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     FlightActivityExpandedEnd(code: context.attributes.originIata, time: display.departureTime,

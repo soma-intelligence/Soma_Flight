@@ -168,7 +168,7 @@ import Testing
         let years = Set(past.map { Calendar(identifier: .gregorian).component(.year, from: $0.date) })
         #expect(years == [2023, 2024, 2025, 2026])
         let csv = String(decoding: try await svc.export(.csv), as: UTF8.self)
-        #expect(csv.split(separator: "\n").count == 43)
+        #expect(csv.components(separatedBy: "\r\n").count == 43)
         let json = try await svc.export(.json)
         #expect(try FlightJSON.decoder.decode([PastFlight].self, from: json).count == 42)
     }

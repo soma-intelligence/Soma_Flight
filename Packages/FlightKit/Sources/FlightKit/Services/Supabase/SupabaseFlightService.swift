@@ -115,6 +115,16 @@ public final class SupabaseFlightService: FlightService {
         try await backend.call("follow-flight", method: .delete, body: SupabaseBackend.json(["flightId": real.uuidString.lowercased()]))
     }
 
+    private struct NotifyRow: Decodable { var notify: Bool }
+
+    public func notifies(_ id: Flight.ID) async throws(APIError) -> Bool? {
+        let real = try await resolve(id)
+        let data = try await backend.rows {
+            $0.from("user_flights").select("notify").eq("flight_id", value: real.uuidString.lowercased()).limit(1)
+        }
+        do { return try FlightJSON.decoder.decode([NotifyRow].self, from: data).first?.notify } catch { throw SupabaseBackend.map(error) }
+    }
+
     // MARK: One flight
 
     public func flight(_ id: Flight.ID) async throws(APIError) -> Flight {
