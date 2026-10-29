@@ -37,9 +37,16 @@ public struct PassportStats: Equatable, Sendable {
     /// and `year` matches the local departure date in the origin airport's zone (`originTz`, else UTC).
     /// The core owns the calendar rules, so the `calendar` argument is accepted for call-site
     /// symmetry and not used.
+    /// Airlines are mapped to ICAO codes first (`PassportStore.mapped`, bundled reference), so the
+    /// counts agree with the store's.
     public static func compute(_ flights: [PastFlight], year: Int?, calendar: Calendar = .current) -> PassportStats {
-        compute(core: flights.map { $0.coreFlight }, year: year)
+        let mapped = PassportStore.mapped(flights, reference: .bundled(), airport: PassportStore.bundledAirports)
+        return compute(core: mapped.map { $0.coreFlight }, year: year)
     }
+
+    /// A flight this many minutes late or more counts as delayed: the core's threshold
+    /// (`DELAYED_MINUTES` in passport.rs), restated for lists that must agree with `delayedFlights`.
+    static let delayedThresholdMinutes = 15
 
     /// The same over flights already in the core's shape (the store maps them once per load).
     static func compute(core: [FlightCore.PastFlight], year: Int?) -> PassportStats {

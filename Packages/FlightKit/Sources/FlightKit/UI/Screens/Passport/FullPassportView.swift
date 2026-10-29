@@ -14,7 +14,7 @@ struct FullPassportView: View {
 
     var body: some View {
         FullPageChrome(title: FullPage.passport.title, year: $store.year, years: store.years, scheme: .dark,
-                       page: Self.page, onClose: onClose) {
+                       page: Self.page, shareKey: store.revision, onClose: onClose) {
             PassportCard(stats: store.stats, year: store.year, units: units).face(row: false)
         } content: {
             sections

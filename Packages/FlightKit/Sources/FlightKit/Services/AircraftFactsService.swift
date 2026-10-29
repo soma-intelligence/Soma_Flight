@@ -46,10 +46,10 @@ public struct AircraftFact: Codable, Sendable, Hashable {
     }
 }
 
-/// Airframe facts for the registrations the user flew. Never throws: without facts the Passport
-/// hides ages and keeps everything else.
+/// Airframe facts for the registrations the user flew. A failure throws so the store asks again on its
+/// next load; without facts the Passport hides ages and keeps everything else.
 public protocol AircraftFactsService: Sendable {
-    func facts(_ registrations: [String]) async -> [AircraftFact]
+    func facts(_ registrations: [String]) async throws(APIError) -> [AircraftFact]
 }
 
 /// Facts from the seed (Resources/Fakes/aircraft_facts.json), covering every registration of the fake
@@ -67,7 +67,7 @@ public struct FakeAircraftFactsService: AircraftFactsService {
         all = Dictionary(list.map { ($0.registration.uppercased(), $0) }, uniquingKeysWith: { a, _ in a })
     }
 
-    public func facts(_ registrations: [String]) async -> [AircraftFact] {
+    public func facts(_ registrations: [String]) async throws(APIError) -> [AircraftFact] {
         Array(Set(registrations.map { $0.uppercased() })).sorted().compactMap { all[$0] }
     }
 }
@@ -79,17 +79,25 @@ public final class SupabaseAircraftFactsService: AircraftFactsService {
 
     public init(backend: SupabaseBackend) { self.backend = backend }
 
-    public func facts(_ registrations: [String]) async -> [AircraftFact] {
-        let regs = Array(Set(registrations.filter { !$0.isEmpty })).sorted()
-        guard !regs.isEmpty else { return [] }
-        do {
+    /// Tails per request: keeps the query string short and under PostgREST's row cap.
+    static let chunk = 100
+
+    public func facts(_ registrations: [String]) async throws(APIError) -> [AircraftFact] {
+        let regs = Self.normalised(registrations)
+        var out: [AircraftFact] = []
+        for start in stride(from: 0, to: regs.count, by: Self.chunk) {
+            let part = Array(regs[start..<min(start + Self.chunk, regs.count)])
             let data = try await backend.rows {
-                $0.from("aircraft").select("registration, delivered_on, name").in("registration", values: regs)
+                $0.from("aircraft").select("registration, delivered_on, name").in("registration", values: part)
             }
-            return try JSONDecoder().decode([AircraftFact].self, from: data)
-        } catch {
-            SupabaseBackend.log.error("aircraft facts: \(String(describing: error), privacy: .public)")
-            return []
+            do { out += try JSONDecoder().decode([AircraftFact].self, from: data) }
+            catch { throw SupabaseBackend.map(error) }
         }
+        return out
+    }
+
+    /// Upper case, trimmed, without blanks or repeats, sorted (the table keys registrations upper case).
+    static func normalised(_ registrations: [String]) -> [String] {
+        Array(Set(registrations.map { $0.trimmingCharacters(in: .whitespaces).uppercased() }.filter { !$0.isEmpty })).sorted()
     }
 }

@@ -327,18 +327,21 @@ struct RouteText: View {
     }
 }
 
-/// Round tinted badge with the airline code, standing in for a logo.
+/// Round badge with the airline code on the airline's brand colour (resolved through the reference
+/// list, a hash tint for an unknown airline), standing in for a logo until the logos land.
 struct AirlineBadge: View {
     var code: String
     var key: String
     @ScaledMetric(relativeTo: .body) private var size = 34
+    @Environment(\.reference) private var reference
 
     var body: some View {
         Text(code)
             .scaledFont(12, weight: .bold)
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(Circle().fill(TravelFacts.airlineTint(key)))
+            .background(Circle().fill(TravelFacts.badgeTint(code: code, key: key, reference: reference)))
+            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 1))
             .accessibilityHidden(true)
     }
 }

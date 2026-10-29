@@ -16,7 +16,7 @@ struct DelayStatsView: View {
     var body: some View {
         let stats = store.stats
         FullPageChrome(title: FullPage.delays.title, year: $store.year, years: store.years, scheme: .dark,
-                       page: Self.page, onClose: onClose) {
+                       page: Self.page, shareKey: store.revision, onClose: onClose) {
             DelaysCard(stats: stats).face(row: false)
         } content: {
             figures(stats)

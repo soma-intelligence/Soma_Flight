@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftUI
 @testable import FlightKit
 
 /// A history that answers with fixed flights.
@@ -11,7 +12,17 @@ private struct ListHistory: HistoryService {
 
 /// Facts that are never there, as on a live build today (the `aircraft` table is empty).
 private struct NoFacts: AircraftFactsService {
-    func facts(_ registrations: [String]) async -> [AircraftFact] { [] }
+    func facts(_ registrations: [String]) async throws(APIError) -> [AircraftFact] { [] }
+}
+
+/// Fails the first time, then answers from the fake seed; counts the calls.
+private actor FlakyFacts: AircraftFactsService {
+    private(set) var calls = 0
+    func facts(_ registrations: [String]) async throws(APIError) -> [AircraftFact] {
+        calls += 1
+        if calls == 1 { throw .offline }
+        return try await FakeAircraftFactsService().facts(registrations)
+    }
 }
 
 private let asOf = Date(timeIntervalSince1970: 1_793_232_000) // 2026-10-29T00:00:00Z
@@ -51,7 +62,8 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         s.year = 2025
         #expect(s.stats.flights == 12)
         #expect(s.detail.flights == 12)
-        #expect(s.aircraft.typesByFlights.map(\.flights).reduce(0, +) <= 12)
+        // Every 2025 flight has a type, so the aircraft figures follow the year too.
+        #expect(s.aircraft.typesByFlights.map(\.flights).reduce(0, +) == 12)
         #expect(s.detail.flights < allTime.1)
         s.year = nil
         #expect(s.detail.flights == allTime.1)
@@ -126,7 +138,49 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         #expect(s.mostDelayed.isEmpty)
     }
 
+    @Test func mostDelayedFollowsTheCoreThreshold() async {
+        let s = await store([flight(1, delay: 14), flight(2, delay: 15), flight(3, delay: 3)])
+        #expect(s.mostDelayed.map(\.delayMinutes) == [15])
+        #expect(s.mostDelayed.count == s.stats.delayedFlights)
+    }
+
+    // MARK: Badges
+
+    @Test func badgesUseBrandColours() {
+        let ref = ReferenceData.bundled()
+        #expect(TravelFacts.badgeAirline(code: "UA", key: "United", reference: ref)?.id == "UAL")
+        #expect(TravelFacts.badgeAirline(code: "UA", key: "UA990", reference: ref)?.id == "UAL")
+        #expect(TravelFacts.badgeAirline(code: "9#", key: "Zed Air Charter", reference: ref) == nil)
+        let united = TravelFacts.badgeTint(code: "UA", key: "United", reference: ref)
+        #expect(united == TravelFacts.badgeTint(code: "UA", key: "UAL", reference: ref))
+        #expect(united == Color(red: 0, green: Double(0x33) / 255, blue: Double(0xA0) / 255)) // UAL #0033A0
+        #expect(TravelFacts.rgb("#0033A0")?.b == Double(0xA0) / 255)
+        #expect(TravelFacts.rgb("blue") == nil)
+    }
+
     // MARK: Facts and pages
+
+    @Test func failedFactsAreAskedAgain() async {
+        let facts = FlakyFacts()
+        let s = await store([flight(1, reg: "N2135U")], facts: facts)
+        #expect(!s.aircraft.hasAges)
+        await s.load()
+        #expect(s.aircraft.hasAges)
+        await s.load() // same tails: not asked again
+        #expect(await facts.calls == 2)
+    }
+
+    @Test func supabaseFactsNormaliseTails() {
+        #expect(SupabaseAircraftFactsService.normalised([" n2135u", "N2135U", "", "f-htym"]) == ["F-HTYM", "N2135U"])
+        #expect(SupabaseAircraftFactsService.chunk == 100)
+    }
+
+    @Test func accountChangeClosesTheFullPage() async throws {
+        let home = HomeModel(env: try await .fake())
+        home.fullPage = .aircraftStats
+        home.userChanged()
+        #expect(home.fullPage == nil)
+    }
 
     @Test func factsDecodeTableRows() throws {
         let json = #"[{"registration":"N47280","delivered_on":"2026-03-12","name":null},{"registration":"F-X","delivered_on":null,"name":"Ville"}]"#
@@ -136,9 +190,9 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         #expect(facts[0].coreFact.deliveredAt == 1_773_273_600)
     }
 
-    @Test func fakeFactsCoverTheFakeHistory() async {
+    @Test func fakeFactsCoverTheFakeHistory() async throws {
         let regs = Set(FakeSeed.load("past_flights", as: [PastFlight].self).compactMap(\.registration))
-        let facts = await FakeAircraftFactsService().facts(Array(regs))
+        let facts = try await FakeAircraftFactsService().facts(Array(regs))
         #expect(Set(facts.map(\.registration)) == regs)
         let years = facts.compactMap(\.deliveredOn).map { Calendar(identifier: .gregorian).component(.year, from: $0) }
         #expect(years.min() == 1994 && years.max() == 2026)

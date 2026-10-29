@@ -18,7 +18,31 @@ enum TravelFacts {
         return String(chars[..<(chars[2].isLetter ? 3 : 2)])
     }
 
-    /// A steady tint per airline for the round badge that stands in for a logo.
+    /// The airline a badge stands for: by its name or code (`key`), else by the flight number's
+    /// designator (`code`). nil for an airline the reference list does not know.
+    static func badgeAirline(code: String, key: String, reference: ReferenceData) -> Airline? {
+        reference.airline(key) ?? reference.airline(code)
+    }
+
+    /// The badge's fill: the airline's brand colour, else a steady tint from the hash palette, keyed on
+    /// the ICAO code when known so every spelling of one airline gets one colour.
+    static func badgeTint(code: String, key: String, reference: ReferenceData) -> Color {
+        let airline = badgeAirline(code: code, key: key, reference: reference)
+        if let rgb = airline.flatMap({ rgb($0.colorPrimary) }) {
+            return Color(red: rgb.r, green: rgb.g, blue: rgb.b)
+        }
+        return airlineTint(airline?.id ?? key)
+    }
+
+    /// "#0033A0" as red, green and blue from 0 to 1; nil when it is not six hex digits.
+    static func rgb(_ hex: String) -> (r: Double, g: Double, b: Double)? {
+        let digits = hex.hasPrefix("#") ? hex.dropFirst() : Substring(hex)
+        guard digits.count == 6, let v = UInt32(digits, radix: 16) else { return nil }
+        return (Double(v >> 16 & 0xFF) / 255, Double(v >> 8 & 0xFF) / 255, Double(v & 0xFF) / 255)
+    }
+
+    /// A steady tint per airline for the round badge that stands in for a logo, when its brand colour
+    /// is not known.
     static func airlineTint(_ key: String) -> Color {
         let palette: [Color] = [
             Color(light: 0x2F5BD3, dark: 0x3D6AE0), Color(light: 0xC23B3B, dark: 0xD14848),
@@ -68,10 +92,6 @@ enum TravelFacts {
     /// The delays card's line under the hours: how late the delayed flights left on average.
     static func delayedAverageLine(_ minutes: Int, delayed: Int) -> String {
         delayed == 0 ? "None of your flights left 15 minutes late or more" : "Delayed flights left \(Format.minutes(minutes)) late on average"
-    }
-
-    static func averageDelayLine(_ minutes: Int) -> String {
-        minutes == 0 ? "Your flights left on time on average" : "Your flights left \(Format.minutes(minutes)) late on average"
     }
 
     // MARK: Past flights list

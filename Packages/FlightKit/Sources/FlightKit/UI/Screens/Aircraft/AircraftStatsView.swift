@@ -12,7 +12,7 @@ struct AircraftStatsView: View {
 
     var body: some View {
         FullPageChrome(title: FullPage.aircraftStats.title, year: $store.year, years: store.years, scheme: .light,
-                       page: Self.page, onClose: onClose) {
+                       page: Self.page, shareKey: store.revision, onClose: onClose) {
             if let most = store.aircraft.mostFlown {
                 AircraftCard(typeCode: most.icaoType, type: store.mostFlownType, airline: store.mostFlownAirline,
                              count: Int(most.flights)).face(row: false)

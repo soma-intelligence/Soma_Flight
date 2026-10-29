@@ -31,6 +31,8 @@ struct FullPageChrome<Hero: View, Content: View>: View {
     var years: [Int]
     var scheme: ColorScheme
     var page: Color
+    /// Changes whenever what the hero shows changes (`PassportStore.revision`), so the share image follows.
+    var shareKey: Int
     var onClose: () -> Void
     @ViewBuilder var hero: Hero
     @ViewBuilder var content: Content
@@ -62,7 +64,7 @@ struct FullPageChrome<Hero: View, Content: View>: View {
         }
         .background(page.ignoresSafeArea())
         .environment(\.colorScheme, scheme)
-        .task(id: year) { renderShareImage() }
+        .task(id: shareKey) { renderShareImage() }
     }
 
     private var topBar: some View {
@@ -91,7 +93,7 @@ struct FullPageChrome<Hero: View, Content: View>: View {
         }
     }
 
-    /// The hero at phone width, rendered once per year.
+    /// The hero at phone width, rendered again whenever its figures change.
     @MainActor private func renderShareImage() {
         let card = hero
             .frame(width: 361)

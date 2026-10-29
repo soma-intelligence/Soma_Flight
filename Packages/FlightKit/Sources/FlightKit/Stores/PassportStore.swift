@@ -23,6 +23,8 @@ public final class PassportStore {
     public private(set) var detail: PassportDetail = .empty
     /// The aircraft figures for the chosen year (core `computeAircraftStats`).
     public private(set) var aircraft: AircraftStats = .empty
+    /// Goes up every time the figures are recomputed; what a rendered copy (the share image) keys on.
+    public private(set) var revision = 0
 
     private var all: [PastFlight] = [] {
         didSet { remap() }
@@ -53,9 +55,25 @@ public final class PassportStore {
                 airports: (@Sendable (String) -> Airport?)? = nil) {
         self.history = history; self.cache = cache; self.reference = reference
         self.factsService = facts; self.asOf = asOf
-        self.airport = airports ?? AirportDirectory.bundled().lookup
+        self.airport = airports ?? Self.bundledAirports
         countries = reference.countries.map(\.coreInfo)
         types = reference.types.map(\.coreTypeInfo)
+    }
+
+    /// The bundled airport directory, read once for every store that is not handed one.
+    nonisolated static let bundledAirports: @Sendable (String) -> Airport? = AirportDirectory.bundled().lookup
+
+    /// Flights as the core reads them: the airline as its ICAO code when the reference list knows the
+    /// name or code (else as given), the countries from the airports when the flight does not carry them.
+    nonisolated static func mapped(_ flights: [PastFlight], reference: ReferenceData,
+                                   airport: (String) -> Airport?) -> [PastFlight] {
+        flights.map { f in
+            var m = f
+            if let name = f.airline, let hit = reference.airline(name) { m.airline = hit.id }
+            m.originCountry = f.originCountry ?? airport(f.originIcao)?.country
+            m.destinationCountry = f.destinationCountry ?? airport(f.destinationIcao)?.country
+            return m
+        }
     }
 
     /// Flights in the selected year (by local departure date), newest first.
@@ -104,7 +122,14 @@ public final class PassportStore {
         let regs = Array(Set(all.compactMap(\.registration).filter { !$0.isEmpty })).sorted()
         guard regs != factsAskedFor else { return }
         factsAskedFor = regs
-        let got = regs.isEmpty ? [] : await factsService.facts(regs)
+        let got: [AircraftFact]
+        do {
+            got = regs.isEmpty ? [] : try await factsService.facts(regs)
+        } catch {
+            // Asked again on the next load; the ages stay as they were meanwhile.
+            if factsAskedFor == regs { factsAskedFor = nil }
+            return
+        }
         // A newer load may have asked for other tails meanwhile; its answer wins.
         guard factsAskedFor == regs else { return }
         facts = got
@@ -112,13 +137,7 @@ public final class PassportStore {
     }
 
     private func remap() {
-        mapped = all.map { f in
-            var m = f
-            if let name = f.airline, let hit = reference.airline(name) { m.airline = hit.id }
-            m.originCountry = f.originCountry ?? airport(f.originIcao)?.country
-            m.destinationCountry = f.destinationCountry ?? airport(f.destinationIcao)?.country
-            return m
-        }
+        mapped = Self.mapped(all, reference: reference, airport: airport)
         core = mapped.map(\.coreFlight)
         recompute()
     }
@@ -129,5 +148,6 @@ public final class PassportStore {
         detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)
         aircraft = FlightCore.computeAircraftStats(flights: core, year: y, types: types, facts: facts.map(\.coreFact),
                                                    asOf: Int64(asOf.timeIntervalSince1970))
+        revision += 1
     }
 }

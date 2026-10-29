@@ -47,7 +47,7 @@ struct PassportCard: View {
     var body: some View {
         Button(action: onOpen) { face() }
             .buttonStyle(CardPressStyle())
-            .accessibilityLabel("All flight stats")
+            .accessibilityLabel("Soma Flight Passport, all flight stats")
             .accessibilityValue("\(stats.flights) flights, \(TravelFacts.distance(stats.distanceKm, units.distance))")
     }
 
@@ -157,7 +157,7 @@ struct DelaysCard: View {
         let lost = TravelFacts.delayLost(stats.delayLost)
         Button(action: onOpen) { face() }
             .buttonStyle(CardPressStyle())
-            .accessibilityLabel("All delay stats")
+            .accessibilityLabel("Delays, all delay stats")
             .accessibilityValue("\(lost.value) \(lost.caption)")
     }
 
@@ -215,8 +215,8 @@ struct AircraftCard: View {
     var body: some View {
         Button(action: onOpen) { face() }
             .buttonStyle(CardPressStyle())
-            .accessibilityLabel("All aircraft stats")
-            .accessibilityValue("Most flown aircraft, \(name), \(flightsText)")
+            .accessibilityLabel("Most flown aircraft, all aircraft stats")
+            .accessibilityValue("\(name), \(flightsText)")
     }
 
     private var name: String { type?.name ?? TravelFacts.aircraftName(typeCode) }
