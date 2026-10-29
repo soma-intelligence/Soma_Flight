@@ -609,3 +609,100 @@ Deno.test("requireUser: missing, malformed, error, valid", async () => {
   assertEquals(await requireUser(req("bearer tok.en"), spy), { userId: "u-9" });
   assertEquals(seen, "tok.en");
 });
+
+Deno.test("searchRoute follows links.next up to maxPages and meters each page", async () => {
+  const route = JSON.parse(await fixture("route_kaus_kdfw.json"));
+  const first = {
+    ...route,
+    flights: [route.flights[0]],
+    links: { next: "/airports/KAUS/flights/to/KDFW?cursor=c2" },
+  };
+  const second = {
+    ...route,
+    flights: [route.flights[1]],
+    links: { next: "/airports/KAUS/flights/to/KDFW?cursor=c3" },
+  };
+  const third = { ...route, flights: [route.flights[2]], links: null };
+  const calls: Request[] = [];
+  const seen: string[] = [];
+  const api = new AeroApi(
+    "k",
+    routed((r) => {
+      const c = new URL(r.url).searchParams.get("cursor");
+      return new Response(
+        JSON.stringify(c === "c2" ? second : c === "c3" ? third : first),
+      );
+    }, calls),
+    (e) => {
+      seen.push(e);
+      return Promise.resolve();
+    },
+    opts,
+  );
+  const two = await api.searchRoute("KAUS", "KDFW", "2026-11-03");
+  assertEquals(two.map((f) => f.ident_iata), ["AA2417", "AA2431"]);
+  assertEquals(calls.length, 2); // default cap is 2 pages
+  assertEquals(seen, [
+    "/airports/{id}/flights/to/{dest_id}",
+    "/airports/{id}/flights/to/{dest_id}",
+  ]);
+  const u = new URL(calls[1].url);
+  assertEquals(u.searchParams.get("cursor"), "c2");
+  assertEquals(u.searchParams.get("connection"), "nonstop"); // filters kept on later pages
+  assertEquals(u.searchParams.get("start"), "2026-11-03T00:00:00.000Z");
+  calls.length = 0;
+  assertEquals(
+    (await api.searchRoute("KAUS", "KDFW", "2026-11-03", 1)).length,
+    1,
+  );
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("flightsByIdent sends ident_type=designator", async () => {
+  const calls: Request[] = [];
+  await new AeroApi("k", fakeFetch('{"flights":[]}', 200, calls))
+    .flightsByIdent("AFR84");
+  assertEquals(
+    new URL(calls[0].url).searchParams.get("ident_type"),
+    "designator",
+  );
+});
+
+Deno.test("flightById picks the diverted row of a diverted flight", async () => {
+  const base = (await flightsOf("flight_af84.json", "flights"))[0];
+  const planned = { ...base, diverted: false };
+  const diverted = { ...base, diverted: true };
+  for (const rows of [[planned, diverted], [diverted, planned]]) {
+    const api = new AeroApi("k", fakeFetch(JSON.stringify({ flights: rows })));
+    assertEquals((await api.flightById(base.fa_flight_id))?.diverted, true);
+  }
+});
+
+Deno.test("boardFlights starts both list fetches before either finishes", async () => {
+  let inFlight = 0;
+  let peak = 0;
+  const api = new AeroApi(
+    "k",
+    routed(async () => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 10));
+      inFlight--;
+      return new Response("{}");
+    }),
+  );
+  await api.boardFlights("KAUS", "departures");
+  assertEquals(peak, 2);
+});
+
+Deno.test("fixtures agree on fa_flight_id for the same flight", async () => {
+  const sched = await flightsOf(
+    "scheduled_departures_kaus.json",
+    "scheduled_departures",
+  );
+  const route = JSON.parse(await fixture("route_kaus_kdfw.json")).flights;
+  const a = sched.find((f) => f.ident_iata === "AA2417")!;
+  const b = route[0].segments[0];
+  assertEquals(b.ident_iata, "AA2417");
+  assertEquals(a.fa_flight_id, b.fa_flight_id);
+});

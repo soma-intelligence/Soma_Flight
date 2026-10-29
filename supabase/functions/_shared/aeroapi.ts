@@ -85,7 +85,7 @@ export class AeroApi {
     start?: string,
     end?: string,
   ): Promise<AeroFlight[]> {
-    const q = new URLSearchParams();
+    const q = new URLSearchParams({ ident_type: "designator" });
     if (start) q.set("start", start);
     if (end) q.set("end", end);
     const body = await this.get<{ flights?: AeroFlight[] }>(
@@ -144,12 +144,13 @@ export class AeroApi {
 
   /**
    * Nonstop flights from `origin` to `destination` (ICAO preferred) whose scheduled_out falls on
-   * `date` (YYYY-MM-DD, UTC). Dates outside the provider window (10 days back, 2 ahead) return [].
+   * `date` (YYYY-MM-DD, UTC). Follows links.next up to `maxPages` pages. Dates outside the provider window (10 days back, 2 ahead) return [].
    */
   async searchRoute(
     origin: string,
     destination: string,
     date: string,
+    maxPages = 2,
   ): Promise<AeroFlight[]> {
     const start = new Date(`${date}T00:00:00Z`);
     if (Number.isNaN(start.getTime())) return [];
@@ -165,15 +166,17 @@ export class AeroApi {
       start: start.toISOString(),
       end: end.toISOString(),
     });
-    const body = await this.get<{ flights?: AeroFullFlight[] }>(
+    const items = await this.paged<AeroFullFlight>(
       "/airports/{id}/flights/to/{dest_id}",
       `/airports/${encodeURIComponent(origin)}/flights/to/${
         encodeURIComponent(destination)
       }`,
+      "flights",
+      maxPages,
       q,
     );
     const out: AeroFlight[] = [];
-    for (const item of asArray(body.flights)) {
+    for (const item of items) {
       const segs = asArray(item.segments);
       if (segs.length !== 1) continue; // nonstop only
       const t = segs[0].scheduled_out ? Date.parse(segs[0].scheduled_out) : NaN;
@@ -209,8 +212,10 @@ export class AeroApi {
     const upcoming: AirportListKind = kind === "departures"
       ? "scheduled_departures"
       : "scheduled_arrivals";
-    const done = await this.airportFlights(icao, kind, maxPages);
-    const next = await this.airportFlights(icao, upcoming, maxPages);
+    const [done, next] = await Promise.all([
+      this.airportFlights(icao, kind, maxPages),
+      this.airportFlights(icao, upcoming, maxPages),
+    ]);
     const seen = new Set<string>();
     const merged: AeroFlight[] = [];
     for (const f of [...done, ...next]) {
@@ -282,11 +287,12 @@ export class AeroApi {
     path: string,
     key: string,
     maxPages: number,
+    base?: URLSearchParams,
   ): Promise<T[]> {
     const out: T[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < Math.max(1, maxPages); page++) {
-      const q = new URLSearchParams();
+      const q = new URLSearchParams(base);
       if (cursor) q.set("cursor", cursor);
       const body:
         & { links?: { next?: string | null } | null }
