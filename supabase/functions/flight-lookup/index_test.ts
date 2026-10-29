@@ -294,6 +294,7 @@ test(db, "dates outside the provider window never reach AeroAPI", async () => {
 });
 
 test(db, "oldest and newest days of the window are accepted", async () => {
+  track(af84); // the default fake answers with the fixture flight, which lands in the table
   const user = await makeUser(db);
   const d = deps();
   for (const date of ["2026-10-23", "2026-11-04"]) {
