@@ -5,18 +5,22 @@ import UniformTypeIdentifiers
 import FlightCore
 
 /// A capsule "Share" that hands over `content` as a PNG (phone width, dark, on the page colour). Nothing is
-/// rendered until the share sheet asks for the file, so the image is the section as it is at that moment
-/// (the chosen year and chart tab).
+/// built or rendered until the share sheet asks for the file, so the image is the section as it is at that
+/// moment (the chosen year and chart tab).
 struct SectionShareButton<Content: View>: View {
     var title: String
-    @ViewBuilder var content: Content
+    var content: () -> Content
+
+    init(title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title; self.content = content
+    }
 
     @Environment(\.units) private var units
     @Environment(\.displayScale) private var displayScale
     @Environment(\.reference) private var reference
 
     var body: some View {
-        ShareLink(item: SectionSnapshot(source: SectionRenderer(page: AnyView(page), scale: max(displayScale, 2))),
+        ShareLink(item: SectionSnapshot(source: SectionRenderer(page: { AnyView(page) }, scale: max(displayScale, 2))),
                   preview: SharePreview(title, image: Image(systemName: "square.and.arrow.up"))) { label }
             .buttonStyle(.plain)
             .accessibilityLabel("Share \(title)")
@@ -38,7 +42,7 @@ struct SectionShareButton<Content: View>: View {
     private var page: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
-            content
+            content()
             Text("Soma Flight Passport").scaledFont(13, weight: .medium).foregroundStyle(Theme.secondary)
         }
         .frame(width: 361, alignment: .leading)
@@ -50,15 +54,15 @@ struct SectionShareButton<Content: View>: View {
     }
 }
 
-/// Renders a section to PNG on demand, on the main actor.
+/// Builds and renders a section to PNG on demand, on the main actor.
 @MainActor final class SectionRenderer {
-    let page: AnyView
+    let page: () -> AnyView
     let scale: CGFloat
 
-    init(page: AnyView, scale: CGFloat) { self.page = page; self.scale = scale }
+    init(page: @escaping () -> AnyView, scale: CGFloat) { self.page = page; self.scale = scale }
 
     func png() -> Data? {
-        let renderer = ImageRenderer(content: page)
+        let renderer = ImageRenderer(content: page())
         renderer.scale = scale
         guard let cg = renderer.cgImage else { return nil }
         let data = NSMutableData()
@@ -85,7 +89,12 @@ struct SectionSnapshot: Transferable {
 /// One Passport section: title and Share on one line, then the body, with a full width hairline above.
 struct PassportSection<Content: View>: View {
     var title: String
-    @ViewBuilder var content: Content
+    /// Called for the page, and again only when Share asks for the image.
+    var content: () -> Content
+
+    init(title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title; self.content = content
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -97,9 +106,9 @@ struct PassportSection<Content: View>: View {
                         .foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    SectionShareButton(title: title) { content }
+                    SectionShareButton(title: title, content: content)
                 }
-                content.scaledPadding(.top, 6)
+                content().scaledPadding(.top, 6)
             }
             .scaledPadding(.horizontal, 16)
             .scaledPadding(.top, 28)

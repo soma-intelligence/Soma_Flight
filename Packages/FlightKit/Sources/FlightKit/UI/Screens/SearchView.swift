@@ -334,20 +334,29 @@ struct AirlineBadge: View {
     var key: String
     /// A fixed diameter (already scaled by the caller); nil keeps the 34 pt Dynamic Type size.
     var diameter: CGFloat? = nil
-    @ScaledMetric(relativeTo: .body) private var size = 34
+    @ScaledMetric(relativeTo: .body) private var size = Self.baseSize
     @Environment(\.reference) private var reference
+
+    /// The default diameter and the monogram's size at that diameter; a fixed diameter keeps the ratio.
+    static let baseSize: CGFloat = 34
+    static let baseText: CGFloat = 12
 
     var body: some View {
         let size = diameter ?? size
-        Group {
-            if let diameter { Text(code).font(.system(size: diameter * 12 / 34, weight: .bold)) }
-            else { Text(code).scaledFont(12, weight: .bold) }
-        }
+        monogram
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(TravelFacts.badgeTint(code: code, key: key, reference: reference)))
             .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 1))
             .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var monogram: some View {
+        if let diameter {
+            Text(code).font(.system(size: diameter * Self.baseText / Self.baseSize, weight: .bold))
+        } else {
+            Text(code).scaledFont(Self.baseText, weight: .bold)
+        }
     }
 }
 

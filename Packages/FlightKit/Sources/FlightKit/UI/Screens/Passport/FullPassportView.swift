@@ -53,16 +53,21 @@ struct FullPassportView: View {
                        startPoint: .top, endPoint: .bottom)
     }
 
+    /// The sections in a lazy stack: an expanded list can run to a hundred rows or more, so sections off
+    /// screen are not built. The rankings are built once per period (and unit) here, not in each section.
     @ViewBuilder private var sections: some View {
         let detail = store.detail
         if detail.flights > 0 {
-            PassportFlightsSection(detail: detail)
-            PassportDistanceSection(detail: detail, lookup: lookup)
-            PassportTimeSection(detail: detail, lookup: lookup)
-            PassportAirportsSection(detail: detail, lookup: lookup)
-            PassportAirlinesSection(detail: detail)
-            PassportRoutesSection(detail: detail, lookup: lookup)
-            PassportCountriesSection(detail: detail)
+            let rankings = PassportRankings(detail, units: units.distance, lookup: lookup)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                PassportFlightsSection(detail: detail)
+                PassportDistanceSection(detail: detail, lookup: lookup)
+                PassportTimeSection(detail: detail, lookup: lookup)
+                PassportAirportsSection(bars: rankings.airports, year: store.year)
+                PassportAirlinesSection(rankings: rankings, year: store.year)
+                PassportRoutesSection(rankings: rankings, year: store.year)
+                PassportCountriesSection(detail: detail, year: store.year)
+            }
         }
     }
 }

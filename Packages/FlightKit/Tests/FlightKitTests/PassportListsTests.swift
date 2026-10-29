@@ -98,4 +98,62 @@ private func lookup(_ code: String) -> Airport? { airports[code] }
         #expect(PassportLists.flights(37) == "37 flights")
         #expect(PassportLists.flights(1) == "1 flight")
     }
+
+    @Test func showMoreResetsOnYearChange() {
+        let opened: Set<Int> = [PassportLists.yearKey(2025)]
+        #expect(PassportLists.isOpen(opened, year: 2025))
+        #expect(!PassportLists.isOpen(opened, year: 2026))
+        #expect(!PassportLists.isOpen(opened, year: nil)) // all-time is its own key
+        #expect(PassportLists.isOpen([0], year: nil))
+        // Screenshot runs start open; a list closed there stays closed for that year only.
+        #expect(PassportLists.isOpen([], year: 2026, startsOpen: true))
+        #expect(!PassportLists.isOpen([2026], year: 2026, startsOpen: true))
+    }
+
+    @Test func collapseStaysReachable() {
+        #expect(PassportLists.showsToggle(count: 11, limit: 8, expanded: false))
+        #expect(!PassportLists.showsToggle(count: 5, limit: 8, expanded: false))
+        // Opened, then the list shrank under the limit: "Show less" still shows.
+        #expect(PassportLists.showsToggle(count: 5, limit: 8, expanded: true))
+    }
+
+    @Test func captionKeepsItsWidth() {
+        // The caption keeps its width whatever the fraction; the bar takes the share of what is left.
+        let wide = BarRowLayout.widths(total: 300, caption: 90, fraction: 1, minBar: 10, spacing: 10)
+        #expect(wide.caption == 90)
+        #expect(wide.bar == 200)
+        let half = BarRowLayout.widths(total: 300, caption: 40, fraction: 0.5, minBar: 10, spacing: 10)
+        #expect(half.caption == 40 && half.bar == 125)
+        #expect(half.bar + 10 + half.caption <= 300)
+        // A tiny bar keeps its floor.
+        #expect(BarRowLayout.widths(total: 300, caption: 40, fraction: 0.001, minBar: 10, spacing: 10).bar == 10)
+        // A caption wider than the row shrinks to leave the shortest bar.
+        let squeezed = BarRowLayout.widths(total: 100, caption: 160, fraction: 1, minBar: 10, spacing: 10)
+        #expect(squeezed.caption == 80 && squeezed.bar == 10)
+    }
+
+    @Test func regionColumnsAtAccessibilitySizes() {
+        #expect(PassportLists.regionColumns(.large) == 3)
+        #expect(PassportLists.regionColumns(.xxxLarge) == 3)
+        #expect(PassportLists.regionColumns(.accessibility1) == 2)
+        #expect(PassportLists.regionColumns(.accessibility5) == 1)
+    }
+
+    @Test func unknownCountryNote() {
+        #expect(PassportLists.unknownCountryNote(0) == nil)
+        #expect(PassportLists.unknownCountryNote(1) == "1 flight with an airport in an unknown country is not counted here.")
+        #expect(PassportLists.unknownCountryNote(3)?.hasPrefix("3 flights") == true)
+    }
+
+    @Test func rankingsBuildEveryList() {
+        let d = detail(airports: [AirportVisits(icao: "KSFO", visits: 2)],
+                       airlines: ([tally("UAL", 2, 100)], [tally("UAL", 2, 100)]),
+                       routes: ([tally("KSFO-LFPG", 2, 100)], [tally("KSFO-LFPG", 2, 100)]))
+        let r = PassportRankings(d, units: .km, lookup: lookup)
+        #expect(r.airports.map(\.label) == [.code("SFO")])
+        #expect(r.airlines(.flights).map(\.caption) == ["2"])
+        #expect(r.airlines(.distance).map(\.caption) == [TravelFacts.distance(100, .km)])
+        #expect(r.routes(.flights).map(\.label) == [.code("SFO-CDG")])
+        #expect(r.routes(.distance).map(\.value) == [100])
+    }
 }
