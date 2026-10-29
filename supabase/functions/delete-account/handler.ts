@@ -35,6 +35,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const followed = await db.from("user_flights").select("flight_id")
       .eq("user_id", userId);
     must(followed, "follow read");
+    // A follow added after this read is removed by the auth user cascade but its alert is not
+    // released here: the hourly no-follower alert cleanup (Task 9) covers that.
     for (const row of followed.data ?? []) {
       await unfollow(db, aero, userId, row.flight_id as string);
     }
@@ -56,6 +58,16 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       "profile update",
     );
 
+    // Drop the activity trail that still carries the id of the retained profile. The delete-account
+    // rows stay so the hourly limit holds across retries; the periodic prune removes them later.
+    must(
+      await db.from("rate_events").delete().eq("user_id", userId)
+        .neq("endpoint", "delete-account"),
+      "rate events delete",
+    );
+
+    // Note: requireUser does not read profiles.status, so if this delete fails an old session
+    // stays valid until the retry succeeds. Later functions must not rely on status alone.
     const del = await db.auth.admin.deleteUser(userId);
     // Already gone (a retry after a partial run) is the goal state, not a failure.
     if (del.error && del.error.status !== 404) {

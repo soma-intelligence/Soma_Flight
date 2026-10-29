@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 -- users A and B (profile trigger fires on insert)
 insert into auth.users (id, instance_id, aud, role, email)
@@ -16,7 +16,9 @@ values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-1111111
 insert into past_flights (user_id, date, ident)
 values ('aaaaaaaa-0000-0000-0000-000000000001', '2026-01-01', 'AF84');
 insert into push_tokens (user_id, token, kind, platform)
-values ('aaaaaaaa-0000-0000-0000-000000000001', 'tok-a', 'alert', 'ios');
+values ('aaaaaaaa-0000-0000-0000-000000000001', 'tok-a', 'alert', 'ios'),
+       ('bbbbbbbb-0000-0000-0000-000000000002', 'tok-b', 'alert', 'ios');
+update profiles set display_name = 'Ada' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 
 -- as B
 set local role authenticated;
@@ -24,7 +26,7 @@ set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","r
 
 select is((select count(*) from user_flights), 0::bigint, 'B sees no user_flights');
 select is((select count(*) from past_flights), 0::bigint, 'B sees no past_flights');
-select is((select count(*) from push_tokens), 0::bigint, 'B sees no push_tokens');
+select is((select count(*) from push_tokens), 1::bigint, 'B sees only own push_tokens');
 select is((select count(*) from flights), 1::bigint, 'B reads shared flights');
 select throws_ok(
   $$insert into flights(provider_id, ident) values ('x','X1')$$,
@@ -52,6 +54,9 @@ select is((select count(*) from past_flights where user_id = 'aaaaaaaa-0000-0000
   0::bigint, 'deleting the auth user removes past_flights');
 select is((select count(*) from push_tokens where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
   0::bigint, 'deleting the auth user removes push_tokens');
+select is((select count(*) from push_tokens where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'),
+  1::bigint, 'B keeps push_tokens after A is deleted');
+select is((select count(*) from profiles), 2::bigint, 'both profiles remain after A is deleted');
 select results_eq(
   $$select status::text, display_name from profiles where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$,
   $$values ('deleted'::text, null::text)$$,

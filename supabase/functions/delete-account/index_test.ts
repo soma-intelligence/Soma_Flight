@@ -110,6 +110,13 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
   await follow(aero, user, flight);
   await seed(user, flight);
   await seed(other, flight);
+  for (const u of [user, other]) {
+    const r = await db.from("rate_events").insert([
+      { user_id: u, endpoint: "follow-flight" },
+      { user_id: u, endpoint: "flight-lookup" },
+    ]);
+    if (r.error) throw r.error;
+  }
 
   const res = await handler(req(user), { db, aero, verifier: fakeVerifier });
   assertEquals(res.status, 200);
@@ -122,6 +129,12 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
   assertEquals(p.data?.status, "deleted");
   assertEquals(p.data?.display_name, null);
   assert((await db.auth.admin.getUserById(user)).error !== null);
+  const events = await db.from("rate_events").select("endpoint").eq(
+    "user_id",
+    user,
+  );
+  assertEquals((events.data ?? []).map((e) => e.endpoint), ["delete-account"]);
+  assertEquals(await count("rate_events", other), 2);
   // Another user's rows and profile are untouched.
   assertEquals(await count("past_flights", other), 1);
   assertEquals(await count("push_tokens", other), 2);
