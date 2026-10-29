@@ -1,0 +1,14 @@
+{
+  "distance_km": [
+    { "a": {"lat": 49.0097, "lon": 2.5479}, "b": {"lat": 37.6213, "lon": -122.3790}, "expected": 8962.3587, "tolerance": 0.01 },
+    { "a": {"lat": 40.6413, "lon": -73.7781}, "b": {"lat": 51.4700, "lon": -0.4543}, "expected": 5540.0190, "tolerance": 0.01 },
+    { "a": {"lat": 35.5494, "lon": 139.7798}, "b": {"lat": 37.6213, "lon": -122.3790}, "expected": 8285.6516, "tolerance": 0.01 },
+    { "a": {"lat": 0.0, "lon": 0.0}, "b": {"lat": 0.0, "lon": 90.0}, "expected": 10007.5572, "tolerance": 0.001 },
+    { "a": {"lat": 90.0, "lon": 0.0}, "b": {"lat": -90.0, "lon": 0.0}, "expected": 20015.1144, "tolerance": 0.001 }
+  ],
+  "great_circle": [
+    { "a": {"lat": 49.0097, "lon": 2.5479}, "b": {"lat": 37.6213, "lon": -122.3790}, "segments": 64, "expected_len": 65 },
+    { "a": {"lat": 35.5494, "lon": 139.7798}, "b": {"lat": 37.6213, "lon": -122.3790}, "segments": 64, "expected_len": 65 },
+    { "a": {"lat": 40.6413, "lon": -73.7781}, "b": {"lat": 51.4700, "lon": -0.4543}, "segments": 1, "expected_len": 2 }
+  ]
+}
