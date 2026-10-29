@@ -1,13 +1,14 @@
 // Test helpers: a service client on the local Supabase stack and throwaway users.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
-let cached: { url: string; key: string } | undefined;
+let cached: { url: string; key: string; anon: string } | undefined;
 
-async function localEnv(): Promise<{ url: string; key: string }> {
+async function localEnv(): Promise<{ url: string; key: string; anon: string }> {
   if (cached) return cached;
   let url = Deno.env.get("SUPABASE_URL");
   let key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !key) {
+  let anon = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !key || !anon) {
     const out = await new Command("npx", {
       args: ["supabase", "status", "-o", "env"],
       stdout: "piped",
@@ -18,9 +19,12 @@ async function localEnv(): Promise<{ url: string; key: string }> {
       new RegExp(`^${n}="?([^"\\n]+)"?$`, "m").exec(text)?.[1];
     url ??= get("API_URL");
     key ??= get("SERVICE_ROLE_KEY");
+    anon ??= get("ANON_KEY");
   }
-  if (!url || !key) throw new Error("local Supabase stack is not running");
-  return cached = { url, key };
+  if (!url || !key || !anon) {
+    throw new Error("local Supabase stack is not running");
+  }
+  return cached = { url, key, anon };
 }
 
 const Command = Deno.Command;
@@ -30,6 +34,28 @@ export async function testDb(): Promise<SupabaseClient> {
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+/** A client signed in as `userId` through the public API: what the app can do, RLS and grants included. */
+export async function userClient(
+  db: SupabaseClient,
+  userId: string,
+): Promise<SupabaseClient> {
+  const { url, anon } = await localEnv();
+  const got = await db.auth.admin.getUserById(userId);
+  if (got.error) throw got.error;
+  const password = crypto.randomUUID();
+  const upd = await db.auth.admin.updateUserById(userId, { password });
+  if (upd.error) throw upd.error;
+  const client = createClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const signIn = await client.auth.signInWithPassword({
+    email: got.data.user!.email!,
+    password,
+  });
+  if (signIn.error) throw signIn.error;
+  return client;
 }
 
 /** Everything a test creates, removed by `cleanup` so the database ends as it began. */
