@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 select is((select public from storage.buckets where id = 'brand-assets'), false, 'brand-assets bucket is private');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
@@ -22,6 +22,8 @@ select throws_ok(
 select throws_ok($$update airline_assets set version = 'v2'$$, '42501', null, 'authenticated cannot update');
 select throws_ok($$delete from airline_assets$$, '42501', null, 'authenticated cannot delete');
 reset role;
+
+select is((select schedule from cron.job where jobname = 'brand-logos-sync'), '17 * * * *', 'logo sync runs hourly at minute 17');
 
 select throws_ok(
   $$insert into airline_assets (icao, kind, path, format, version, provider, fetched_at, checked_at)

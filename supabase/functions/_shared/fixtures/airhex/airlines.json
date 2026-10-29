@@ -1,0 +1,10 @@
+{
+  "sizes": [64, 128, 256, 512],
+  "airlines": [
+    { "icao": "UAL", "iata": "UA", "name": "United Airlines", "dark": true },
+    { "icao": "AFR", "iata": "AF", "name": "Air France", "dark": false },
+    { "icao": "QQQ", "iata": "QQ", "name": "No Logo Air", "dark": false },
+    { "icao": "BAD", "iata": null, "name": "Missing Code Airways", "dark": false },
+    { "icao": "TOOLONG", "iata": "XX", "name": "Not an ICAO code", "dark": false }
+  ]
+}

@@ -82,6 +82,7 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
+| `brand-assets-sync` | POST | `?mode=logos&limit=50[&icao=UAL,AFR]` | service role only (pg_cron); `{ ok, mode, checked, changed, added, failed }`, or `{ ok, mode, skipped }` with no provider |
 | `usage-alert` | POST | none, or `?mode=cap` | service role only (pg_cron) |
 
 The rows above the line are summaries; the sources are the header comments in each `handler.ts`.

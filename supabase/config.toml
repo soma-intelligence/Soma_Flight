@@ -407,6 +407,10 @@ static_files = ["./functions/_shared/flightcore/pkg/*"]
 [functions.brand-asset]
 verify_jwt = true
 
+# Called by pg_cron through pg_net with the service role key from Vault. Also checks the role claim.
+[functions.brand-assets-sync]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

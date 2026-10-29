@@ -12,6 +12,7 @@ and see runs in `cron.job_run_details`.
 | `maintenance-prune` | `30 3 * * *` | `maintenance?mode=prune`: rate events older than 2 h, route cache older than 1 h, snapshots not viewed for 7 days, processed webhook rows older than 30 days, events older than 90 days of unfollowed flights (batches of 5000 rows until one comes back short, at most 20 batches per table per run) |
 | `usage-alert` | `0 8-11 * * *` | `usage-alert`: emails the owner once when yesterday's estimated AeroAPI spend is above the threshold; the later runs retry a failed send and do nothing once it went out |
 | `usage-alert-cap` | `20 * * * *` | `usage-alert?mode=cap`: emails the owner once a day when today's running spend reaches 80% of the daily cap |
+| `brand-logos-sync` | `17 * * * *` | `brand-assets-sync?mode=logos&limit=50`: logos, dark logos, tails and brand colours for the 50 airlines never checked or checked over 7 days ago, oldest first. 2,050 airlines are all checked within two days, then each again once 7 days old, which is the weekly refresh. A no-op until the logo provider is configured (below) |
 | `cron-history-prune` | `45 3 * * *` | deletes `cron.job_run_details` rows older than 7 days |
 
 Boards are not refreshed by a job: `airport-board` refreshes lazily on read.
@@ -58,6 +59,7 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | `maintenance` | `AEROAPI_KEY` | alerts mode only |
 | every AeroAPI caller | `AEROAPI_DAILY_CAP_USD` | global daily spend cap in USD, default 50 (below) |
 | `usage-alert` | `AEROAPI_DAILY_CAP_USD` | the cap mode alerts at 80% of it; set it on `usage-alert` too |
+| `brand-assets-sync` | `LOGO_PROVIDER`, `AIRHEX_KEY` | set after the licence is signed: `LOGO_PROVIDER=airhex` and the licensed key. Until both are set the function answers `{ skipped: "provider not configured" }` and does nothing, which is the production state |
 | `usage-alert` | `RESEND_API_KEY`, `OWNER_EMAIL` | required to send; missing gives 503 |
 | `usage-alert` | `USAGE_ALERT_USD` | threshold in USD, default 25 |
 | `usage-alert` | `USAGE_ALERT_FROM` | sender, default `Soma Flight <alerts@somalabs.me>` (domain must be verified in Resend) |
@@ -97,3 +99,13 @@ Today's spend so far:
 select endpoint, calls, estimated_cost from usage_counters where day = (now() at time zone 'utc')::date
 order by estimated_cost desc;
 ```
+
+## Logo and brand colour sync
+
+- `brand-assets-sync` pulls logos and colours from the provider through the `LogoProvider` port (`_shared/brand/`). The Airhex adapter sends the key only as an MD5 digest (`md5apikey`) and the key never leaves the server; the app only ever gets signed URLs from `brand-asset`.
+- A new provider version is a new object (`logos/<ICAO>/<kind>-<version>.<ext>`); the old object is removed after the row points at the new one. Unchanged files are not uploaded again, only `checked_at` moves.
+- Colours: `airlines.colors_source = 'locked'` rows (livery seeds) are never overwritten. Other rows take the provider's colours and `colors_source` becomes the provider name.
+- `airlines.logo_checked_at` is the queue marker (null or older than 7 days is due). An airline that fails is retried about a day later; one the provider has nothing for is revisited weekly.
+- Manual resync of a few airlines: `POST /brand-assets-sync?mode=logos&icao=UAL,AFR` with the service role key.
+- The Airhex URL shapes and the recorded fixtures (`_shared/fixtures/airhex/`) were written from the public API documentation, with no key and no call. Re-record them against the live account and re-check the URLs in `_shared/brand/airhex.ts` when the licence is signed.
+- Local demo key: none exists. If one is obtained, it goes only in `supabase/functions/.env.local` (git-ignored) so local Debug builds show provider logos. It is never set as a project secret.
