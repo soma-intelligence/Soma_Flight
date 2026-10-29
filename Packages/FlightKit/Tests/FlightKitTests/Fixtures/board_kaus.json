@@ -1,0 +1,40 @@
+{
+  "icao": "KAUS",
+  "kind": "departures",
+  "fetchedAt": "2026-10-23T23:30:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "provider_id": "AAL1234-kaus",
+      "ident": "AA1234",
+      "operator": "AAL",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KDFW",
+      "destination_iata": "DFW",
+      "scheduled_out": "2026-10-23T23:25:00.000Z",
+      "scheduled_in": "2026-10-24T00:30:00.000Z",
+      "estimated_out": "2026-10-23T23:40:00.000Z",
+      "gate_origin": "12",
+      "terminal_origin": "B",
+      "aircraft_type": "A321",
+      "status": "scheduled",
+      "updated_at": "2026-10-23T23:20:00.000Z"
+    },
+    {
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "provider_id": "SWA220-kaus",
+      "ident": "WN220",
+      "operator": "SWA",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KDEN",
+      "destination_iata": "DEN",
+      "scheduled_out": "2026-10-23T23:50:00.000Z",
+      "scheduled_in": "2026-10-24T02:10:00.000Z",
+      "status": "canceled",
+      "updated_at": "2026-10-23T22:00:00.000Z"
+    }
+  ]
+}

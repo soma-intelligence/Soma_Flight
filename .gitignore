@@ -2,3 +2,6 @@
 .worktrees/
 .DS_Store
 core/target/
+*.xcodeproj
+xcuserdata/
+.build/

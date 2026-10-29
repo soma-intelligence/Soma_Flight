@@ -1,0 +1,21 @@
+{
+  "total": 212,
+  "onTime": 158,
+  "delayed15": 41,
+  "canceled": 6,
+  "avgDelayMinutes": 17.4,
+  "perHour": [
+    { "hour": "2026-10-23T21:00:00.000Z", "onTime": 18, "late15": 4, "late45": 1, "canceled": 0, "diverted": 0 },
+    { "hour": "2026-10-23T22:00:00.000Z", "onTime": 16, "late15": 6, "late45": 2, "canceled": 1, "diverted": 0 },
+    { "hour": "2026-10-23T23:00:00.000Z", "onTime": 14, "late15": 9, "late45": 3, "canceled": 2, "diverted": 1 }
+  ],
+  "worstRoutes": [
+    { "icao": "KDFW", "delayed": 9, "canceled": 1 },
+    { "icao": "KDEN", "delayed": 6, "canceled": 2 }
+  ],
+  "worstAirlines": [
+    { "operator": "AAL", "delayed": 12, "canceled": 1 },
+    { "operator": "SWA", "delayed": 8, "canceled": 3 }
+  ],
+  "severity": "moderate"
+}

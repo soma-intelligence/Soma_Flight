@@ -1,0 +1,9 @@
+{
+  "id": "0b9d2c4a-71e8-4a3d-8c10-5e4f9a7b2d33",
+  "provider_id": "DAL1-sparse",
+  "ident": "DAL1",
+  "origin_icao": "KATL",
+  "destination_icao": "KJFK",
+  "status": "scheduled",
+  "updated_at": "2026-10-23T12:00:00.000Z"
+}

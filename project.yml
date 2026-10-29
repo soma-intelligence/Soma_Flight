@@ -1,0 +1,59 @@
+name: SomaFlight
+options:
+  bundleIdPrefix: me.somalabs
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+packages:
+  FlightKit:
+    path: Packages/FlightKit
+targets:
+  SomaFlight-iOS:
+    type: application
+    platform: iOS
+    sources: [Apps/iOS]
+    dependencies:
+      - package: FlightKit
+        product: FlightKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
+        PRODUCT_NAME: SomaFlight
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+    scheme:
+      testTargets: []
+  SomaFlight-macOS:
+    type: application
+    platform: macOS
+    sources: [Apps/macOS]
+    dependencies:
+      - package: FlightKit
+        product: FlightKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
+        PRODUCT_NAME: SomaFlight
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
+    scheme:
+      testTargets: []
+  SomaFlightWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [Apps/Widgets]
+    dependencies:
+      - package: FlightKit
+        product: FlightKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.widgets
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
