@@ -21,6 +21,8 @@ public enum Theme {
     /// Chart grid lines and hairlines.
     public static let grid = Color(light: 0xD8D8DD, dark: 0x373738)
     public static let separator = Color(light: 0xC6C6C8, dark: 0x2E2E31)
+    /// Selected segment and filter pills.
+    public static let pill = Color(light: 0xE3E3E8, dark: 0x2C2C2F)
     /// Inactive ticks on wind bars.
     public static let tickOff = Color(light: 0xD1D1D6, dark: 0x37373B)
 
@@ -164,19 +166,26 @@ public struct SectionHeader: View {
     var title: String
     var subtitle: String?
     var large: Bool
+    var info: Bool
 
-    public init(_ title: String, subtitle: String? = nil, large: Bool = false) {
-        self.title = title; self.subtitle = subtitle; self.large = large
+    /// - Parameter info: adds a small (i) glyph after the subtitle (or the title when there is none).
+    public init(_ title: String, subtitle: String? = nil, large: Bool = false, info: Bool = false) {
+        self.title = title; self.subtitle = subtitle; self.large = large; self.info = info
+    }
+
+    private var glyph: Text {
+        Text(Image(systemName: "info.circle")).font(.system(size: 11, weight: .regular))
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(title)
+            (info && subtitle == nil ? Text("\(title) \(glyph.foregroundStyle(Theme.secondary))") : Text(title))
                 .font(large ? Theme.Font.sheetTitle : Theme.Font.sectionTitle)
                 .foregroundStyle(Theme.primary)
             if let subtitle {
+                let line = info ? Text("\(subtitle) \(glyph)") : Text(subtitle)
                 Group {
-                    if large { Text(subtitle).scaledFont(14) } else { Text(subtitle).font(Theme.Font.sectionSubtitle) }
+                    if large { line.scaledFont(14) } else { line.font(Theme.Font.sectionSubtitle) }
                 }
                 .foregroundStyle(Theme.secondary)
             }

@@ -68,7 +68,7 @@ public struct BoardRow: View {
                 HStack(spacing: 5) {
                     Circle().fill(level.color).frame(width: 8, height: 8)
                     Text(statusText)
-                        .scaledFont(15)
+                        .scaledFont(14.5)
                         .foregroundStyle(level == .onTime || level == .canceled ? Theme.secondary : level.color)
                         .lineLimit(1)
                 }

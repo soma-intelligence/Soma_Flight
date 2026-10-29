@@ -94,7 +94,7 @@ public struct DelayChart: View {
                         Rectangle().fill(Theme.grid).frame(width: plotWidth, height: 1)
                             .offset(y: y)
                         Text("\(v)")
-                            .scaledFont(12)
+                            .scaledFont(11)
                             .foregroundStyle(Theme.secondary.opacity(0.7))
                             .frame(width: Self.axisWidth - 4, alignment: .leading)
                             .offset(x: plotWidth + 4, y: y - 8)
@@ -134,7 +134,7 @@ public struct DelayChart: View {
                 ForEach(Array(stride(from: 0, to: 24, by: 2)), id: \.self) { i in
                     let hour = calendar.component(.hour, from: slots[i].start)
                     Text("\(hour % 12 == 0 ? 12 : hour % 12)")
-                        .scaledFont(12)
+                        .scaledFont(11)
                         .foregroundStyle(Theme.secondary.opacity(0.7))
                         .frame(width: 30)
                         .offset(x: slot * (CGFloat(i) + 0.5) - 15)

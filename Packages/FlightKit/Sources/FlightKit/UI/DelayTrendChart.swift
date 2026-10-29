@@ -9,10 +9,17 @@ public struct DelayTrendChart: View {
     var timeZone: TimeZone
     var now: Date
     var binMinutes: Int
+    var windowMinutes: Int
 
-    public init(flights: [Flight], kind: BoardKind, timeZone: TimeZone = .current, now: Date = .now, binMinutes: Int = 60) {
+    /// - Parameters:
+    ///   - binMinutes: one bar per this many minutes.
+    ///   - windowMinutes: each bar averages the flights scheduled within this window centred on
+    ///     it (a rolling mean, so thin boards still read as a trend). Defaults to the bin itself.
+    public init(flights: [Flight], kind: BoardKind, timeZone: TimeZone = .current, now: Date = .now,
+                binMinutes: Int = 60, windowMinutes: Int? = nil) {
         self.flights = flights; self.kind = kind; self.timeZone = timeZone; self.now = now
         self.binMinutes = max(5, binMinutes)
+        self.windowMinutes = max(self.binMinutes, windowMinutes ?? binMinutes)
     }
 
     struct Bin: Identifiable {
@@ -31,22 +38,23 @@ public struct DelayTrendChart: View {
         Date(timeIntervalSince1970: (d.timeIntervalSince1970 / binLength).rounded(.down) * binLength)
     }
 
-    /// Contiguous bins from the first to the last scheduled flight, each the mean delay of its flights.
+    /// Contiguous bins from the first to the last scheduled flight, each the mean delay of the
+    /// flights in its window (nil when the window holds none).
     var bins: [Bin] {
-        var sums: [Date: (Double, Int)] = [:]
-        for f in flights where f.status != .canceled {
+        let points: [(at: Date, minutes: Double)] = flights.compactMap { f in
+            guard f.status != .canceled else { return nil }
             let scheduled = kind == .arrivals ? f.scheduledIn : f.scheduledOut
             let delay = kind == .arrivals ? f.arrivalDelay : f.departureDelay
-            guard let scheduled, let delay else { continue }
-            let key = binStart(scheduled)
-            let m = max(0, Double(delay.components.seconds) / 60)
-            sums[key, default: (0, 0)].0 += m
-            sums[key, default: (0, 0)].1 += 1
+            guard let scheduled, let delay else { return nil }
+            return (scheduled, max(0, Double(delay.components.seconds) / 60))
         }
-        guard let lo = sums.keys.min(), let hi = sums.keys.max() else { return [] }
+        guard let lo = points.map({ binStart($0.at) }).min(), let hi = points.map({ binStart($0.at) }).max() else { return [] }
+        let half = TimeInterval(windowMinutes * 60) / 2
         return stride(from: lo.timeIntervalSince1970, through: hi.timeIntervalSince1970, by: binLength).map {
             let d = Date(timeIntervalSince1970: $0)
-            return Bin(start: d, minutes: sums[d].map { $0.0 / Double($0.1) })
+            let mid = d.addingTimeInterval(binLength / 2)
+            let inside = points.filter { $0.at >= mid.addingTimeInterval(-half) && $0.at < mid.addingTimeInterval(half) }
+            return Bin(start: d, minutes: inside.isEmpty ? nil : inside.reduce(0) { $0 + $1.minutes } / Double(inside.count))
         }
     }
 
@@ -88,7 +96,7 @@ public struct DelayTrendChart: View {
                     let y = base - h * CGFloat(v) / topValue
                     Rectangle().fill(Theme.grid).frame(width: plotWidth + 4, height: 1).offset(x: -4, y: y)
                     Text(axisLabel(v))
-                        .scaledFont(12)
+                        .scaledFont(11)
                         .foregroundStyle(Theme.secondary)
                         .fixedSize()
                         .offset(x: plotWidth + 8, y: y - 8)
@@ -125,7 +133,7 @@ public struct DelayTrendChart: View {
                     let isNow = bin.start == nowBin
                     if isNow || labelled(bin.start) {
                         Text(isNow ? "Now" : hourLabel(bin.start))
-                            .scaledFont(13, weight: isNow ? .bold : .regular)
+                            .scaledFont(12, weight: isNow ? .bold : .regular)
                             .foregroundStyle(isNow ? Theme.primary : Theme.secondary)
                             .fixedSize()
                             .frame(width: 44)
@@ -152,6 +160,8 @@ public struct DelayTrendChart: View {
     private func labelled(_ d: Date) -> Bool {
         let c = calendar.dateComponents([.hour, .minute], from: d)
         guard c.minute == 0 else { return false }
+        // Keep clear of the "Now" label, whatever the bin size.
+        if abs(d.timeIntervalSince(nowBin)) < max(binLength * 1.5, 45 * 60) { return false }
         if binMinutes >= 60 && bins.count > 8 { return (c.hour ?? 0) % 2 == 0 && abs(d.timeIntervalSince(nowBin)) > binLength * 1.5 }
         return abs(d.timeIntervalSince(nowBin)) > binLength * 1.5 || binMinutes < 60
     }

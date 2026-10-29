@@ -76,7 +76,7 @@ public struct PerformanceSplit: View {
                 }
             }
         }
-        .frame(height: 6)
+        .frame(height: 4.5)
     }
 }
 

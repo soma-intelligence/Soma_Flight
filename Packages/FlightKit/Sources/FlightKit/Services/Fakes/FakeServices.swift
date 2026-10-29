@@ -206,8 +206,10 @@ public actor FakeAirportService: AirportService {
     private let weathers: [String: Weather]
     private let fetchedAt: Date
 
-    public init() {
-        let s = FakeSeed.shift()
+    /// - Parameter now: the clock the seed is shifted to. `FakeSeed.reference` keeps the seed's own times
+    ///   (previews and snapshots).
+    public init(now: Date = .now) {
+        let s = FakeSeed.shift(now: now)
         airports = FakeSeed.load("airports")
         boards = FakeSeed.boards(shift: s)
         stats = FakeSeed.load("stats", as: [String: StatsPair].self).mapValues {

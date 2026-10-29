@@ -198,5 +198,165 @@
   "lat": 32.7338,
   "lon": -117.1933,
   "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KMSY",
+  "iata": "MSY",
+  "name": "Louis Armstrong New Orleans International",
+  "city": "New Orleans",
+  "country": "US",
+  "lat": 29.9934,
+  "lon": -90.258,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KBNA",
+  "iata": "BNA",
+  "name": "Nashville International",
+  "city": "Nashville",
+  "country": "US",
+  "lat": 36.1263,
+  "lon": -86.6774,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KMIA",
+  "iata": "MIA",
+  "name": "Miami International",
+  "city": "Miami",
+  "country": "US",
+  "lat": 25.7959,
+  "lon": -80.287,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KELP",
+  "iata": "ELP",
+  "name": "El Paso International",
+  "city": "El Paso",
+  "country": "US",
+  "lat": 31.8072,
+  "lon": -106.3776,
+  "tz": "America/Denver"
+ },
+ {
+  "id": "KTPA",
+  "iata": "TPA",
+  "name": "Tampa International",
+  "city": "Tampa",
+  "country": "US",
+  "lat": 27.9755,
+  "lon": -82.5332,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KBWI",
+  "iata": "BWI",
+  "name": "Baltimore Washington International",
+  "city": "Baltimore",
+  "country": "US",
+  "lat": 39.1754,
+  "lon": -76.6683,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KSLC",
+  "iata": "SLC",
+  "name": "Salt Lake City International",
+  "city": "Salt Lake City",
+  "country": "US",
+  "lat": 40.7899,
+  "lon": -111.9791,
+  "tz": "America/Denver"
+ },
+ {
+  "id": "KBUR",
+  "iata": "BUR",
+  "name": "Hollywood Burbank",
+  "city": "Burbank",
+  "country": "US",
+  "lat": 34.2007,
+  "lon": -118.3587,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KEWR",
+  "iata": "EWR",
+  "name": "Newark Liberty International",
+  "city": "Newark",
+  "country": "US",
+  "lat": 40.6895,
+  "lon": -74.1745,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KMCO",
+  "iata": "MCO",
+  "name": "Orlando International",
+  "city": "Orlando",
+  "country": "US",
+  "lat": 28.4312,
+  "lon": -81.3081,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KCLT",
+  "iata": "CLT",
+  "name": "Charlotte Douglas International",
+  "city": "Charlotte",
+  "country": "US",
+  "lat": 35.214,
+  "lon": -80.9431,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KABQ",
+  "iata": "ABQ",
+  "name": "Albuquerque International Sunport",
+  "city": "Albuquerque",
+  "country": "US",
+  "lat": 35.0402,
+  "lon": -106.609,
+  "tz": "America/Denver"
+ },
+ {
+  "id": "KSJC",
+  "iata": "SJC",
+  "name": "San Jose International",
+  "city": "San Jose",
+  "country": "US",
+  "lat": 37.3639,
+  "lon": -121.9289,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "MMMX",
+  "iata": "MEX",
+  "name": "Mexico City International",
+  "city": "Mexico City",
+  "country": "MX",
+  "lat": 19.4363,
+  "lon": -99.0721,
+  "tz": "America/Mexico_City"
+ },
+ {
+  "id": "MMUN",
+  "iata": "CUN",
+  "name": "Cancun International",
+  "city": "Cancun",
+  "country": "MX",
+  "lat": 21.0365,
+  "lon": -86.8771,
+  "tz": "America/Cancun"
+ },
+ {
+  "id": "CYYZ",
+  "iata": "YYZ",
+  "name": "Toronto Pearson International",
+  "city": "Toronto",
+  "country": "CA",
+  "lat": 43.6777,
+  "lon": -79.6248,
+  "tz": "America/Toronto"
  }
 ]

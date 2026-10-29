@@ -16,5 +16,7 @@ struct Hatch: View {
             }
             ctx.stroke(p, with: .color(.gray.opacity(0.55)), lineWidth: 1)
         }
+        // Canvas draws past its frame; keep the lines inside the swatch.
+        .clipped()
     }
 }

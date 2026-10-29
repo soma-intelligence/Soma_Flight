@@ -113,7 +113,7 @@ import Testing
         for code in ["KAUS", "KSFO"] {
             let dep = try await svc.board(code, .departures)
             let arr = try await svc.board(code, .arrivals)
-            #expect(dep.flights.count >= 25 && arr.flights.count >= 25)
+            #expect(dep.flights.count >= 140 && arr.flights.count >= 140)
             #expect(dep.kind == .departures)
             #expect(Set(dep.flights.map(\.status)).count > 1)
             let s = try await svc.stats(code)
@@ -126,6 +126,24 @@ import Testing
         await svc.setNextError(.offline)
         do { _ = try await svc.airport("KSFO"); Issue.record("expected throw") } catch { #expect(error == .offline) }
         do { _ = try await svc.board("KXXX", .departures); Issue.record("expected throw") } catch { #expect(error == .notFound) }
+    }
+
+    /// Dense seed: a full day per board, stats computed from the same flights, Austin disrupted.
+    @Test func seedBoardsAreDenseAndMatchStats() async throws {
+        let svc = FakeAirportService(now: FakeSeed.reference)
+        for code in ["KAUS", "KSFO"] {
+            let s = try await svc.stats(code)
+            for (kind, st) in [(BoardKind.departures, s.departures), (.arrivals, s.arrivals)] {
+                let b = try await svc.board(code, kind)
+                #expect(st.total == b.flights.count)
+                #expect(st.canceled == b.flights.filter { $0.status == .canceled }.count)
+                #expect(st.perHour.count >= 15)
+                #expect(st.onTime + st.delayed15 + st.canceled <= st.total)
+            }
+        }
+        let aus = try await svc.stats("KAUS")
+        #expect(aus.departures.severity != .normal && aus.arrivals.severity == .major)
+        #expect(try await svc.stats("KSFO").departures.severity == .normal)
     }
 
     @Test func timesShiftToNow() async throws {

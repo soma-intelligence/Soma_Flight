@@ -24,7 +24,11 @@ struct ComponentSnapshotTests {
         .deletingLastPathComponent().deletingLastPathComponent()
         .appending(path: "docs/screens/components")
 
-    private func render<V: View>(_ name: String, @ViewBuilder _ content: () -> V) throws {
+    static let screensDir: URL = outDir.deletingLastPathComponent().appending(path: "screens")
+
+    @discardableResult
+    private func render<V: View>(_ name: String, to dir: URL = outDir, write: Bool = true,
+                                 @ViewBuilder _ content: () -> V) throws -> CGImage {
         let view = content()
             .frame(width: Self.width)
             .background(Theme.background)
@@ -34,12 +38,17 @@ struct ComponentSnapshotTests {
         var image: CGImage?
         NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance { image = renderer.cgImage }
         let cg = try #require(image, "no image for \(name)")
-        try FileManager.default.createDirectory(at: Self.outDir, withIntermediateDirectories: true)
-        let url = Self.outDir.appending(path: "\(name).png")
+        #expect(cg.width == Int(Self.width * 3))
+        if write { try save(cg, name, to: dir) }
+        return cg
+    }
+
+    private func save(_ cg: CGImage, _ name: String, to dir: URL) throws {
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "\(name).png")
         let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(dest, cg, nil)
         #expect(CGImageDestinationFinalize(dest))
-        #expect(cg.width == Int(Self.width * 3))
     }
 
     let now = PreviewData.now
@@ -69,7 +78,7 @@ struct ComponentSnapshotTests {
 
     @Test func performanceSplit() throws {
         try render("PerformanceSplit") {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Departures", subtitle: "How today is going so far")
                 PerformanceSplit(stats: PreviewData.stats("KAUS"))
             }
@@ -79,8 +88,8 @@ struct ComponentSnapshotTests {
 
     @Test func delayChart() throws {
         try render("DelayChart") {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader("Departures per hour")
+            VStack(alignment: .leading, spacing: 2) {
+                SectionHeader("Departures per hour", info: true)
                 DelayChart(perHour: PreviewData.stats("KAUS").perHour, timeZone: tz, now: now)
             }
             .padding(.horizontal, 16).padding(.vertical, 14)
@@ -90,9 +99,10 @@ struct ComponentSnapshotTests {
     @Test func delayTrendChart() throws {
         try render("DelayTrendChart") {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader("Departure delays", subtitle: "Average, actual then estimated")
-                DelayTrendChart(flights: PreviewData.board("KAUS", .departures).flights, kind: .departures,
-                                timeZone: tz, now: now)
+                SectionHeader("Departure delays", subtitle: "Average, actual then estimated", info: true)
+                DelayTrendChart(flights: PreviewData.board("KAUS", .departures).flights.filter {
+                    abs(($0.scheduledOut ?? .distantPast).timeIntervalSince(now)) < 4 * 3600
+                }, kind: .departures, timeZone: tz, now: now, binMinutes: 20, windowMinutes: 60)
             }
             .padding(.horizontal, 20).padding(.vertical, 14)
         }
@@ -102,7 +112,7 @@ struct ComponentSnapshotTests {
         try render("WeatherBlock") {
             VStack(alignment: .leading, spacing: 0) {
                 SectionHeader("Current Weather", subtitle: "Observed at AUS", large: true)
-                    .padding(.bottom, 22)
+                    .padding(.bottom, 10)
                 WeatherBlock(weather: PreviewData.weather["KAUS"]!, timeZone: tz, now: now)
             }
             .padding(20)
@@ -130,6 +140,24 @@ struct ComponentSnapshotTests {
                                destination: PreviewData.airport("KSFO"), now: now)
             }
             .padding(20)
+        }
+    }
+
+    /// The whole airport sheet for Austin (a disrupted day), sliced into phone-height PNGs in
+    /// docs/screens/screens. Board rows are capped so the last slice stays readable.
+    @Test func airportScreen() async throws {
+        let store = AirportStore(code: "KAUS", airports: FakeAirportService(now: now))
+        await store.load()
+        let full = try render("airport-full", write: false) {
+            AirportView(store: store, lookup: PreviewData.airport, now: now, scrolls: false, rowLimit: 22)
+                .environment(\.airportStaticControls, true)
+        }
+        // Cut at fixed heights (pt) so each slice lines up with a reference screen.
+        let cuts: [CGFloat] = [0, 1010, 1930, 2840, CGFloat(full.height) / 3]
+        for i in 0..<(cuts.count - 1) where cuts[i] < cuts[i + 1] {
+            let rect = CGRect(x: 0, y: cuts[i] * 3, width: CGFloat(full.width), height: (cuts[i + 1] - cuts[i]) * 3)
+            let slice = try #require(full.cropping(to: rect))
+            try save(slice, "airport-\(i + 1)", to: Self.screensDir)
         }
     }
 

@@ -1,72 +1,152 @@
 {
  "KAUS": {
   "departures": {
-   "total": 25,
-   "onTime": 10,
-   "delayed15": 11,
-   "canceled": 4,
-   "avgDelayMinutes": 25.52,
+   "total": 152,
+   "onTime": 54,
+   "delayed15": 96,
+   "canceled": 2,
+   "avgDelayMinutes": 39.026666666666664,
    "perHour": [
     {
-     "hour": 1792756800,
-     "onTime": 2,
+     "hour": 1792749600,
+     "onTime": 1,
      "late15": 0,
-     "late45": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792753200,
+     "onTime": 3,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792756800,
+     "onTime": 9,
+     "late15": 4,
+     "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792760400,
-     "onTime": 1,
-     "late15": 0,
-     "late45": 1,
-     "canceled": 1,
+     "onTime": 5,
+     "late15": 5,
+     "late45": 0,
+     "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792764000,
-     "onTime": 2,
-     "late15": 1,
-     "late45": 0,
+     "onTime": 0,
+     "late15": 6,
+     "late45": 2,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792767600,
-     "onTime": 1,
-     "late15": 1,
-     "late45": 1,
+     "onTime": 0,
+     "late15": 5,
+     "late45": 2,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792771200,
-     "onTime": 0,
-     "late15": 2,
-     "late45": 0,
-     "canceled": 1,
-     "diverted": 0
-    },
-    {
-     "hour": 1792774800,
-     "onTime": 1,
-     "late15": 1,
+     "onTime": 2,
+     "late15": 6,
      "late45": 1,
      "canceled": 0,
      "diverted": 0
     },
     {
-     "hour": 1792778400,
-     "onTime": 1,
+     "hour": 1792774800,
+     "onTime": 5,
      "late15": 0,
-     "late45": 0,
-     "canceled": 2,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792778400,
+     "onTime": 4,
+     "late15": 1,
+     "late45": 5,
+     "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792782000,
-     "onTime": 1,
+     "onTime": 7,
      "late15": 2,
+     "late45": 7,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792785600,
+     "onTime": 3,
+     "late15": 1,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792789200,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 6,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792792800,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 7,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792796400,
+     "onTime": 6,
+     "late15": 1,
+     "late45": 7,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792800000,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792803600,
+     "onTime": 0,
+     "late15": 2,
+     "late45": 6,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792807200,
+     "onTime": 5,
+     "late15": 1,
+     "late45": 3,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792810800,
+     "onTime": 0,
+     "late15": 1,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
@@ -74,143 +154,263 @@
    ],
    "worstRoutes": [
     {
-     "icao": "KIAH",
-     "delayed": 2,
+     "icao": "KMSY",
+     "delayed": 7,
      "canceled": 1
     },
     {
-     "icao": "KSAN",
-     "delayed": 2,
+     "icao": "KBNA",
+     "delayed": 7,
      "canceled": 0
     },
     {
-     "icao": "KORD",
-     "delayed": 2,
+     "icao": "KMCO",
+     "delayed": 6,
+     "canceled": 0
+    },
+    {
+     "icao": "KBUR",
+     "delayed": 5,
+     "canceled": 0
+    },
+    {
+     "icao": "KMIA",
+     "delayed": 5,
      "canceled": 0
     }
    ],
    "worstAirlines": [
     {
-     "operator": "NKS",
-     "delayed": 2,
-     "canceled": 1
+     "operator": "SWA",
+     "delayed": 32,
+     "canceled": 0
+    },
+    {
+     "operator": "DAL",
+     "delayed": 13,
+     "canceled": 0
     },
     {
      "operator": "UAL",
-     "delayed": 2,
-     "canceled": 1
+     "delayed": 12,
+     "canceled": 0
     },
     {
-     "operator": "JBU",
-     "delayed": 2,
-     "canceled": 1
+     "operator": "AAL",
+     "delayed": 11,
+     "canceled": 0
+    },
+    {
+     "operator": "ASA",
+     "delayed": 8,
+     "canceled": 0
     }
    ],
-   "severity": "major"
+   "severity": "moderate"
   },
   "arrivals": {
-   "total": 25,
-   "onTime": 12,
-   "delayed15": 12,
-   "canceled": 1,
-   "avgDelayMinutes": 19.5,
+   "total": 148,
+   "onTime": 48,
+   "delayed15": 94,
+   "canceled": 6,
+   "avgDelayMinutes": 49.38732394366197,
    "perHour": [
     {
-     "hour": 1792756800,
-     "onTime": 0,
-     "late15": 2,
-     "late45": 1,
+     "hour": 1792749600,
+     "onTime": 4,
+     "late15": 1,
+     "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
-     "hour": 1792760400,
-     "onTime": 2,
+     "hour": 1792753200,
+     "onTime": 7,
      "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792756800,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 2,
+     "diverted": 0
+    },
+    {
+     "hour": 1792760400,
+     "onTime": 3,
+     "late15": 5,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792764000,
-     "onTime": 2,
-     "late15": 0,
-     "late45": 1,
+     "onTime": 1,
+     "late15": 8,
+     "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792767600,
-     "onTime": 0,
-     "late15": 1,
-     "late45": 1,
-     "canceled": 1,
+     "onTime": 4,
+     "late15": 4,
+     "late45": 2,
+     "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792771200,
-     "onTime": 2,
-     "late15": 0,
+     "onTime": 5,
+     "late15": 5,
      "late45": 1,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792774800,
-     "onTime": 3,
-     "late15": 0,
-     "late45": 0,
+     "onTime": 2,
+     "late15": 2,
+     "late45": 7,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792778400,
-     "onTime": 1,
-     "late15": 2,
-     "late45": 0,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 3,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792782000,
+     "onTime": 6,
+     "late15": 0,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792785600,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 8,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792789200,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792792800,
+     "onTime": 1,
+     "late15": 1,
+     "late45": 9,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792796400,
+     "onTime": 1,
+     "late15": 1,
+     "late45": 3,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792800000,
+     "onTime": 4,
+     "late15": 1,
+     "late45": 4,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792803600,
      "onTime": 2,
      "late15": 1,
-     "late45": 0,
+     "late45": 6,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792807200,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 5,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792810800,
+     "onTime": 0,
+     "late15": 2,
+     "late45": 3,
      "canceled": 0,
      "diverted": 0
     }
    ],
    "worstRoutes": [
     {
-     "icao": "KORD",
-     "delayed": 4,
+     "icao": "KLAX",
+     "delayed": 6,
      "canceled": 0
     },
     {
      "icao": "KPDX",
-     "delayed": 3,
+     "delayed": 6,
      "canceled": 0
     },
     {
-     "icao": "KATL",
-     "delayed": 1,
+     "icao": "KBNA",
+     "delayed": 5,
+     "canceled": 0
+    },
+    {
+     "icao": "KCLT",
+     "delayed": 5,
+     "canceled": 0
+    },
+    {
+     "icao": "KDEN",
+     "delayed": 4,
      "canceled": 1
     }
    ],
    "worstAirlines": [
     {
      "operator": "SWA",
-     "delayed": 5,
-     "canceled": 0
+     "delayed": 24,
+     "canceled": 2
     },
     {
-     "operator": "ASA",
-     "delayed": 3,
+     "operator": "AAL",
+     "delayed": 17,
+     "canceled": 2
+    },
+    {
+     "operator": "DAL",
+     "delayed": 16,
+     "canceled": 2
+    },
+    {
+     "operator": "UAL",
+     "delayed": 14,
      "canceled": 0
     },
     {
      "operator": "NKS",
-     "delayed": 2,
+     "delayed": 8,
      "canceled": 0
     }
    ],
@@ -219,38 +419,14 @@
  },
  "KSFO": {
   "departures": {
-   "total": 25,
-   "onTime": 16,
-   "delayed15": 7,
-   "canceled": 2,
-   "avgDelayMinutes": 14.7,
+   "total": 156,
+   "onTime": 100,
+   "delayed15": 53,
+   "canceled": 3,
+   "avgDelayMinutes": 11.320261437908497,
    "perHour": [
     {
      "hour": 1792756800,
-     "onTime": 2,
-     "late15": 0,
-     "late45": 0,
-     "canceled": 1,
-     "diverted": 0
-    },
-    {
-     "hour": 1792760400,
-     "onTime": 1,
-     "late15": 0,
-     "late45": 2,
-     "canceled": 0,
-     "diverted": 0
-    },
-    {
-     "hour": 1792764000,
-     "onTime": 1,
-     "late15": 2,
-     "late45": 0,
-     "canceled": 0,
-     "diverted": 0
-    },
-    {
-     "hour": 1792767600,
      "onTime": 3,
      "late15": 0,
      "late45": 0,
@@ -258,8 +434,32 @@
      "diverted": 0
     },
     {
+     "hour": 1792760400,
+     "onTime": 12,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792764000,
+     "onTime": 9,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792767600,
+     "onTime": 7,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
      "hour": 1792771200,
-     "onTime": 2,
+     "onTime": 7,
      "late15": 1,
      "late45": 0,
      "canceled": 0,
@@ -267,15 +467,15 @@
     },
     {
      "hour": 1792774800,
-     "onTime": 1,
-     "late15": 0,
-     "late45": 1,
-     "canceled": 1,
+     "onTime": 8,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792778400,
-     "onTime": 3,
+     "onTime": 6,
      "late15": 0,
      "late45": 0,
      "canceled": 0,
@@ -283,8 +483,88 @@
     },
     {
      "hour": 1792782000,
+     "onTime": 7,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792785600,
+     "onTime": 8,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792789200,
+     "onTime": 5,
+     "late15": 5,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792792800,
+     "onTime": 5,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792796400,
+     "onTime": 3,
+     "late15": 6,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792800000,
+     "onTime": 5,
+     "late15": 6,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792803600,
+     "onTime": 1,
+     "late15": 7,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792807200,
      "onTime": 2,
+     "late15": 11,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792810800,
+     "onTime": 3,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792814400,
+     "onTime": 7,
      "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792818000,
+     "onTime": 2,
+     "late15": 3,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
@@ -292,147 +572,267 @@
    ],
    "worstRoutes": [
     {
-     "icao": "KBOS",
-     "delayed": 3,
+     "icao": "KBUR",
+     "delayed": 6,
      "canceled": 0
     },
     {
-     "icao": "KSEA",
-     "delayed": 0,
+     "icao": "KELP",
+     "delayed": 4,
      "canceled": 1
     },
     {
      "icao": "KATL",
-     "delayed": 1,
+     "delayed": 3,
+     "canceled": 1
+    },
+    {
+     "icao": "KAUS",
+     "delayed": 3,
+     "canceled": 0
+    },
+    {
+     "icao": "KHOU",
+     "delayed": 3,
      "canceled": 0
     }
    ],
    "worstAirlines": [
     {
+     "operator": "DAL",
+     "delayed": 16,
+     "canceled": 0
+    },
+    {
+     "operator": "SWA",
+     "delayed": 12,
+     "canceled": 0
+    },
+    {
      "operator": "AAL",
-     "delayed": 1,
+     "delayed": 6,
+     "canceled": 0
+    },
+    {
+     "operator": "UAL",
+     "delayed": 5,
      "canceled": 1
     },
     {
-     "operator": "FFT",
-     "delayed": 2,
-     "canceled": 0
-    },
-    {
-     "operator": "DAL",
-     "delayed": 2,
-     "canceled": 0
+     "operator": "JBU",
+     "delayed": 4,
+     "canceled": 1
     }
    ],
-   "severity": "moderate"
+   "severity": "normal"
   },
   "arrivals": {
-   "total": 25,
-   "onTime": 14,
-   "delayed15": 9,
+   "total": 150,
+   "onTime": 93,
+   "delayed15": 55,
    "canceled": 2,
-   "avgDelayMinutes": 15.26,
+   "avgDelayMinutes": 12.64864864864865,
    "perHour": [
     {
      "hour": 1792756800,
-     "onTime": 1,
-     "late15": 2,
+     "onTime": 2,
+     "late15": 0,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792760400,
-     "onTime": 2,
-     "late15": 1,
+     "onTime": 7,
+     "late15": 0,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792764000,
-     "onTime": 2,
-     "late15": 1,
+     "onTime": 11,
+     "late15": 0,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792767600,
-     "onTime": 1,
-     "late15": 2,
+     "onTime": 12,
+     "late15": 0,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792771200,
-     "onTime": 2,
-     "late15": 1,
+     "onTime": 8,
+     "late15": 0,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792774800,
-     "onTime": 2,
-     "late15": 0,
-     "late45": 1,
+     "onTime": 4,
+     "late15": 4,
+     "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792778400,
-     "onTime": 3,
-     "late15": 0,
+     "onTime": 9,
+     "late15": 4,
      "late45": 0,
      "canceled": 0,
      "diverted": 0
     },
     {
      "hour": 1792782000,
+     "onTime": 4,
+     "late15": 5,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792785600,
+     "onTime": 2,
+     "late15": 5,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792789200,
+     "onTime": 7,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792792800,
      "onTime": 0,
-     "late15": 0,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792796400,
+     "onTime": 7,
+     "late15": 7,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792800000,
+     "onTime": 7,
+     "late15": 6,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792803600,
+     "onTime": 0,
+     "late15": 5,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792807200,
+     "onTime": 4,
+     "late15": 6,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792810800,
+     "onTime": 3,
+     "late15": 3,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792814400,
+     "onTime": 4,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792818000,
+     "onTime": 2,
+     "late15": 1,
      "late45": 1,
-     "canceled": 2,
+     "canceled": 0,
      "diverted": 0
     }
    ],
    "worstRoutes": [
     {
      "icao": "KLAS",
-     "delayed": 2,
-     "canceled": 1
-    },
-    {
-     "icao": "KIAH",
-     "delayed": 2,
+     "delayed": 6,
      "canceled": 0
     },
     {
-     "icao": "KDFW",
-     "delayed": 1,
+     "icao": "MMMX",
+     "delayed": 5,
+     "canceled": 0
+    },
+    {
+     "icao": "KSJC",
+     "delayed": 4,
+     "canceled": 0
+    },
+    {
+     "icao": "CYYZ",
+     "delayed": 3,
+     "canceled": 0
+    },
+    {
+     "icao": "KBNA",
+     "delayed": 3,
      "canceled": 0
     }
    ],
    "worstAirlines": [
     {
-     "operator": "NKS",
-     "delayed": 2,
+     "operator": "AAL",
+     "delayed": 12,
+     "canceled": 0
+    },
+    {
+     "operator": "SWA",
+     "delayed": 11,
      "canceled": 1
     },
     {
      "operator": "JBU",
-     "delayed": 2,
+     "delayed": 11,
      "canceled": 0
     },
     {
      "operator": "DAL",
-     "delayed": 2,
+     "delayed": 9,
+     "canceled": 0
+    },
+    {
+     "operator": "ASA",
+     "delayed": 4,
      "canceled": 0
     }
    ],
-   "severity": "major"
+   "severity": "normal"
   }
  }
 }

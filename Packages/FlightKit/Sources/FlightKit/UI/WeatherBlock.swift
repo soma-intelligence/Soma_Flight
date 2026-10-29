@@ -84,7 +84,7 @@ public struct WeatherBlock: View {
                     .scaledFont(16, weight: .medium)
                     .foregroundStyle(weather.category.color)
             }
-            Text(weather.category.summary)
+            Text("\(weather.category.summary) \(Text(Image(systemName: "info.circle")).font(.system(size: 11)))")
                 .scaledFont(13.5)
                 .foregroundStyle(Theme.secondary)
                 .padding(.top, 6)
@@ -102,16 +102,16 @@ public struct WeatherBlock: View {
         .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
     }
 
-    private var ceilingText: String {
-        guard let ft = weather.ceilingFt else { return "None" }
-        return "\(ft.formatted(.number.grouping(.automatic))) ft"
+    private var ceilingText: (String, String?) {
+        guard let ft = weather.ceilingFt else { return ("None", nil) }
+        return (ft.formatted(.number.grouping(.automatic)), "FT")
     }
 
-    private var visibilityText: String {
-        guard let sm = weather.visibilitySm else { return "--" }
+    private var visibilityText: (String, String?) {
+        guard let sm = weather.visibilitySm else { return ("--", nil) }
         let km = sm * 1.609
-        if sm >= 10 { return "16+ km" }
-        return km < 10 ? String(format: "%.1f km", km) : "\(Int(km.rounded())) km"
+        if sm >= 10 { return ("16+", "KM") }
+        return (km < 10 ? String(format: "%.1f", km) : "\(Int(km.rounded()))", "KM")
     }
 
     private var ceilingCategory: FlightCategory {
@@ -150,7 +150,9 @@ public struct WeatherBlock: View {
 private struct ScaleColumn: View {
     var icon: String
     var label: String
-    var value: String
+    var value: (String, String?)
+    @ScaledMetric(relativeTo: .body) private var valueSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .subheadline) private var unitSize: CGFloat = 14
     var category: FlightCategory
     var position: Double
 
@@ -169,8 +171,13 @@ private struct ScaleColumn: View {
                 Text(label).scaledFont(13.5)
             }
             .foregroundStyle(Theme.secondary)
-            Text(value)
-                .scaledFont(17, weight: .semibold)
+            Group {
+                if let unit = value.1 {
+                    Text("\(Text("\(value.0) ").font(.system(size: valueSize, weight: .semibold)))\(Text(unit).font(.system(size: unitSize, weight: .semibold)))")
+                } else {
+                    Text(value.0).font(.system(size: valueSize, weight: .semibold))
+                }
+            }
                 .foregroundStyle(Theme.primary)
                 .padding(.top, 1)
             GeometryReader { geo in
