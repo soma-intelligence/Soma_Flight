@@ -1,0 +1,139 @@
+icao,iata,name,callsign,alliance,country,color_primary,color_secondary,phone,website,x,facebook
+AAL,AA,American Airlines,AMERICAN,oneworld,US,#0078D2,,,https://www.aa.com,,
+AAR,OZ,Asiana Airlines,ASIANA,star_alliance,KR,#2B2B72,,,https://www.flyasiana.com,,
+AAY,G4,Allegiant Air,ALLEGIANT,,US,#00A0DF,,,https://www.allegiantair.com,,
+ABY,G9,Air Arabia,ARABIA,,AE,#D71920,,,https://www.airarabia.com,airarabiagroup,airarabiagroup
+ACA,AC,Air Canada,AIR CANADA,star_alliance,CA,#F01428,,,https://www.aircanada.com,,
+AEA,UX,Air Europa,EUROPA,skyteam,ES,#0066B3,,,https://www.aireuropa.com,,
+AEE,A3,Aegean Airlines,AEGEAN,star_alliance,GR,#003D7E,,,https://www.aegeanair.com,,
+AFL,SU,Aeroflot,AEROFLOT,,RU,#0A2F6B,,,https://aeroflot.com,,
+AFR,AF,Air France,AIRFRANS,skyteam,FR,#002157,#ED1C24,,https://www.airfrance.com,,
+AHY,J2,Azerbaijan Airlines,AZAL,,AZ,#009F3B,,,https://azal.az,,
+AIC,AI,Air India,AIRINDIA,star_alliance,IN,#DA0E29,,,https://www.airindia.com,,
+ALK,UL,SriLankan Airlines,SRILANKAN,oneworld,LK,#00467F,,,https://www.srilankan.com,flysrilankan,flysrilankan
+AMX,AM,Aeroméxico,AEROMEXICO,skyteam,MX,#0B2265,,,https://www.aeromexico.com,,
+ANA,NH,All Nippon Airways,ALL NIPPON,star_alliance,JP,#00467F,,,https://www.ana.co.jp,,
+ANZ,NZ,Air New Zealand,NEW ZEALAND,star_alliance,NZ,#000000,,,https://www.airnewzealand.com,FlyAirNZ,AirNewZealand
+ARG,AR,Aerolíneas Argentinas,ARGENTINA,skyteam,AR,#00A3E0,,,https://www.aerolineas.com.ar,,
+ASA,AS,Alaska Airlines,ALASKA,oneworld,US,#01426A,,,https://www.alaskaair.com,AlaskaAir,alaskaairlines
+ASH,YV,Mesa Airlines,AIR SHUTTLE,,US,#00548B,,,https://www.mesa-air.com,,MesaAirlines
+ASQ,EV,ExpressJet,ACEY,,US,#0A3A78,,,https://www.expressjet.com,,
+AUA,OS,Austrian Airlines,AUSTRIAN,star_alliance,AT,#E4002B,,,https://www.austrian.com,,
+AVA,AV,Avianca,AVIANCA,star_alliance,CO,#DA291C,,,https://www.avianca.com,,
+AWI,ZW,Air Wisconsin,WISCONSIN,,US,#003B5C,,,https://www.airwis.com,airwisconsin,AirWisconsin
+AWQ,QZ,Indonesia AirAsia,WAGON AIR,,ID,#ED1C24,,,https://www.airasia.com,,
+AXB,IX,Air India Express,EXPRESS INDIA,,IN,#E31E24,,,https://www.airindiaexpress.in,,
+AXM,AK,AirAsia,ASIAN EXPRESS,,MY,#FF0000,,,https://www.airasia.com,,
+BAW,BA,British Airways,SPEEDBIRD,oneworld,GB,#075AAA,,,https://britishairways.com,,
+BEL,SN,Brussels Airlines,BEELINE,star_alliance,BE,#1E3A8A,,,https://www.brusselsairlines.com,,
+BTI,BT,airBaltic,AIR BALTIC,,LV,#8CC63F,,,https://www.airbaltic.com,airbaltic,airBaltic
+CAL,CI,China Airlines,DYNASTY,skyteam,TW,#C8102E,,,https://www.china-airlines.com,,
+CCA,CA,Air China,AIR CHINA,star_alliance,CN,#E60012,,,https://www.airchina.com,,
+CEB,5J,Cebu Pacific,CEBU,,PH,#FFC20E,,,https://www.cebupacificair.com,,
+CES,MU,China Eastern Airlines,CHINA EASTERN,skyteam,CN,#1E4B9C,,,https://global.ceair.com,,
+CHH,HU,Hainan Airlines,HAINAN,,CN,#C8102E,,,https://www.hainanairlines.com,,
+CMP,CM,Copa Airlines,COPA,star_alliance,PA,#0073CF,,,https://www.copaair.com,,
+CPA,CX,Cathay Pacific,CATHAY,oneworld,HK,#005D63,,,https://www.cathaypacific.com,,cathaypacific
+CQH,9C,Spring Airlines,AIR SPRING,,CN,#00A651,,,https://en.ch.com,,
+CSC,3U,Sichuan Airlines,SICHUAN,,CN,#0B7A3E,,,https://www.sichuanair.com,,
+CSN,CZ,China Southern Airlines,CHINA SOUTHERN,,CN,#0072BC,,,https://www.csair.com,,
+CSZ,ZH,Shenzhen Airlines,SHENZHEN AIR,star_alliance,CN,#C8102E,,,https://www.shenzhenair.com,,
+CTN,OU,Croatia Airlines,CROATIA,star_alliance,HR,#1B3F8B,,,https://www.croatiaairlines.com,croatiaairlines,croatiaairlines
+CXA,MF,Xiamen Airlines,XIAMEN AIR,skyteam,CN,#008B5C,,,https://www.xiamenair.com,,
+DAH,AH,Air Algérie,AIR ALGERIE,,DZ,#C8102E,,,https://airalgerie.dz,,
+DAL,DL,Delta Air Lines,DELTA,skyteam,US,#003366,,,https://www.delta.com,,
+DLH,LH,Lufthansa,LUFTHANSA,star_alliance,DE,#05164D,,,https://lufthansa.com,,
+EDW,WK,Edelweiss Air,EDELWEISS,,CH,#C8102E,,,https://www.flyedelweiss.com,,
+EIN,EI,Aer Lingus,SHAMROCK,,IE,#00845A,,,https://www.aerlingus.com,,
+ELY,LY,El Al,ELAL,,IL,#0E2A5F,,,https://www.elal.co.il,,
+ENY,MQ,Envoy Air,ENVOY,,US,#002D72,,,https://www.envoyair.com,,
+ETD,EY,Etihad Airways,ETIHAD,,AE,#BD8B13,,,https://www.etihad.com,,
+ETH,ET,Ethiopian Airlines,ETHIOPIAN,star_alliance,ET,#078930,,,https://www.ethiopianairlines.com,flyethiopian,EthiopianAirlines
+EVA,BR,EVA Air,EVA,star_alliance,TW,#007A53,,,https://www.evaair.com,,
+EWG,EW,Eurowings,EUROWINGS,,DE,#A8006B,,,https://www.eurowings.com,,
+EXS,LS,Jet2.com,CHANNEX,,GB,#D4001A,,,https://www.jet2.com,,
+EZY,U2,easyJet,EASY,,GB,#FF6600,,,https://www.easyjet.com,,
+FDB,FZ,flydubai,SKY DUBAI,,AE,#E4002B,,,https://www.flydubai.com,,
+FFT,F9,Frontier Airlines,FRONTIER FLIGHT,,US,#248A3D,,,https://www.flyfrontier.com,FlyFrontier,
+FIN,AY,Finnair,FINNAIR,oneworld,FI,#0B1560,,,https://www.finnair.com,,
+FJI,FJ,Fiji Airways,FIJI,oneworld,FJ,#003E7E,,,https://www.fijiairways.com,,
+FLE,F8,Flair Airlines,FLAIR,,CA,#E31937,,,https://flyflair.com,,
+FLG,9E,Endeavor Air,FLAGSHIP,,US,#00205B,,,https://www.endeavorair.com,endeavorair,9EAir
+GFA,GF,Gulf Air,GULF AIR,,BH,#B8860B,,,https://www.gulfair.com,gulfair,gulfair
+GIA,GA,Garuda Indonesia,INDONESIA,skyteam,ID,#0073B9,,,https://www.garuda-indonesia.com,,
+GJS,G7,GoJet Airlines,LINDBERGH,,US,#22348E,,,https://www.gojetairlines.com,GoJet_Airlines,gojet
+GLO,G3,GOL Linhas Aéreas,GOL,,BR,#FF7020,,,https://www.voegol.com.br,,
+HAL,HA,Hawaiian Airlines,HAWAIIAN,oneworld,US,#5B2C83,,,https://www.hawaiianairlines.com,HawaiianAir,HawaiianAirlines
+HKE,UO,HK Express,HONGKONG SHUTTLE,,HK,#8A2BE2,,,https://www.hkexpress.com,,HKExpress
+HVN,VN,Vietnam Airlines,VIETNAM AIRLINES,skyteam,VN,#00457C,,,https://www.vietnamairlines.com,,
+IBE,IB,Iberia,IBERIA,oneworld,ES,#D7192D,,,https://www.iberia.com,,
+ICE,FI,Icelandair,ICEAIR,,IS,#0A3E73,,,https://www.icelandair.com,,
+IGO,6E,IndiGo,IFLY,,IN,#1B2F8F,,,https://www.goindigo.in,,
+ITY,AZ,ITA Airways,ITARROW,star_alliance,IT,#003D7E,,,https://www.ita-airways.com,,
+JAL,JL,Japan Airlines,JAPAN AIR,oneworld,JP,#D7002D,,,https://www.jal.co.jp,,
+JBU,B6,JetBlue Airways,JETBLUE,,US,#0033A0,,,https://www.jetblue.com,jetblue,JetBlue
+JIA,US,PSA Airlines,BLUE STREAK,,US,#0A4D8C,,,https://www.psaairlines.com,,
+JJA,7C,Jeju Air,JEJU AIR,,KR,#FF5000,,,https://www.jejuair.net,,
+JST,JQ,Jetstar Airways,JETSTAR,,AU,#FF5100,,,https://www.jetstar.com,,
+KAC,KU,Kuwait Airways,KUWAITI,,KW,#00659C,,,https://www.kuwaitairways.com,KuwaitAirways,KuwaitAirways
+KAL,KE,Korean Air,KOREANAIR,skyteam,KR,#00256C,,,https://www.koreanair.com,,
+KLC,WA,KLM Cityhopper,KLM,,NL,#00A1DE,,,https://www.klmcityhopper.nl,,
+KLM,KL,KLM Royal Dutch Airlines,KLM,skyteam,NL,#00A1DE,,,https://www.klm.com,,
+KQA,KQ,Kenya Airways,KENYA,skyteam,KE,#C8102E,,,https://www.kenya-airways.com,KenyaAirways,officialkenyaairways
+KZR,KC,Air Astana,ASTANALINE,,KZ,#00A9E0,,,https://www.airastana.com,,
+LAN,LA,LATAM Airlines Chile,LAN CHILE,,CL,#1B0088,,,https://www.latamairlines.com,,
+LGL,LG,Luxair,LUXAIR,,LU,#F5A800,,,https://www.luxair.lu,,luxair.lu
+LOG,LM,Loganair,LOGAN,,GB,#002B5C,,,https://www.loganair.co.uk,flyloganair,FlyLoganair
+LOT,LO,LOT Polish Airlines,POLLOT,star_alliance,PL,#11397E,,,https://www.lot.com,,
+MAS,MH,Malaysia Airlines,MALAYSIAN,oneworld,MY,#E31937,,,https://www.malaysiaairlines.com,MAS,malaysiaairlines
+MEA,ME,Middle East Airlines,CEDAR JET,skyteam,LB,#007A33,,,https://www.mea.com.lb,,
+MSR,MS,EgyptAir,EGYPTAIR,star_alliance,EG,#003D7E,,,https://www.egyptair.com,,
+MXY,MX,Breeze Airways,,,US,#00BCD4,,,https://www.flybreeze.com,,
+NKS,NK,Spirit Airlines,SPIRIT WINGS,,US,#FFEC00,,,https://www.spirit.com,,
+NOZ,DY,Norwegian Air Shuttle,REDNOSE,,NO,#D81939,,,https://www.norwegian.no,,
+OMA,WY,Oman Air,OMAN AIR,oneworld,OM,#00A19B,,,https://www.omanair.com,,
+PAL,PR,Philippine Airlines,PHILIPPINE,,PH,#004B93,,,https://www.philippineairlines.com,,
+PGT,PC,Pegasus Airlines,SUNTURK,,TR,#FFCB05,,,https://www.flypgs.com,,
+QFA,QF,Qantas Airways,QANTAS,oneworld,AU,#E40000,,,https://www.qantas.com,Qantas,Qantas
+QTR,QR,Qatar Airways,QATARI,oneworld,QA,#5C0632,,,https://www.qatarairways.com,,
+QXE,QX,Horizon Air,HORIZON AIR,,US,#00205B,,,https://www.horizonair.com,,
+RAM,AT,Royal Air Maroc,ROYAL AIR MAROC,oneworld,MA,#C8102E,,,https://www.royalairmaroc.com,RAM_Maroc,RoyalAirMaroc
+RJA,RJ,Royal Jordanian,JORDANIAN,oneworld,JO,#8A1538,,,https://www.rj.com,RoyalJordanian,RoyalJordanian
+ROT,RO,TAROM,TAROM,skyteam,RO,#0A3D91,,,https://www.tarom.ro,,
+RPA,YX,Republic Airways,BRICKYARD,,US,#00539B,,,https://rjet.com,,RepublicAirways
+RWD,WB,RwandAir,RWANDAIR,,RW,#00A1DE,,,https://www.rwandair.com,FlyRwandAir,FlyRwandAir
+RYR,FR,Ryanair,RYANAIR,,IE,#073590,#F1C933,,https://www.ryanair.com,,
+SAA,SA,South African Airways,SPRINGBOK,star_alliance,ZA,#00887A,,,https://www.flysaa.com,flysaa,FlySAA
+SAS,SK,Scandinavian Airlines,SCANDINAVIAN,skyteam,SE,#000066,,,https://www.sas.se,,
+SCX,SY,Sun Country Airlines,SUN COUNTRY,,US,#F26A21,,,https://www.suncountry.com,,
+SEJ,SG,SpiceJet,SPICEJET,,IN,#E21B22,,,https://www.spicejet.com,,
+SIA,SQ,Singapore Airlines,SINGAPORE,star_alliance,SG,#F99F1C,,,https://www.singaporeair.com,,
+SKU,H2,Sky Airline,AEROSKY,,CL,#5B2C83,,,https://www.skyairline.com,,
+SKW,OO,SkyWest Airlines,SKYWEST,,US,#004C97,,,https://www.skywest.com,,
+SVA,SV,Saudia,SAUDIA,skyteam,SA,#006C35,,,https://www.saudia.com,,
+SWA,WN,Southwest Airlines,SOUTHWEST,,US,#304CB2,,,https://www.southwest.com,,
+SWR,LX,Swiss International Air Lines,SWISS,star_alliance,CH,#E3000F,,,https://www.swiss.com,,
+SXS,XQ,SunExpress,SUNEXPRESS,,TR,#FFD100,,,https://www.sunexpress.com,,
+TAP,TP,TAP Air Portugal,AIR PORTUGAL,star_alliance,PT,#00A650,,,https://www.flytap.com,,TAPAirPortugal
+TAR,TU,Tunisair,TUNAIR,,TN,#C8102E,,,https://www.tunisair.com,,
+TGW,TR,Scoot,SCOOTER,,SG,#FFD500,,,https://www.flyscoot.com,,
+THA,TG,Thai Airways,THAI,star_alliance,TH,#6A1B9A,,,https://www.thaiairways.com,,
+THY,TK,Turkish Airlines,TURKISH,star_alliance,TR,#C70A0C,,,https://www.turkishairlines.com,,
+TOM,BY,TUI Airways,TUI AIR,,GB,#009FE3,,,https://www.tui.co.uk,,
+TRA,HV,Transavia,TRANSAVIA,,NL,#00B140,,,https://www.transavia.com,,
+TSC,TS,Air Transat,AIR TRANSAT,,CA,#00AEEF,,,https://www.airtransat.com,airtransat,AirTransatCanada
+TVF,TO,Transavia France,FRANCE SOLEIL,,FR,#00B140,,,https://www.transavia.com,,
+TWB,TW,Trinity Airways,SONOROUS,,KR,#E5004E,,,https://www.trinityairways.com,,
+UAE,EK,Emirates,EMIRATES,,AE,#D71921,,,https://www.emirates.com,Emirates,
+UAL,UA,United Airlines,UNITED,star_alliance,US,#0033A0,,,https://www.united.com,,
+UCA,C5,CommuteAir,COMMUTAIR,,US,#0072CE,,,https://www.commuteair.com,flycommuteair,commuteair
+UZB,HY,Uzbekistan Airways,UZBEKISTAN,,UZ,#0048A3,,,https://www.uzairways.com,,uzairways.official
+VIR,VS,Virgin Atlantic,VIRGIN,skyteam,GB,#E10A0A,,,https://www.virginatlantic.com,virginatlantic,virginatlantic
+VIV,VB,Viva Aerobus,VIVA,,MX,#00A651,,,https://www.vivaaerobus.com,,
+VJC,VJ,VietJet Air,VIETJET,,VN,#ED1C24,,,https://www.vietjetair.com,,
+VLG,VY,Vueling,VUELING,,ES,#FFCC00,,,https://www.vueling.com,,
+VOI,Y4,Volaris,VOLARIS,,MX,#6F2DA8,,,https://www.volaris.com,,
+VOZ,VA,Virgin Australia,VELOCITY,,AU,#E10A0A,,,https://www.virginaustralia.com,virginaustralia,virginaustralia
+VXP,XP,Avelo Airlines,AVELO,,US,#1F3A93,,,https://www.aveloair.com,aveloair,aveloair
+WJA,WS,WestJet,WESTJET,,CA,#00A6D6,,,https://www.westjet.com,westjet,westjet
+WZZ,W6,Wizz Air,WIZZ AIR,,HU,#C6007E,,,https://wizzair.com,wizzair,wizzair

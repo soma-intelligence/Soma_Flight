@@ -1,0 +1,251 @@
+iso2,name,region
+AD,Andorra@en,europe
+AE,United Arab Emirates@en,middle_east
+AF,Afghanistan@en,asia
+AG,Antigua and Barbuda@en,caribbean
+AI,Anguilla@en,caribbean
+AL,Albania@en,europe
+AM,Armenia@en,middle_east
+AO,Angola@en,africa
+AQ,Antarctica@en,oceania
+AR,Argentina@en,south_america
+AS,American Samoa@en,oceania
+AT,Austria@en,europe
+AU,Australia@en,oceania
+AW,Aruba@en,caribbean
+AX,Åland Islands,europe
+AZ,Azerbaijan@en,middle_east
+BA,Bosnia and Herzegovina@en,europe
+BB,Barbados@en,caribbean
+BD,Bangladesh@en,asia
+BE,Belgium@en,europe
+BF,Burkina Faso@en,africa
+BG,Bulgaria@en,europe
+BH,Bahrain@en,middle_east
+BI,Burundi@en,africa
+BJ,Benin@en,africa
+BL,Saint Barthélemy,caribbean
+BM,Bermuda@en,north_america
+BN,Brunei,asia
+BO,Bolivia,south_america
+BQ,Caribbean Netherlands,caribbean
+BR,Brazil@en,south_america
+BS,Bahamas,caribbean
+BT,Bhutan@en,asia
+BV,Bouvet Island@en,south_america
+BW,Botswana@en,africa
+BY,Belarus@en,europe
+BZ,Belize@en,central_america
+CA,Canada@en,north_america
+CC,Cocos (Keeling) Islands@en,oceania
+CD,DR Congo,africa
+CF,Central African Republic@en,africa
+CG,Republic of the Congo,africa
+CH,Switzerland@en,europe
+CI,Côte d'Ivoire,africa
+CK,Cook Islands@en,oceania
+CL,Chile@en,south_america
+CM,Cameroon@en,africa
+CN,People's Republic of China@en,asia
+CO,Colombia@en,south_america
+CR,Costa Rica@en,central_america
+CU,Cuba@en,caribbean
+CV,Cabo Verde,africa
+CW,Curaçao,caribbean
+CX,Christmas Island@en,oceania
+CY,Cyprus@en,middle_east
+CZ,Czechia,europe
+DE,Germany@en,europe
+DJ,Djibouti@en,africa
+DK,Denmark@en,europe
+DM,Dominica@en,caribbean
+DO,Dominican Republic@en,caribbean
+DZ,Algeria@en,africa
+EC,Ecuador@en,south_america
+EE,Estonia@en,europe
+EG,Egypt@en,middle_east
+EH,Western Sahara@en,africa
+ER,Eritrea@en,africa
+ES,Spain@en,europe
+ET,Ethiopia@en,africa
+FI,Finland@en,europe
+FJ,Fiji@en,oceania
+FK,Falkland Islands,south_america
+FM,Micronesia,oceania
+FO,Faroe Islands@en,europe
+FR,France@en,europe
+GA,Gabon@en,africa
+GB,United Kingdom,europe
+GD,Grenada@en,caribbean
+GE,Georgia@en,middle_east
+GF,French Guiana@en,south_america
+GG,Guernsey@en,europe
+GH,Ghana@en,africa
+GI,Gibraltar@en,europe
+GL,Greenland@en,north_america
+GM,Gambia,africa
+GN,Guinea@en,africa
+GP,Guadeloupe@en,caribbean
+GQ,Equatorial Guinea@en,africa
+GR,Greece@en,europe
+GS,South Georgia and South Sandwich Islands,south_america
+GT,Guatemala@en,central_america
+GU,Guam@en,oceania
+GW,Guinea-Bissau@en,africa
+GY,Guyana@en,south_america
+HK,Hong Kong,asia
+HM,Heard Island and McDonald Islands,oceania
+HN,Honduras@en,central_america
+HR,Croatia@en,europe
+HT,Haiti@en,caribbean
+HU,Hungary@en,europe
+ID,Indonesia@en,asia
+IE,Ireland@en,europe
+IL,Israel@en,middle_east
+IM,Isle of Man@en,europe
+IN,India@en,asia
+IO,British Indian Ocean Territory,africa
+IQ,Iraq@en,middle_east
+IR,Iran,asia
+IS,Iceland@en,europe
+IT,Italy@en,europe
+JE,Jersey@en,europe
+JM,Jamaica@en,caribbean
+JO,Jordan@en,middle_east
+JP,Japan@en,asia
+KE,Kenya@en,africa
+KG,Kyrgyzstan@en,asia
+KH,Cambodia@en,asia
+KI,Kiribati@en,oceania
+KM,Comoros@en,africa
+KN,Saint Kitts and Nevis@en,caribbean
+KP,North Korea,asia
+KR,South Korea,asia
+KW,Kuwait@en,middle_east
+KY,Cayman Islands@en,caribbean
+KZ,Kazakhstan@en,asia
+LA,Laos,asia
+LB,Lebanon@en,middle_east
+LC,Saint Lucia@en,caribbean
+LI,Liechtenstein@en,europe
+LK,Sri Lanka@en,asia
+LR,Liberia@en,africa
+LS,Lesotho@en,africa
+LT,Lithuania@en,europe
+LU,Luxembourg@en,europe
+LV,Latvia@en,europe
+LY,Libya@en,africa
+MA,Morocco@en,africa
+MC,Monaco@en,europe
+MD,Moldova,europe
+ME,Montenegro@en,europe
+MF,Saint Martin,caribbean
+MG,Madagascar@en,africa
+MH,Marshall Islands@en,oceania
+MK,North Macedonia,europe
+ML,Mali@en,africa
+MM,Myanmar,asia
+MN,Mongolia@en,asia
+MO,Macau,asia
+MP,Northern Mariana Islands@en,oceania
+MQ,Martinique@en,caribbean
+MR,Mauritania@en,africa
+MS,Montserrat@en,caribbean
+MT,Malta@en,europe
+MU,Mauritius@en,africa
+MV,Maldives@en,asia
+MW,Malawi@en,africa
+MX,Mexico@en,central_america
+MY,Malaysia@en,asia
+MZ,Mozambique@en,africa
+NA,Namibia@en,africa
+NC,New Caledonia@en,oceania
+NE,Niger@en,africa
+NF,Norfolk Island@en,oceania
+NG,Nigeria@en,africa
+NI,Nicaragua@en,central_america
+NL,Netherlands,europe
+NO,Norway@en,europe
+NP,Nepal@en,asia
+NR,Nauru@en,oceania
+NU,Niue@en,oceania
+NZ,New Zealand@en,oceania
+OM,Oman@en,middle_east
+PA,Panama@en,central_america
+PE,Peru@en,south_america
+PF,French Polynesia@en,oceania
+PG,Papua New Guinea@en,oceania
+PH,Philippines@en,asia
+PK,Pakistan@en,asia
+PL,Poland@en,europe
+PM,Saint Pierre and Miquelon,north_america
+PN,Pitcairn Islands@en,oceania
+PR,Puerto Rico@en,caribbean
+PS,Palestine,middle_east
+PT,Portugal@en,europe
+PW,Palau@en,oceania
+PY,Paraguay@en,south_america
+QA,Qatar@en,middle_east
+RE,Réunion,africa
+RO,Romania@en,europe
+RS,Serbia@en,europe
+RU,Russia,europe
+RW,Rwanda@en,africa
+SA,Saudi Arabia@en,middle_east
+SB,Solomon Islands@en,oceania
+SC,Seychelles@en,africa
+SD,Sudan@en,africa
+SE,Sweden@en,europe
+SG,Singapore@en,asia
+SH,Saint Helena,africa
+SI,Slovenia@en,europe
+SJ,Svalbard and Jan Mayen,europe
+SK,Slovakia@en,europe
+SL,Sierra Leone@en,africa
+SM,San Marino@en,europe
+SN,Senegal@en,africa
+SO,Somalia@en,africa
+SR,Suriname@en,south_america
+SS,South Sudan@en,africa
+ST,São Tomé and Príncipe@en,africa
+SV,El Salvador@en,central_america
+SX,Sint Maarten,caribbean
+SY,Syria,middle_east
+SZ,Eswatini,africa
+TC,Turks and Caicos Islands@en,caribbean
+TD,Chad@en,africa
+TF,French Southern Territories,africa
+TG,Togo@en,africa
+TH,Thailand@en,asia
+TJ,Tajikistan@en,asia
+TK,Tokelau@en,oceania
+TL,Timor-Leste,asia
+TM,Turkmenistan@en,asia
+TN,Tunisia@en,africa
+TO,Tonga@en,oceania
+TR,Türkiye,middle_east
+TT,Trinidad and Tobago@en,caribbean
+TV,Tuvalu@en,oceania
+TW,Taiwan,asia
+TZ,Tanzania,africa
+UA,Ukraine@en,europe
+UG,Uganda@en,africa
+UM,US Minor Outlying Islands,oceania
+US,United States,north_america
+UY,Uruguay@en,south_america
+UZ,Uzbekistan@en,asia
+VA,Vatican City,europe
+VC,Saint Vincent and the Grenadines@en,caribbean
+VE,Venezuela,south_america
+VG,British Virgin Islands,caribbean
+VI,US Virgin Islands,caribbean
+VN,Vietnam,asia
+VU,Vanuatu@en,oceania
+WF,Wallis and Futuna,oceania
+WS,Samoa@en,oceania
+XK,Kosovo@en,europe
+YE,Yemen@en,middle_east
+YT,Mayotte@en,africa
+ZA,South Africa@en,africa
+ZM,Zambia@en,africa
+ZW,Zimbabwe@en,africa
