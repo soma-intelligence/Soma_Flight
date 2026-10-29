@@ -10,15 +10,15 @@ public struct AppEnvironment: Sendable {
     public var push: any PushService
     public var cache: CacheStore
     public var directory: AirportDirectory
-    /// Where recent searches persist; nil keeps them in memory (fakes, tests).
-    public var recentsSuite: String?
+    /// Where recent searches persist.
+    public var recents: RecentsStorage
 
     public init(flights: any FlightService, airports: any AirportService, auth: any AuthService,
                 history: any HistoryService, push: any PushService, cache: CacheStore,
-                directory: AirportDirectory = .bundled(), recentsSuite: String? = nil) {
+                directory: AirportDirectory = .bundled(), recents: RecentsStorage = .memory) {
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.push = push; self.cache = cache
-        self.directory = directory; self.recentsSuite = recentsSuite
+        self.directory = directory; self.recents = recents
     }
 
     /// Seeded fakes over an in-memory cache. `now` is the clock the seed is shifted to.
@@ -29,32 +29,41 @@ public struct AppEnvironment: Sendable {
     }
 
     /// The configuration a normal launch uses: the on-disk cache and persisted recent searches.
-    /// The services are still the fakes; the Supabase services of Task 9 take their place.
+    /// The fake data saved here while nobody is signed in belongs to no owner, so the cache drops it at
+    /// the first real sign-in (`CacheStore.claim(for:)`).
+    // TODO(Task 9): swap the fake services for the Supabase ones.
     @concurrent public static func live() async throws -> AppEnvironment {
         AppEnvironment(flights: FakeFlightService(), airports: FakeAirportService(), auth: FakeAuthService(),
                        history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.onDisk(),
-                       recentsSuite: "")
+                       recents: .standard)
     }
 
     /// Airport by ICAO or IATA, for the screens' `lookup`.
     public var lookup: @Sendable (String) -> Airport? { directory.lookup }
 
-    /// UserDefaults for recent searches: "" is the standard suite.
+    /// UserDefaults for recent searches; nil keeps them in memory.
     var recentsDefaults: UserDefaults? {
-        guard let recentsSuite else { return nil }
-        return recentsSuite.isEmpty ? .standard : UserDefaults(suiteName: recentsSuite)
+        switch recents {
+        case .memory: nil
+        case .standard: .standard
+        case .suite(let name): UserDefaults(suiteName: name)
+        }
     }
 
-    /// Wipes everything the signed-out account left on the device: the offline cache and recent searches.
-    public func clearUserData() async {
-        await cache.clear()
+    /// Hands the device's saved data to `user` (nil: nobody signed in). When the offline cache belonged to
+    /// someone else, the recent searches go and the cache is wiped; a failed wipe throws.
+    public func adopt(user: UUID?) async throws {
+        guard await cache.owner() != user else { return }
         recentsDefaults?.removeObject(forKey: SearchStore.recentKey)
+        try await cache.claim(for: user)
     }
 
     // MARK: Stores
 
-    @MainActor public func makeMyFlightsStore() -> MyFlightsStore { MyFlightsStore(flights: flights, cache: cache) }
-    @MainActor public func makePassportStore() -> PassportStore { PassportStore(history: history, cache: cache) }
+    /// The list stores write through a scope that a wipe closes, so a load still running for the
+    /// previous account cannot refill the cache.
+    @MainActor public func makeMyFlightsStore() -> MyFlightsStore { MyFlightsStore(flights: flights, cache: cache.scoped()) }
+    @MainActor public func makePassportStore() -> PassportStore { PassportStore(history: history, cache: cache.scoped()) }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
 
@@ -62,9 +71,19 @@ public struct AppEnvironment: Sendable {
         FlightDetailStore(id: id, flights: flights, airports: airports, cache: cache)
     }
 
-    /// Clears the cache and recent searches whenever the session ends.
+    /// Hands the cache and recent searches over whenever the signed-in user changes.
     @MainActor public func makeSessionStore() -> SessionStore {
         let env = self
-        return SessionStore(auth: auth, onSignedOut: { await env.clearUserData() })
+        return SessionStore(auth: auth, onUserChange: { try await env.adopt(user: $0) })
     }
+}
+
+/// Where recent searches persist.
+public enum RecentsStorage: Sendable, Equatable {
+    /// Kept in memory only (fakes, tests).
+    case memory
+    /// `UserDefaults.standard`.
+    case standard
+    /// A named suite.
+    case suite(String)
 }

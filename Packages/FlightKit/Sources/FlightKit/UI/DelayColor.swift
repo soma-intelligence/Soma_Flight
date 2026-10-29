@@ -42,6 +42,7 @@ public extension APIError {
         case .planLimit: "Free accounts follow up to 3 flights at a time."
         case .unauthorized: "Please sign in again."
         case .offline: "You're offline. Showing the last update."
+        case .localData: "The flights saved on this device couldn't be cleared. Try again."
         }
     }
 }

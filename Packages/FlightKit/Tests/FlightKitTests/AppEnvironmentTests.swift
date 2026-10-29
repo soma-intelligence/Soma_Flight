@@ -52,17 +52,22 @@ import Testing
         let cache = try CacheStore.inMemory()
         await cache.save(flights: try await FakeFlightService().followed())
         await cache.save(past: try await FakeHistoryService().pastFlights())
-        await cache.clear()
+        try await cache.clear()
         #expect(await cache.flights().isEmpty)
         #expect(await cache.past().isEmpty)
         #expect(await cache.savedAt(.flights) == nil)
         #expect(await cache.savedAt(.past) == nil)
     }
 
-    private func filledEnv(suite: String) async throws -> AppEnvironment {
+    /// A signed-in account with a filled cache and one recent search.
+    private func filledEnv(suite: String) async throws -> (AppEnvironment, SessionStore) {
         var env = try await AppEnvironment.fake()
-        env.recentsSuite = suite
+        env.recents = .suite(suite)
         UserDefaults(suiteName: suite)!.removePersistentDomain(forName: suite)
+        let session = env.makeSessionStore()
+        session.start()
+        try await env.auth.signInWithEmail("a@example.com")
+        try await waitUntil { session.session != nil }
         let flights = env.makeMyFlightsStore()
         await flights.load()
         let passport = env.makePassportStore()
@@ -73,28 +78,28 @@ import Testing
         #expect(!(await env.cache.flights()).isEmpty)
         #expect(!(await env.cache.past()).isEmpty)
         #expect(UserDefaults(suiteName: suite)!.stringArray(forKey: SearchStore.recentKey) == ["SFO"])
-        return env
+        return (env, session)
     }
 
     @Test func signOutClearsCacheAndRecents() async throws {
         let suite = "test.signout.\(UUID().uuidString)"
-        let env = try await filledEnv(suite: suite)
-        let session = env.makeSessionStore()
-        try await env.auth.signInWithEmail("a@example.com")
+        let (env, session) = try await filledEnv(suite: suite)
         await session.signOut()
         #expect(await env.cache.flights().isEmpty)
         #expect(await env.cache.past().isEmpty)
+        #expect(await env.cache.owner() == nil)
         #expect(UserDefaults(suiteName: suite)!.stringArray(forKey: SearchStore.recentKey) == nil)
         // A fresh store for the next account starts empty, with no recents.
         #expect(env.makeSearchStore().recent.isEmpty)
+        // The stream's own nil that follows finds nothing left to wipe.
+        try await waitUntil { session.session == nil }
+        #expect(session.error == nil)
         UserDefaults(suiteName: suite)!.removePersistentDomain(forName: suite)
     }
 
     @Test func accountDeletionClearsCache() async throws {
         let suite = "test.delete.\(UUID().uuidString)"
-        let env = try await filledEnv(suite: suite)
-        let session = env.makeSessionStore()
-        try await env.auth.signInWithEmail("a@example.com")
+        let (env, session) = try await filledEnv(suite: suite)
         await session.deleteAccount()
         #expect(session.error == nil)
         #expect(await env.cache.flights().isEmpty)
@@ -106,7 +111,7 @@ import Testing
         let auth = FakeAuthService()
         let cache = try CacheStore.inMemory()
         await cache.save(flights: try await FakeFlightService().followed())
-        let session = SessionStore(auth: auth, onSignedOut: { await cache.clear() })
+        let session = SessionStore(auth: auth, onUserChange: { try await cache.claim(for: $0) })
         await auth.setNextError(.providerUnavailable)
         await session.deleteAccount()
         #expect(session.error == .providerUnavailable)
@@ -116,11 +121,11 @@ import Testing
     @Test func sessionEndingOnItsOwnClearsCache() async throws {
         let auth = FakeAuthService()
         let cache = try CacheStore.inMemory()
-        await cache.save(flights: try await FakeFlightService().followed())
-        let session = SessionStore(auth: auth, onSignedOut: { await cache.clear() })
+        let session = SessionStore(auth: auth, onUserChange: { try await cache.claim(for: $0) })
         session.start()
         try await auth.signInWithEmail("a@example.com")
         try await waitUntil { session.session != nil }
+        await cache.save(flights: try await FakeFlightService().followed())
         #expect(!(await cache.flights()).isEmpty)
         // Signed out elsewhere (expired token): the stream goes nil without signOut() here.
         await auth.signOut()
@@ -157,11 +162,11 @@ import Testing
         let a = Airport(id: "LFPG", name: "CDG", city: "Paris", country: "FR", lat: 49.0, lon: 2.5, tz: "Europe/Paris")
         let b = Airport(id: "KJFK", name: "JFK", city: "New York", country: "US", lat: 40.6, lon: -73.8, tz: "America/New_York")
         let route = Route(from: a.coordinate, to: b.coordinate, level: .onTime, isPast: false)
-        let cam = GlobeMap.camera(for: .route(route))
+        let cam = GlobeMap.camera(for: .route(route), in: .phone)
         // Between the two ends in longitude, and far enough out to hold a 5,800 km arc.
         #expect(cam.centerCoordinate.longitude < 2.5 && cam.centerCoordinate.longitude > -73.8)
         #expect(cam.distance > 5_800_000)
-        let close = GlobeMap.camera(for: .airport(a))
+        let close = GlobeMap.camera(for: .airport(a), in: .phone)
         #expect(close.centerCoordinate.latitude == 49.0)
         #expect(close.distance < 50_000)
     }

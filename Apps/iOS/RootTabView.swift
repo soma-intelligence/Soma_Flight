@@ -6,12 +6,6 @@ enum RootTab: Hashable {
     case flights, passport
 }
 
-/// A screen pushed inside the home sheet.
-enum SheetRoute: Hashable {
-    case flight(Flight.ID)
-    case airport(String)
-}
-
 /// The iOS home: the satellite globe full screen, a resizable sheet over it holding My Flights or
 /// Passport, a floating tab pill with a round search button, and a gear for Settings. Flights and
 /// airports open inside the sheet while the globe moves onto them.
@@ -21,18 +15,15 @@ struct RootTabView: View {
     @State private var session: SessionStore
     @State private var myFlights: MyFlightsStore
     @State private var passport: PassportStore
+    @State private var shell = ShellModel()
     @State private var tab: RootTab = .flights
-    @State private var path: [SheetRoute] = []
-    @State private var detent: PresentationDetent = .medium
     @State private var selection: GlobeSelection?
     @State private var labels = true
     @State private var showSearch = false
     @State private var showSettings = false
-    @State private var sheetHeight: CGFloat = 0
+    @State private var screenHeight: CGFloat = 874
     @AppStorage("units.distance") private var distance: DistanceUnit = .km
     @AppStorage("units.clock24") private var clock24 = true
-
-    static let detents: Set<PresentationDetent> = [.height(120), .medium, .large]
 
     init(env: AppEnvironment) {
         self.env = env
@@ -56,25 +47,26 @@ struct RootTabView: View {
         }
     }
 
-    /// The camera follows the screen on top of the sheet.
-    private var focus: GlobeFocus? {
-        switch path.last {
-        case .flight(let id):
-            followed.first { $0.id == id }.flatMap { GlobeContent.route(for: $0, lookup: env.lookup) }.map(GlobeFocus.route)
-        case .airport(let code):
-            env.lookup(code).map(GlobeFocus.airport)
-        case nil:
-            nil
-        }
+    private func route(for id: Flight.ID) -> Route? {
+        followed.first { $0.id == id }.flatMap { GlobeContent.route(for: $0, lookup: env.lookup) }
     }
 
     var body: some View {
         let content = globe
-        GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports,
-                 selection: $selection, focus: focus, labels: labels)
-            // The map draws full bleed on its own and keeps its controls clear of the status bar. The sheet
-            // covers the lower part, so its height joins the bottom inset and the camera centres above it.
-            .safeAreaPadding(.bottom, sheetHeight)
+        GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
+                 focus: shell.focus(route: route(for:), airport: env.lookup), recenter: shell.recenter, labels: labels)
+            // The map draws under the status bar on its own and keeps its controls clear of it. It ends just
+            // under the sheet's settled top (its rounded corners still show the globe), not at the screen's
+            // bottom: MapKit scales the globe to the map's height, so a map no taller than what shows lets
+            // a long-haul arc fit across a phone.
+            .safeAreaPadding(.bottom, ShellModel.sheetOverlap)
+            .padding(.bottom, ShellModel.mapInset(for: shell.detent, screenHeight: screenHeight) - ShellModel.sheetOverlap)
+            .animation(.smooth, value: shell.detent)
+            .background {
+                Color.black
+                    .ignoresSafeArea()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
+            }
             .overlay(alignment: .topTrailing) { mapButtons }
             .sheet(isPresented: .constant(true)) { sheet }
             .onChange(of: selection) { _, picked in
@@ -85,9 +77,10 @@ struct RootTabView: View {
                 case .flight(let id): if let f = followed.first(where: { $0.id == id }) { open(flight: f) }
                 }
             }
-            .onChange(of: session.session?.userId) { old, _ in
-                // A different account (or none) must not see the previous one's flights.
-                if old != nil { resetStores() }
+            .onChange(of: session.session?.userId) {
+                // The session store has already handed the device's saved data to the new user (or to
+                // nobody) before publishing it, so the rebuilt stores never read the previous account's.
+                resetStores()
             }
             .task {
                 session.start()
@@ -102,7 +95,7 @@ struct RootTabView: View {
     // MARK: Sheet
 
     private var sheet: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $shell.path) {
             tabRoot
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: SheetRoute.self) { route in
@@ -110,18 +103,17 @@ struct RootTabView: View {
                         .toolbar(.hidden, for: .navigationBar)
                 }
         }
-        .presentationDetents(Self.detents, selection: $detent)
+        .presentationDetents(ShellModel.detents, selection: $shell.detent)
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
         .interactiveDismissDisabled()
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
         .sheet(isPresented: $showSearch) {
             SearchSheet(env: env, followedIDs: Set(followed.map(\.id)), onFollowed: { _ in Task { await myFlights.load() } })
                 .environment(\.units, units)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsSheet(session: session, units: unitsBinding)
+            SettingsSheet(session: session, units: unitsBinding, onDeleteAccount: { Task { await session.deleteAccount() } })
                 .environment(\.units, units)
         }
         .environment(\.units, units)
@@ -150,13 +142,17 @@ struct RootTabView: View {
     @ViewBuilder private func destination(_ route: SheetRoute) -> some View {
         switch route {
         case .flight(let id):
-            FlightScreen(env: env, id: id, onAirport: open(airport:), onClose: close)
+            FlightScreen(env: env, id: id, onAirport: open(airport:), onClose: shell.close)
         case .airport(let code):
-            AirportScreen(env: env, code: code, onClose: close)
+            AirportScreen(env: env, code: code, onClose: shell.close)
         }
     }
 
     // MARK: Map controls
+
+    /// MapKit stacks its compass and 3D toggle at the top right, one 44 pt control plus spacing below the
+    /// safe area; the place-name button sits under that stack.
+    static let mapControlStackHeight: CGFloat = 58
 
     private var mapButtons: some View {
         Button { labels.toggle() } label: {
@@ -167,29 +163,19 @@ struct RootTabView: View {
         }
         .glassEffect(.regular.interactive(), in: .circle)
         .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
-        // Under the map's own 3D toggle.
         .padding(.trailing, 12)
-        .padding(.top, 58)
+        .padding(.top, Self.mapControlStackHeight)
     }
 
     // MARK: Actions
 
     private func open(flight: Flight) {
-        path = [.flight(flight.id)]
-        raiseIfCollapsed()
+        shell.open(flight: flight.id, route: GlobeContent.route(for: flight, lookup: env.lookup))
     }
 
+    /// Codes arrive as ICAO from the globe and as either code from the screens; the stack keys on ICAO.
     private func open(airport code: String) {
-        if path.last != .airport(code) { path.append(.airport(code)) }
-        raiseIfCollapsed()
-    }
-
-    private func close() {
-        if !path.isEmpty { path.removeLast() }
-    }
-
-    private func raiseIfCollapsed() {
-        if detent == .height(120) { detent = .medium }
+        shell.open(airport: env.lookup(code)?.id ?? code)
     }
 
     private func load() async {
@@ -205,8 +191,8 @@ struct RootTabView: View {
         let args = UserDefaults.standard
         if args.string(forKey: "tab") == "passport" { tab = .passport }
         switch args.string(forKey: "detent") {
-        case "large": detent = .large
-        case "small": detent = .height(120)
+        case "large": shell.detent = .large
+        case "small": shell.detent = ShellModel.collapsed
         default: break
         }
         guard let target = args.string(forKey: "open") else { return }
@@ -219,7 +205,7 @@ struct RootTabView: View {
     #endif
 
     private func resetStores() {
-        path = []
+        shell.reset()
         myFlights = env.makeMyFlightsStore()
         passport = env.makePassportStore()
         Task { await load() }
@@ -289,10 +275,12 @@ private struct SearchSheet: View {
 private struct SettingsSheet: View {
     var session: SessionStore
     @Binding var units: Units
+    var onDeleteAccount: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        SettingsView(session: session, units: $units)
+        // Export arrives with Task 12.
+        SettingsView(session: session, units: $units, onDeleteAccount: onDeleteAccount)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)
@@ -333,9 +321,12 @@ private struct TabPill: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
-        // Sits 20 pt above the sheet's bottom edge, partly inside the home indicator inset, as in the reference.
-        .padding(.bottom, -14)
+        .padding(.bottom, -Self.homeIndicatorOverlap)
     }
+
+    /// How far the pill reaches into the home indicator inset (34 pt on Face ID iPhones), so it sits
+    /// 20 pt above the sheet's bottom edge as in the reference.
+    static let homeIndicatorOverlap: CGFloat = 14
 
     private func item(_ value: RootTab, title: String, systemImage: String) -> some View {
         let selected = tab == value
