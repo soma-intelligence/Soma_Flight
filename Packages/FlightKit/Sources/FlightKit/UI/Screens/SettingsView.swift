@@ -22,6 +22,7 @@ public struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var confirming: Confirmation?
     @State private var deleting = false
+    @State private var showingAcknowledgements = false
     /// The deletion failed and the account is still signed in.
     @State private var deleteFailure: APIError?
 
@@ -120,6 +121,9 @@ public struct SettingsView: View {
                 SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", action: { openURL(Self.supportURL) }) {
                     RowChevron()
                 }
+                SettingsRow(icon: "doc.text.fill", title: "Acknowledgements", action: { showingAcknowledgements = true }) {
+                    RowChevron()
+                }
                 SettingsRow(icon: "info.circle.fill", title: "Soma Flight", last: true) {
                     Text(Self.version).scaledFont(17).foregroundStyle(Theme.secondary)
                 }
@@ -146,6 +150,20 @@ public struct SettingsView: View {
             case .signOut: Text("Flights you follow stay on your account. The saved copy on this device is cleared.")
             case .deleteAccount: Text(Self.deleteMessage)
             }
+        }
+        .sheet(isPresented: $showingAcknowledgements) {
+            AcknowledgementsView()
+                .overlay(alignment: .topTrailing) {
+                    Button("Done") { showingAcknowledgements = false }
+                        .scaledFont(17, weight: .semibold)
+                        .foregroundStyle(Theme.accent)
+                        .buttonStyle(.plain)
+                        .scaledPadding(.top, 22)
+                        .scaledPadding(.trailing, Theme.gutter)
+                }
+                #if os(macOS)
+                .frame(minWidth: 420, minHeight: 520)
+                #endif
         }
         .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteFailure != nil },
                                                                    set: { if !$0 { deleteFailure = nil } }),

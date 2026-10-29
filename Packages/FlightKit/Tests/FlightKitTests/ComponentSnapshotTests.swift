@@ -168,6 +168,23 @@ struct ComponentSnapshotTests {
                  "airport-light-1", to: Self.screensDir)
     }
 
+    /// Twenty round flags, the fallback among them, at 44 pt.
+    @Test func countryFlags() throws {
+        let codes: [String?] = ["US", "GB", "FR", "DE", "JP", "BR", "IN", "AU", "CA", "ES",
+                                "IT", "MX", "ZA", "XK", "TW", "CH", "AE", "NZ", "ZZ", nil]
+        try render("flags") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 16) {
+                ForEach(Array(codes.enumerated()), id: \.offset) { _, code in
+                    VStack(spacing: 6) {
+                        CountryFlag(code: code, size: 44)
+                        Text(code ?? "nil").themeFont(.chip).foregroundStyle(Theme.secondary)
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+
     @Test func badgesAndBanners() throws {
         try render("StaleBadge") {
             HStack(spacing: 10) {
