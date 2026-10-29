@@ -1,4 +1,6 @@
+use flightcore::delay::{BoardFlight, DelayStats, compute_stats};
 use flightcore::geo::{Coord, distance_km, great_circle};
+use flightcore::weather::{FlightCategory, flight_category};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -121,5 +123,92 @@ fn geo_fixture_great_circles() {
         if c.all_equal_a {
             assert!(p.iter().all(|q| *q == c.a), "{n}: not all equal a");
         }
+    }
+}
+
+#[derive(Deserialize)]
+struct DelayMeta {
+    rules: DelayRules,
+}
+
+#[derive(Deserialize)]
+struct DelayRules {
+    avg_delay_tolerance: f64,
+}
+
+#[derive(Deserialize)]
+struct DelayCase {
+    name: String,
+    rows: Vec<BoardFlight>,
+    expected: DelayStats,
+}
+
+#[derive(Deserialize)]
+struct DelayFile {
+    meta: DelayMeta,
+    cases: Vec<DelayCase>,
+}
+
+#[test]
+fn delay_fixture_cases() {
+    let f: DelayFile =
+        serde_json::from_str(include_str!("../../fixtures/delay_stats.json")).unwrap();
+    assert!(!f.cases.is_empty());
+    for c in f.cases {
+        let got = compute_stats(&c.rows);
+        assert!(!got.avg_delay_minutes.is_nan(), "{}: NaN", c.name);
+        assert!(
+            (got.avg_delay_minutes - c.expected.avg_delay_minutes).abs()
+                <= f.meta.rules.avg_delay_tolerance,
+            "{}: avg {} vs {}",
+            c.name,
+            got.avg_delay_minutes,
+            c.expected.avg_delay_minutes
+        );
+        let mut got_n = got.clone();
+        let mut exp_n = c.expected.clone();
+        got_n.avg_delay_minutes = 0.0;
+        exp_n.avg_delay_minutes = 0.0;
+        assert_eq!(got_n, exp_n, "{}", c.name);
+    }
+}
+
+#[test]
+fn delay_fixture_serialized_shape() {
+    let f: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/delay_stats.json")).unwrap();
+    let rows: Vec<BoardFlight> = serde_json::from_value(f["cases"][0]["rows"].clone()).unwrap();
+    let got = serde_json::to_value(compute_stats(&rows)).unwrap();
+    let exp = &f["cases"][0]["expected"];
+    assert_eq!(got["severity"], exp["severity"]);
+    assert_eq!(got["perHour"], exp["perHour"]);
+    assert_eq!(got["worstRoutes"], exp["worstRoutes"]);
+    assert!(got.get("avgDelayMinutes").is_some());
+}
+
+#[derive(Deserialize)]
+struct CatCase {
+    name: String,
+    ceiling_ft: Option<i32>,
+    visibility_sm: f64,
+    expected: FlightCategory,
+}
+
+#[derive(Deserialize)]
+struct CatFile {
+    cases: Vec<CatCase>,
+}
+
+#[test]
+fn category_fixture_cases() {
+    let f: CatFile = serde_json::from_str(include_str!("../../fixtures/category.json")).unwrap();
+    assert!(!f.cases.is_empty());
+    for c in f.cases {
+        assert_eq!(
+            flight_category(c.ceiling_ft, c.visibility_sm),
+            c.expected,
+            "{}",
+            c.name
+        );
     }
 }
