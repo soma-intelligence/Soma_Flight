@@ -278,24 +278,26 @@ import Testing
         await home.processInbox()
         #expect(home.shell.path == [.flight(other.id)])
     }
+}
 
-    // MARK: Sign-out cap
-
-    @Test func waitingStopsAtTheLimitWhenTheOperationHangs() async {
-        let started = ContinuousClock.now
+/// Sign-out's cap. Off the main actor and without wall-clock assertions: the results are ordering, so a
+/// busy test run cannot make them flaky.
+@Suite struct WaitingAtMostTests {
+    @Test func returnsAtTheLimitWhenTheOperationHangsAndCancelsIt() async {
         let cancelled = Mutex(false)
-        await waitingAtMost(.milliseconds(150)) {
-            do { try await Task.sleep(for: .seconds(30)) } catch { cancelled.withLock { $0 = true } }
+        // Returning at all proves the limit won: the operation would sleep for an hour.
+        await waitingAtMost(.milliseconds(200)) {
+            do { try await Task.sleep(for: .seconds(3600)) } catch { cancelled.withLock { $0 = true } }
         }
-        #expect(ContinuousClock.now - started < .seconds(5))
-        // The loser is cancelled.
-        try? await Task.sleep(for: .milliseconds(200))
+        // The loser is cancelled; poll for it instead of guessing a delay.
+        for _ in 0..<500 where !cancelled.withLock({ $0 }) { try? await Task.sleep(for: .milliseconds(10)) }
         #expect(cancelled.withLock { $0 })
     }
 
-    @Test func waitingReturnsAtOnceWhenTheOperationIsQuick() async {
-        let started = ContinuousClock.now
-        await waitingAtMost(.seconds(30)) {}
-        #expect(ContinuousClock.now - started < .seconds(5))
+    @Test func doesNotWaitForTheLimitWhenTheOperationIsQuick() async {
+        let ran = Mutex(false)
+        // The limit is an hour: returning at all proves the operation's end ended the wait.
+        await waitingAtMost(.seconds(3600)) { ran.withLock { $0 = true } }
+        #expect(ran.withLock { $0 })
     }
 }
