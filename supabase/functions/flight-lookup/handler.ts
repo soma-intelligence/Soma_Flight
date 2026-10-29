@@ -15,7 +15,7 @@ export const LOOKUP_MAX_PER_HOUR = 30;
 
 export interface Deps {
   db: SupabaseClient;
-  aero: Pick<AeroApi, "flightsByIdent" | "searchRoute">;
+  aero: Pick<AeroApi, "flightsByIdent" | "searchRouteWindow">;
   verifier?: TokenVerifier;
   now?: () => Date;
 }
@@ -63,6 +63,44 @@ export function localDate(tz: string, iso: string): string {
   } catch {
     return at.toISOString().slice(0, 10);
   }
+}
+
+function nextDate(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + DAY_MS).toISOString()
+    .slice(0, 10);
+}
+
+/** Offset of a timezone from UTC at an instant, in ms (local minus UTC). */
+function zoneOffset(tz: string, at: Date): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    }).formatToParts(at).map((x) => [x.type, Number(x.value)]),
+  );
+  const asUtc = Date.UTC(
+    p.year,
+    p.month - 1,
+    p.day,
+    p.hour,
+    p.minute,
+    p.second,
+  );
+  return asUtc - Math.floor(at.getTime() / 1000) * 1000;
+}
+
+/** The UTC instant at which local date `date` starts in `tz`. */
+export function zonedDayStart(tz: string, date: string): Date {
+  const local = Date.parse(`${date}T00:00:00Z`);
+  let guess = local - zoneOffset(tz, new Date(local));
+  guess = local - zoneOffset(tz, new Date(guess)); // settle across a DST change
+  return new Date(guess);
 }
 
 /** ICAO to timezone: the provider's own value first, the airports table for the rest. */
@@ -215,25 +253,18 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       return json({ flights: sortFlights(rows.data ?? []) });
     }
 
-    // The provider searches one UTC day per call: query each UTC day that holds part of the
-    // local date at the origin, then keep flights whose local departure date matches.
-    const tz = (await originTimezones(db, [], [origin])).get(origin) ?? "UTC";
-    const found: AeroFlight[] = [];
-    for (const offset of [-1, 0, 1]) {
-      const dayStart = new Date(start.getTime() + offset * DAY_MS);
-      const last = new Date(dayStart.getTime() + DAY_MS - 1);
-      if (
-        localDate(tz, dayStart.toISOString()) > date ||
-        localDate(tz, last.toISOString()) < date
-      ) continue;
-      found.push(
-        ...await aero.searchRoute(
-          origin,
-          destination,
-          dayStart.toISOString().slice(0, 10),
-        ),
-      );
+    // One provider call covering the origin's local day, converted to UTC.
+    let tz = (await originTimezones(db, [], [origin])).get(origin);
+    if (!tz) {
+      console.warn(`airport ${origin} has no timezone, using UTC`);
+      tz = "UTC";
     }
+    const found = await aero.searchRouteWindow(
+      origin,
+      destination,
+      zonedDayStart(tz, date),
+      zonedDayStart(tz, nextDate(date)),
+    );
     const onDay = found.filter((f) =>
       f.scheduled_out != null && localDate(tz, f.scheduled_out) === date
     );

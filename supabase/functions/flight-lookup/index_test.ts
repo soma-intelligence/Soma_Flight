@@ -5,10 +5,11 @@ import {
   makeUser,
   test,
   testDb,
+  trackAirport,
   trackProviderIds,
   trackRoute,
 } from "../_shared/test_util.ts";
-import { handler } from "./handler.ts";
+import { handler, zonedDayStart } from "./handler.ts";
 
 const NOW = new Date("2026-11-02T12:00:00Z");
 const fixture = async (name: string) =>
@@ -34,9 +35,13 @@ function fakeAero(idents: AeroFlight[] = af84) {
       calls.ident.push(a);
       return Promise.resolve(idents);
     },
-    searchRoute(...a: unknown[]) {
-      calls.route.push(a);
-      return Promise.resolve(route);
+    // Honours the window like the provider: start inclusive, end exclusive.
+    searchRouteWindow(o: string, d: string, start: Date, end: Date) {
+      calls.route.push([o, d, start.toISOString(), end.toISOString()]);
+      return Promise.resolve(route.filter((f) => {
+        const t = Date.parse(f.scheduled_out!);
+        return t >= start.getTime() && t < end.getTime();
+      }));
     },
   };
 }
@@ -111,7 +116,7 @@ test(db, "ident search filters on the origin local date", async () => {
 
 test(
   db,
-  "lookup accepts IATA airports and searches each UTC day of the local date",
+  "lookup accepts IATA airports and makes one call for the local day",
   async () => {
     track(route);
     trackRoute("LFPG", "KSFO", "2026-11-03");
@@ -126,12 +131,11 @@ test(
       d,
     );
     assertEquals(res.status, 200);
-    // Paris is UTC+1: local 11-03 spans UTC 11-02 (from 23:00) and 11-03.
-    assertEquals(d.aero.calls.route.map((c) => c.slice(0, 3)), [
-      ["LFPG", "KSFO", "2026-11-02"],
-      ["LFPG", "KSFO", "2026-11-03"],
+    // Paris is UTC+1: local 11-03 is one provider call, 11-02T23:00Z to 11-03T23:00Z.
+    assertEquals(d.aero.calls.route, [
+      ["LFPG", "KSFO", "2026-11-02T23:00:00.000Z", "2026-11-03T23:00:00.000Z"],
     ]);
-    // Only flights leaving on the local date stay (the 01:30Z one is 02:30 on 11-04 in Paris).
+    // The 01:30Z flight of 11-04 is 02:30 on 11-04 in Paris, outside the window.
     assertEquals((await res.json()).flights.length, 2);
   },
 );
@@ -147,6 +151,11 @@ test(db, "ICAO airports work and the route is cached", async () => {
   const d = deps();
   const body = { origin: "KAUS", destination: "DFW", date: "2026-11-03" };
   const first = await (await handler(post(user, body), d)).json();
+  assertEquals(d.aero.calls.route.length, 1);
+  assertEquals(d.aero.calls.route[0].slice(2), [
+    "2026-11-03T06:00:00.000Z",
+    "2026-11-04T06:00:00.000Z",
+  ]);
   const callsAfterFirst = d.aero.calls.route.length;
   const second = await (await handler(post(user, body), d)).json();
   assertEquals(d.aero.calls.route.length, callsAfterFirst);
@@ -237,3 +246,57 @@ test(db, "bad input is a typed 400", async () => {
   }
   assertEquals(d.aero.calls.ident.length + d.aero.calls.route.length, 0);
 });
+
+test(db, "local day bounds follow the zone, including a DST change", () => {
+  assertEquals(
+    zonedDayStart("America/Los_Angeles", "2026-11-01").toISOString(),
+    "2026-11-01T07:00:00.000Z",
+  );
+  assertEquals(
+    zonedDayStart("America/Los_Angeles", "2026-11-02").toISOString(),
+    "2026-11-02T08:00:00.000Z",
+  );
+  assertEquals(
+    zonedDayStart("Asia/Kolkata", "2026-11-03").toISOString(),
+    "2026-11-02T18:30:00.000Z",
+  );
+  return Promise.resolve();
+});
+
+test(
+  db,
+  "an airport without a timezone falls back to UTC with a warning",
+  async () => {
+    const ins = await db.from("airports").insert({
+      icao: "ZZTZ",
+      iata: null,
+      name: "No Tz Test",
+      lat: 0,
+      lon: 0,
+      tz: null,
+    });
+    if (ins.error) throw ins.error;
+    trackAirport("ZZTZ");
+  track(route);
+    trackRoute("ZZTZ", "KSFO", "2026-11-03");
+    const user = await makeUser(db);
+    const d = deps();
+    const warns: string[] = [];
+    const orig = console.warn;
+    console.warn = (...a: unknown[]) => warns.push(a.join(" "));
+    try {
+      const res = await handler(
+        post(user, { origin: "ZZTZ", destination: "SFO", date: "2026-11-03" }),
+        d,
+      );
+      assertEquals(res.status, 200);
+    } finally {
+      console.warn = orig;
+    }
+    assertEquals(d.aero.calls.route[0].slice(2), [
+      "2026-11-03T00:00:00.000Z",
+      "2026-11-04T00:00:00.000Z",
+    ]);
+    assert(warns.some((w) => w.includes("ZZTZ") && w.includes("UTC")));
+  },
+);

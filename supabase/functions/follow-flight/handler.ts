@@ -94,6 +94,9 @@ export async function ensureAlert(
     )
       .maybeSingle();
     if (a.data?.tz) tz = a.data.tz as string;
+    else {console.warn(
+        `airport ${flight.origin_icao} has no timezone, using UTC`,
+      );}
   }
   const day = dateIn(tz, out);
 
@@ -113,8 +116,13 @@ export async function ensureAlert(
     return;
   }
   // Every follower may have left while createAlert was in flight: release at once.
-  if ((await countFollowers(db, flightId)) === 0) {
-    await releaseAlert(db, aero, flightId);
+  // The follow itself succeeded: a release failure is logged and the stuck alert is left for the sweep.
+  try {
+    if ((await countFollowers(db, flightId)) === 0) {
+      await releaseAlert(db, aero, flightId);
+    }
+  } catch (e) {
+    console.error(`alert ${alertId} left for the sweep, release failed`, e);
   }
 }
 

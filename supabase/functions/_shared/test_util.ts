@@ -37,6 +37,7 @@ const made = {
   users: [] as string[],
   flightIds: [] as string[],
   providerIds: new Set<string>(),
+  airports: [] as string[],
   routes: [] as { origin: string; destination: string; date: string }[],
 };
 
@@ -45,6 +46,9 @@ export function trackFlightId(id: string): void {
 }
 export function trackProviderIds(ids: string[]): void {
   for (const id of ids) made.providerIds.add(id);
+}
+export function trackAirport(icao: string): void {
+  made.airports.push(icao);
 }
 export function trackRoute(origin: string, destination: string, date: string) {
   made.routes.push({ origin, destination, date });
@@ -83,6 +87,10 @@ export async function cleanup(db: SupabaseClient): Promise<void> {
       await db.from("route_cache").delete().eq("origin_icao", r.origin)
         .eq("destination_icao", r.destination).eq("date", r.date),
     );
+  }
+  const airports = made.airports.splice(0);
+  if (airports.length) {
+    check(await db.from("airports").delete().in("icao", airports));
   }
   if (flightIds.length) {
     check(await db.from("flights").delete().in("id", flightIds));

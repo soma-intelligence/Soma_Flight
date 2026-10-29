@@ -4,6 +4,7 @@ import {
   makeUser,
   test,
   testDb,
+  trackAirport,
   trackFlightId,
 } from "../_shared/test_util.ts";
 import { handler } from "./handler.ts";
@@ -296,3 +297,64 @@ test(db, "alert failure rolls back a new follow", async () => {
   );
   assertEquals(rows.data?.length, 0);
 });
+
+test(
+  db,
+  "release failure after the claim does not fail the follow",
+  async () => {
+    const user = await makeUser(db);
+    const flight = await makeFlight();
+    const aero = fakeAero(150);
+    const d = { db, aero, verifier: fakeVerifier };
+    const follow = handler(req("POST", user, { flightId: flight }), d);
+    for (let i = 0; i < 100; i++) {
+      const r = await db.from("user_flights").select("user_id").eq(
+        "flight_id",
+        flight,
+      );
+      if ((r.data ?? []).length > 0) break;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    // Unfollow while the alert is being created, and the provider delete then fails.
+    aero.failDelete = true;
+    await handler(req("DELETE", user, { flightId: flight }), d);
+    assertEquals((await follow).status, 200);
+    assert((await alertOf(flight)) !== null); // left for the sweep
+  },
+);
+
+test(
+  db,
+  "an airport without a timezone gets a UTC alert window and a warning",
+  async () => {
+    const ins = await db.from("airports").insert({
+      icao: "ZZTY",
+      name: "No Tz Test",
+      lat: 0,
+      lon: 0,
+      tz: null,
+    });
+    if (ins.error) throw ins.error;
+    trackAirport("ZZTY");
+    const user = await makeUser(db);
+    const flight = await makeFlight({
+      origin_icao: "ZZTY",
+      scheduled_out: "2026-11-03T23:30:00Z",
+    });
+    const aero = fakeAero();
+    const warns: string[] = [];
+    const orig = console.warn;
+    console.warn = (...a: unknown[]) => warns.push(a.join(" "));
+    try {
+      await handler(req("POST", user, { flightId: flight }), {
+        db,
+        aero,
+        verifier: fakeVerifier,
+      });
+    } finally {
+      console.warn = orig;
+    }
+    assertEquals(aero.calls.create[0].start, "2026-11-03");
+    assert(warns.some((w) => w.includes("ZZTY")));
+  },
+);

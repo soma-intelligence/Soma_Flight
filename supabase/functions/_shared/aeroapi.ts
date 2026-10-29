@@ -154,17 +154,40 @@ export class AeroApi {
   ): Promise<AeroFlight[]> {
     const start = new Date(`${date}T00:00:00Z`);
     if (Number.isNaN(start.getTime())) return [];
-    const now = this.now();
-    if (!inProviderWindow(start, now)) return [];
-    const nextDay = new Date(start.getTime() + 86_400_000);
-    // The end bound is also limited to now + 2 days.
-    const end = new Date(
-      Math.min(nextDay.getTime(), now.getTime() + 2 * 86_400_000),
+    return await this.searchRouteWindow(
+      origin,
+      destination,
+      start,
+      new Date(start.getTime() + 86_400_000),
+      maxPages,
     );
+  }
+
+  /**
+   * Nonstop flights from `origin` to `destination` whose scheduled_out is in [start, end)
+   * (start inclusive, end exclusive, as the provider defines them). The window is clipped to the
+   * provider limits (10 days back, 2 ahead); an empty window returns [] without a call.
+   * Follows links.next up to `maxPages` pages.
+   */
+  async searchRouteWindow(
+    origin: string,
+    destination: string,
+    start: Date,
+    end: Date,
+    maxPages = 2,
+  ): Promise<AeroFlight[]> {
+    const now = this.now();
+    const from = new Date(
+      Math.max(start.getTime(), now.getTime() - 10 * 86_400_000),
+    );
+    const to = new Date(
+      Math.min(end.getTime(), now.getTime() + 2 * 86_400_000),
+    );
+    if (!(from.getTime() < to.getTime())) return [];
     const q = new URLSearchParams({
       connection: "nonstop",
-      start: start.toISOString(),
-      end: end.toISOString(),
+      start: from.toISOString(),
+      end: to.toISOString(),
     });
     const items = await this.paged<AeroFullFlight>(
       "/airports/{id}/flights/to/{dest_id}",
@@ -180,7 +203,7 @@ export class AeroApi {
       const segs = asArray(item.segments);
       if (segs.length !== 1) continue; // nonstop only
       const t = segs[0].scheduled_out ? Date.parse(segs[0].scheduled_out) : NaN;
-      if (t >= start.getTime() && t < nextDay.getTime()) out.push(segs[0]);
+      if (t >= from.getTime() && t < to.getTime()) out.push(segs[0]);
     }
     return dedupeByFaFlightId(out);
   }
