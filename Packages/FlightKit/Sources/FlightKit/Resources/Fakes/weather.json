@@ -1,0 +1,50 @@
+{
+ "KAUS": {
+  "metarRaw": "KAUS 232353Z 17012G22KT 10SM FEW040 BKN250 29/17 A2998",
+  "tafRaw": "KAUS 232320Z 2400/2506 17010KT P6SM SCT040",
+  "tempC": 29.0,
+  "windDirDeg": 170,
+  "windKt": 12,
+  "gustKt": 22,
+  "visibilitySm": 10.0,
+  "ceilingFt": 25000,
+  "category": "VFR",
+  "observedAt": "2026-10-23T15:53:00.000Z",
+  "forecast": [
+   {
+    "from": "2026-10-23T16:00:00.000Z",
+    "to": "2026-10-23T22:00:00.000Z",
+    "category": "VFR",
+    "windDirDeg": 170,
+    "windKt": 10,
+    "gustKt": null,
+    "visibilitySm": 6.0,
+    "ceilingFt": 4000
+   }
+  ]
+ },
+ "KSFO": {
+  "metarRaw": "KSFO 232356Z 29014KT 10SM FEW015 SCT200 17/11 A3002",
+  "tafRaw": "KSFO 232320Z 2400/2506 28012KT P6SM FEW015",
+  "tempC": 17.0,
+  "windDirDeg": 290,
+  "windKt": 14,
+  "gustKt": null,
+  "visibilitySm": 10.0,
+  "ceilingFt": null,
+  "category": "VFR",
+  "observedAt": "2026-10-23T15:56:00.000Z",
+  "forecast": [
+   {
+    "from": "2026-10-23T16:00:00.000Z",
+    "to": "2026-10-23T22:00:00.000Z",
+    "category": "MVFR",
+    "windDirDeg": 280,
+    "windKt": 12,
+    "gustKt": 20,
+    "visibilitySm": 4.0,
+    "ceilingFt": 1500
+   }
+  ]
+ }
+}

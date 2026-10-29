@@ -19,6 +19,7 @@ let package = Package(
                 .product(name: "FlightCore", package: "FlightCoreFFI"),
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
+            resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
         ),
         .testTarget(

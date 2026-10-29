@@ -1,0 +1,202 @@
+[
+ {
+  "id": "KAUS",
+  "iata": "AUS",
+  "name": "Austin-Bergstrom International",
+  "city": "Austin",
+  "country": "US",
+  "lat": 30.1945,
+  "lon": -97.6699,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KSFO",
+  "iata": "SFO",
+  "name": "San Francisco International",
+  "city": "San Francisco",
+  "country": "US",
+  "lat": 37.6213,
+  "lon": -122.379,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KOAK",
+  "iata": "OAK",
+  "name": "Oakland International",
+  "city": "Oakland",
+  "country": "US",
+  "lat": 37.7213,
+  "lon": -122.2208,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "LFPG",
+  "iata": "CDG",
+  "name": "Paris Charles de Gaulle",
+  "city": "Paris",
+  "country": "FR",
+  "lat": 49.0097,
+  "lon": 2.5479,
+  "tz": "Europe/Paris"
+ },
+ {
+  "id": "KDFW",
+  "iata": "DFW",
+  "name": "Dallas Fort Worth International",
+  "city": "Dallas",
+  "country": "US",
+  "lat": 32.8998,
+  "lon": -97.0403,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KDEN",
+  "iata": "DEN",
+  "name": "Denver International",
+  "city": "Denver",
+  "country": "US",
+  "lat": 39.8561,
+  "lon": -104.6737,
+  "tz": "America/Denver"
+ },
+ {
+  "id": "KATL",
+  "iata": "ATL",
+  "name": "Hartsfield-Jackson Atlanta International",
+  "city": "Atlanta",
+  "country": "US",
+  "lat": 33.6407,
+  "lon": -84.4277,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KJFK",
+  "iata": "JFK",
+  "name": "John F. Kennedy International",
+  "city": "New York",
+  "country": "US",
+  "lat": 40.6413,
+  "lon": -73.7781,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "KORD",
+  "iata": "ORD",
+  "name": "Chicago O'Hare International",
+  "city": "Chicago",
+  "country": "US",
+  "lat": 41.9742,
+  "lon": -87.9073,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KLAX",
+  "iata": "LAX",
+  "name": "Los Angeles International",
+  "city": "Los Angeles",
+  "country": "US",
+  "lat": 33.9416,
+  "lon": -118.4085,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KSEA",
+  "iata": "SEA",
+  "name": "Seattle-Tacoma International",
+  "city": "Seattle",
+  "country": "US",
+  "lat": 47.4502,
+  "lon": -122.3088,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KPHX",
+  "iata": "PHX",
+  "name": "Phoenix Sky Harbor International",
+  "city": "Phoenix",
+  "country": "US",
+  "lat": 33.4342,
+  "lon": -112.0116,
+  "tz": "America/Phoenix"
+ },
+ {
+  "id": "KHOU",
+  "iata": "HOU",
+  "name": "Houston Hobby",
+  "city": "Houston",
+  "country": "US",
+  "lat": 29.6454,
+  "lon": -95.2789,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KIAH",
+  "iata": "IAH",
+  "name": "Houston George Bush Intercontinental",
+  "city": "Houston",
+  "country": "US",
+  "lat": 29.9902,
+  "lon": -95.3368,
+  "tz": "America/Chicago"
+ },
+ {
+  "id": "KLAS",
+  "iata": "LAS",
+  "name": "Harry Reid International",
+  "city": "Las Vegas",
+  "country": "US",
+  "lat": 36.084,
+  "lon": -115.1537,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KBOS",
+  "iata": "BOS",
+  "name": "Boston Logan International",
+  "city": "Boston",
+  "country": "US",
+  "lat": 42.3656,
+  "lon": -71.0096,
+  "tz": "America/New_York"
+ },
+ {
+  "id": "EGLL",
+  "iata": "LHR",
+  "name": "London Heathrow",
+  "city": "London",
+  "country": "GB",
+  "lat": 51.47,
+  "lon": -0.4543,
+  "tz": "Europe/London"
+ },
+ {
+  "id": "RJTT",
+  "iata": "HND",
+  "name": "Tokyo Haneda",
+  "city": "Tokyo",
+  "country": "JP",
+  "lat": 35.5494,
+  "lon": 139.7798,
+  "tz": "Asia/Tokyo"
+ },
+ {
+  "id": "KPDX",
+  "iata": "PDX",
+  "name": "Portland International",
+  "city": "Portland",
+  "country": "US",
+  "lat": 45.5898,
+  "lon": -122.5951,
+  "tz": "America/Los_Angeles"
+ },
+ {
+  "id": "KSAN",
+  "iata": "SAN",
+  "name": "San Diego International",
+  "city": "San Diego",
+  "country": "US",
+  "lat": 32.7338,
+  "lon": -117.1933,
+  "tz": "America/Los_Angeles"
+ }
+]

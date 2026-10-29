@@ -1,0 +1,438 @@
+{
+ "KAUS": {
+  "departures": {
+   "total": 25,
+   "onTime": 10,
+   "delayed15": 11,
+   "canceled": 4,
+   "avgDelayMinutes": 25.52,
+   "perHour": [
+    {
+     "hour": 1792756800,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792760400,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792764000,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792767600,
+     "onTime": 1,
+     "late15": 1,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792771200,
+     "onTime": 0,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792774800,
+     "onTime": 1,
+     "late15": 1,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792778400,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 2,
+     "diverted": 0
+    },
+    {
+     "hour": 1792782000,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    }
+   ],
+   "worstRoutes": [
+    {
+     "icao": "KIAH",
+     "delayed": 2,
+     "canceled": 1
+    },
+    {
+     "icao": "KSAN",
+     "delayed": 2,
+     "canceled": 0
+    },
+    {
+     "icao": "KORD",
+     "delayed": 2,
+     "canceled": 0
+    }
+   ],
+   "worstAirlines": [
+    {
+     "operator": "NKS",
+     "delayed": 2,
+     "canceled": 1
+    },
+    {
+     "operator": "UAL",
+     "delayed": 2,
+     "canceled": 1
+    },
+    {
+     "operator": "JBU",
+     "delayed": 2,
+     "canceled": 1
+    }
+   ],
+   "severity": "major"
+  },
+  "arrivals": {
+   "total": 25,
+   "onTime": 12,
+   "delayed15": 12,
+   "canceled": 1,
+   "avgDelayMinutes": 19.5,
+   "perHour": [
+    {
+     "hour": 1792756800,
+     "onTime": 0,
+     "late15": 2,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792760400,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792764000,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792767600,
+     "onTime": 0,
+     "late15": 1,
+     "late45": 1,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792771200,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792774800,
+     "onTime": 3,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792778400,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792782000,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    }
+   ],
+   "worstRoutes": [
+    {
+     "icao": "KORD",
+     "delayed": 4,
+     "canceled": 0
+    },
+    {
+     "icao": "KPDX",
+     "delayed": 3,
+     "canceled": 0
+    },
+    {
+     "icao": "KATL",
+     "delayed": 1,
+     "canceled": 1
+    }
+   ],
+   "worstAirlines": [
+    {
+     "operator": "SWA",
+     "delayed": 5,
+     "canceled": 0
+    },
+    {
+     "operator": "ASA",
+     "delayed": 3,
+     "canceled": 0
+    },
+    {
+     "operator": "NKS",
+     "delayed": 2,
+     "canceled": 0
+    }
+   ],
+   "severity": "major"
+  }
+ },
+ "KSFO": {
+  "departures": {
+   "total": 25,
+   "onTime": 16,
+   "delayed15": 7,
+   "canceled": 2,
+   "avgDelayMinutes": 14.7,
+   "perHour": [
+    {
+     "hour": 1792756800,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792760400,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 2,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792764000,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792767600,
+     "onTime": 3,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792771200,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792774800,
+     "onTime": 1,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 1,
+     "diverted": 0
+    },
+    {
+     "hour": 1792778400,
+     "onTime": 3,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792782000,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    }
+   ],
+   "worstRoutes": [
+    {
+     "icao": "KBOS",
+     "delayed": 3,
+     "canceled": 0
+    },
+    {
+     "icao": "KSEA",
+     "delayed": 0,
+     "canceled": 1
+    },
+    {
+     "icao": "KATL",
+     "delayed": 1,
+     "canceled": 0
+    }
+   ],
+   "worstAirlines": [
+    {
+     "operator": "AAL",
+     "delayed": 1,
+     "canceled": 1
+    },
+    {
+     "operator": "FFT",
+     "delayed": 2,
+     "canceled": 0
+    },
+    {
+     "operator": "DAL",
+     "delayed": 2,
+     "canceled": 0
+    }
+   ],
+   "severity": "moderate"
+  },
+  "arrivals": {
+   "total": 25,
+   "onTime": 14,
+   "delayed15": 9,
+   "canceled": 2,
+   "avgDelayMinutes": 15.26,
+   "perHour": [
+    {
+     "hour": 1792756800,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792760400,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792764000,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792767600,
+     "onTime": 1,
+     "late15": 2,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792771200,
+     "onTime": 2,
+     "late15": 1,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792774800,
+     "onTime": 2,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792778400,
+     "onTime": 3,
+     "late15": 0,
+     "late45": 0,
+     "canceled": 0,
+     "diverted": 0
+    },
+    {
+     "hour": 1792782000,
+     "onTime": 0,
+     "late15": 0,
+     "late45": 1,
+     "canceled": 2,
+     "diverted": 0
+    }
+   ],
+   "worstRoutes": [
+    {
+     "icao": "KLAS",
+     "delayed": 2,
+     "canceled": 1
+    },
+    {
+     "icao": "KIAH",
+     "delayed": 2,
+     "canceled": 0
+    },
+    {
+     "icao": "KDFW",
+     "delayed": 1,
+     "canceled": 0
+    }
+   ],
+   "worstAirlines": [
+    {
+     "operator": "NKS",
+     "delayed": 2,
+     "canceled": 1
+    },
+    {
+     "operator": "JBU",
+     "delayed": 2,
+     "canceled": 0
+    },
+    {
+     "operator": "DAL",
+     "delayed": 2,
+     "canceled": 0
+    }
+   ],
+   "severity": "major"
+  }
+ }
+}
