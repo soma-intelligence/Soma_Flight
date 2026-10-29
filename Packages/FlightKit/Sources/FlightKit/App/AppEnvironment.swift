@@ -53,22 +53,27 @@ public struct AppEnvironment: Sendable {
     /// Hands the device's saved data to `user` (nil: nobody signed in). When the offline cache belonged to
     /// someone else, the recent searches go and the cache is wiped; a failed wipe throws.
     public func adopt(user: UUID?) async throws {
-        guard await cache.owner() != user else { return }
+        guard await !cache.isOwned(by: user) else { return }
         recentsDefaults?.removeObject(forKey: SearchStore.recentKey)
         try await cache.claim(for: user)
     }
 
     // MARK: Stores
 
-    /// The list stores write through a scope that a wipe closes, so a load still running for the
-    /// previous account cannot refill the cache.
-    @MainActor public func makeMyFlightsStore() -> MyFlightsStore { MyFlightsStore(flights: flights, cache: cache.scoped()) }
-    @MainActor public func makePassportStore() -> PassportStore { PassportStore(history: history, cache: cache.scoped()) }
+    /// The stores read and write the cache through a scope for `owner`, the user signed in now (nil:
+    /// nobody). It reads as empty while the cache belongs to someone else, and a wipe closes it, so a
+    /// load still running for the previous account cannot refill the cache.
+    @MainActor public func makeMyFlightsStore(owner: UUID?) -> MyFlightsStore {
+        MyFlightsStore(flights: flights, cache: cache.scoped(for: owner))
+    }
+    @MainActor public func makePassportStore(owner: UUID?) -> PassportStore {
+        PassportStore(history: history, cache: cache.scoped(for: owner))
+    }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
 
-    @MainActor public func makeFlightDetailStore(id: Flight.ID) -> FlightDetailStore {
-        FlightDetailStore(id: id, flights: flights, airports: airports, cache: cache)
+    @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
+        FlightDetailStore(id: id, flights: flights, airports: airports, cache: cache.scoped(for: owner))
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.

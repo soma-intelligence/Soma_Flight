@@ -13,19 +13,19 @@ import Testing
         #expect(env.push is FakePushService)
         #expect(env.recentsDefaults == nil)
 
-        let flights = env.makeMyFlightsStore()
+        let flights = env.makeMyFlightsStore(owner: nil)
         await flights.load()
         #expect(!(flights.live + flights.upcoming).isEmpty)
         // The store writes through to the environment's cache.
         #expect(await env.cache.flights().count == (flights.live + flights.upcoming).count)
 
-        let passport = env.makePassportStore()
+        let passport = env.makePassportStore(owner: nil)
         await passport.load()
         #expect(!passport.flights.isEmpty)
         #expect(await env.cache.past().count == passport.flights.count)
 
         let any = try #require(flights.live.first ?? flights.upcoming.first)
-        let detail = env.makeFlightDetailStore(id: any.id)
+        let detail = env.makeFlightDetailStore(id: any.id, owner: nil)
         await detail.load()
         #expect(detail.flight?.id == any.id)
         #expect(detail.origin != nil)
@@ -68,9 +68,9 @@ import Testing
         session.start()
         try await env.auth.signInWithEmail("a@example.com")
         try await waitUntil { session.session != nil }
-        let flights = env.makeMyFlightsStore()
+        let flights = env.makeMyFlightsStore(owner: session.session?.userId)
         await flights.load()
-        let passport = env.makePassportStore()
+        let passport = env.makePassportStore(owner: session.session?.userId)
         await passport.load()
         let search = env.makeSearchStore()
         search.text = "SFO"

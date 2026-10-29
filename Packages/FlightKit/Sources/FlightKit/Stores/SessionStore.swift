@@ -9,6 +9,8 @@ public final class SessionStore {
     private let auth: any AuthService
     private let onUserChange: (@Sendable (UUID?) async throws -> Void)?
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
+    private let retryDelays: [Duration]
 
     private static let log = Logger(subsystem: "me.somalabs.flight", category: "session")
 
@@ -17,11 +19,14 @@ public final class SessionStore {
     ///   reports, before `session` changes, so screens rebuilt for a new account never read the previous
     ///   one's data. It also runs before `signOut()` reaches the server and after a successful
     ///   `deleteAccount()`. It must be cheap when the user is unchanged. A throw sets `error` to `.localData`.
-    public init(auth: any AuthService, onUserChange: (@Sendable (UUID?) async throws -> Void)? = nil) {
-        self.auth = auth; self.onUserChange = onUserChange
+    /// - Parameter retryDelays: the waits before each new try when handing the device to a newly signed-in
+    ///   account fails.
+    public init(auth: any AuthService, onUserChange: (@Sendable (UUID?) async throws -> Void)? = nil,
+                retryDelays: [Duration] = [.seconds(2), .seconds(5), .seconds(15), .seconds(60)]) {
+        self.auth = auth; self.onUserChange = onUserChange; self.retryDelays = retryDelays
     }
 
-    deinit { task?.cancel() }
+    deinit { task?.cancel(); retryTask?.cancel() }
 
     /// Starts following auth state. Calling it again replaces the previous loop.
     public func start() {
@@ -30,10 +35,33 @@ public final class SessionStore {
         task = Task { [weak self] in
             for await s in stream {
                 guard let self else { return }
-                // The wipe lands before the new session is published. The auth state is the truth,
-                // so it is published even when the wipe fails (the next hand-over retries it).
-                await self.handOver(to: s?.userId)
-                self.session = s
+                await self.follow(s)
+            }
+        }
+    }
+
+    /// Publishes `s` only once the device's saved data is handed to its user, so a new account never sees
+    /// the previous one's. When that wipe fails, nobody is shown as signed in (the stores then read an
+    /// empty cache), `error` is `.localData`, and the hand-over is tried again a few times; the next auth
+    /// event tries again too.
+    private func follow(_ s: UserSession?) async {
+        retryTask?.cancel()
+        if await handOver(to: s?.userId) {
+            session = s
+            return
+        }
+        session = nil
+        guard let s else { return }
+        let delays = retryDelays
+        retryTask = Task { [weak self] in
+            for delay in delays {
+                try? await Task.sleep(for: delay)
+                guard let self, !Task.isCancelled else { return }
+                if await self.handOver(to: s.userId) {
+                    guard !Task.isCancelled else { return }
+                    self.session = s
+                    return
+                }
             }
         }
     }

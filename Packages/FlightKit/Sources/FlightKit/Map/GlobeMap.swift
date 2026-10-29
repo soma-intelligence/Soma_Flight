@@ -80,8 +80,9 @@ public struct GlobeMap: View {
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
         self.focus = focus; self.recenter = recenter; self.labels = labels
-        let start = focus.map { Self.camera(for: $0, in: .phone) } ?? Self.camera(routes: routes, planes: planes, airports: airports)
-        _position = State(initialValue: .camera(start))
+        // Cheap on purpose: SwiftUI evaluates this on every parent update that rebuilds the view, though
+        // only the first value is kept. A focus present from the start is fitted once, on appear.
+        _position = State(initialValue: .camera(Self.camera(routes: routes, planes: planes, airports: airports)))
     }
 
     /// MapKit's vertical field of view across the whole map view, measured on the iPhone 17 Pro simulator
@@ -107,27 +108,51 @@ public struct GlobeMap: View {
 
     /// Close in on an airport. For an arc: centred on it, at the shortest distance that keeps every point
     /// of it inside the visible part of the map, clear of the globe's rim. An arc too wide for that even at
-    /// MapKit's farthest over its middle (Paris to San Francisco over Baffin Island) is seen from further
-    /// south, where MapKit lets the camera go farther out, and nudged sideways to centre it.
+    /// MapKit's farthest over its middle (Paris to San Francisco over Baffin Island) is seen from nearer
+    /// the equator, where MapKit lets the camera go farther out, and nudged sideways to centre it. When no
+    /// camera fits, the one that overflows least is kept.
     static func camera(for focus: GlobeFocus, in viewport: GlobeViewport) -> MapCamera {
         switch focus {
         case .route(let r):
             let pts = [r.from] + r.runs.flatMap { $0 } + [r.to]
             let mid = sphericalMean(pts) ?? r.from
-            let nudges = [0.0] + stride(from: 2.0, through: 12, by: 2).flatMap { [$0, -$0] }
-            for south in stride(from: 0.0, through: 45, by: 5) {
-                for east in nudges {
-                    let center = offset(mid, south: south, east: east)
-                    if let d = closestFit(pts, center: center, in: viewport) {
-                        return MapCamera(centerCoordinate: center, distance: d, heading: 0, pitch: 0)
-                    }
+            var best: (overflow: Double, camera: MapCamera)?
+            for center in candidateCenters(around: mid) {
+                if let d = closestFit(pts, center: center, in: viewport) {
+                    return MapCamera(centerCoordinate: center, distance: d, heading: 0, pitch: 0)
                 }
+                let far = MapCamera(centerCoordinate: center, distance: maximumDistance(at: center.latitude), heading: 0, pitch: 0)
+                let o = overflow(pts, camera: far, in: viewport)
+                if best == nil || o < best!.overflow { best = (o, far) }
             }
-            let far = offset(mid, south: 30, east: 0)
-            return MapCamera(centerCoordinate: far, distance: maximumDistance(at: far.latitude), heading: 0, pitch: 0)
+            return best?.camera ?? MapCamera(centerCoordinate: mid, distance: maximumDistance(at: mid.latitude), heading: 0, pitch: 0)
         case .airport(let a):
             return MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lon),
                              distance: 22_000, heading: 0, pitch: 0)
+        }
+    }
+
+    /// Centres to try, in order: the arc's middle, then steps of 5 degrees toward the equator (north for a
+    /// southern arc), each with sideways nudges. Steps stop at the equator's far side by 10 degrees.
+    static func candidateCenters(around mid: CLLocationCoordinate2D) -> [CLLocationCoordinate2D] {
+        let towardEquator = mid.latitude >= 0 ? 1.0 : -1.0
+        let reach = min(45, abs(mid.latitude) + 10)
+        let nudges = [0.0] + stride(from: 2.0, through: 12, by: 2).flatMap { [$0, -$0] }
+        return stride(from: 0.0, through: reach, by: 5).flatMap { step in
+            nudges.map { offset(mid, south: step * towardEquator, east: $0) }
+        }
+    }
+
+    /// How far the arc spills out of the fit box, as a fraction of the box's size (0 when it fits); a
+    /// point hidden behind the globe counts as a full box.
+    static func overflow(_ pts: [CLLocationCoordinate2D], camera: MapCamera, in viewport: GlobeViewport) -> Double {
+        let box = fitBox(viewport)
+        guard box.width > 0, box.height > 0 else { return .infinity }
+        return pts.reduce(0) { worst, p in
+            guard let q = project(p, camera: camera, in: viewport) else { return max(worst, 1) }
+            let dx = max(box.minX - q.x, q.x - box.maxX, 0) / box.width
+            let dy = max(box.minY - q.y, q.y - box.maxY, 0) / box.height
+            return max(worst, Double(max(dx, dy)))
         }
     }
 
@@ -147,7 +172,8 @@ public struct GlobeMap: View {
         return hi
     }
 
-    /// The point `south` degrees of arc due south of `p`, then `east` degrees of arc due east of that.
+    /// The point `south` degrees of arc due south of `p` (north when negative), then `east` degrees of
+    /// arc due east of that (west when negative).
     static func offset(_ p: CLLocationCoordinate2D, south: Double, east: Double) -> CLLocationCoordinate2D {
         func move(_ p: CLLocationCoordinate2D, bearing: Double, by deg: Double) -> CLLocationCoordinate2D {
             guard deg != 0 else { return p }
@@ -156,7 +182,7 @@ public struct GlobeMap: View {
             let lo2 = lo + atan2(sin(b) * sin(d) * cos(la), cos(d) - sin(la) * sin(la2))
             return CLLocationCoordinate2D(latitude: la2 * 180 / .pi, longitude: remainder(lo2 * 180 / .pi, 360))
         }
-        return move(move(p, bearing: 180, by: south), bearing: east >= 0 ? 90 : 270, by: abs(east))
+        return move(move(p, bearing: south >= 0 ? 180 : 0, by: abs(south)), bearing: east >= 0 ? 90 : 270, by: abs(east))
     }
 
     /// The part of the visible area the arc must stay in.
@@ -260,6 +286,9 @@ public struct GlobeMap: View {
         }
         .onChange(of: focus) { moveToFocus() }
         .onChange(of: recenter) { moveToFocus() }
+        .onAppear {
+            if let focus { position = .camera(Self.camera(for: focus, in: viewport)) }
+        }
         .onGeometryChange(for: GlobeViewport.self) { proxy in
             // The map lays out inside the safe area and draws under it; the insets give back the whole view.
             let i = proxy.safeAreaInsets

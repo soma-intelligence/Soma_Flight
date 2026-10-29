@@ -27,9 +27,10 @@ struct RootTabView: View {
 
     init(env: AppEnvironment) {
         self.env = env
+        // Nobody is signed in until the session store publishes an account; the stores are rebuilt then.
         _session = State(initialValue: env.makeSessionStore())
-        _myFlights = State(initialValue: env.makeMyFlightsStore())
-        _passport = State(initialValue: env.makePassportStore())
+        _myFlights = State(initialValue: env.makeMyFlightsStore(owner: nil))
+        _passport = State(initialValue: env.makePassportStore(owner: nil))
     }
 
     private var units: Units { Units(distance: distance, clock: clock24 ? .h24 : .h12) }
@@ -142,7 +143,7 @@ struct RootTabView: View {
     @ViewBuilder private func destination(_ route: SheetRoute) -> some View {
         switch route {
         case .flight(let id):
-            FlightScreen(env: env, id: id, onAirport: open(airport:), onClose: shell.close)
+            FlightScreen(env: env, id: id, owner: session.session?.userId, onAirport: open(airport:), onClose: shell.close)
         case .airport(let code):
             AirportScreen(env: env, code: code, onClose: shell.close)
         }
@@ -206,8 +207,8 @@ struct RootTabView: View {
 
     private func resetStores() {
         shell.reset()
-        myFlights = env.makeMyFlightsStore()
-        passport = env.makePassportStore()
+        myFlights = env.makeMyFlightsStore(owner: session.session?.userId)
+        passport = env.makePassportStore(owner: session.session?.userId)
         Task { await load() }
     }
 }
@@ -220,8 +221,9 @@ private struct FlightScreen: View {
     var onAirport: (String) -> Void
     var onClose: () -> Void
 
-    init(env: AppEnvironment, id: Flight.ID, onAirport: @escaping (String) -> Void, onClose: @escaping () -> Void) {
-        _store = State(initialValue: env.makeFlightDetailStore(id: id))
+    init(env: AppEnvironment, id: Flight.ID, owner: UUID?, onAirport: @escaping (String) -> Void,
+         onClose: @escaping () -> Void) {
+        _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
         self.onAirport = onAirport; self.onClose = onClose
     }
 

@@ -108,19 +108,19 @@ import Testing
     @Test func aScopeTakenBeforeAWipeCannotWriteAfterIt() async throws {
         let cache = try CacheStore.inMemory()
         let flights = try await FakeFlightService().followed()
-        let stale = cache.scoped()
+        let stale = cache.scoped(for: userA)
         try await cache.claim(for: userA)
         // A load of the previous account finishing late.
         await stale.save(flights: flights)
         #expect(await cache.flights().isEmpty)
-        await cache.scoped().save(flights: flights)
+        await cache.scoped(for: userA).save(flights: flights)
         #expect(!(await cache.flights()).isEmpty)
     }
 
     @Test func storesBuiltBeforeASwitchCannotRefillTheCache() async throws {
         let env = try await AppEnvironment.fake()
         try await env.adopt(user: userA)
-        let old = env.makeMyFlightsStore()
+        let old = env.makeMyFlightsStore(owner: userA)
         try await env.adopt(user: userB)
         await old.load()
         #expect(await env.cache.flights().isEmpty)
@@ -132,7 +132,7 @@ import Testing
         session.start()
         try await env.auth.signInWithEmail("a@example.com")
         try await waitUntil { session.session?.userId == userA }
-        await env.makeMyFlightsStore().load()
+        await env.makeMyFlightsStore(owner: userA).load()
         #expect(!(await env.cache.flights()).isEmpty)
         // B signs in over A, no nil in between.
         try await env.auth.signInWithApple(idToken: "t", nonce: "n")
