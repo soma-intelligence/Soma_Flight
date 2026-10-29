@@ -152,15 +152,7 @@ public struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showingAcknowledgements) {
-            AcknowledgementsView()
-                .overlay(alignment: .topTrailing) {
-                    Button("Done") { showingAcknowledgements = false }
-                        .scaledFont(17, weight: .semibold)
-                        .foregroundStyle(Theme.accent)
-                        .buttonStyle(.plain)
-                        .scaledPadding(.top, 22)
-                        .scaledPadding(.trailing, Theme.gutter)
-                }
+            AcknowledgementsView(onDone: { showingAcknowledgements = false })
                 #if os(macOS)
                 .frame(minWidth: 420, minHeight: 520)
                 #endif

@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+LICENSE_OUT = ROOT / "Packages/FlightKit/Sources/FlightKit/Resources/Licenses/circle-flags.txt"
 COUNTRIES = ROOT / "Packages/FlightKit/Sources/FlightKit/Resources/Reference/countries.json"
 
 
@@ -40,6 +41,8 @@ def main() -> int:
             "properties": {"preserves-vector-representation": True},
         }
         (d / "Contents.json").write_text(json.dumps(contents, indent=2) + "\n")
+    # The upstream licence, unchanged, is shipped in the app (Resources/Licenses/circle-flags.txt).
+    shutil.copyfile(clone / "LICENSE.md", LICENSE_OUT)
     print(f"{len(codes)} flags written to {out}")
     return 0
 

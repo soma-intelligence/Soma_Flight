@@ -185,6 +185,11 @@ struct ComponentSnapshotTests {
         }
     }
 
+    @Test func acknowledgements() throws {
+        try render("Acknowledgements") { AcknowledgementsView(scrolls: false, onDone: {}, textLimit: 2) }
+        try render("Acknowledgements-light", light: true) { AcknowledgementsView(scrolls: false, onDone: {}, textLimit: 2) }
+    }
+
     @Test func badgesAndBanners() throws {
         try render("StaleBadge") {
             HStack(spacing: 10) {
