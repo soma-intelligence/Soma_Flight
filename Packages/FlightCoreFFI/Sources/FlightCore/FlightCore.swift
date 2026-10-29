@@ -1679,12 +1679,14 @@ public struct PassportStats: Equatable, Hashable {
     public var airlines: UInt32
     public var delayLostMinutes: UInt64
     public var avgDelayMinutes: UInt32
+    public var delayedFlights: UInt32
+    public var avgDelayedMinutes: UInt32
     public var mostFlownAircraft: AircraftCount?
     public var routes: [RoutePair]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(flights: UInt32, longHaul: UInt32, distanceKm: UInt64, flightMinutes: UInt64, airports: UInt32, airlines: UInt32, delayLostMinutes: UInt64, avgDelayMinutes: UInt32, mostFlownAircraft: AircraftCount?, routes: [RoutePair]) {
+    public init(flights: UInt32, longHaul: UInt32, distanceKm: UInt64, flightMinutes: UInt64, airports: UInt32, airlines: UInt32, delayLostMinutes: UInt64, avgDelayMinutes: UInt32, delayedFlights: UInt32, avgDelayedMinutes: UInt32, mostFlownAircraft: AircraftCount?, routes: [RoutePair]) {
         self.flights = flights
         self.longHaul = longHaul
         self.distanceKm = distanceKm
@@ -1693,6 +1695,8 @@ public struct PassportStats: Equatable, Hashable {
         self.airlines = airlines
         self.delayLostMinutes = delayLostMinutes
         self.avgDelayMinutes = avgDelayMinutes
+        self.delayedFlights = delayedFlights
+        self.avgDelayedMinutes = avgDelayedMinutes
         self.mostFlownAircraft = mostFlownAircraft
         self.routes = routes
     }
@@ -1721,6 +1725,8 @@ public struct FfiConverterTypePassportStats: FfiConverterRustBuffer {
                 airlines: FfiConverterUInt32.read(from: &buf), 
                 delayLostMinutes: FfiConverterUInt64.read(from: &buf), 
                 avgDelayMinutes: FfiConverterUInt32.read(from: &buf), 
+                delayedFlights: FfiConverterUInt32.read(from: &buf), 
+                avgDelayedMinutes: FfiConverterUInt32.read(from: &buf), 
                 mostFlownAircraft: FfiConverterOptionTypeAircraftCount.read(from: &buf), 
                 routes: FfiConverterSequenceTypeRoutePair.read(from: &buf)
         )
@@ -1735,6 +1741,8 @@ public struct FfiConverterTypePassportStats: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.airlines, into: &buf)
         FfiConverterUInt64.write(value.delayLostMinutes, into: &buf)
         FfiConverterUInt32.write(value.avgDelayMinutes, into: &buf)
+        FfiConverterUInt32.write(value.delayedFlights, into: &buf)
+        FfiConverterUInt32.write(value.avgDelayedMinutes, into: &buf)
         FfiConverterOptionTypeAircraftCount.write(value.mostFlownAircraft, into: &buf)
         FfiConverterSequenceTypeRoutePair.write(value.routes, into: &buf)
     }

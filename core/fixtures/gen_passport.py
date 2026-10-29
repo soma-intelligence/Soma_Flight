@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 LONG_HAUL_KM = 4000
+DELAYED_MINUTES = 15
 
 def ts(s):
     """UTC 'YYYY-MM-DDTHH:MM' to epoch seconds."""
@@ -30,6 +31,7 @@ def stats(flights, year):
     kept = [f for f in ordered if f["status"] != "canceled" and (year is None or local_year(f) == year)]
     n = len(kept)
     delay = sum(f["delay_minutes"] for f in kept)
+    late = [f["delay_minutes"] for f in kept if f["delay_minutes"] >= DELAYED_MINUTES]
     airports = {f["origin_icao"] for f in kept} | {f["destination_icao"] for f in kept}
     airlines = {f["airline"] for f in kept if f["airline"]}
     counts = {}
@@ -54,6 +56,8 @@ def stats(flights, year):
         "airlines": len(airlines),
         "delayLostMinutes": delay,
         "avgDelayMinutes": (2 * delay + n) // (2 * n) if n else 0,
+        "delayedFlights": len(late),
+        "avgDelayedMinutes": (2 * sum(late) + len(late)) // (2 * len(late)) if late else 0,
         "mostFlownAircraft": None if best is None else {"aircraftType": best, "count": counts[best]},
         "routes": routes,
     }
@@ -119,6 +123,10 @@ case("avg_delay_rounds_down_below_half",
 case("canceled_delay_excluded_from_totals",
      [fl("2025-01-01T10:00", "AAAA", "BBBB", 100, delay=10),
       fl("2025-01-02T10:00", "AAAA", "BBBB", 100, delay=500, status="canceled")])
+case("delayed_threshold_15_and_average_half_up",
+     [fl("2025-01-01T10:00", "AAAA", "BBBB", 100, delay=14), fl("2025-01-02T10:00", "AAAA", "BBBB", 100, delay=15),
+      fl("2025-01-03T10:00", "AAAA", "BBBB", 100, delay=20),
+      fl("2025-01-04T10:00", "AAAA", "BBBB", 100, delay=90, status="canceled")])
 case("airports_unique_across_origin_and_destination",
      [fl("2025-01-01T10:00", "AAAA", "BBBB", 100), fl("2025-01-02T10:00", "BBBB", "CCCC", 100),
       fl("2025-01-03T10:00", "CCCC", "AAAA", 100)])
@@ -133,6 +141,8 @@ meta = {
         "flight_minutes": "sum of block_minutes, null counts as 0",
         "delay_lost_minutes": "sum of delay_minutes over counted flights",
         "avg_delay_minutes": "delay_lost_minutes / flights rounded half up to integer, 0 when no flights",
+        "delayed_flights": "counted flights with delay_minutes >= 15",
+        "avg_delayed_minutes": "sum of delay_minutes of delayed flights / delayed_flights rounded half up, 0 when none",
         "airports": "unique ICAO across origin and destination",
         "airlines": "unique non-empty airline values",
         "most_flown_aircraft": "highest count of aircraft_type, ties alphabetical ascending, null when no types",

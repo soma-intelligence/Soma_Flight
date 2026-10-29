@@ -421,6 +421,8 @@ pub struct PassportStats {
     pub airlines: u32,
     pub delay_lost_minutes: u64,
     pub avg_delay_minutes: u32,
+    pub delayed_flights: u32,
+    pub avg_delayed_minutes: u32,
     pub most_flown_aircraft: Option<AircraftCount>,
     pub routes: Vec<RoutePair>,
 }
@@ -436,6 +438,8 @@ impl From<passport::PassportStats> for PassportStats {
             airlines,
             delay_lost_minutes,
             avg_delay_minutes,
+            delayed_flights,
+            avg_delayed_minutes,
             most_flown_aircraft,
             routes,
         }: passport::PassportStats,
@@ -449,6 +453,8 @@ impl From<passport::PassportStats> for PassportStats {
             airlines,
             delay_lost_minutes,
             avg_delay_minutes,
+            delayed_flights,
+            avg_delayed_minutes,
             most_flown_aircraft: most_flown_aircraft.map(Into::into),
             routes: routes
                 .into_iter()

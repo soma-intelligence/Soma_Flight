@@ -292,6 +292,8 @@ private func passportJSON(_ p: PassportStats) -> [String: Any] {
         "airlines": p.airlines,
         "delayLostMinutes": p.delayLostMinutes,
         "avgDelayMinutes": p.avgDelayMinutes,
+        "delayedFlights": p.delayedFlights,
+        "avgDelayedMinutes": p.avgDelayedMinutes,
         "mostFlownAircraft": p.mostFlownAircraft.map {
             ["aircraftType": $0.aircraftType, "count": $0.count] as [String: Any]
         } ?? NSNull(),

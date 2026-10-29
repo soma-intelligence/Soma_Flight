@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// Flights of at least this distance are long haul.
 pub(crate) const LONG_HAUL_KM: u32 = 4000;
+/// A flight that left at least this many minutes late counts as delayed.
+pub(crate) const DELAYED_MINUTES: u32 = 15;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -83,6 +85,10 @@ pub struct PassportStats {
     pub airlines: u32,
     pub delay_lost_minutes: u64,
     pub avg_delay_minutes: u32,
+    /// Counted flights that left `DELAYED_MINUTES` or more late.
+    pub delayed_flights: u32,
+    /// Mean delay of those flights, rounded half up; 0 when none.
+    pub avg_delayed_minutes: u32,
     pub most_flown_aircraft: Option<AircraftCount>,
     pub routes: Vec<(String, String)>,
 }
@@ -111,6 +117,12 @@ pub fn compute_passport(flights: &[PastFlight], year: Option<i32>) -> PassportSt
 
     let n = kept.len() as u64;
     let delay: u64 = kept.iter().map(|f| u64::from(f.delay_minutes)).sum();
+    let late: Vec<u64> = kept
+        .iter()
+        .filter(|f| f.delay_minutes >= DELAYED_MINUTES)
+        .map(|f| u64::from(f.delay_minutes))
+        .collect();
+    let (nl, late_sum) = (late.len() as u64, late.iter().sum::<u64>());
     let mut airports: HashSet<&str> = HashSet::new();
     let mut airlines: BTreeSet<&str> = BTreeSet::new();
     let mut types: BTreeMap<&str, u32> = BTreeMap::new();
@@ -155,6 +167,12 @@ pub fn compute_passport(flights: &[PastFlight], year: Option<i32>) -> PassportSt
             0
         } else {
             ((2 * delay + n) / (2 * n)) as u32
+        },
+        delayed_flights: nl as u32,
+        avg_delayed_minutes: if nl == 0 {
+            0
+        } else {
+            ((2 * late_sum + nl) / (2 * nl)) as u32
         },
         most_flown_aircraft: best.map(|(t, c)| AircraftCount {
             aircraft_type: t.to_string(),

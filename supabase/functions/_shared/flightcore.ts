@@ -113,6 +113,8 @@ export interface PassportStats {
   airlines: number;
   delayLostMinutes: number;
   avgDelayMinutes: number;
+  delayedFlights: number;
+  avgDelayedMinutes: number;
   mostFlownAircraft: AircraftCount | null;
   routes: [string, string][];
 }
