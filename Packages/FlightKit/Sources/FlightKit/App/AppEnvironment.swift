@@ -38,6 +38,12 @@ public struct AppEnvironment: Sendable {
                        recents: .standard)
     }
 
+    /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
+    /// over an in-memory cache, anything else the `live()` configuration. Both shells call this.
+    public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
+        arguments.contains("-useFakes") ? try await fake() : try await live()
+    }
+
     /// Airport by ICAO or IATA, for the screens' `lookup`.
     public var lookup: @Sendable (String) -> Airport? { directory.lookup }
 

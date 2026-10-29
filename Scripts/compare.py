@@ -12,6 +12,9 @@ cover, stacked, as docs/screens/compare/screen-airport-N.png.
 iOS shell screenshots (docs/screens/ios/NAME.png, simulator captures at half of @3x) are set
 beside the whole reference screen, also halved, as docs/screens/compare/ios-NAME.png.
 
+Mac shell screenshots (docs/screens/mac/NAME.png, window captures at @2x) are set beside the
+Mac reference window, also @2x, as docs/screens/compare/mac-NAME.png.
+
 Usage: python3 Scripts/compare.py [--refs "/Users/quentin/Desktop/Screenshot FLight app"]
 Needs Pillow (python3 -m pip install --user pillow).
 """
@@ -62,6 +65,22 @@ IOS_REFS = {
     "airport": "IMG_0294.PNG",
     "passport": "IMG_0310.PNG",
 }
+
+
+# Mac shell: our window capture beside the Mac reference window (fragments of the file names).
+MAC = ROOT / "docs/screens/mac"
+MAC_REFS = {
+    "home": "3.43.17",
+    "detail": "3.43.17",  # no flight panel in the references: compared for the panel chrome
+    "airport": "3.43.17",
+    "passport": "10.50.29",
+}
+
+
+def compose_mac(name: str, refs: Path) -> Path:
+    left = open_ref(refs, MAC_REFS[name])
+    right = Image.open(MAC / f"{name}.png").convert("RGB")
+    return side_by_side(left, right, OUT / f"mac-{name}.png")
 
 
 def compose_ios(name: str, refs: Path) -> Path:
@@ -132,11 +151,14 @@ def compose(name: str, refs: Path) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--refs", default="/Users/quentin/Desktop/Screenshot FLight app")
-    ap.add_argument("names", nargs="*", default=list(CROPS) + list(SCREEN_REFS) + [f"ios-{n}" for n in IOS_REFS])
+    ap.add_argument("names", nargs="*", default=list(CROPS) + list(SCREEN_REFS) + [f"ios-{n}" for n in IOS_REFS]
+                    + [f"mac-{n}" for n in MAC_REFS])
     args = ap.parse_args()
     for n in args.names:
         refs = Path(args.refs)
-        if n.startswith("ios-"):
+        if n.startswith("mac-"):
+            print(compose_mac(n.removeprefix("mac-"), refs))
+        elif n.startswith("ios-"):
             print(compose_ios(n.removeprefix("ios-"), refs))
         else:
             print(compose_screen(n, refs) if n in SCREEN_REFS else compose(n, refs))
