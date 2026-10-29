@@ -33,12 +33,20 @@ fn from_vec(v: [f64; 3]) -> Coord {
 /// Great-circle path from `a` to `b` as `segments + 1` points (slerp).
 /// The first point is `a`. Longitudes are unwrapped so neighbours differ by
 /// less than 180 degrees, so the last point's longitude may be `b.lon` shifted
-/// by a multiple of 360 when the path crosses the antimeridian.
+/// by a multiple of 360 when the path crosses the antimeridian. For coincident
+/// or antipodal endpoints (path undefined) it interpolates linearly in lat/lon.
 pub fn great_circle(a: Coord, b: Coord, segments: u32) -> Vec<Coord> {
     let segments = segments.max(1);
     let (va, vb) = (to_vec(a), to_vec(b));
-    let dot = (va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2]).clamp(-1.0, 1.0);
-    let omega = dot.acos();
+    let dot = va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2];
+    let cross = [
+        va[1] * vb[2] - va[2] * vb[1],
+        va[2] * vb[0] - va[0] * vb[2],
+        va[0] * vb[1] - va[1] * vb[0],
+    ];
+    let cross_norm = (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]).sqrt();
+    // atan2 stays accurate for near-identical and near-antipodal points, unlike acos
+    let omega = cross_norm.atan2(dot);
     let so = omega.sin();
     let mut out = Vec::with_capacity(segments as usize + 1);
     out.push(a);
@@ -59,6 +67,8 @@ pub fn great_circle(a: Coord, b: Coord, segments: u32) -> Vec<Coord> {
             ])
         };
         if i == segments {
+            // pin the final point to b exactly (latitude); its longitude is
+            // re-unwrapped below like every other point
             c = Coord {
                 lat: b.lat,
                 lon: b.lon,
