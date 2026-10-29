@@ -33,9 +33,10 @@ public struct AppEnvironment: Sendable {
 
     /// Seeded fakes over an in-memory cache. `now` is the clock the seed is shifted to.
     /// Async because the SwiftData cache must be built off the main thread.
-    @concurrent public static func fake(now: Date = .now) async throws -> AppEnvironment {
+    /// - Parameter pastLimit: keeps only the newest flights of the past history (`-fakePast <n>`).
+    @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil) async throws -> AppEnvironment {
         AppEnvironment(flights: FakeFlightService(now: now), airports: FakeAirportService(now: now), auth: FakeAuthService(),
-                       history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.inMemory(),
+                       history: FakeHistoryService(limit: pastLimit), push: FakePushService(), cache: try CacheStore.inMemory(),
                        aircraftFacts: FakeAircraftFactsService())
     }
 
@@ -64,9 +65,14 @@ public struct AppEnvironment: Sendable {
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
     /// over an in-memory cache (screenshot runs), anything else the backend (`live()`). Both shells call this.
+    /// With fakes, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
         HistoryExport.removeTemporaryFiles()
-        return arguments.contains("-useFakes") ? try await fake() : try await live()
+        guard arguments.contains("-useFakes") else { return try await live() }
+        let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
+            arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
+        }
+        return try await fake(pastLimit: limit)
     }
 
     /// Airport by ICAO or IATA, for the screens' `lookup`.

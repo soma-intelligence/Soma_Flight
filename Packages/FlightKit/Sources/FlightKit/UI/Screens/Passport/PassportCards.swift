@@ -4,6 +4,9 @@ import SwiftUI
 struct YearChips: View {
     var years: [Int]
     @Binding var selection: Int?
+    /// The chosen chip's fill and the other chips' text.
+    var fill: Color = Theme.pill
+    var ink: Color = Theme.secondary
     @Environment(\.airportStaticControls) private var staticControls
 
     var body: some View {
@@ -22,10 +25,10 @@ struct YearChips: View {
             Text(label)
                 .scaledFont(17, weight: .medium)
                 .monospacedDigit()
-                .foregroundStyle(on ? Theme.primary : Theme.secondary)
+                .foregroundStyle(on ? Theme.primary : ink)
                 .scaledPadding(.horizontal, 15)
                 .frame(minHeight: 38)
-                .background(Capsule().fill(on ? Theme.pill : .clear))
+                .background(Capsule().fill(on ? fill : .clear))
                 .overlay(Capsule().strokeBorder(on ? Theme.primary.opacity(0.08) : .clear, lineWidth: 1))
                 .contentShape(Capsule())
         }
@@ -51,9 +54,11 @@ struct PassportCard: View {
             .accessibilityValue("\(stats.flights) flights, \(TravelFacts.distance(stats.distanceKm, units.distance))")
     }
 
-    /// The card without its button, also what the full Passport page shows and shares.
-    func face(row: Bool = true) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+    /// The card without its button, also what the full Passport page shows and shares. `framed: false`
+    /// leaves out the card's own fill and rim, for the Passport page's header panel that draws its own.
+    func face(row: Bool = true, framed: Bool = true) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        return VStack(alignment: .leading, spacing: 0) {
             Text("\(year.map(String.init) ?? "All-Time") Soma Flight Passport".uppercased())
                 .scaledFont(20, weight: .medium)
                 .foregroundStyle(Self.ink)
@@ -100,9 +105,9 @@ struct PassportCard: View {
         .scaledPadding(.top, 20)
         .scaledPadding(.bottom, row ? 16 : 22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Self.background)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+        .background { if framed { Self.background } }
+        .clipShape(shape)
+        .overlay { if framed { shape.strokeBorder(.white.opacity(0.12), lineWidth: 1) } }
     }
 
     private var flightsStat: some View {

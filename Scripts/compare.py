@@ -78,6 +78,14 @@ REFS_V2 = ROOT / ".superpowers/ref-v2"
 V2_REFS = {
     "passport-tab": ["52", "53"],
     "delays": ["52"],
+    # Full Passport, top to bottom: header map (42), flights and distance (44), distance comparisons,
+    # shortest and longest, flight time (43), flight time grid and its shortest and longest (41). The
+    # sparse run (one flight) sits beside the header it shrinks.
+    "passport-full-1": ["42"],
+    "passport-full-2": ["44"],
+    "passport-full-3": ["43"],
+    "passport-full-4": ["41"],
+    "passport-full-sparse": ["42"],
 }
 
 

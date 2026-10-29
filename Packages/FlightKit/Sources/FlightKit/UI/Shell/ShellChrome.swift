@@ -142,10 +142,12 @@ public struct RoundButton: View {
     var systemImage: String
     var label: String
     var action: () -> Void
+    var tint: Color
     @Environment(\.metricsScale) private var scale
 
-    public init(systemImage: String, label: String, action: @escaping () -> Void) {
-        self.systemImage = systemImage; self.label = label; self.action = action
+    /// - Parameter fill: the circle's colour; the grey `RoundButton.fill` when nil.
+    public init(systemImage: String, label: String, fill: Color? = nil, action: @escaping () -> Void) {
+        self.systemImage = systemImage; self.label = label; self.action = action; self.tint = fill ?? Self.fill
     }
 
     public var body: some View {
@@ -154,7 +156,7 @@ public struct RoundButton: View {
                 .font(.system(size: Theme.metric(18, scale), weight: .medium))
                 .foregroundStyle(Theme.primary)
                 .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
-                .background(Circle().fill(Self.fill))
+                .background(Circle().fill(tint))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

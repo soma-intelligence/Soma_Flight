@@ -351,8 +351,10 @@ public actor FakeHistoryService: HistoryService {
     public var nextError: APIError?
     private let past: [PastFlight]
 
-    public init() {
-        past = FakeSeed.load("past_flights", as: [PastFlight].self).sorted { $0.date > $1.date }
+    /// - Parameter limit: keeps only the newest `limit` flights (a sparse history for screenshot runs).
+    public init(limit: Int? = nil) {
+        let all = FakeSeed.load("past_flights", as: [PastFlight].self).sorted { $0.date > $1.date }
+        past = limit.map { Array(all.prefix(max($0, 0))) } ?? all
     }
 
     public func setNextError(_ error: APIError?) { nextError = error }

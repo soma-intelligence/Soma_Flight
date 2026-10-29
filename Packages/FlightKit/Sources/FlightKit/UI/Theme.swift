@@ -54,6 +54,16 @@ public enum Theme {
     /// Active ticks on wind bars.
     public static let wind = Color(light: 0x2F86E0, dark: 0x5AAEF0)
 
+    // MARK: Full Passport (sampled from the v1.1 references 37 to 44; the page is always dark)
+    /// The Passport header's deep violet: the year chips row and the map panel.
+    public static let passportPage = Color(red: 0x1A / 255, green: 0x01 / 255, blue: 0x5A / 255)
+    /// The top bar over the Passport page.
+    public static let passportBar = Color(red: 0x26 / 255, green: 0x06 / 255, blue: 0x77 / 255)
+    /// The chosen year chip on the Passport page.
+    public static let passportChip = Color(red: 0x34 / 255, green: 0x1B / 255, blue: 0x73 / 255)
+    /// Bars, chart columns and ratio fills in the Passport sections.
+    public static let passportAccent = Color(red: 0x80 / 255, green: 0x5D / 255, blue: 0xEE / 255)
+
     // MARK: Type
     /// Text styles whose default iOS size matches the reference, so they follow Dynamic Type.
     /// macOS text styles are smaller (body is 13 pt) and macOS has no Dynamic Type, so the Mac
