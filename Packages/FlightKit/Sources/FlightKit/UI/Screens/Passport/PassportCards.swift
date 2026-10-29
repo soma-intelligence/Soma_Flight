@@ -34,17 +34,25 @@ struct YearChips: View {
     }
 }
 
-/// The deep blue card with the totals for the chosen period.
+/// The deep blue card with the totals for the chosen period. The whole card opens the full Passport.
 struct PassportCard: View {
     var stats: PassportStats
     var year: Int?
-    var since: Int?
     var units: Units
+    var onOpen: () -> Void = {}
 
-    private static let ink = Color.white
-    private static let soft = Color(red: 0.80, green: 0.82, blue: 1.0).opacity(0.78)
+    static let ink = Color.white
+    static let soft = Color(red: 0.80, green: 0.82, blue: 1.0).opacity(0.78)
 
     var body: some View {
+        Button(action: onOpen) { face() }
+            .buttonStyle(CardPressStyle())
+            .accessibilityLabel("All flight stats")
+            .accessibilityValue("\(stats.flights) flights, \(TravelFacts.distance(stats.distanceKm, units.distance))")
+    }
+
+    /// The card without its button, also what the full Passport page shows and shares.
+    func face(row: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("\(year.map(String.init) ?? "All-Time") Soma Flight Passport".uppercased())
                 .scaledFont(20, weight: .medium)
@@ -53,7 +61,7 @@ struct PassportCard: View {
                 .minimumScaleFactor(0.8)
             HStack(spacing: 6) {
                 Image(systemName: "person.text.rectangle").scaledFont(11, weight: .semibold)
-                Text(subtitle.uppercased()).scaledFont(12, weight: .semibold)
+                Text("TRAVEL RECORD").scaledFont(12, weight: .semibold)
             }
             .foregroundStyle(Self.soft)
             .scaledPadding(.top, 3)
@@ -68,7 +76,7 @@ struct PassportCard: View {
             .scaledPadding(.top, 20)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 0) {
-                    stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
+                    stat("Flight time", TravelFacts.flightTime(stats.flightTime))
                         .frame(minWidth: 112, alignment: .leading)
                     stat("Airports", "\(stats.airports)")
                         .frame(minWidth: 84, alignment: .leading)
@@ -76,26 +84,29 @@ struct PassportCard: View {
                     Spacer(minLength: 0)
                 }
                 VStack(alignment: .leading, spacing: 12) {
-                    stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
+                    stat("Flight time", TravelFacts.flightTime(stats.flightTime))
                     stat("Airports", "\(stats.airports)")
                     stat("Airlines", "\(stats.airlines)")
                 }
             }
             .scaledPadding(.top, 12)
+            if row {
+                CardRow(title: "All flight stats", fill: .white.opacity(0.12), ink: Self.ink)
+                    .scaledPadding(.top, 18)
+            }
         }
         .monospacedDigit()
-        .scaledPadding(.horizontal, 22)
+        .scaledPadding(.horizontal, 18)
         .scaledPadding(.top, 20)
-        .scaledPadding(.bottom, 24)
+        .scaledPadding(.bottom, row ? 16 : 22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background)
+        .background(Self.background)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.12), lineWidth: 1))
-        .accessibilityElement(children: .combine)
     }
 
     private var flightsStat: some View {
-        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) Long Haul" : nil)
+        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) long haul" : nil)
     }
 
     private var distanceStat: some View {
@@ -103,13 +114,7 @@ struct PassportCard: View {
              caption: stats.distanceKm > 0 ? TravelFacts.aroundTheWorld(stats.distanceKm) : nil)
     }
 
-    private var subtitle: String {
-        if let year { return "Travel record \u{00B7} \(year)" }
-        guard let since else { return "Travel record" }
-        return "Travel record \u{00B7} since \(since)"
-    }
-
-    private var background: some View {
+    static var background: some View {
         ZStack {
             LinearGradient(colors: [Color(red: 0.07, green: 0.04, blue: 0.30), Color(red: 0.11, green: 0.13, blue: 0.47)],
                            startPoint: .top, endPoint: .bottom)
@@ -140,13 +145,26 @@ struct PassportCard: View {
     }
 }
 
-/// The red card: time lost to delays and the average.
+/// The red card: time lost to delays and how late the delayed flights were. The whole card opens the
+/// delay stats page.
 struct DelaysCard: View {
     var stats: PassportStats
+    var onOpen: () -> Void = {}
+
+    static let soft = Color(red: 1.0, green: 0.70, blue: 0.68)
 
     var body: some View {
         let lost = TravelFacts.delayLost(stats.delayLost)
-        VStack(alignment: .leading, spacing: 0) {
+        Button(action: onOpen) { face() }
+            .buttonStyle(CardPressStyle())
+            .accessibilityLabel("All delay stats")
+            .accessibilityValue("\(lost.value) \(lost.caption)")
+    }
+
+    /// The card without its button, also the delay page's header and what it shares.
+    func face(row: Bool = true) -> some View {
+        let lost = TravelFacts.delayLost(stats.delayLost)
+        return VStack(alignment: .leading, spacing: 0) {
             Text(lost.value)
                 .scaledFont(64, weight: .bold)
                 .monospacedDigit()
@@ -155,69 +173,121 @@ struct DelaysCard: View {
             Text(lost.caption)
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(.white)
-            Text(TravelFacts.averageDelayLine(stats.avgDelayMinutes))
+            Text(TravelFacts.delayedAverageLine(stats.avgDelayedMinutes, delayed: stats.delayedFlights))
                 .scaledFont(17)
-                .foregroundStyle(Color(red: 1.0, green: 0.70, blue: 0.68))
+                .foregroundStyle(Self.soft)
                 .scaledPadding(.top, 4)
-        }
-        .scaledPadding(.horizontal, 22)
-        .scaledPadding(.top, 14)
-        .scaledPadding(.bottom, 22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            ZStack {
-                LinearGradient(colors: [Color(red: 0.62, green: 0.13, blue: 0.11), Color(red: 0.36, green: 0.07, blue: 0.08)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                RadialGradient(colors: [Color(red: 0.75, green: 0.30, blue: 0.24).opacity(0.5), .clear],
-                               center: UnitPoint(x: 1.0, y: 1.1), startRadius: 0, endRadius: 240)
+            if row {
+                CardRow(title: "All delay stats", fill: .white.opacity(0.13), ink: .white)
+                    .scaledPadding(.top, 18)
             }
-        )
+        }
+        .scaledPadding(.horizontal, 18)
+        .scaledPadding(.top, 14)
+        .scaledPadding(.bottom, row ? 16 : 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Self.background)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.10), lineWidth: 1))
-        .accessibilityElement(children: .combine)
+    }
+
+    static var background: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.62, green: 0.13, blue: 0.11), Color(red: 0.36, green: 0.07, blue: 0.08)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            RadialGradient(colors: [Color(red: 0.75, green: 0.30, blue: 0.24).opacity(0.5), .clear],
+                           center: UnitPoint(x: 1.0, y: 1.1), startRadius: 0, endRadius: 240)
+        }
     }
 }
 
-/// The pale card with the aircraft flown most.
+/// The pale card with the aircraft flown most, drawn for the airline that flew it most for the user.
+/// The whole card opens the aircraft stats page.
 struct AircraftCard: View {
-    @Environment(\.metricsScale) private var scale
-    var type: String
+    var typeCode: String
+    var type: AircraftType?
+    var airline: Airline?
     var count: Int
+    var onOpen: () -> Void = {}
 
-    private static let ink = Color(red: 0.11, green: 0.18, blue: 0.34)
+    static let ink = Color(red: 0.11, green: 0.18, blue: 0.34)
 
     var body: some View {
+        Button(action: onOpen) { face() }
+            .buttonStyle(CardPressStyle())
+            .accessibilityLabel("All aircraft stats")
+            .accessibilityValue("Most flown aircraft, \(name), \(flightsText)")
+    }
+
+    private var name: String { type?.name ?? TravelFacts.aircraftName(typeCode) }
+    private var flightsText: String { count == 1 ? "1 flight" : "\(count) flights" }
+
+    /// The card without its button, also the aircraft page's hero.
+    func face(row: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Most flown aircraft")
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(Self.ink)
-            Text(TravelFacts.aircraftName(type))
+            Text(name)
                 .scaledFont(32)
                 .foregroundStyle(Self.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .scaledPadding(.top, 2)
-            Text(count == 1 ? "1 flight" : "\(count) flights")
+            Text(flightsText)
                 .scaledFont(17)
                 .foregroundStyle(Self.ink.opacity(0.6))
                 .scaledPadding(.top, 2)
+            AircraftImage(type: type, airline: airline, height: 72)
+                .frame(maxWidth: .infinity)
+                .scaledPadding(.top, 14)
+            if row {
+                CardRow(title: "All aircraft stats", fill: Self.ink.opacity(0.07), ink: Self.ink)
+                    .scaledPadding(.top, 14)
+            }
         }
-        .scaledPadding(.horizontal, 22)
-        .scaledPadding(.vertical, 20)
+        .scaledPadding(.horizontal, 18)
+        .scaledPadding(.top, 20)
+        .scaledPadding(.bottom, row ? 16 : 22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .trailing) {
-            Image(systemName: "airplane")
-                .font(.system(size: Theme.metric(64, scale), weight: .light))
-                .foregroundStyle(Self.ink.opacity(0.12))
-                .scaledPadding(.trailing, 22)
-                .accessibilityHidden(true)
-        }
-        .background(
-            LinearGradient(colors: [Color(red: 0.87, green: 0.85, blue: 0.96), Color(red: 0.76, green: 0.85, blue: 0.95)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
+        .background(Self.background)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .accessibilityElement(children: .combine)
+    }
+
+    static var background: some View {
+        LinearGradient(colors: [Color(red: 0.87, green: 0.85, blue: 0.96), Color(red: 0.76, green: 0.85, blue: 0.95)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+/// The row at the foot of a Passport card: "All flight stats" and a chevron on a tinted bar. Part of
+/// the card's one button, not a button of its own.
+struct CardRow: View {
+    var title: String
+    var fill: Color
+    var ink: Color
+
+    var body: some View {
+        HStack {
+            Text(title).scaledFont(17, weight: .medium)
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").scaledFont(15, weight: .semibold).opacity(0.8)
+        }
+        .foregroundStyle(ink)
+        .scaledPadding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(fill))
+    }
+}
+
+/// A Passport card as a button: it dims and sinks a little while pressed.
+struct CardPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .brightness(configuration.isPressed ? -0.06 : 0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

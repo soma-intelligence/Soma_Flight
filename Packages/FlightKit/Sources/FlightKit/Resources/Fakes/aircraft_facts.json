@@ -1,0 +1,20 @@
+[
+  { "registration": "F-HTYB", "aircraft_type": "A359", "airline_icao": "AFR", "delivered_on": "2021-11-18", "name": null },
+  { "registration": "F-HTYM", "aircraft_type": "A359", "airline_icao": "AFR", "delivered_on": "2024-03-07", "name": null },
+  { "registration": "G-ZBKA", "aircraft_type": "B789", "airline_icao": "BAW", "delivered_on": "2015-06-22", "name": null },
+  { "registration": "G-ZBKD", "aircraft_type": "B789", "airline_icao": "BAW", "delivered_on": "2015-09-14", "name": null },
+  { "registration": "N2135U", "aircraft_type": "B77W", "airline_icao": "UAL", "delivered_on": "2017-03-30", "name": null },
+  { "registration": "N284AK", "aircraft_type": "B739", "airline_icao": "ASA", "delivered_on": "2016-05-12", "name": null },
+  { "registration": "N29975", "aircraft_type": "B789", "airline_icao": "UAL", "delivered_on": "2019-08-02", "name": null },
+  { "registration": "N3044J", "aircraft_type": "BCS3", "airline_icao": "JBU", "delivered_on": "2023-10-19", "name": null },
+  { "registration": "N3057J", "aircraft_type": "BCS3", "airline_icao": "JBU", "delivered_on": "2024-06-27", "name": null },
+  { "registration": "N370DN", "aircraft_type": "A321", "airline_icao": "DAL", "delivered_on": "2018-02-09", "name": null },
+  { "registration": "N37522", "aircraft_type": "B739", "airline_icao": "UAL", "delivered_on": "2009-04-16", "name": null },
+  { "registration": "N47280", "aircraft_type": "B39M", "airline_icao": "UAL", "delivered_on": "2026-03-12", "name": null },
+  { "registration": "N4901U", "aircraft_type": "A320", "airline_icao": "UAL", "delivered_on": "1994-07-28", "name": null },
+  { "registration": "N625QX", "aircraft_type": "E75L", "airline_icao": "QXE", "delivered_on": "2019-01-24", "name": null },
+  { "registration": "N7718B", "aircraft_type": "B737", "airline_icao": "SWA", "delivered_on": "2004-11-05", "name": null },
+  { "registration": "N8710M", "aircraft_type": "B38M", "airline_icao": "SWA", "delivered_on": "2018-09-20", "name": null },
+  { "registration": "N8731J", "aircraft_type": "B38M", "airline_icao": "SWA", "delivered_on": "2019-02-14", "name": null },
+  { "registration": "N905NN", "aircraft_type": "B738", "airline_icao": "AAL", "delivered_on": "2013-12-03", "name": null }
+]

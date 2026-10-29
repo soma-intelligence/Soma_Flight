@@ -9,6 +9,8 @@ public struct AppEnvironment: Sendable {
     public var auth: any AuthService
     public var history: any HistoryService
     public var push: any PushService
+    /// Airframe delivery dates and names for the Passport's ages; nil shows no ages.
+    public var aircraftFacts: (any AircraftFactsService)?
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -22,9 +24,10 @@ public struct AppEnvironment: Sendable {
     public init(flights: any FlightService, airports: any AirportService, auth: any AuthService,
                 history: any HistoryService, push: any PushService, cache: CacheStore,
                 directory: AirportDirectory = .bundled(), reference: ReferenceData = .bundled(),
-                recents: RecentsStorage = .memory, requiresSignIn: Bool = false) {
+                recents: RecentsStorage = .memory, requiresSignIn: Bool = false,
+                aircraftFacts: (any AircraftFactsService)? = nil) {
         self.flights = flights; self.airports = airports; self.auth = auth
-        self.history = history; self.push = push; self.cache = cache
+        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.cache = cache
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
@@ -32,7 +35,8 @@ public struct AppEnvironment: Sendable {
     /// Async because the SwiftData cache must be built off the main thread.
     @concurrent public static func fake(now: Date = .now) async throws -> AppEnvironment {
         AppEnvironment(flights: FakeFlightService(now: now), airports: FakeAirportService(now: now), auth: FakeAuthService(),
-                       history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.inMemory())
+                       history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.inMemory(),
+                       aircraftFacts: FakeAircraftFactsService())
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -54,7 +58,8 @@ public struct AppEnvironment: Sendable {
                               auth: SupabaseAuthService(backend: backend, push: push),
                               history: SupabaseHistoryService(backend: backend),
                               push: push, cache: cache, directory: directory,
-                              recents: recents, requiresSignIn: true)
+                              recents: recents, requiresSignIn: true,
+                              aircraftFacts: SupabaseAircraftFactsService(backend: backend))
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
@@ -94,7 +99,8 @@ public struct AppEnvironment: Sendable {
         MyFlightsStore(flights: flights, cache: cache.scoped(for: owner))
     }
     @MainActor public func makePassportStore(owner: UUID?) -> PassportStore {
-        PassportStore(history: history, cache: cache.scoped(for: owner))
+        PassportStore(history: history, cache: cache.scoped(for: owner), reference: reference, facts: aircraftFacts,
+                      airports: directory.lookup)
     }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }

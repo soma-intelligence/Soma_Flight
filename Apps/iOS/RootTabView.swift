@@ -89,6 +89,11 @@ struct RootTabView: View {
             SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), onFollowed: { _ in Task { await home.didFollow() } })
                 .environment(\.units, units)
         }
+        // A Passport card's page covers the whole screen, over the home sheet.
+        .fullScreenCover(item: $home.fullPage) { page in
+            FullPageView(page: page, store: home.passport, lookup: env.lookup) { home.fullPage = nil }
+                .environment(\.units, units)
+        }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
                           onDeleteAccount: { await home.session.deleteAccount() })
@@ -104,7 +109,7 @@ struct RootTabView: View {
                 MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                               lookup: env.lookup)
             case .passport:
-                PassportView(store: home.passport, lookup: env.lookup)
+                PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 })
             }
         }
         .overlay(alignment: .topTrailing) {

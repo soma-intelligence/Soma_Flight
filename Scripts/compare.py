@@ -12,6 +12,9 @@ cover, stacked, as docs/screens/compare/screen-airport-N.png.
 iOS shell screenshots (docs/screens/ios/NAME.png, simulator captures at half of @3x) are set
 beside the whole reference screen, also halved, as docs/screens/compare/ios-NAME.png.
 
+v1.1 iOS screenshots (docs/screens/ios/v2-NAME.png) are set beside the v1.1 references in
+.superpowers/ref-v2, as docs/screens/compare/v2-NAME.png (name them: `compare.py v2-passport-tab`).
+
 Mac shell screenshots (docs/screens/mac/NAME.png, window captures at @2x) are set beside the
 Mac reference window, also @2x, as docs/screens/compare/mac-NAME.png.
 
@@ -65,6 +68,29 @@ IOS_REFS = {
     "airport": "IMG_0294.PNG",
     "passport": "IMG_0310.PNG",
 }
+
+
+# v1.1 iOS captures (docs/screens/ios/v2-NAME.png, halved) beside the v1.1 references
+# (.superpowers/ref-v2/NN.png, git-ignored), also halved and stacked side by side, as
+# docs/screens/compare/v2-NAME.png. The delay page has no reference screen of its own: it sits beside
+# the Passport tab's delays card (52) for the card it grows from.
+REFS_V2 = ROOT / ".superpowers/ref-v2"
+V2_REFS = {
+    "passport-tab": ["52", "53"],
+    "delays": ["52"],
+}
+
+
+def compose_v2(name: str) -> Path:
+    refs = [Image.open(REFS_V2 / f"{n}.png").convert("RGB") for n in V2_REFS[name]]
+    refs = [r.resize((r.width // 2, r.height // 2), Image.LANCZOS) for r in refs]
+    left = Image.new("RGB", (sum(r.width for r in refs) + GAP * (len(refs) - 1), max(r.height for r in refs)), BG)
+    x = 0
+    for r in refs:
+        left.paste(r, (x, 0))
+        x += r.width + GAP
+    right = Image.open(IOS / f"v2-{name}.png").convert("RGB")
+    return side_by_side(left, right, OUT / f"v2-{name}.png")
 
 
 # Mac shell: our window capture beside the Mac reference window (fragments of the file names).
@@ -156,7 +182,9 @@ def main() -> None:
     args = ap.parse_args()
     for n in args.names:
         refs = Path(args.refs)
-        if n.startswith("mac-"):
+        if n.startswith("v2-"):
+            print(compose_v2(n.removeprefix("v2-")))
+        elif n.startswith("mac-"):
             print(compose_mac(n.removeprefix("mac-"), refs))
         elif n.startswith("ios-"):
             print(compose_ios(n.removeprefix("ios-"), refs))

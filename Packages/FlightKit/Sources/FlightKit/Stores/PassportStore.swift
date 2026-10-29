@@ -1,10 +1,13 @@
 import Foundation
 import Observation
+import FlightCore
 
 @MainActor @Observable
 public final class PassportStore {
-    /// nil = all time.
-    public var year: Int?
+    /// nil = all time. Changing it recomputes every figure.
+    public var year: Int? {
+        didSet { if year != oldValue { recompute() } }
+    }
     public private(set) var error: APIError?
     public private(set) var isOffline = false
     /// Save time of the cached history while offline, nil when the data is live.
@@ -13,22 +16,67 @@ public final class PassportStore {
     public private(set) var hasLoaded = false
     /// When the history was last confirmed: now after a successful load, the cache's save time while offline.
     public internal(set) var fetchedAt: Date?
-    private var all: [PastFlight] = []
+
+    /// The tab's totals for the chosen year (core `computePassport`).
+    public private(set) var stats: PassportStats = .empty
+    /// The full Passport figures for the chosen year (core `computePassportDetail`).
+    public private(set) var detail: PassportDetail = .empty
+    /// The aircraft figures for the chosen year (core `computeAircraftStats`).
+    public private(set) var aircraft: AircraftStats = .empty
+
+    private var all: [PastFlight] = [] {
+        didSet { remap() }
+    }
+    /// `all` as the core reads it: airlines as ICAO codes, countries filled from the airports.
+    private var mapped: [PastFlight] = []
+    private var core: [FlightCore.PastFlight] = []
+    private var facts: [AircraftFact] = []
+    /// The registrations `facts` was asked for, so a reload with the same tails does not ask again.
+    private var factsAskedFor: [String]?
 
     private let history: any HistoryService
     private let cache: (any PastFlightCache)?
+    private let reference: ReferenceData
+    private let factsService: (any AircraftFactsService)?
+    private let airport: @Sendable (String) -> Airport?
+    private let asOf: Date
+    private let countries: [FlightCore.CountryInfo]
+    private let types: [FlightCore.TypeInfo]
 
-    public init(history: any HistoryService, cache: (any PastFlightCache)? = nil) {
-        self.history = history; self.cache = cache
+    /// - Parameters:
+    ///   - reference: airlines (names mapped to ICAO), aircraft types and countries.
+    ///   - facts: airframe delivery dates for ages; nil means none, and the ages hide.
+    ///   - asOf: the day ages are counted to.
+    ///   - airports: where a flight's country comes from when the flight does not carry it.
+    public init(history: any HistoryService, cache: (any PastFlightCache)? = nil, reference: ReferenceData = .bundled(),
+                facts: (any AircraftFactsService)? = nil, asOf: Date = Date.now,
+                airports: (@Sendable (String) -> Airport?)? = nil) {
+        self.history = history; self.cache = cache; self.reference = reference
+        self.factsService = facts; self.asOf = asOf
+        self.airport = airports ?? AirportDirectory.bundled().lookup
+        countries = reference.countries.map(\.coreInfo)
+        types = reference.types.map(\.coreTypeInfo)
     }
 
     /// Flights in the selected year (by local departure date), newest first.
     public var flights: [PastFlight] {
         all.filter { year == nil || $0.localYear == year }.sorted { $0.date > $1.date }
     }
-    public var stats: PassportStats { PassportStats.compute(all, year: year) }
     /// Years with at least one flight, newest first.
     public var years: [Int] { Array(Set(all.map(\.localYear))).sorted(by: >) }
+
+    /// The selected year's flights that left latest, most late first, ten at most (the delay page's list).
+    public var mostDelayed: [PastFlight] { PassportPicks.mostDelayed(flights) }
+
+    /// The most flown aircraft type of the year, from the reference list when it knows the designator.
+    public var mostFlownType: AircraftType? { aircraft.mostFlown.flatMap { reference.type($0.icaoType) } }
+
+    /// The airline that flew the most flown type most often for this user: whose livery the card shows.
+    public var mostFlownAirline: Airline? {
+        guard let type = aircraft.mostFlown?.icaoType else { return nil }
+        let inYear = mapped.filter { year == nil || $0.localYear == year }
+        return PassportPicks.topAirline(for: type, in: inYear).flatMap { reference.airline($0) }
+    }
 
     public func load() async {
         if all.isEmpty, let cache {
@@ -46,5 +94,40 @@ public final class PassportStore {
             hasLoaded = true
             if isOffline, let cache { lastUpdated = await cache.pastSavedAt(); fetchedAt = lastUpdated }
         }
+        await loadFacts()
+    }
+
+    // MARK: Figures
+
+    private func loadFacts() async {
+        guard let factsService else { return }
+        let regs = Array(Set(all.compactMap(\.registration).filter { !$0.isEmpty })).sorted()
+        guard regs != factsAskedFor else { return }
+        factsAskedFor = regs
+        let got = regs.isEmpty ? [] : await factsService.facts(regs)
+        // A newer load may have asked for other tails meanwhile; its answer wins.
+        guard factsAskedFor == regs else { return }
+        facts = got
+        recompute()
+    }
+
+    private func remap() {
+        mapped = all.map { f in
+            var m = f
+            if let name = f.airline, let hit = reference.airline(name) { m.airline = hit.id }
+            m.originCountry = f.originCountry ?? airport(f.originIcao)?.country
+            m.destinationCountry = f.destinationCountry ?? airport(f.destinationIcao)?.country
+            return m
+        }
+        core = mapped.map(\.coreFlight)
+        recompute()
+    }
+
+    private func recompute() {
+        let y = year.map(Int32.init)
+        stats = PassportStats.compute(core: core, year: year)
+        detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)
+        aircraft = FlightCore.computeAircraftStats(flights: core, year: y, types: types, facts: facts.map(\.coreFact),
+                                                   asOf: Int64(asOf.timeIntervalSince1970))
     }
 }

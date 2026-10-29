@@ -7,6 +7,28 @@ public enum HomeTab: String, Hashable, Sendable {
     case flights, passport
 }
 
+/// A Passport page that opens over the whole home (full screen on iOS, a sheet on the Mac) from one of
+/// the Passport tab's cards.
+public enum FullPage: String, Identifiable, Hashable, Sendable, CaseIterable {
+    /// Every flight figure, from the passport card.
+    case passport
+    /// Time lost to delays and the latest flights, from the delays card.
+    case delays
+    /// Types, tails, seats and ages, from the most flown aircraft card.
+    case aircraftStats
+
+    public var id: String { rawValue }
+
+    /// The page's title in its top bar.
+    public var title: String {
+        switch self {
+        case .passport: "Soma Flight Passport"
+        case .delays: "Delay stats"
+        case .aircraftStats: "Aircraft stats"
+        }
+    }
+}
+
 /// What both shells share around the globe: the session, the My Flights and Passport stores, the
 /// navigation of the panel, the tab, and what the globe draws and looks at. The iOS sheet and the Mac
 /// sidebar only lay it out.
@@ -25,6 +47,8 @@ public final class HomeModel {
     public let shell = ShellModel()
     /// The section on show.
     public var tab: HomeTab = .flights
+    /// The Passport page open over the home, if any.
+    public var fullPage: FullPage?
     /// The account the two stores were built for.
     @ObservationIgnored private var storesOwner: UUID?
     /// Notification permission and token registration; nil until the shell calls `attachPush`.
@@ -157,6 +181,7 @@ public final class HomeModel {
     /// before publishing it, so the rebuilt stores never read the previous account's.
     public func userChanged() {
         shell.reset()
+        fullPage = nil
         rebuildStores()
         // Signed out too (nil): a sign-in as the same account later registers the token again.
         push?.accountChanged(owner: owner)
@@ -290,10 +315,16 @@ public final class HomeModel {
     #endif
 
     /// Opens a screen without taps, for screenshot runs: `-tab passport`, `-open flight` (the first one
-    /// in the air) or `-open airport:KAUS`, and on iOS `-detent large` or `-detent small`. Call after the
-    /// first load, from DEBUG builds only.
+    /// in the air) or `-open airport:KAUS`, `-fullPage passport|delays|aircraftStats` (the Passport tab
+    /// with that page over it), `-year 2025` (the Passport's year), and on iOS `-detent large` or
+    /// `-detent small`. Call after the first load, from DEBUG builds only.
     public func applyLaunchArguments(_ args: UserDefaults = .standard) {
         if let tab = args.string(forKey: "tab").flatMap(HomeTab.init(rawValue:)) { self.tab = tab }
+        if args.object(forKey: "year") != nil { passport.year = args.integer(forKey: "year") }
+        if let page = args.string(forKey: "fullPage").flatMap(FullPage.init(rawValue:)) {
+            tab = .passport
+            fullPage = page
+        }
         switch args.string(forKey: "detent") {
         case "large": shell.detent = .large
         case "small": shell.detent = ShellModel.collapsed

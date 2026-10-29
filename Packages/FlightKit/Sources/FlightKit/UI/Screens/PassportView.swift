@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The travel record: year chips, the passport card with lifetime or yearly totals, time lost to
-/// delays, the aircraft flown most, and every past flight, sortable. The route arcs live on the
+/// delays, the aircraft flown most, and every past flight, sortable. Each card opens its full page. The route arcs live on the
 /// shell's globe, not here. Pull to refresh reloads; the shell calls `store.load()` when the tab opens.
 /// Before the first load finishes it shows a spinner, and after a failed load with nothing saved only
 /// the error banner with its retry. Offline it shows the age of the saved copy, online a badge once the
@@ -11,6 +11,7 @@ public struct PassportView: View {
     var lookup: (String) -> Airport?
     var fixedNow: Date?
     var scrolls: Bool
+    var onOpen: (FullPage) -> Void
 
     @State private var sort: TravelFacts.Sort = .date
     @Environment(\.units) private var units
@@ -18,12 +19,15 @@ public struct PassportView: View {
     /// - Parameters:
     ///   - lookup: airport by ICAO for city names and local dates in the list.
     ///   - now: a fixed clock for previews; nil follows the real time.
-    public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil) {
-        self.init(store: store, lookup: lookup, now: now, scrolls: true)
+    ///   - onOpen: a card was tapped; the shell presents that page over the home (`HomeModel.fullPage`).
+    public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
+                onOpen: @escaping (FullPage) -> Void = { _ in }) {
+        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen)
     }
 
-    init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool) {
-        self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls
+    init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
+         onOpen: @escaping (FullPage) -> Void = { _ in }) {
+        self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls; self.onOpen = onOpen
     }
 
     /// The offline copy turns amber after a day.
@@ -72,10 +76,11 @@ public struct PassportView: View {
                     emptyState
                 }
             } else {
-                PassportCard(stats: stats, year: store.year, since: store.years.last, units: units)
-                DelaysCard(stats: stats)
-                if let most = stats.mostFlownAircraft {
-                    AircraftCard(type: most.type, count: most.count)
+                PassportCard(stats: stats, year: store.year, units: units) { onOpen(.passport) }
+                DelaysCard(stats: stats) { onOpen(.delays) }
+                if let most = store.aircraft.mostFlown {
+                    AircraftCard(typeCode: most.icaoType, type: store.mostFlownType, airline: store.mostFlownAirline,
+                                 count: Int(most.flights)) { onOpen(.aircraftStats) }
                 }
                 PastFlightsSection(flights: flights, lookup: lookup, sort: $sort)
                     .scaledPadding(.horizontal, -16)

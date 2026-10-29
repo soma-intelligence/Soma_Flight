@@ -11,17 +11,22 @@ public struct PassportStats: Equatable, Sendable {
     public var airlines: Int
     public var delayLost: Duration
     public var avgDelayMinutes: Int
+    /// Flights that left 15 minutes late or more (the core's threshold).
+    public var delayedFlights: Int
+    /// Mean delay of those flights, whole minutes.
+    public var avgDelayedMinutes: Int
     public var mostFlownAircraft: (type: String, count: Int)?
     public var routes: [(String, String)]
 
     public static let empty = PassportStats(
         flights: 0, longHaul: 0, distanceKm: 0, flightTime: .zero, airports: 0, airlines: 0,
-        delayLost: .zero, avgDelayMinutes: 0, mostFlownAircraft: nil, routes: [])
+        delayLost: .zero, avgDelayMinutes: 0, delayedFlights: 0, avgDelayedMinutes: 0, mostFlownAircraft: nil, routes: [])
 
     public static func == (a: PassportStats, b: PassportStats) -> Bool {
         a.flights == b.flights && a.longHaul == b.longHaul && a.distanceKm == b.distanceKm
             && a.flightTime == b.flightTime && a.airports == b.airports && a.airlines == b.airlines
             && a.delayLost == b.delayLost && a.avgDelayMinutes == b.avgDelayMinutes
+            && a.delayedFlights == b.delayedFlights && a.avgDelayedMinutes == b.avgDelayedMinutes
             && a.mostFlownAircraft?.type == b.mostFlownAircraft?.type
             && a.mostFlownAircraft?.count == b.mostFlownAircraft?.count
             && a.routes.count == b.routes.count
@@ -33,12 +38,17 @@ public struct PassportStats: Equatable, Sendable {
     /// The core owns the calendar rules, so the `calendar` argument is accepted for call-site
     /// symmetry and not used.
     public static func compute(_ flights: [PastFlight], year: Int?, calendar: Calendar = .current) -> PassportStats {
-        let core = flights.map { $0.coreFlight }
+        compute(core: flights.map { $0.coreFlight }, year: year)
+    }
+
+    /// The same over flights already in the core's shape (the store maps them once per load).
+    static func compute(core: [FlightCore.PastFlight], year: Int?) -> PassportStats {
         let r = FlightCore.computePassport(flights: core, year: year.map(Int32.init))
         return PassportStats(
             flights: Int(r.flights), longHaul: Int(r.longHaul), distanceKm: Int(r.distanceKm),
             flightTime: .seconds(Int64(r.flightMinutes) * 60), airports: Int(r.airports), airlines: Int(r.airlines),
             delayLost: .seconds(Int64(r.delayLostMinutes) * 60), avgDelayMinutes: Int(r.avgDelayMinutes),
+            delayedFlights: Int(r.delayedFlights), avgDelayedMinutes: Int(r.avgDelayedMinutes),
             mostFlownAircraft: r.mostFlownAircraft.map { (type: $0.aircraftType, count: Int($0.count)) },
             routes: r.routes.map { ($0.origin, $0.destination) })
     }

@@ -60,6 +60,13 @@ struct RootSidebarView: View {
                 #endif
             }
             .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
+            // A Passport card's page opens as a sheet over the window.
+            .sheet(item: Binding(get: { home.fullPage }, set: { home.fullPage = $0 })) { page in
+                FullPageView(page: page, store: home.passport, lookup: env.lookup) { home.fullPage = nil }
+                    .environment(\.units, units)
+                    .environment(\.metricsScale, Self.metricsScale)
+                    .frame(minWidth: 460, idealWidth: 520, minHeight: 640, idealHeight: 760)
+            }
             .environment(\.units, units)
     }
 
@@ -112,7 +119,7 @@ struct RootSidebarView: View {
                     MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                                   lookup: env.lookup)
                 case .passport:
-                    PassportView(store: home.passport, lookup: env.lookup)
+                    PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 })
                 }
             }
         }
