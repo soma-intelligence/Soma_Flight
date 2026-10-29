@@ -1,0 +1,75 @@
+{
+  "icao": "KAUS",
+  "kind": "stats",
+  "fetched_at": "2026-11-03T16:00:00.000Z",
+  "stale": false,
+  "departures": {
+    "total": 4,
+    "onTime": 2,
+    "delayed15": 1,
+    "canceled": 1,
+    "avgDelayMinutes": 6.333333333333333,
+    "perHour": [
+      {
+        "hour": 1793710800,
+        "onTime": 0,
+        "late15": 0,
+        "late45": 0,
+        "canceled": 1,
+        "diverted": 0
+      },
+      {
+        "hour": 1793714400,
+        "onTime": 1,
+        "late15": 0,
+        "late45": 0,
+        "canceled": 0,
+        "diverted": 0
+      },
+      {
+        "hour": 1793718000,
+        "onTime": 1,
+        "late15": 1,
+        "late45": 0,
+        "canceled": 0,
+        "diverted": 0
+      }
+    ],
+    "worstRoutes": [
+      {
+        "icao": "KDEN",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "icao": "KSEA",
+        "delayed": 0,
+        "canceled": 1
+      }
+    ],
+    "worstAirlines": [
+      {
+        "operator": "DL",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "operator": "WN",
+        "delayed": 1,
+        "canceled": 0
+      }
+    ],
+    "severity": "major"
+  },
+  "arrivals": {
+    "total": 0,
+    "onTime": 0,
+    "delayed15": 0,
+    "canceled": 0,
+    "avgDelayMinutes": 0,
+    "perHour": [],
+    "worstRoutes": [],
+    "worstAirlines": [],
+    "severity": "normal"
+  }
+}

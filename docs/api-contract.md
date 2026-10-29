@@ -1,0 +1,473 @@
+# Backend API contract
+
+Base URL: `<project>/functions/v1/<name>`. Every endpoint except `aeroapi-webhook` and `push-sender` needs
+`Authorization: Bearer <user JWT>`. Errors are `{ "error": { "code", "message" } }` with codes
+`unauthorized` (401), `invalid_request` (400/405), `not_found` (404), `rate_limited` (429),
+`plan_limit` (403), `provider_unavailable` (503 or 500 for internal errors).
+
+Decoding: `FlightJSON.decoder` (snake_case keys converted, ISO 8601 dates with or without milliseconds).
+Keys that are already camelCase (stats, weather) pass through unchanged. The backend always writes
+dates as `YYYY-MM-DDTHH:mm:ss.sssZ`. Exceptions are the `hour` of an `HourBucket`, which is integer epoch
+seconds (the Rust core emits it that way and `HourBucket` decodes `Int64`).
+
+## Endpoints
+
+| Endpoint | Method | Body or query | Answer |
+| --- | --- | --- | --- |
+| `flight-lookup` | POST | `{ ident }` or `{ origin, destination }`, plus `date` | `{ flights: [Flight] }` |
+| `follow-flight` | POST, DELETE | `{ flightId, notify? }` (DELETE: `{ flightId }`) | `{ ok: true }` |
+| `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
+| `airport-board` | GET | `airport`, `kind` (below) | see below |
+| `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
+| `push-sender` | POST | `{ flightId, eventId }` | service role only |
+
+The rows above the line are summaries; the sources are the header comments in each `handler.ts`.
+
+## airport-board
+
+`GET /airport-board?airport=<IATA or ICAO>&kind=departures|arrivals|stats|weather`
+
+- `airport`: 3 characters are an IATA code, 4 an ICAO code (FAA local ids of 3 characters are not accepted). Unknown code: 400.
+- `kind`: `departures`, `arrivals`, `stats` or `weather`.
+- Limit: 120 calls per user per hour (429 `rate_limited`).
+- Every answer: `icao`, `kind`, `fetched_at`, `stale`, plus a body that depends on the kind.
+- Freshness: boards and stats 5 minutes, weather 15 minutes. An older snapshot is refreshed on read (no cron).
+  One request per airport and kind refreshes; concurrent ones get the old snapshot with `stale: true`.
+  When the provider fails, the old snapshot is returned with `stale: true` and its original `fetched_at`.
+  With no snapshot at all the answer is 503 `provider_unavailable`.
+- `stats` serves both directions in one call, matching `AirportService.stats(_:)`; there is no direction
+  parameter and no top-level severity (each `DelayStats` has its own).
+
+| kind | body | Swift |
+| --- | --- | --- |
+| `departures`, `arrivals` | `flights: [Flight]` | `AirportBoard` |
+| `stats` | `departures: DelayStats`, `arrivals: DelayStats` | `AirportService.stats` tuple |
+| `weather` | `weather: Weather` | `AirportService.weather` tuple |
+
+Rules the app can rely on:
+
+- **Board `Flight.id`** is a UUID v5 of `provider_id` (the AeroAPI `fa_flight_id`) under the namespace
+  `7b3e1c4a-5d2f-4e8b-9a61-0c3f5d7e9b21`. It is stable across refreshes. It is not `flights.id`: boards are
+  not stored in `flights`. Use `provider_id` to link to a followed flight.
+- Board rows have no position. `origin_icao` and `destination_icao` are never null: the viewed airport fills
+  its own side when the provider omits it, and a row with an unknown other side is dropped.
+- **Stats** count only flights scheduled at or before the moment the stats were computed. Flights that have not left
+  are left out of every figure, including `total`, `onTime` and the cancellation ratio, and out of `perHour`
+  (`HourBucket` has no field for them). Rows with no scheduled time or no other airport are left out too.
+  `severity` is `major` at 45 minutes average delay or 10% canceled, `moderate` at 15 minutes.
+  `stats.fetched_at` is the older board's time.
+- **Weather** is the newest METAR (or SPECI) and TAF. `windDirDeg` is null for variable (`VRB`) or calm wind
+  (calm also has `windKt: 0`). `ceilingFt` is the lowest broken, overcast or vertical visibility layer, null
+  when there is none. `visibilitySm` reads `10+` as 10. `category` comes from the Rust core (FAA thresholds),
+  or from the feed when visibility is missing. Forecast periods without a time range or a category are left
+  out. An airport with no usable METAR is 404 `not_found`; a failed METAR request is never cached (the old
+  snapshot is served stale, or 503).
+
+The example files below are generated from the handler by `airport-board/index_test.ts`
+(`UPDATE_CONTRACT=1 deno test -A supabase/functions/airport-board` rewrites them) and live in
+`supabase/functions/airport-board/contract/`. Swift decodes the same files.
+
+### kind=departures
+
+`contract/departures.json`
+
+```json
+{
+  "icao": "KAUS",
+  "kind": "departures",
+  "fetched_at": "2026-11-03T16:00:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "provider_id": "UAL1630-1793500000-schedule-0001p",
+      "ident": "UA1630",
+      "operator": "UA",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KLAX",
+      "destination_iata": "LAX",
+      "scheduled_out": "2026-11-03T14:40:00.000Z",
+      "scheduled_in": "2026-11-03T17:45:00.000Z",
+      "estimated_out": "2026-11-03T14:44:00.000Z",
+      "estimated_in": "2026-11-03T17:50:00.000Z",
+      "actual_out": "2026-11-03T14:44:00.000Z",
+      "actual_off": "2026-11-03T14:58:00.000Z",
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "7",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "B739",
+      "registration": "N27263",
+      "status": "en_route",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "9f849cb8-b065-5a02-9d37-3a28db71e0de"
+    },
+    {
+      "provider_id": "DAL1744-1793500000-schedule-0005p",
+      "ident": "DL1744",
+      "operator": "DL",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KSEA",
+      "destination_iata": "SEA",
+      "scheduled_out": "2026-11-03T13:50:00.000Z",
+      "scheduled_in": "2026-11-03T17:40:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "9",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "A321",
+      "registration": "N817DN",
+      "status": "canceled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "dd9f2373-ba31-5de5-bf20-69a828460a3b"
+    },
+    {
+      "provider_id": "AAL2417-1793500000-schedule-0004p",
+      "ident": "AA2417",
+      "operator": "AA",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KDFW",
+      "destination_iata": "DFW",
+      "scheduled_out": "2026-11-03T15:05:00.000Z",
+      "scheduled_in": "2026-11-03T16:20:00.000Z",
+      "estimated_out": "2026-11-03T15:05:00.000Z",
+      "estimated_in": "2026-11-03T16:20:00.000Z",
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "B6",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "A321",
+      "registration": "N845NN",
+      "status": "scheduled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "04d75c9f-d994-5448-9fb1-d7ed579b59ce"
+    },
+    {
+      "provider_id": "SWA1182-1793500000-schedule-0003p",
+      "ident": "WN1182",
+      "operator": "WN",
+      "origin_icao": "KAUS",
+      "origin_iata": "AUS",
+      "destination_icao": "KDEN",
+      "destination_iata": "DEN",
+      "scheduled_out": "2026-11-03T15:20:00.000Z",
+      "scheduled_in": "2026-11-03T17:15:00.000Z",
+      "estimated_out": "2026-11-03T15:35:00.000Z",
+      "estimated_in": "2026-11-03T17:30:00.000Z",
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "12",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "B38M",
+      "registration": "N8741Q",
+      "status": "scheduled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "b35862f4-5dbc-50c2-84ca-49e9575a61e8"
+    }
+  ]
+}
+```
+
+### kind=arrivals
+
+`contract/arrivals.json` has the same shape as departures, seen from the other end (`destination_icao` is the viewed airport).
+
+```json
+{
+  "icao": "KAUS",
+  "kind": "arrivals",
+  "fetched_at": "2026-11-03T16:00:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "provider_id": "UAL1630-1793500000-schedule-0001p",
+      "ident": "UA1630",
+      "operator": "UA",
+      "origin_icao": "KLAX",
+      "origin_iata": "LAX",
+      "destination_icao": "KAUS",
+      "destination_iata": "AUS",
+      "scheduled_out": "2026-11-03T14:40:00.000Z",
+      "scheduled_in": "2026-11-03T17:45:00.000Z",
+      "estimated_out": "2026-11-03T14:44:00.000Z",
+      "estimated_in": "2026-11-03T17:50:00.000Z",
+      "actual_out": "2026-11-03T14:44:00.000Z",
+      "actual_off": "2026-11-03T14:58:00.000Z",
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "7",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "B739",
+      "registration": "N27263",
+      "status": "en_route",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "9f849cb8-b065-5a02-9d37-3a28db71e0de"
+    },
+    {
+      "provider_id": "DAL1744-1793500000-schedule-0005p",
+      "ident": "DL1744",
+      "operator": "DL",
+      "origin_icao": "KSEA",
+      "origin_iata": "SEA",
+      "destination_icao": "KAUS",
+      "destination_iata": "AUS",
+      "scheduled_out": "2026-11-03T13:50:00.000Z",
+      "scheduled_in": "2026-11-03T17:40:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "9",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "A321",
+      "registration": "N817DN",
+      "status": "canceled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "dd9f2373-ba31-5de5-bf20-69a828460a3b"
+    },
+    {
+      "provider_id": "AAL2417-1793500000-schedule-0004p",
+      "ident": "AA2417",
+      "operator": "AA",
+      "origin_icao": "KDFW",
+      "origin_iata": "DFW",
+      "destination_icao": "KAUS",
+      "destination_iata": "AUS",
+      "scheduled_out": "2026-11-03T15:05:00.000Z",
+      "scheduled_in": "2026-11-03T16:20:00.000Z",
+      "estimated_out": "2026-11-03T15:05:00.000Z",
+      "estimated_in": "2026-11-03T16:20:00.000Z",
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "B6",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "A321",
+      "registration": "N845NN",
+      "status": "scheduled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "04d75c9f-d994-5448-9fb1-d7ed579b59ce"
+    },
+    {
+      "provider_id": "SWA1182-1793500000-schedule-0003p",
+      "ident": "WN1182",
+      "operator": "WN",
+      "origin_icao": "KDEN",
+      "origin_iata": "DEN",
+      "destination_icao": "KAUS",
+      "destination_iata": "AUS",
+      "scheduled_out": "2026-11-03T15:20:00.000Z",
+      "scheduled_in": "2026-11-03T17:15:00.000Z",
+      "estimated_out": "2026-11-03T15:35:00.000Z",
+      "estimated_in": "2026-11-03T17:30:00.000Z",
+      "actual_out": null,
+      "actual_off": null,
+      "actual_on": null,
+      "actual_in": null,
+      "gate_origin": "12",
+      "gate_destination": null,
+      "terminal_origin": "Main",
+      "terminal_destination": null,
+      "baggage_belt": null,
+      "aircraft_type": "B38M",
+      "registration": "N8741Q",
+      "status": "scheduled",
+      "updated_at": "2026-11-03T16:00:00.000Z",
+      "id": "b35862f4-5dbc-50c2-84ca-49e9575a61e8"
+    }
+  ]
+}
+```
+
+### kind=stats
+
+`contract/stats.json`
+
+```json
+{
+  "icao": "KAUS",
+  "kind": "stats",
+  "fetched_at": "2026-11-03T16:00:00.000Z",
+  "stale": false,
+  "departures": {
+    "total": 4,
+    "onTime": 2,
+    "delayed15": 1,
+    "canceled": 1,
+    "avgDelayMinutes": 6.333333333333333,
+    "perHour": [
+      {
+        "hour": 1793710800,
+        "onTime": 0,
+        "late15": 0,
+        "late45": 0,
+        "canceled": 1,
+        "diverted": 0
+      },
+      {
+        "hour": 1793714400,
+        "onTime": 1,
+        "late15": 0,
+        "late45": 0,
+        "canceled": 0,
+        "diverted": 0
+      },
+      {
+        "hour": 1793718000,
+        "onTime": 1,
+        "late15": 1,
+        "late45": 0,
+        "canceled": 0,
+        "diverted": 0
+      }
+    ],
+    "worstRoutes": [
+      {
+        "icao": "KDEN",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "icao": "KSEA",
+        "delayed": 0,
+        "canceled": 1
+      }
+    ],
+    "worstAirlines": [
+      {
+        "operator": "DL",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "operator": "WN",
+        "delayed": 1,
+        "canceled": 0
+      }
+    ],
+    "severity": "major"
+  },
+  "arrivals": {
+    "total": 0,
+    "onTime": 0,
+    "delayed15": 0,
+    "canceled": 0,
+    "avgDelayMinutes": 0,
+    "perHour": [],
+    "worstRoutes": [],
+    "worstAirlines": [],
+    "severity": "normal"
+  }
+}
+```
+
+### kind=weather
+
+`contract/weather.json`
+
+```json
+{
+  "icao": "KAUS",
+  "kind": "weather",
+  "fetched_at": "2026-11-03T16:00:00.000Z",
+  "stale": false,
+  "weather": {
+    "metarRaw": "SPECI KAUS 291744Z VRB03KT 10SM -RA BKN009 BKN026 BKN046 OVC130 22/20 A3015 RMK AO2 P0001 T02170200",
+    "tafRaw": "TAF KAUS 291730Z 2918/3024 10003KT P6SM -RA SCT015 BKN025 OVC100 FM292100 08007KT P6SM VCSH SCT040 OVC100 FM300000 09003KT P6SM OVC040 FM301500 10006KT 6SM -RA BR OVC050 FM301900 10005KT 3SM -RA BR OVC009",
+    "tempC": 21.7,
+    "windDirDeg": null,
+    "windKt": 3,
+    "gustKt": null,
+    "visibilitySm": 10,
+    "ceilingFt": 900,
+    "category": "IFR",
+    "observedAt": "2026-10-29T17:44:00.000Z",
+    "forecast": [
+      {
+        "from": "2026-10-29T18:00:00.000Z",
+        "to": "2026-10-29T21:00:00.000Z",
+        "category": "MVFR",
+        "windDirDeg": 100,
+        "windKt": 3,
+        "gustKt": null,
+        "visibilitySm": 6,
+        "ceilingFt": 2500
+      },
+      {
+        "from": "2026-10-29T21:00:00.000Z",
+        "to": "2026-10-30T00:00:00.000Z",
+        "category": "VFR",
+        "windDirDeg": 80,
+        "windKt": 7,
+        "gustKt": null,
+        "visibilitySm": 6,
+        "ceilingFt": 10000
+      },
+      {
+        "from": "2026-10-30T00:00:00.000Z",
+        "to": "2026-10-30T15:00:00.000Z",
+        "category": "VFR",
+        "windDirDeg": 90,
+        "windKt": 3,
+        "gustKt": null,
+        "visibilitySm": 6,
+        "ceilingFt": 4000
+      },
+      {
+        "from": "2026-10-30T15:00:00.000Z",
+        "to": "2026-10-30T19:00:00.000Z",
+        "category": "VFR",
+        "windDirDeg": 100,
+        "windKt": 6,
+        "gustKt": null,
+        "visibilitySm": 6,
+        "ceilingFt": 5000
+      },
+      {
+        "from": "2026-10-30T19:00:00.000Z",
+        "to": "2026-10-31T00:00:00.000Z",
+        "category": "IFR",
+        "windDirDeg": 100,
+        "windKt": 5,
+        "gustKt": null,
+        "visibilitySm": 3,
+        "ceilingFt": 900
+      }
+    ]
+  }
+}
+```

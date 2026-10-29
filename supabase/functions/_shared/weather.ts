@@ -13,55 +13,33 @@ export interface CloudLayer {
   baseFt: number | null;
 }
 
-export interface MetarObservation {
-  raw: string;
-  /** ISO 8601 observation time. */
-  observedAt: string | null;
-  /** Degrees, "VRB" for variable, null when not reported. */
-  windDirection: number | "VRB" | null;
+/** Wire shape of one forecast period: FlightKit `ForecastPeriod`, camelCase keys, ISO 8601 dates. */
+export interface ForecastPeriod {
+  from: string;
+  to: string;
+  category: FlightCategory;
+  /** Null for variable or calm wind. */
+  windDirDeg: number | null;
   windKt: number | null;
   gustKt: number | null;
-  /** Statute miles; "10+" is 10. Null when not reported. */
   visibilitySm: number | null;
   /** Lowest BKN, OVC or VV layer in feet, null when there is none. */
   ceilingFt: number | null;
-  clouds: CloudLayer[];
-  weather: string | null;
-  tempC: number | null;
-  dewpointC: number | null;
-  altimeterHpa: number | null;
-  /** From the core (FAA thresholds). Null when visibility is not reported. */
-  category: FlightCategory | null;
 }
 
-export interface TafPeriod {
-  from: string;
-  to: string;
-  /** FM, BECMG, TEMPO or PROB when the period is a change group, null for the base period. */
-  change: string | null;
-  probability: number | null;
-  windDirection: number | "VRB" | null;
+/** Wire shape of the weather snapshot: FlightKit `Weather`. */
+export interface Weather {
+  metarRaw: string;
+  tafRaw: string | null;
+  tempC: number | null;
+  windDirDeg: number | null;
   windKt: number | null;
   gustKt: number | null;
   visibilitySm: number | null;
   ceilingFt: number | null;
-  clouds: CloudLayer[];
-  weather: string | null;
-  category: FlightCategory | null;
-}
-
-export interface Taf {
-  raw: string;
-  issuedAt: string | null;
-  validFrom: string | null;
-  validTo: string | null;
-  periods: TafPeriod[];
-}
-
-export interface Weather {
-  icao: string;
-  metar: MetarObservation | null;
-  taf: Taf | null;
+  category: FlightCategory;
+  observedAt: string;
+  forecast: ForecastPeriod[];
 }
 
 type Json = Record<string, unknown>;
@@ -118,9 +96,16 @@ export function ceilingOf(
   return bases.length ? Math.min(...bases) : null;
 }
 
-function windDirection(v: unknown): number | "VRB" | null {
-  if (v === "VRB") return "VRB";
-  return num(v);
+const CATEGORIES: readonly string[] = ["VFR", "MVFR", "IFR", "LIFR"];
+
+/**
+ * Vertical visibility from a TAF or METAR period. UNVERIFIED unit: the feed may give feet or
+ * hundreds of feet (VV002). VV is never above 10,000 ft, so values up to 100 are read as hundreds.
+ */
+function verticalVisibilityFt(v: unknown): number | null {
+  const n = num(v);
+  if (n === null) return null;
+  return n <= 100 ? n * 100 : n;
 }
 
 function isoOfEpoch(v: unknown): string | null {
@@ -128,68 +113,89 @@ function isoOfEpoch(v: unknown): string | null {
   return n === null ? null : new Date(n * 1000).toISOString();
 }
 
+const int = (n: number | null) => n === null ? null : Math.round(n);
+
+/** Variable ("VRB") and calm wind have no direction in the app. */
+function windDirDeg(dir: unknown, speedKt: number | null): number | null {
+  if (dir === "VRB" || speedKt === null || speedKt === 0) return null;
+  const n = num(dir);
+  return n === null ? null : Math.round(n);
+}
+
 function categoryOf(
   ceilingFt: number | null,
   visibilitySm: number | null,
 ): FlightCategory | null {
   if (visibilitySm === null) return null;
-  return flightCategory(
-    ceilingFt === null ? null : Math.round(ceilingFt),
-    visibilitySm,
-  );
+  return flightCategory(int(ceilingFt), visibilitySm);
 }
 
-export function parseMetar(o: Json): MetarObservation {
+const newest = (list: Json[], key: string) =>
+  [...list].sort((a, b) => (num(b[key]) ?? 0) - (num(a[key]) ?? 0))[0];
+
+function parsePeriods(t: Json): ForecastPeriod[] {
+  const fcsts = Array.isArray(t.fcsts) ? t.fcsts as Json[] : [];
+  const out: ForecastPeriod[] = [];
+  for (const f of fcsts) {
+    const from = isoOfEpoch(f.timeFrom);
+    const to = isoOfEpoch(f.timeTo);
+    const clouds = layers(f.clouds);
+    const ceilingFt = int(ceilingOf(clouds, verticalVisibilityFt(f.vertVis)));
+    const visibilitySm = parseVisibility(f.visib);
+    const category = categoryOf(ceilingFt, visibilitySm);
+    // The app needs a time range and a category: leave out what cannot be shown.
+    if (!from || !to || !category) continue;
+    const windKt = int(num(f.wspd));
+    out.push({
+      from,
+      to,
+      category,
+      windDirDeg: windDirDeg(f.wdir, windKt),
+      windKt,
+      gustKt: int(num(f.wgst)),
+      visibilitySm,
+      ceilingFt,
+    });
+  }
+  return out;
+}
+
+/** The newest METAR/SPECI becomes the snapshot; null when it cannot fill the app's required fields. */
+export function toWeather(metars: Json[], tafs: Json[]): Weather | null {
+  if (metars.length === 0) return null;
+  const o = newest(metars, "obsTime");
+  const observedAt = isoOfEpoch(o.obsTime) ??
+    (typeof o.reportTime === "string" ? o.reportTime : null);
+  const metarRaw = typeof o.rawOb === "string" ? o.rawOb : "";
   const clouds = layers(o.clouds);
-  const ceilingFt = ceilingOf(clouds, num(o.vertVis));
+  const ceilingFt = int(ceilingOf(clouds, verticalVisibilityFt(o.vertVis)));
   const visibilitySm = parseVisibility(o.visib);
+  // Without visibility fall back to the feed's own category.
+  const category = categoryOf(ceilingFt, visibilitySm) ??
+    (CATEGORIES.includes(String(o.fltCat)) ? o.fltCat as FlightCategory : null);
+  if (!observedAt || !metarRaw || !category) return null;
+  const taf = tafs.length ? newestTaf(tafs) : null;
+  const windKt = int(num(o.wspd));
   return {
-    raw: String(o.rawOb ?? ""),
-    observedAt: isoOfEpoch(o.obsTime) ??
-      (typeof o.reportTime === "string" ? o.reportTime : null),
-    windDirection: windDirection(o.wdir),
-    windKt: num(o.wspd),
-    gustKt: num(o.wgst),
+    metarRaw,
+    tafRaw: taf && typeof taf.rawTAF === "string" ? taf.rawTAF : null,
+    tempC: num(o.temp),
+    windDirDeg: windDirDeg(o.wdir, windKt),
+    windKt,
+    gustKt: int(num(o.wgst)),
     visibilitySm,
     ceilingFt,
-    clouds,
-    weather: typeof o.wxString === "string" && o.wxString ? o.wxString : null,
-    tempC: num(o.temp),
-    dewpointC: num(o.dewp),
-    altimeterHpa: num(o.altim),
-    category: categoryOf(ceilingFt, visibilitySm),
+    category,
+    observedAt,
+    forecast: taf ? parsePeriods(taf) : [],
   };
 }
 
-export function parseTaf(t: Json): Taf {
-  const fcsts = Array.isArray(t.fcsts) ? t.fcsts as Json[] : [];
-  return {
-    raw: String(t.rawTAF ?? ""),
-    issuedAt: typeof t.issueTime === "string" ? t.issueTime : null,
-    validFrom: isoOfEpoch(t.validTimeFrom),
-    validTo: isoOfEpoch(t.validTimeTo),
-    periods: fcsts.map((f) => {
-      const clouds = layers(f.clouds);
-      const ceilingFt = ceilingOf(clouds, num(f.vertVis));
-      const visibilitySm = parseVisibility(f.visib);
-      return {
-        from: isoOfEpoch(f.timeFrom) ?? "",
-        to: isoOfEpoch(f.timeTo) ?? "",
-        change: typeof f.fcstChange === "string" ? f.fcstChange : null,
-        probability: num(f.probability),
-        windDirection: windDirection(f.wdir),
-        windKt: num(f.wspd),
-        gustKt: num(f.wgst),
-        visibilitySm,
-        ceilingFt,
-        clouds,
-        weather: typeof f.wxString === "string" && f.wxString
-          ? f.wxString
-          : null,
-        category: categoryOf(ceilingFt, visibilitySm),
-      };
-    }),
-  };
+/** TAF reports carry issueTime as an ISO string (bulletinTime too): newest first. */
+function newestTaf(tafs: Json[]): Json {
+  const t = (x: Json) =>
+    Date.parse(String(x.issueTime ?? x.bulletinTime ?? "")) || 0;
+  return [...tafs].sort((a, b) => t(b) - t(a))[0];
 }
 
 async function getJson(
@@ -215,8 +221,8 @@ async function getJson(
 }
 
 /**
- * Current METAR and TAF. A missing report is null (many airports have no TAF).
- * Throws provider_unavailable only when both requests fail.
+ * Current weather for the app. A failed METAR request is a provider failure (503), never an empty
+ * snapshot; an airport with no usable METAR is 404. A missing or failed TAF only empties the forecast.
  */
 export async function fetchWeather(
   icao: string,
@@ -226,18 +232,14 @@ export async function fetchWeather(
     getJson("metar", icao, fetchFn),
     getJson("taf", icao, fetchFn),
   ]);
-  if (m.status === "rejected" && t.status === "rejected") {
+  if (m.status === "rejected") {
     throw new ApiError(
       "provider_unavailable",
       503,
       "Weather provider unavailable",
     );
   }
-  return {
-    icao,
-    metar: m.status === "fulfilled" && m.value[0]
-      ? parseMetar(m.value[0])
-      : null,
-    taf: t.status === "fulfilled" && t.value[0] ? parseTaf(t.value[0]) : null,
-  };
+  const w = toWeather(m.value, t.status === "fulfilled" ? t.value : []);
+  if (!w) throw new ApiError("not_found", 404, "No usable METAR for airport");
+  return w;
 }

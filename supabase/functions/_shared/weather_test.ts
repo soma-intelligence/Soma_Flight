@@ -42,7 +42,7 @@ Deno.test("flightCategory via the core: FAA thresholds", () => {
   assertEquals(flightCategory(300, 0.5), "LIFR");
 });
 
-Deno.test("fetchWeather parses the KAUS fixtures", async () => {
+Deno.test("fetchWeather returns the app's Weather shape for KAUS", async () => {
   const seen: { url: string; ua: string | null }[] = [];
   const w = await fetchWeather("KAUS", fakeFetch(METAR, TAF, seen));
   assertEquals(seen.map((s) => s.url).sort(), [
@@ -51,54 +51,93 @@ Deno.test("fetchWeather parses the KAUS fixtures", async () => {
   ]);
   assert(seen.every((s) => s.ua === WEATHER_USER_AGENT));
 
-  const m = w.metar!;
-  assertEquals(m.raw.startsWith("SPECI KAUS 291744Z VRB03KT 10SM"), true);
-  assertEquals(m.observedAt, "2026-10-29T17:44:00.000Z");
-  assertEquals(m.windDirection, "VRB");
-  assertEquals(m.windKt, 3);
-  assertEquals(m.gustKt, null);
-  assertEquals(m.visibilitySm, 10); // "10+" in the feed
-  assertEquals(m.ceilingFt, 900); // lowest of BKN009 BKN026 BKN046 OVC130
-  assertEquals(m.category, "IFR");
-  assertEquals(m.weather, "-RA");
-  assertEquals(m.clouds.length, 4);
-
-  const t = w.taf!;
-  assertEquals(t.raw.startsWith("TAF KAUS 291730Z"), true);
-  assertEquals(t.periods.length, 5);
-  assertEquals(t.periods[0].windKt, 3);
-  assertEquals(t.periods[0].visibilitySm, 6); // "6+"
-  assertEquals(t.periods[0].ceilingFt, 2500);
-  assertEquals(t.periods[0].category, "MVFR");
-  assertEquals(t.periods[1].change, "FM");
-  assertEquals(t.periods[4].ceilingFt, 900);
-  assertEquals(t.periods[4].visibilitySm, 3);
-  assertEquals(t.periods[4].category, "IFR");
+  assertEquals(w.metarRaw.startsWith("SPECI KAUS 291744Z VRB03KT 10SM"), true);
+  assertEquals(w.observedAt, "2026-10-29T17:44:00.000Z");
+  assertEquals(w.windDirDeg, null); // VRB has no direction
+  assertEquals(w.windKt, 3);
+  assertEquals(w.gustKt, null);
+  assertEquals(w.visibilitySm, 10); // "10+" in the feed
+  assertEquals(w.ceilingFt, 900); // lowest of BKN009 BKN026 BKN046 OVC130
+  assertEquals(w.category, "IFR");
+  assertEquals(w.tempC, 21.7);
+  assertEquals(w.tafRaw?.startsWith("TAF KAUS 291730Z"), true);
+  assertEquals(w.forecast.length, 5);
+  assertEquals(w.forecast[0], {
+    from: "2026-10-29T18:00:00.000Z",
+    to: "2026-10-29T21:00:00.000Z",
+    category: "MVFR",
+    windDirDeg: 100,
+    windKt: 3,
+    gustKt: null,
+    visibilitySm: 6, // "6+"
+    ceilingFt: 2500,
+  });
+  assertEquals(w.forecast[4].ceilingFt, 900);
+  assertEquals(w.forecast[4].visibilitySm, 3);
+  assertEquals(w.forecast[4].category, "IFR");
 });
 
-Deno.test("fetchWeather keeps gusts", async () => {
+Deno.test("fetchWeather keeps direction and gusts, calm wind has no direction", async () => {
   const metar = structuredClone(METAR);
   metar[0].wdir = 240;
   metar[0].wspd = 18;
   metar[0].wgst = 28;
   const w = await fetchWeather("KAUS", fakeFetch(metar));
-  assertEquals(w.metar!.windDirection, 240);
-  assertEquals(w.metar!.windKt, 18);
-  assertEquals(w.metar!.gustKt, 28);
+  assertEquals([w.windDirDeg, w.windKt, w.gustKt], [240, 18, 28]);
+  metar[0].wdir = 0;
+  metar[0].wspd = 0;
+  metar[0].wgst = null;
+  const calm = await fetchWeather("KAUS", fakeFetch(metar));
+  assertEquals([calm.windDirDeg, calm.windKt, calm.gustKt], [null, 0, null]);
 });
 
-Deno.test("fetchWeather: a missing TAF is null, both failing is 503", async () => {
-  const noTaf = await fetchWeather("KAUS", fakeFetch(METAR, null));
-  assertEquals(noTaf.taf, null);
-  assertEquals(noTaf.metar?.windKt, 3);
-  const empty = await fetchWeather("KAUS", fakeFetch([], []));
-  assertEquals(empty, { icao: "KAUS", metar: null, taf: null });
+Deno.test("fetchWeather takes the newest METAR and TAF, whatever the order", async () => {
+  const older = structuredClone(METAR[0]);
+  older.obsTime -= 3600;
+  older.rawOb = "METAR KAUS OLD";
+  const olderTaf = structuredClone(TAF[0]);
+  olderTaf.issueTime = "2026-10-29T11:30:00.000Z";
+  olderTaf.rawTAF = "TAF OLD";
+  const w = await fetchWeather(
+    "KAUS",
+    fakeFetch([older, METAR[0]], [olderTaf, TAF[0]]),
+  );
+  assertEquals(w.metarRaw.startsWith("SPECI KAUS"), true);
+  assertEquals(w.tafRaw?.startsWith("TAF KAUS"), true);
+});
+
+Deno.test("fetchWeather: a failed METAR is 503 even when the TAF works", async () => {
   const err = await assertRejects(
-    () => fetchWeather("KAUS", fakeFetch(null, null)),
+    () => fetchWeather("KAUS", fakeFetch(null, TAF)),
     ApiError,
   );
-  assertEquals(err.code, "provider_unavailable");
-  assertEquals(err.status, 503);
+  assertEquals([err.code, err.status], ["provider_unavailable", 503]);
+});
+
+Deno.test("fetchWeather: a missing TAF is an empty forecast, no METAR is 404", async () => {
+  const noTaf = await fetchWeather("KAUS", fakeFetch(METAR, null));
+  assertEquals([noTaf.tafRaw, noTaf.forecast], [null, []]);
+  const none = await assertRejects(
+    () => fetchWeather("KAUS", fakeFetch([], [])),
+    ApiError,
+  );
+  assertEquals([none.code, none.status], ["not_found", 404]);
+});
+
+Deno.test("fetchWeather: no visibility falls back to the feed category, else unusable", async () => {
+  const metar = structuredClone(METAR);
+  metar[0].visib = null;
+  assertEquals((await fetchWeather("KAUS", fakeFetch(metar))).category, "IFR");
+  delete metar[0].fltCat;
+  await assertRejects(() => fetchWeather("KAUS", fakeFetch(metar)), ApiError);
+});
+
+Deno.test("forecast periods without a time or a category are left out", async () => {
+  const taf = structuredClone(TAF);
+  taf[0].fcsts[1].timeTo = null;
+  taf[0].fcsts[2].visib = null;
+  const w = await fetchWeather("KAUS", fakeFetch(METAR, taf));
+  assertEquals(w.forecast.length, 3);
 });
 
 Deno.test("ceiling is the lowest BKN, OVC or VV layer; few and scattered do not count", () => {

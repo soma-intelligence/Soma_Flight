@@ -1,16 +1,13 @@
 // GET /airport-board?airport=<IATA or ICAO>&kind=departures|arrivals|stats|weather
-//   -> { icao, kind, fetchedAt, stale, payload }
+//   -> { icao, kind, fetched_at, stale, ...body } in the shapes FlightKit decodes (docs/api-contract.md)
 // Lazy refresh only: a snapshot older than its TTL is rebuilt on read. One lease per airport and
 // kind (claim_airport_refresh) keeps concurrent readers from each paying the provider.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { type AeroApi, toFlightRows } from "../_shared/aeroapi.ts";
+import type { AeroApi } from "../_shared/aeroapi.ts";
 import { resolveAirport } from "../_shared/airports.ts";
+import { toBoardRows } from "../_shared/board_rows.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
-import {
-  computeStats,
-  type DelayStats,
-  type Severity,
-} from "../_shared/delay_stats.ts";
+import { computeStats } from "../_shared/delay_stats.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { checkRate } from "../_shared/limits.ts";
 import { fetchWeather } from "../_shared/weather.ts";
@@ -18,8 +15,13 @@ import { fetchWeather } from "../_shared/weather.ts";
 export const BOARD_TTL_MS = 5 * 60_000;
 export const WEATHER_TTL_MS = 15 * 60_000;
 export const BOARD_MAX_PER_HOUR = 120;
-/** A refresh that outlives this is presumed dead and can be claimed again. */
-export const LEASE_SECONDS = 20;
+/**
+ * A refresh that outlives its lease is presumed dead and can be claimed again. The deadline is
+ * shorter than the lease, so a live refresh always holds it. Worst case of boardFlights is two
+ * sequential pages at the 10 s provider timeout per list, about 20 s.
+ */
+export const LEASE_SECONDS = 60;
+export const REFRESH_DEADLINE_MS = 45_000;
 const WAIT_MS = 6_000;
 const POLL_MS = 400;
 
@@ -35,6 +37,7 @@ export interface Deps {
   /** Test hooks for the wait on a first-ever refresh in flight elsewhere. */
   sleep?: (ms: number) => Promise<void>;
   waitMs?: number;
+  refreshDeadlineMs?: number;
 }
 
 interface Snapshot {
@@ -63,11 +66,16 @@ async function read(
     : null;
 }
 
+/** last_viewed_at is bookkeeping: a failure is logged, never a failed read. */
 async function touch(db: SupabaseClient, icao: string, kind: Kind, now: Date) {
-  const { error } = await db.from("airport_snapshots")
-    .update({ last_viewed_at: now.toISOString() })
-    .eq("icao", icao).eq("kind", kind);
-  if (error) throw new Error(`last_viewed_at update failed: ${error.message}`);
+  try {
+    const { error } = await db.from("airport_snapshots")
+      .update({ last_viewed_at: now.toISOString() })
+      .eq("icao", icao).eq("kind", kind);
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    console.error(`last_viewed_at update failed for ${icao} ${kind}`, e);
+  }
 }
 
 async function write(
@@ -98,14 +106,35 @@ async function claim(db: SupabaseClient, icao: string, kind: Kind) {
   return data === true;
 }
 
+/** The lease expires on its own, so a failed release is only logged. */
 async function release(db: SupabaseClient, icao: string, kind: Kind) {
-  const { error } = await db.rpc("release_airport_refresh", {
-    p_icao: icao,
-    p_kind: kind,
-  });
-  if (error) {
-    throw new Error(`release_airport_refresh failed: ${error.message}`);
+  try {
+    const { error } = await db.rpc("release_airport_refresh", {
+      p_icao: icao,
+      p_kind: kind,
+    });
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    console.error(`release_airport_refresh failed for ${icao} ${kind}`, e);
   }
+}
+
+/** Provider trouble falls back to the stale snapshot; anything else is our bug and surfaces as 500. */
+function isProviderError(e: unknown): boolean {
+  return e instanceof ApiError &&
+    (e.code === "provider_unavailable" || e.code === "rate_limited");
+}
+
+function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(new ApiError("provider_unavailable", 504, "Refresh timed out")),
+      ms,
+    );
+  });
+  return Promise.race([p, late]).finally(() => clearTimeout(timer));
 }
 
 const isFresh = (fetchedAt: string, kind: Kind, now: Date) =>
@@ -164,14 +193,23 @@ async function serve(
 
   let payload: unknown;
   try {
-    payload = await refresh();
+    payload = await withDeadline(
+      refresh(),
+      deps.refreshDeadlineMs ?? REFRESH_DEADLINE_MS,
+    );
   } catch (e) {
+    if (!isProviderError(e)) {
+      await release(db, icao, kind);
+      throw e;
+    }
     console.error(`refresh ${icao} ${kind} failed`, e);
     if (old) {
+      // Keep the lease: it doubles as a short back-off against a provider that is down.
       await touch(db, icao, kind, now);
       return { ...old, stale: true };
     }
     await release(db, icao, kind);
+    if (e instanceof ApiError && e.code === "rate_limited") throw e;
     throw new ApiError(
       "provider_unavailable",
       503,
@@ -179,24 +217,24 @@ async function serve(
     );
   }
   const fetchedAt = now.toISOString();
-  await write(db, icao, kind, payload, fetchedAt, now);
+  try {
+    await write(db, icao, kind, payload, fetchedAt, now);
+  } catch (e) {
+    await release(db, icao, kind);
+    throw e;
+  }
   await release(db, icao, kind);
   return { payload, fetchedAt, stale: false };
 }
-
-const SEVERITY_RANK: Record<Severity, number> = {
-  normal: 0,
-  moderate: 1,
-  major: 2,
-};
 
 interface BoardPayload {
   flights: Parameters<typeof computeStats>[0];
 }
 
 /**
- * Delay stats of both boards. fetchedAt is the older board's, so stats age with their data and
- * a stale board shows as stale stats.
+ * Delay stats of both boards. fetchedAt is the older board's, so stats age with their data and a
+ * stale board shows as stale stats. Because of that, stats recompute (from cached boards, no
+ * provider call) on every read until the older board is refreshed.
  */
 async function serveStats(
   deps: Deps,
@@ -226,27 +264,29 @@ async function serveStats(
         () => refreshBoard(deps, icao, "arrivals", now),
       ),
     ]);
-    const departures = computeStats(
-      (dep.payload as BoardPayload).flights,
-      "departures",
-    );
-    const arrivals = computeStats(
-      (arr.payload as BoardPayload).flights,
-      "arrivals",
-    );
     const payload = {
-      departures,
-      arrivals,
-      severity: [departures, arrivals].map((s: DelayStats) => s.severity)
-        .reduce((a, b) => SEVERITY_RANK[b] > SEVERITY_RANK[a] ? b : a),
+      departures: computeStats(
+        (dep.payload as BoardPayload).flights,
+        "departures",
+        now,
+      ),
+      arrivals: computeStats(
+        (arr.payload as BoardPayload).flights,
+        "arrivals",
+        now,
+      ),
     };
     const fetchedAt = dep.fetchedAt < arr.fetchedAt
       ? dep.fetchedAt
       : arr.fetchedAt;
-    await write(db, icao, "stats", payload, fetchedAt, now);
+    if (existing?.fetchedAt === fetchedAt) {
+      await touch(db, icao, "stats", now);
+    } else {
+      await write(db, icao, "stats", payload, fetchedAt, now);
+    }
     return { payload, fetchedAt, stale: dep.stale || arr.stale };
   } catch (e) {
-    if (existing && e instanceof ApiError) {
+    if (existing && isProviderError(e)) {
       await touch(db, icao, "stats", now);
       return { ...existing, stale: true };
     }
@@ -261,7 +301,7 @@ async function refreshBoard(
   now: Date,
 ): Promise<BoardPayload> {
   const flights = await deps.aero.boardFlights(icao, kind);
-  return { flights: toFlightRows(flights, now) };
+  return { flights: await toBoardRows(flights, icao, kind, now) };
 }
 
 export async function handler(req: Request, deps: Deps): Promise<Response> {
@@ -296,7 +336,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           icao,
           "weather",
           now,
-          () => fetchWeather(icao, deps.fetchFn),
+          async () => ({ weather: await fetchWeather(icao, deps.fetchFn) }),
         );
         break;
       default: {
@@ -313,9 +353,9 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     return json({
       icao,
       kind,
-      fetchedAt: snap.fetchedAt,
+      fetched_at: snap.fetchedAt,
       stale: snap.stale,
-      payload: snap.payload,
+      ...(snap.payload as Record<string, unknown>),
     });
   } catch (e) {
     return errorResponse(e);
