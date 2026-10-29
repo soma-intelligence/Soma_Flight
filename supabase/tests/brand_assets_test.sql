@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(16);
 
 select is((select public from storage.buckets where id = 'brand-assets'), false, 'brand-assets bucket is private');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
@@ -25,6 +25,12 @@ reset role;
 
 select is((select schedule from cron.job where jobname = 'brand-logos-sync'), '17 * * * *', 'logo sync runs hourly at minute 17');
 
+select is((select schedule from cron.job where jobname = 'brand-side-views-sync'), '41 * * * *', 'side view sync runs hourly at minute 41');
+select is((select command from cron.job where jobname = 'brand-side-views-sync'),
+  $$select public.invoke_edge_function('brand-assets-sync', 'mode=side_views&limit=100')$$, 'side view job calls mode=side_views');
+select lives_ok(
+  $$insert into airline_assets (icao, kind, path, format, version, provider, fetched_at, checked_at, note)
+    values ('UAL', 'side_view', 'x', 'png', 'v1', 't', now(), now(), 'mirrored')$$, 'note accepts mirrored');
 select lives_ok(
   $$insert into airline_assets (icao, kind, path, format, version, provider, fetched_at, checked_at)
     values ('UAL', 'tail', 'x', 'webp', 'v1', 't', now(), now())$$, 'webp is an allowed format');

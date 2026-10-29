@@ -17,6 +17,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
   type AssetKind,
+  contentVersion,
   dbKind,
   type LogoProvider,
   PROVIDER_RANKS,
@@ -24,7 +25,8 @@ import {
   ProviderUnavailable,
   redact,
 } from "./logo_provider.ts";
-import { validateFile } from "./validate.ts";
+import type { SideViewProvider } from "./side_view_provider.ts";
+import { mirrorPng, SIDE_VIEW_RULE, validateFile } from "./validate.ts";
 
 export const BUCKET = "brand-assets";
 export const RECHECK_DAYS = 7;
@@ -79,6 +81,57 @@ class Stop extends Error {
   constructor(readonly why: StoppedBy) {
     super(why);
   }
+}
+
+interface CallEnv {
+  clock: () => number;
+  sleep: (ms: number) => Promise<void>;
+  startedAt: number;
+  budgetMs: number;
+  maxRequests: number;
+}
+
+/** One provider call: budgeted, retried with backoff on outages, aborting when they persist. */
+function makeCall(report: SyncReport, env: CallEnv) {
+  return async function call<T>(fn: () => Promise<T>): Promise<T> {
+    for (let attempt = 0;; attempt++) {
+      if (env.clock() - env.startedAt > env.budgetMs) {
+        throw new Stop("deadline");
+      }
+      if (report.requests >= env.maxRequests) throw new Stop("budget");
+      report.requests++;
+      try {
+        return await fn();
+      } catch (e) {
+        if (!(e instanceof ProviderUnavailable)) throw e;
+        if (attempt >= BACKOFF_MS.length) {
+          console.error(
+            `brand sync: provider down, aborting: ${redact(e.message)}`,
+          );
+          throw new Stop("provider_unavailable");
+        }
+        await env.sleep(BACKOFF_MS[attempt]);
+      }
+    }
+  };
+}
+
+function emptyReport(): SyncReport {
+  return {
+    checked: 0,
+    changed: 0,
+    added: 0,
+    failed: 0,
+    unchanged: 0,
+    missed: 0,
+    skipped: 0,
+    rejected: 0,
+    dropped: 0,
+    deferred: 0,
+    requests: 0,
+    ms: 0,
+    stoppedBy: "done",
+  };
 }
 
 function must<T extends { error: { message: string } | null }>(
@@ -172,42 +225,15 @@ export async function syncLogos(
   const budgetMs = opts.budgetMs ?? DEFAULT_BUDGET_MS;
   const maxRequests = opts.maxRequests ?? DEFAULT_MAX_REQUESTS;
   const stamp = opts.now.toISOString();
-  const report: SyncReport = {
-    checked: 0,
-    changed: 0,
-    added: 0,
-    failed: 0,
-    unchanged: 0,
-    missed: 0,
-    skipped: 0,
-    rejected: 0,
-    dropped: 0,
-    deferred: 0,
-    requests: 0,
-    ms: 0,
-    stoppedBy: "done",
-  };
+  const report: SyncReport = emptyReport();
 
-  /** One provider call: budgeted, retried with backoff on outages, aborting when they persist. */
-  async function call<T>(fn: () => Promise<T>): Promise<T> {
-    for (let attempt = 0;; attempt++) {
-      if (clock() - startedAt > budgetMs) throw new Stop("deadline");
-      if (report.requests >= maxRequests) throw new Stop("budget");
-      report.requests++;
-      try {
-        return await fn();
-      } catch (e) {
-        if (!(e instanceof ProviderUnavailable)) throw e;
-        if (attempt >= BACKOFF_MS.length) {
-          console.error(
-            `brand sync: provider down, aborting: ${redact(e.message)}`,
-          );
-          throw new Stop("provider_unavailable");
-        }
-        await sleep(BACKOFF_MS[attempt]);
-      }
-    }
-  }
+  const call = makeCall(report, {
+    clock,
+    sleep,
+    startedAt,
+    budgetMs,
+    maxRequests,
+  });
 
   async function dropRow(icao: string, row: AssetRow): Promise<void> {
     must(
@@ -481,4 +507,315 @@ export async function syncLogos(
   }
   report.ms = clock() - startedAt;
   return report;
+}
+
+export interface SideViewReport extends SyncReport {
+  /** Pairs skipped because the airline is not in `airlines`. */
+  unknownAirlines: number;
+  /** Pairs uploaded after flipping a nose-right drawing. */
+  mirrored: number;
+}
+
+interface SideRow {
+  aircraft_type: string;
+  icao: string;
+  path: string;
+  version: string;
+  provider: string;
+  note: string | null;
+}
+
+const chunks = <T>(a: T[], n: number): T[][] =>
+  Array.from(
+    { length: Math.ceil(a.length / n) },
+    (_, i) => a.slice(i * n, i * n + n),
+  );
+
+/**
+ * Side view sync. The provider lists airline and aircraft type pairs with a version; a pair is
+ * fetched when it has no row, its version or nose changed, or a lower-ranked provider owns the row.
+ * Same rules as syncLogos: the validation gate (PNG only, at least 1200 px wide; vectors are
+ * rendered 1600 px wide), outage abort, time and request budgets, remembered misses, rank precedence,
+ * new version = new object. `limit` caps the files fetched in one run (unchanged pairs cost nothing).
+ * Pairs for airlines missing from `airlines` are skipped and counted, never inserted. A nose-right
+ * drawing is mirrored before upload and the row notes `mirrored`.
+ */
+export async function syncSideViews(
+  db: SupabaseClient,
+  storage: SupabaseClient["storage"],
+  provider: SideViewProvider,
+  opts: SyncOpts,
+): Promise<SideViewReport> {
+  const clock = opts.clock ?? Date.now;
+  const sleep = opts.sleep ??
+    ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const startedAt = clock();
+  const stamp = opts.now.toISOString();
+  const rank = providerRank(provider.name);
+  const report: SideViewReport = {
+    ...emptyReport(),
+    unknownAirlines: 0,
+    mirrored: 0,
+  };
+  const call = makeCall(report, {
+    clock,
+    sleep,
+    startedAt,
+    budgetMs: opts.budgetMs ?? DEFAULT_BUDGET_MS,
+    maxRequests: opts.maxRequests ?? DEFAULT_MAX_REQUESTS,
+  });
+  const done = <T>(r: T): T => {
+    report.ms = clock() - startedAt;
+    return r;
+  };
+
+  async function syncPair(
+    pair: {
+      icao: string;
+      aircraftType: string;
+      version: string;
+      nose?: string;
+    },
+    row: SideRow | undefined,
+  ): Promise<void> {
+    const remember = async () =>
+      must(
+        await db.from("airline_asset_misses").upsert({
+          icao: pair.icao,
+          kind: "side_view",
+          aircraft_type: pair.aircraftType,
+          provider: provider.name,
+          miss_until: new Date(
+            opts.now.getTime() + MISS_HOURS * 3_600_000,
+          ).toISOString(),
+        }, { onConflict: "icao,kind,aircraft_type,provider" }),
+        "miss write failed",
+      );
+    const got = await call(() => provider.file(pair.icao, pair.aircraftType));
+    if (got === null) {
+      report.missed++;
+      await remember();
+      return; // an existing row stays
+    }
+    const v = await validateFile(got, SIDE_VIEW_RULE);
+    if (!v.ok) {
+      console.error(
+        `brand sync: ${pair.icao} side_view ${pair.aircraftType} rejected: ${v.reason}`,
+      );
+      report.rejected++;
+      report.missed++;
+      await remember();
+      return;
+    }
+    let image = v.main;
+    const mirrored = pair.nose === "right";
+    if (mirrored) {
+      try {
+        image = await mirrorPng(image);
+      } catch (e) {
+        console.error(
+          `brand sync: ${pair.icao} side_view ${pair.aircraftType} not mirrored: ${
+            (e as Error).message
+          }`,
+        );
+        report.rejected++;
+        report.missed++;
+        await remember();
+        return;
+      }
+    }
+    const path = assetPath(
+      pair.icao,
+      { kind: "side_view", type: pair.aircraftType },
+      `${await contentVersion(got.bytes)}${mirrored ? "m" : ""}`,
+      v.format,
+    );
+    must(
+      await storage.from(BUCKET).upload(path, image.bytes, {
+        contentType: v.mime,
+        upsert: true,
+      }),
+      "upload failed",
+    );
+    must(
+      await db.from("airline_assets").upsert({
+        icao: pair.icao,
+        kind: "side_view",
+        aircraft_type: pair.aircraftType,
+        path,
+        path_small: null,
+        format: v.format,
+        width: image.width,
+        version: pair.version,
+        etag: null,
+        provider: provider.name,
+        note: mirrored ? "mirrored" : null,
+        fetched_at: stamp,
+        checked_at: stamp,
+      }, { onConflict: "icao,kind,aircraft_type" }),
+      "asset upsert failed",
+    );
+    report.changed++;
+    if (mirrored) report.mirrored++;
+    if (row && row.path !== path) {
+      const rm = await storage.from(BUCKET).remove([row.path]);
+      if (rm.error) console.error(`brand sync: old object kept ${row.path}`);
+    }
+    await db.from("airline_asset_misses").delete().eq("icao", pair.icao).eq(
+      "kind",
+      "side_view",
+    ).eq("aircraft_type", pair.aircraftType).eq("provider", provider.name);
+  }
+
+  try {
+    let pairs = await call(() => provider.list());
+    const total = pairs.length;
+    pairs = pairs.filter((p) => {
+      const ok = /^[A-Z]{3}$/.test(p.icao) &&
+        /^[A-Z0-9]{2,4}$/.test(p.aircraftType) && !!p.version;
+      if (!ok) report.rejected++;
+      return ok;
+    });
+    if (opts.icaos) pairs = pairs.filter((p) => opts.icaos!.includes(p.icao));
+
+    const icaos = [...new Set(pairs.map((p) => p.icao))];
+    const known = new Set<string>();
+    const rows = new Map<string, SideRow>(); // `${icao}/${type}`
+    const misses = new Set<string>();
+    for (const part of chunks(icaos, 200)) {
+      for (
+        const a of must(
+          await db.from("airlines").select("icao").in("icao", part),
+          "airline read failed",
+        ).data ?? []
+      ) known.add(a.icao);
+      for (
+        const r of (must(
+          await db.from("airline_assets").select(
+            "icao, aircraft_type, path, version, provider, note",
+          ).eq("kind", "side_view").in("icao", part),
+          "asset read failed",
+        ).data ?? []) as SideRow[]
+      ) rows.set(`${r.icao}/${r.aircraft_type}`, r);
+      for (
+        const m of must(
+          await db.from("airline_asset_misses").select(
+            "icao, aircraft_type",
+          ).eq("kind", "side_view").eq("provider", provider.name).gt(
+            "miss_until",
+            stamp,
+          ).in("icao", part),
+          "miss read failed",
+        ).data ?? []
+      ) misses.add(`${m.icao}/${m.aircraft_type}`);
+    }
+
+    // Rows this provider wrote and no longer lists are stale, whole airlines included (not when the
+    // list came back empty).
+    if (total > 0) {
+      const listed = new Set(pairs.map((p) => `${p.icao}/${p.aircraftType}`));
+      const mineRows: SideRow[] = [];
+      for (let from = 0;; from += 1000) {
+        let q = db.from("airline_assets").select(
+          "icao, aircraft_type, path, version, provider, note",
+        ).eq("kind", "side_view").eq("provider", provider.name).order("icao")
+          .order("aircraft_type").range(from, from + 999);
+        if (opts.icaos) q = q.in("icao", opts.icaos);
+        const page =
+          (must(await q, "asset read failed").data ?? []) as SideRow[];
+        mineRows.push(...page);
+        if (page.length < 1000) break;
+      }
+      for (const r of mineRows) {
+        const k = `${r.icao}/${r.aircraft_type}`;
+        if (listed.has(k)) continue;
+        must(
+          await db.from("airline_assets").delete().eq("icao", r.icao).eq(
+            "kind",
+            "side_view",
+          ).eq("aircraft_type", r.aircraft_type),
+          "asset delete failed",
+        );
+        const rm = await storage.from(BUCKET).remove([r.path]);
+        if (rm.error) console.error(`brand sync: object kept ${r.path}`);
+        rows.delete(k);
+        report.dropped++;
+      }
+    }
+
+    // Pairs with no row first, then the rest in list order.
+    const queue = pairs.filter((p) => known.has(p.icao)).sort((a, b) =>
+      Number(rows.has(`${a.icao}/${a.aircraftType}`)) -
+      Number(rows.has(`${b.icao}/${b.aircraftType}`))
+    );
+    report.unknownAirlines = pairs.length - queue.length;
+    const bump = new Map<string, string[]>(); // icao -> types still current
+    let fetched = 0;
+
+    for (let i = 0; i < queue.length; i++) {
+      const pair = queue[i];
+      const k = `${pair.icao}/${pair.aircraftType}`;
+      const row = rows.get(k);
+      const mine = row?.provider === provider.name;
+      if (row && !mine && providerRank(row.provider) >= rank) {
+        report.checked++;
+        report.skipped++; // a provider of equal or higher rank owns it
+        continue;
+      }
+      const wantNote = pair.nose === "right" ? "mirrored" : null;
+      if (
+        mine && row!.version === pair.version && row!.note === wantNote
+      ) {
+        report.checked++;
+        report.unchanged++;
+        const t = bump.get(pair.icao) ?? [];
+        t.push(pair.aircraftType);
+        bump.set(pair.icao, t);
+        continue;
+      }
+      if (misses.has(k)) {
+        report.checked++;
+        report.skipped++;
+        continue;
+      }
+      if (fetched >= opts.limit) {
+        report.deferred = queue.slice(i).filter((p) => {
+          const r = rows.get(`${p.icao}/${p.aircraftType}`);
+          return !(r?.provider === provider.name && r.version === p.version) &&
+            !misses.has(`${p.icao}/${p.aircraftType}`);
+        }).length;
+        break;
+      }
+      fetched++;
+      report.checked++;
+      try {
+        await syncPair(pair, row);
+      } catch (e) {
+        if (e instanceof Stop) {
+          report.checked--;
+          report.deferred = queue.length - i;
+          throw e;
+        }
+        report.failed++;
+        console.error(
+          `brand sync: ${k} side view failed`,
+          redact((e as Error).message),
+        );
+      }
+    }
+
+    for (const [icao, types] of bump) {
+      must(
+        await db.from("airline_assets").update({ checked_at: stamp }).eq(
+          "icao",
+          icao,
+        ).eq("kind", "side_view").in("aircraft_type", types),
+        "asset bump failed",
+      );
+    }
+  } catch (e) {
+    if (!(e instanceof Stop)) throw e;
+    report.stoppedBy = e.why;
+  }
+  return done(report);
 }

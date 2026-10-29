@@ -144,16 +144,16 @@ function resvgReady(): Promise<void> {
 /** Resvg options: no system fonts, no font files; the WASM build has no file or network access anyway. */
 const OPTS = { font: { loadSystemFonts: false, fontFiles: [] } };
 
-function renderPng(svg: string, longSide: number): Png {
+function renderPng(svg: string, size: number, byWidth = false): Png {
   const probe = new Resvg(svg, OPTS);
   const wide = probe.width >= probe.height;
   if (!(probe.width > 0 && probe.height > 0)) throw new Error("empty svg");
   probe.free();
   const r = new Resvg(svg, {
     ...OPTS,
-    fitTo: wide
-      ? { mode: "width", value: longSide }
-      : { mode: "height", value: longSide },
+    fitTo: byWidth || wide
+      ? { mode: "width", value: size }
+      : { mode: "height", value: size },
   });
   const img = r.render();
   const bytes = img.asPng();
@@ -180,7 +180,48 @@ function doctypeRefusal(text: string): string | null {
   return null;
 }
 
-async function rasteriseSvg(file: ProviderFile): Promise<Validated> {
+/**
+ * Extra rules for one kind of asset. Side views are PNG only (no WebP), at least 1200 px wide, and a
+ * vector is rendered 1600 px wide with no small rendition.
+ */
+export interface ValidateRule {
+  pngOnly?: boolean;
+  minWidth?: number;
+  /** Render a vector this many px wide (instead of 384 px on the long side) and skip the small one. */
+  svgWidth?: number;
+}
+export const SIDE_VIEW_RULE: ValidateRule = {
+  pngOnly: true,
+  minWidth: 1200,
+  svgWidth: 1600,
+};
+
+/**
+ * Flips a PNG left to right (same size, transparency kept) by rendering it through resvg as an
+ * embedded image. Used when a provider draws the nose to the right.
+ */
+export async function mirrorPng(png: Png): Promise<Png> {
+  await resvgReady();
+  let bin = "";
+  for (let i = 0; i < png.bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...png.bytes.subarray(i, i + 0x8000));
+  }
+  const { width: w, height: h } = png;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image width="${w}" height="${h}" transform="translate(${w} 0) scale(-1 1)" href="data:image/png;base64,${
+      btoa(bin)
+    }"/></svg>`;
+  const out = renderPng(svg, w, true);
+  if (out.width !== w || out.height !== h || !pngComplete(out.bytes)) {
+    throw new Error("mirror produced a different image");
+  }
+  return out;
+}
+
+async function rasteriseSvg(
+  file: ProviderFile,
+  rule?: ValidateRule,
+): Promise<Validated> {
   const b = file.bytes;
   if (b.length > MAX_SVG_BYTES) return bad("svg over 512 KB");
   let text: string;
@@ -198,9 +239,11 @@ async function rasteriseSvg(file: ProviderFile): Promise<Validated> {
   if (!/^<svg[\s>]/i.test(head)) return bad("not an svg document");
   try {
     await resvgReady();
-    const main = renderPng(text, RENDER_PX);
-    const small = renderPng(text, SMALL_PX);
-    for (const p of [main, small]) {
+    const main = rule?.svgWidth
+      ? renderPng(text, rule.svgWidth, true)
+      : renderPng(text, RENDER_PX);
+    const small = rule?.svgWidth ? null : renderPng(text, SMALL_PX);
+    for (const p of small ? [main, small] : [main]) {
       if (!pngComplete(p.bytes)) return bad("render produced a broken png");
     }
     return {
@@ -215,18 +258,22 @@ async function rasteriseSvg(file: ProviderFile): Promise<Validated> {
   }
 }
 
-export async function validateFile(file: ProviderFile): Promise<Validated> {
+export async function validateFile(
+  file: ProviderFile,
+  rule?: ValidateRule,
+): Promise<Validated> {
   const fmt = file.format;
   if (fmt !== "svg" && fmt !== "png" && fmt !== "webp") {
     return bad(`format ${fmt} is not allowed`);
   }
+  if (rule?.pngOnly && fmt === "webp") return bad("webp is not allowed here");
   if (file.mime != null) {
     const m = file.mime.split(";")[0].trim().toLowerCase();
     if (m !== MIME_FOR[fmt]) return bad(`mime ${m} does not match ${fmt}`);
   }
   const b = file.bytes;
   if (b.length === 0) return bad("empty file");
-  if (fmt === "svg") return await rasteriseSvg(file);
+  if (fmt === "svg") return await rasteriseSvg(file, rule);
 
   if (b.length > MAX_RASTER_BYTES) return bad("raster over 2 MB");
   // Declared size from the header first; nothing is decoded before this passes.
@@ -238,6 +285,9 @@ export async function validateFile(file: ProviderFile): Promise<Validated> {
   }
   if (Math.max(w, h) < MIN_RASTER_PX) {
     return bad(`raster ${w}x${h} under ${MIN_RASTER_PX} px`);
+  }
+  if (rule?.minWidth && w < rule.minWidth) {
+    return bad(`raster ${w}x${h} under ${rule.minWidth} px wide`);
   }
   if (fmt === "png" && !pngComplete(b)) {
     return bad("png is truncated or corrupt");

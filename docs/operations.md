@@ -13,6 +13,7 @@ and see runs in `cron.job_run_details`.
 | `usage-alert` | `0 8-11 * * *` | `usage-alert`: emails the owner once when yesterday's estimated AeroAPI spend is above the threshold; the later runs retry a failed send and do nothing once it went out |
 | `usage-alert-cap` | `20 * * * *` | `usage-alert?mode=cap`: emails the owner once a day when today's running spend reaches 80% of the daily cap |
 | `brand-logos-sync` | `17 * * * *` | `brand-assets-sync?mode=logos&limit=50`: logos, dark logos, tails and brand colours for the 50 airlines never checked or checked over 7 days ago, oldest first. 2,050 airlines are all checked within two days, then each again once 7 days old, which is the weekly refresh. A no-op until the logo provider is configured (below) |
+| `brand-side-views-sync` | `41 * * * *` | `brand-assets-sync?mode=side_views&limit=100`: side views (airline livery on one aircraft type) from the side view provider, up to 100 files a run; pairs whose version is unchanged cost no fetch. A no-op until `SIDE_VIEW_PROVIDER` is configured (below) |
 | `cron-history-prune` | `45 3 * * *` | deletes `cron.job_run_details` rows older than 7 days |
 
 Boards are not refreshed by a job: `airport-board` refreshes lazily on read.
@@ -60,6 +61,7 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | every AeroAPI caller | `AEROAPI_DAILY_CAP_USD` | global daily spend cap in USD, default 50 (below) |
 | `usage-alert` | `AEROAPI_DAILY_CAP_USD` | the cap mode alerts at 80% of it; set it on `usage-alert` too |
 | `brand-assets-sync` | `LOGO_PROVIDER`, `AIRHEX_KEY` | set after the licence is signed: `LOGO_PROVIDER=airhex` and the licensed key. Until both are set the function answers `{ skipped: "provider not configured" }` and does nothing, which is the production state |
+| `brand-assets-sync` | `SIDE_VIEW_PROVIDER`, `SIDE_VIEW_BASE` | unset in production until the owner picks and signs a side view provider (Logostream API or Airliners Illustrated delivery); the licensed adapter is added to `brand-assets-sync/index.ts` then. `SIDE_VIEW_PROVIDER=recorded` with `SIDE_VIEW_BASE` (an http(s) URL of a fixture folder) replays recorded files for local rehearsals. Unset, `mode=side_views` answers `{ skipped: "provider not configured" }` |
 | `usage-alert` | `RESEND_API_KEY`, `OWNER_EMAIL` | required to send; missing gives 503 |
 | `usage-alert` | `USAGE_ALERT_USD` | threshold in USD, default 25 |
 | `usage-alert` | `USAGE_ALERT_FROM` | sender, default `Soma Flight <alerts@somalabs.me>` (domain must be verified in Resend) |
@@ -114,3 +116,11 @@ order by estimated_cost desc;
 - The key is sent only as an MD5 digest (`md5apikey`) and redacted from any error text.
 - Licence checklist (TODO when the Airhex licence is signed): re-record `_shared/fixtures/airhex/` against the live account, re-check the URL shapes in `_shared/brand/airhex.ts` (they were written from the public documentation with no key, so `sendsKeyAsDocumented` and the other Airhex tests are a contract to re-verify, not a recording), then set `LOGO_PROVIDER=airhex` and `AIRHEX_KEY` as function secrets.
 - Local demo key: none exists. If one is obtained, it goes only in `supabase/functions/.env.local` (git-ignored). It is never set as a project secret.
+
+## Side view sync
+
+- `brand-assets-sync?mode=side_views` pulls side views through the `SideViewProvider` port (`_shared/brand/side_view_provider.ts`): `list()` returns airline and aircraft type pairs with a version (and optionally which way the nose points), `file(icao, type)` returns one file. `FakeSideViewProvider` and `RecordedSideViewProvider` (replays `_shared/fixtures/side_views/`, test images made for this repo) are the only implementations until a provider is licensed.
+- A pair is fetched when it has no row, its version or nose changed, or a lower-ranked provider owns the row; unchanged pairs only get `checked_at` moved, with no fetch. `limit` (default 100) caps files fetched per run. Pairs for airlines missing from `airlines` are skipped and counted as `unknownAirlines`; the sync never adds an airline for a side view. Rows the provider no longer lists are dropped with their object.
+- Image rule (same validation gate as logos, with a side view rule): PNG only (WebP refused), at least 1200 px wide and at most 4096, transparent background, nose to the left. A vector is rendered 1600 px wide (no small rendition). A pair listed with `nose: "right"` is mirrored with resvg before upload; the row has `note = 'mirrored'` and the answer counts `mirrored`.
+- Same run rules as the logo sync: outage retry then 502, 100 s and 400 request budgets, remembered misses, rank precedence. Objects: `side-views/<ICAO>/<TYPE>-<content hash>[m].png`.
+- Local edge check (2026-10-29): `npx supabase functions serve brand-assets-sync --env-file <file>` with `LOGO_PROVIDER=commons`, `COMMONS_LOGO_BASE` and `SIDE_VIEW_PROVIDER=recorded`, `SIDE_VIEW_BASE` pointing at `python3 -m http.server` URLs on `host.docker.internal`: the vendored resvg WASM loads from the static file and rasterises in the edge runtime (3 Commons logos at 384 and 192 px, 3 side views including a mirrored one and a vector at 1600 px).

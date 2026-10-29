@@ -5,6 +5,10 @@ import {
   DEFAULT_COMMONS_BASE,
 } from "../_shared/brand/commons.ts";
 import type { LogoProvider } from "../_shared/brand/logo_provider.ts";
+import {
+  RecordedSideViewProvider,
+  type SideViewProvider,
+} from "../_shared/brand/side_view_provider.ts";
 import { handler } from "./handler.ts";
 
 const db = serviceClient();
@@ -28,4 +32,17 @@ function provider(): LogoProvider | null {
   return null;
 }
 
-Deno.serve((req) => handler(req, { db, provider }));
+/**
+ * Side views: SIDE_VIEW_PROVIDER unset is a no-op (the production state). SIDE_VIEW_PROVIDER=recorded
+ * replays a fixture folder from SIDE_VIEW_BASE (a URL; local development and rehearsals). The licensed
+ * adapter (Logostream or Airliners Illustrated) is added here once the owner picks one and signs.
+ */
+function sideViewProvider(): SideViewProvider | null {
+  const base = Deno.env.get("SIDE_VIEW_BASE");
+  if (Deno.env.get("SIDE_VIEW_PROVIDER") === "recorded" && base) {
+    return new RecordedSideViewProvider(base);
+  }
+  return null;
+}
+
+Deno.serve((req) => handler(req, { db, provider, sideViewProvider }));

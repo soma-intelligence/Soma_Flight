@@ -1,0 +1,29 @@
+{
+  "provider": "recorded",
+  "pairs": [
+    {
+      "icao": "ZQA",
+      "aircraftType": "B738",
+      "file": "ZQA-B738.png",
+      "format": "png",
+      "nose": "left",
+      "version": "e54643b43e33c1ca"
+    },
+    {
+      "icao": "ZQA",
+      "aircraftType": "A320",
+      "file": "ZQA-A320.png",
+      "format": "png",
+      "nose": "right",
+      "version": "f08f81aff3d81780"
+    },
+    {
+      "icao": "ZQB",
+      "aircraftType": "B738",
+      "file": "ZQB-B738.svg",
+      "format": "svg",
+      "nose": "left",
+      "version": "dd6cafe98c5bdfa9"
+    }
+  ]
+}
