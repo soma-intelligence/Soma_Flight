@@ -32,7 +32,7 @@ private func fixture() -> [PastFlight] {
         #expect(s.airlines == 3)
         #expect(s.delayLost == .seconds(42 * 60))
         #expect(s.mostFlownAircraft?.count == 2)
-        #expect(["A359", "B739"].contains(s.mostFlownAircraft?.type))
+        #expect(s.mostFlownAircraft?.type == "A359")
     }
 
     @Test func passportStatsYearFilter() {

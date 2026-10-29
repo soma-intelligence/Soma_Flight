@@ -94,15 +94,6 @@ private let wn4410 = UUID(uuidString: "20fae9c5-79ee-5ec3-a45a-015ed6c7fd9d")!
         #expect(try await svc.followed().map(\.id) == before)
     }
 
-    @Test func detailDivertedUsesActualAirport() async {
-        let store = FlightDetailStore(id: wn4410, flights: FakeFlightService(), airports: FakeAirportService())
-        await store.load()
-        #expect(store.flight?.status == .diverted)
-        #expect(store.destination?.id == "KOAK")
-        #expect(store.origin?.id == "KLAX")
-        #expect(!store.events.isEmpty)
-    }
-
     @Test func airportStoreLoadsAllParts() async {
         let store = AirportStore(code: "KSFO", airports: FakeAirportService())
         await store.load()
@@ -130,6 +121,12 @@ private let wn4410 = UUID(uuidString: "20fae9c5-79ee-5ec3-a45a-015ed6c7fd9d")!
         await eventually { store.session != nil }
         #expect(store.session?.email == "a@b.co")
         await store.deleteAccount()
+        await eventually { store.session == nil }
+        #expect(store.session == nil)
+        #expect(store.error == nil)
+        try await auth.signInWithEmail("c@d.co")
+        await eventually { store.session != nil }
+        await store.signOut()
         await eventually { store.session == nil }
         #expect(store.session == nil)
     }

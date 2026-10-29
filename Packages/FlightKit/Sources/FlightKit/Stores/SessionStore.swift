@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable
 public final class SessionStore {
     public private(set) var session: UserSession?
+    public private(set) var error: APIError?
     private let auth: any AuthService
     @ObservationIgnored private var task: Task<Void, Never>?
 
@@ -23,11 +24,15 @@ public final class SessionStore {
         }
     }
 
-    public func signOut() {
-        Task { [auth] in await auth.signOut() }
+    public func signOut() async {
+        await auth.signOut()
     }
 
+    /// On failure `error` is set and the session stays.
     public func deleteAccount() async {
-        try? await auth.deleteAccount()
+        do {
+            try await auth.deleteAccount()
+            error = nil
+        } catch { self.error = error }
     }
 }

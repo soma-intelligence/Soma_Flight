@@ -13,6 +13,8 @@ public final class MyFlightsStore {
     public private(set) var lastUpdated: Date?
     public private(set) var isOffline = false
     private var all: [Flight.ID: Flight] = [:]
+    @ObservationIgnored private var loadGeneration = 0
+    @ObservationIgnored private var unfollowedDuringLoad: Set<Flight.ID> = []
 
     private let service: any FlightService
     private let cache: (any FlightListCache)?
@@ -36,19 +38,31 @@ public final class MyFlightsStore {
         return x == y ? a.id.uuidString < b.id.uuidString : x < y
     }
 
+    /// Latest call wins: a call superseded while awaiting drops its result.
     public func load() async {
+        loadGeneration += 1
+        let gen = loadGeneration
+        unfollowedDuringLoad = []
         do {
             let list = try await service.followed()
-            all = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
-            lastUpdated = list.map(\.updatedAt).max()
+            guard gen == loadGeneration else { return }
+            var merged: [Flight.ID: Flight] = [:]
+            for f in list where !unfollowedDuringLoad.contains(f.id) {
+                // A flight pushed while the snapshot was in flight may be newer than it.
+                if let cur = all[f.id], cur.updatedAt > f.updatedAt { merged[f.id] = cur } else { merged[f.id] = f }
+            }
+            all = merged
+            lastUpdated = merged.values.map(\.updatedAt).max()
             error = nil; isOffline = false
-            await cache?.save(flights: list)
             if updatesTask != nil, Set(all.keys) != subscribed { subscribe() }
+            await cache?.save(flights: Array(merged.values))
         } catch {
+            guard gen == loadGeneration else { return }
             self.error = error
             isOffline = error == .offline
             if isOffline, all.isEmpty, let cache {
                 let cached = await cache.flights()
+                guard gen == loadGeneration, all.isEmpty else { return }
                 all = Dictionary(cached.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
                 lastUpdated = cached.map(\.updatedAt).max()
             }
@@ -74,7 +88,7 @@ public final class MyFlightsStore {
     }
 
     private func apply(_ f: Flight) {
-        guard all[f.id] != nil else { return }
+        guard let cur = all[f.id], f.updatedAt >= cur.updatedAt else { return }
         all[f.id] = f
         lastUpdated = max(lastUpdated ?? f.updatedAt, f.updatedAt)
     }
@@ -83,6 +97,7 @@ public final class MyFlightsStore {
         do {
             try await service.unfollow(flight.id)
             all[flight.id] = nil
+            unfollowedDuringLoad.insert(flight.id)
             error = nil
         } catch { self.error = error }
     }
