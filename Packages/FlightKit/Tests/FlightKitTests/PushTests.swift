@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import FlightKit
 
@@ -19,7 +20,7 @@ import Testing
     }
 
     @Test func snakeCaseKeysWorkToo() throws {
-        let payload = try #require(PushPayload(json: #"{"flight_id":"\#(id.uuidString)"}"#))
+        let payload = try #require(PushPayload(userInfo: ["flight_id": id.uuidString]))
         #expect(payload.flightId == id)
         #expect(payload.eventId == nil)
     }
@@ -28,7 +29,6 @@ import Testing
         #expect(PushPayload(userInfo: ["aps": ["alert": "Hi"]]) == nil)
         #expect(PushPayload(userInfo: ["flightId": "not-a-uuid"]) == nil)
         #expect(PushPayload(userInfo: ["flightId": 12]) == nil)
-        #expect(PushPayload(json: "[1]") == nil)
     }
 
     // MARK: Inbox
@@ -60,7 +60,7 @@ import Testing
 
     private func coordinator(_ auth: Authorizer, push: FakePushService = FakePushService(),
                              asks: Counter) -> PushCoordinator {
-        PushCoordinator(push: push, authorizer: auth) { asks.count += 1 }
+        PushCoordinator(push: push, authorizer: auth, enabled: true) { asks.count += 1 }
     }
 
     private final class Counter { var count = 0 }
@@ -219,5 +219,83 @@ import Testing
         d.set(flight.id.uuidString, forKey: "pushFlight")
         await home.applyPushLaunchArguments(d)
         #expect(home.shell.path == [.flight(flight.id)])
+    }
+
+    // MARK: Review round 1
+
+    @Test func signingOutAndBackInAsTheSameAccountRegistersAgain() async {
+        let push = FakePushService()
+        let c = coordinator(Authorizer(.authorized), push: push, asks: Counter())
+        let a = UUID(), token = Data([1, 2, 3])
+        c.accountChanged(owner: a)
+        await c.register(token: token)
+        c.accountChanged(owner: nil)
+        c.accountChanged(owner: a)
+        await c.register(token: token)
+        #expect(await push.registrations.count == 2)
+    }
+
+    @Test func homeModelForgetsTheAccountAtSignOut() async throws {
+        let (home, inbox, push, _) = try await home()
+        inbox.receive(deviceToken: Data([4]))
+        await home.processInbox()
+        #expect(await push.registrations.count == 1)
+        // The signed-out state reaches the coordinator even though nothing is processed while signed out.
+        home.userChanged()
+        await home.processInbox()
+        #expect(await push.registrations.count == 1)
+    }
+
+    @Test func aDisabledCoordinatorNeverPrompts() async {
+        let auth = Authorizer(.notDetermined), asks = Counter()
+        let c = PushCoordinator(push: FakePushService(), authorizer: auth, enabled: false) { asks.count += 1 }
+        await c.didFollow()
+        await c.refresh()
+        #expect(auth.prompts == 0)
+        #expect(asks.count == 0)
+    }
+
+    @Test func aTokenArrivingAfterStartIsRegisteredThroughTheSerialPath() async throws {
+        let (home, inbox, push, _) = try await home()
+        await home.start()
+        let before = home.pushSerial
+        inbox.receive(deviceToken: Data([5]))
+        #expect(home.pushSerial == before + 1)
+        await home.processInbox()
+        #expect(await push.registrations.contains { $0.deviceToken == Data([5]) })
+    }
+
+    @Test func aTapThatCouldNotBeFetchedForNowIsKept() async throws {
+        let (home, inbox, _, _) = try await home()
+        let followed = Set(home.followed.map(\.id))
+        let other = try #require(try await home.env.flights.lookup(.airport("KAUS")).first { !followed.contains($0.id) })
+        let flights = try #require(home.env.flights as? FakeFlightService)
+        await flights.setNextError(.offline)
+        inbox.receiveTap(["flightId": other.id.uuidString])
+        await home.processInbox()
+        #expect(home.shell.path.isEmpty)
+        #expect(inbox.pendingFlight == other.id)
+        await home.processInbox()
+        #expect(home.shell.path == [.flight(other.id)])
+    }
+
+    // MARK: Sign-out cap
+
+    @Test func waitingStopsAtTheLimitWhenTheOperationHangs() async {
+        let started = ContinuousClock.now
+        let cancelled = Mutex(false)
+        await waitingAtMost(.milliseconds(150)) {
+            do { try await Task.sleep(for: .seconds(30)) } catch { cancelled.withLock { $0 = true } }
+        }
+        #expect(ContinuousClock.now - started < .seconds(5))
+        // The loser is cancelled.
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(cancelled.withLock { $0 })
+    }
+
+    @Test func waitingReturnsAtOnceWhenTheOperationIsQuick() async {
+        let started = ContinuousClock.now
+        await waitingAtMost(.seconds(30)) {}
+        #expect(ContinuousClock.now - started < .seconds(5))
     }
 }

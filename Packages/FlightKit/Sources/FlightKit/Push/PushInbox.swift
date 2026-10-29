@@ -37,6 +37,9 @@ public final class PushInbox {
         serial += 1
     }
 
+    /// Puts a tapped flight back (it could not be fetched for now); no new arrival is signalled.
+    func keepPending(_ id: Flight.ID) { pendingFlight = id }
+
     func takePendingFlight() -> Flight.ID? { defer { pendingFlight = nil }; return pendingFlight }
     func takeForegroundFlight() -> Flight.ID? { defer { foregroundFlight = nil }; return foregroundFlight }
 }

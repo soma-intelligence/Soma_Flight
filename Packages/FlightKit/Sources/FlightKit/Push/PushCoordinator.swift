@@ -37,25 +37,42 @@ public final class PushCoordinator {
     private let push: any PushService
     private let authorizer: any NotificationAuthorizer
     private let registerForRemote: @MainActor () -> Void
+    private let enabled: Bool
     private var owner: UUID?
     private var hasAccount = false
     private var lastRegistered: Data?
 
     /// - Parameter registerForRemote: asks the OS for a device token (`registerForRemoteNotifications`);
     ///   the token comes back through the app delegate and `PushInbox`.
+    /// - Parameter enabled: false skips the prompt and the token. The default is iOS only: the backend
+    ///   sends no pushes to the Mac yet (`SupabasePushService.register` is a no-op there), so asking
+    ///   Mac users to allow alerts would promise something that never comes.
+    ///   TODO: enable on macOS together with the backend's Mac delivery.
     public init(push: any PushService, authorizer: any NotificationAuthorizer = SystemNotificationAuthorizer(),
+                enabled: Bool = PushCoordinator.platformSendsPushes,
                 registerForRemote: @escaping @MainActor () -> Void) {
-        self.push = push; self.authorizer = authorizer; self.registerForRemote = registerForRemote
+        self.push = push; self.authorizer = authorizer; self.enabled = enabled
+        self.registerForRemote = registerForRemote
+    }
+
+    public static var platformSendsPushes: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
     }
 
     /// At launch: ask for a token only when alerts are already allowed. Never shows the prompt.
     public func refresh() async {
+        guard enabled else { return }
         if await authorizer.status() == .authorized { registerForRemote() }
     }
 
     /// After a follow went through: the first one shows the prompt. Later ones only make sure a token is
     /// registered.
     public func didFollow() async {
+        guard enabled else { return }
         switch await authorizer.status() {
         case .notDetermined:
             if await authorizer.request() { registerForRemote() }

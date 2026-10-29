@@ -54,6 +54,10 @@ struct RootTabView: View {
                 #endif
             }
             .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
+            // A notification opens a flight under Search or Settings: they close so it shows.
+            .onChange(of: shell.path) { _, path in
+                if !path.isEmpty { showSearch = false; showSettings = false }
+            }
             .environment(\.units, units)
     }
 

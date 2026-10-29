@@ -98,6 +98,8 @@ public final class HomeModel {
     public func start() async {
         session.startIfNeeded()
         if storesOwner != owner { rebuildStores() }
+        // A tap that launched the app opens first, without waiting for the lists.
+        await processInbox()
         await load()
         await push?.refresh()
         await processInbox()
@@ -116,6 +118,8 @@ public final class HomeModel {
     public func userChanged() {
         shell.reset()
         rebuildStores()
+        // Signed out too (nil): a sign-in as the same account later registers the token again.
+        push?.accountChanged(owner: owner)
         Task {
             // The previous account's activity goes, whoever signs in next (nobody, at sign-out).
             await activities?.endAll()
@@ -173,27 +177,35 @@ public final class HomeModel {
     /// tapped notification names, and refreshes the one a foreground notification names. Items wait
     /// while nobody is signed in. Call after `start()` and whenever the inbox's `serial` changes.
     public func processInbox() async {
-        guard let inbox = pushInbox, let push, canHandlePush else { return }
+        guard let inbox = pushInbox, let push else { return }
         push.accountChanged(owner: owner)
+        guard canHandlePush else { return }
         if let token = inbox.deviceToken { await push.register(token: token) }
         if inbox.takeForegroundFlight() != nil { await myFlights.load() }
-        if let id = inbox.takePendingFlight() { await open(flightID: id) }
+        if let id = inbox.takePendingFlight(), await open(flightID: id) == .failed {
+            // Offline or a server error: the next start, sign-in or notification tries again.
+            inbox.keepPending(id)
+        }
     }
+
+    public enum FlightOpenResult: Sendable { case opened, notFound, failed }
 
     /// Opens a flight's detail. One that is not in My Flights is fetched by id first, so a notification
-    /// for a flight this device has not loaded yet still opens. False when it cannot be fetched.
+    /// for a flight this device has not loaded yet still opens. `.notFound` is final; `.failed` is worth
+    /// another try.
     @discardableResult
-    public func open(flightID id: Flight.ID) async -> Bool {
+    public func open(flightID id: Flight.ID) async -> FlightOpenResult {
         if let f = followed.first(where: { $0.id == id }) {
             open(flight: f)
-            return true
+            return .opened
         }
-        guard let f = try? await env.flights.flight(id) else { return false }
-        open(flight: f)
-        return true
+        do {
+            open(flight: try await env.flights.flight(id))
+            return .opened
+        } catch {
+            return error == .notFound ? .notFound : .failed
+        }
     }
-
-    // MARK: Screenshot runs
 
     #if DEBUG
     /// Debug launch arguments for the notification flow: `-pushFlight <uuid>` runs the handler a tap on a
@@ -206,6 +218,8 @@ public final class HomeModel {
         }
     }
     #endif
+
+    // MARK: Screenshot runs
 
     #if DEBUG
     /// `-liveActivityPush <path>`: once the activity rules have run on the loaded list, applies the

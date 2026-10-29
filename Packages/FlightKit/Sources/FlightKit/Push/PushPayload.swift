@@ -21,14 +21,4 @@ public struct PushPayload: Sendable, Equatable {
         guard let flight = uuid(["flightId", "flight_id"]) else { return nil }
         self.init(flightId: flight, eventId: uuid(["eventId", "event_id"]))
     }
-
-    /// A JSON object, for the Debug launch argument that injects a payload.
-    public init?(json: String) {
-        guard let object = Self.object(json: json) else { return nil }
-        self.init(userInfo: object)
-    }
-
-    static func object(json: String) -> [String: Any]? {
-        try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
-    }
 }

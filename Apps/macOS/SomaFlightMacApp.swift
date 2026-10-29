@@ -10,7 +10,8 @@ import UserNotifications
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    /// Set before launch finishes, so a notification that launched the app reaches the delegate.
+    func applicationWillFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
     }
 

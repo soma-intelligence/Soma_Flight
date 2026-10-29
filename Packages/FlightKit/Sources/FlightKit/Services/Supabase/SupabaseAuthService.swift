@@ -92,10 +92,14 @@ public final class SupabaseAuthService: AuthService {
         return true
     }
 
-    /// Removes this device's push tokens, then ends the session here and on the server; a failed server
+    static let unregisterLimit = Duration.seconds(4)
+
+    /// Removes this device's push tokens (waiting at most `unregisterLimit`), then ends the session here and on the server; a failed server
     /// call still clears the local session.
     public func signOut() async {
-        await push?.unregisterDevice()
+        // Offline, the request would hold sign-out for the URLSession timeout; the token list is kept
+        // when it does not finish, and removed at the next sign-out.
+        if let push { await waitingAtMost(Self.unregisterLimit) { await push.unregisterDevice() } }
         do { try await auth.signOut() } catch {
             try? await auth.signOut(scope: .local)
         }
