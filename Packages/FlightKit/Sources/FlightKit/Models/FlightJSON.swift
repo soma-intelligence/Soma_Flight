@@ -3,19 +3,26 @@ import Foundation
 /// Shared JSON configuration for backend payloads: snake_case keys and
 /// ISO 8601 dates, with or without fractional seconds.
 public enum FlightJSON {
+    // ISO8601DateFormatter is thread-safe for date(from:)/string(from:).
+    nonisolated(unsafe) private static let fractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let plain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
     public static var decoder: JSONDecoder {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
         d.dateDecodingStrategy = .custom { decoder in
-            let s = try decoder.singleValueContainer().decode(String.self)
-            let frac = ISO8601DateFormatter()
-            frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = frac.date(from: s) { return date }
-            let plain = ISO8601DateFormatter()
-            plain.formatOptions = [.withInternetDateTime]
-            if let date = plain.date(from: s) { return date }
-            throw DecodingError.dataCorruptedError(
-                in: try decoder.singleValueContainer(), debugDescription: "Bad ISO 8601 date: \(s)")
+            let container = try decoder.singleValueContainer()
+            let s = try container.decode(String.self)
+            if let date = fractional.date(from: s) ?? plain.date(from: s) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Bad ISO 8601 date: \(s)")
         }
         return d
     }
@@ -24,10 +31,8 @@ public enum FlightJSON {
         let e = JSONEncoder()
         e.keyEncodingStrategy = .convertToSnakeCase
         e.dateEncodingStrategy = .custom { date, encoder in
-            let f = ISO8601DateFormatter()
-            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             var c = encoder.singleValueContainer()
-            try c.encode(f.string(from: date))
+            try c.encode(fractional.string(from: date))
         }
         return e
     }

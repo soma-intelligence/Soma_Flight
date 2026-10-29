@@ -40,7 +40,9 @@ private func fixture(_ name: String) throws -> Data {
         let board = try FlightJSON.decoder.decode(AirportBoard.self, from: fixture("board_kaus"))
         #expect(board.kind == .departures && board.flights.count == 2)
         let stats = try FlightJSON.decoder.decode(DelayStats.self, from: fixture("stats_kaus"))
-        #expect(stats.severity == .moderate && stats.perHour.count == 3 && stats.worstAirlines[0].operator == "AAL")
+        #expect(stats.severity == .major && stats.perHour.count == 3 && stats.worstAirlines[0].operator == "UAL")
+        #expect(stats.perHour[1].hour == Date(timeIntervalSince1970: 1_800_003_600) && stats.perHour[1].late45 == 1)
+        #expect(try FlightJSON.decoder.decode(DelayStats.self, from: FlightJSON.encoder.encode(stats)) == stats)
         let wx = try FlightJSON.decoder.decode(Weather.self, from: fixture("weather_kaus"))
         #expect(wx.category == .VFR && wx.gustKt == 22 && wx.forecast.count == 1)
     }
@@ -51,7 +53,17 @@ private func fixture(_ name: String) throws -> Data {
         #expect(try FlightJSON.decoder.decode(Flight.self, from: data) == f)
     }
 
+    @Test(arguments: [
+        ("2026-10-23T23:25:00+00:00", 1_792_797_900.0),
+        ("2026-10-23T23:25:00.123456+00:00", 1_792_797_900.123),
+    ])
+    func dateFormats(_ s: String, _ epoch: Double) throws {
+        let d = try FlightJSON.decoder.decode(Date.self, from: Data("\"\(s)\"".utf8))
+        #expect(abs(d.timeIntervalSince1970 - epoch) < 0.01)
+    }
+
     @Test func apiErrorFromCode() {
+        #expect(APIError(code: "provider_unavailable") == .providerUnavailable)
         #expect(APIError(code: "plan_limit") == .planLimit)
         #expect(APIError(code: "something_new") == .providerUnavailable)
     }

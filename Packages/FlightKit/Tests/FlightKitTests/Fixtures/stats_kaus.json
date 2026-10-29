@@ -1,21 +1,58 @@
 {
-  "total": 212,
-  "onTime": 158,
-  "delayed15": 41,
-  "canceled": 6,
-  "avgDelayMinutes": 17.4,
+  "total": 10,
+  "onTime": 5,
+  "delayed15": 4,
+  "canceled": 1,
+  "avgDelayMinutes": 12.222222222222223,
   "perHour": [
-    { "hour": "2026-10-23T21:00:00.000Z", "onTime": 18, "late15": 4, "late45": 1, "canceled": 0, "diverted": 0 },
-    { "hour": "2026-10-23T22:00:00.000Z", "onTime": 16, "late15": 6, "late45": 2, "canceled": 1, "diverted": 0 },
-    { "hour": "2026-10-23T23:00:00.000Z", "onTime": 14, "late15": 9, "late45": 3, "canceled": 2, "diverted": 1 }
+    {
+      "hour": 1800000000,
+      "onTime": 5,
+      "late15": 0,
+      "late45": 0,
+      "canceled": 0,
+      "diverted": 0
+    },
+    {
+      "hour": 1800003600,
+      "onTime": 0,
+      "late15": 3,
+      "late45": 1,
+      "canceled": 0,
+      "diverted": 0
+    },
+    {
+      "hour": 1800007200,
+      "onTime": 0,
+      "late15": 0,
+      "late45": 0,
+      "canceled": 1,
+      "diverted": 0
+    }
   ],
   "worstRoutes": [
-    { "icao": "KDFW", "delayed": 9, "canceled": 1 },
-    { "icao": "KDEN", "delayed": 6, "canceled": 2 }
+    {
+      "icao": "KORD",
+      "delayed": 3,
+      "canceled": 0
+    },
+    {
+      "icao": "KATL",
+      "delayed": 1,
+      "canceled": 1
+    }
   ],
   "worstAirlines": [
-    { "operator": "AAL", "delayed": 12, "canceled": 1 },
-    { "operator": "SWA", "delayed": 8, "canceled": 3 }
+    {
+      "operator": "UAL",
+      "delayed": 3,
+      "canceled": 0
+    },
+    {
+      "operator": "DAL",
+      "delayed": 1,
+      "canceled": 1
+    }
   ],
-  "severity": "moderate"
+  "severity": "major"
 }

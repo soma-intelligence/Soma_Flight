@@ -10,6 +10,7 @@ public enum APIError: Error, Equatable, Sendable {
         case "plan_limit": self = .planLimit
         case "unauthorized": self = .unauthorized
         case "offline": self = .offline
+        case "provider_unavailable": self = .providerUnavailable
         default: self = .providerUnavailable
         }
     }
