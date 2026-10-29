@@ -25,14 +25,14 @@ public struct FlightDetailView: View {
             VStack(spacing: 0) {
                 if let flight = store.flight {
                     FlightHeader(flight: flight, origin: store.origin, destination: store.destination)
-                        .padding(.horizontal, Theme.gutter)
-                        .padding(.top, 18)
-                        .padding(.bottom, 12)
+                        .scaledPadding(.horizontal, Theme.gutter)
+                        .scaledPadding(.top, 18)
+                        .scaledPadding(.bottom, 12)
                     Hairline()
                     ScreenScroll(scrolls: scrolls) { sections(flight, now: now) }
                 } else if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
-                        .padding(16)
+                        .scaledPadding(.all, 16)
                     Spacer(minLength: 0)
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,31 +62,31 @@ public struct FlightDetailView: View {
                     Text(line)
                         .scaledFont(13, weight: .medium)
                         .foregroundStyle(Theme.secondary)
-                        .padding(.horizontal, 4)
+                        .scaledPadding(.horizontal, 4)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.vertical, 16)
 
             section {
                 SectionHeader("Timeline", subtitle: "Local times at each airport")
-                    .padding(.bottom, 16)
+                    .scaledPadding(.bottom, 16)
                 FlightTimeline(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
             }
             section {
                 SectionHeader("Gates and Terminals", subtitle: "Updated as the airline posts them")
-                    .padding(.bottom, 16)
+                    .scaledPadding(.bottom, 16)
                 GatesGrid(flight: flight)
             }
             section {
                 SectionHeader("Aircraft")
-                    .padding(.bottom, 12)
+                    .scaledPadding(.bottom, 12)
                 AircraftRow(type: flight.aircraftType, registration: flight.registration)
             }
             if !store.events.isEmpty {
                 section {
                     SectionHeader("Changes", subtitle: "What moved since you started tracking")
-                        .padding(.bottom, 8)
+                        .scaledPadding(.bottom, 8)
                     ForEach(store.events.reversed()) { e in
                         EventRow(event: e, timeZone: store.origin?.timeZone ?? .current)
                     }
@@ -94,7 +94,7 @@ public struct FlightDetailView: View {
             }
             section {
                 SectionHeader("Airports")
-                    .padding(.bottom, 4)
+                    .scaledPadding(.bottom, 4)
                 AirportLinkRow(role: "Departure", code: flight.originIcao, airport: store.origin, tag: nil) {
                     onAirport(store.origin?.id ?? flight.originIcao)
                 }
@@ -116,7 +116,7 @@ public struct FlightDetailView: View {
                 }
             }
         }
-        .padding(.bottom, 32)
+        .scaledPadding(.bottom, 32)
     }
 
     /// The card and timeline describe the planned trip; a diversion target only shows when it is
@@ -143,8 +143,8 @@ public struct FlightDetailView: View {
 
     private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 0) { content() }
-            .padding(.horizontal, Theme.gutter)
-            .padding(.vertical, 22)
+            .scaledPadding(.horizontal, Theme.gutter)
+            .scaledPadding(.vertical, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .top) { Hairline() }
     }
@@ -167,18 +167,18 @@ struct FlightHeader: View {
                     CodeChip(ScreenFormat.chipDay(out, origin?.timeZone ?? .current).uppercased())
                 }
             }
-            .padding(.bottom, 6)
+            .scaledPadding(.bottom, 6)
             Text(ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode))
-                .font(Theme.Font.sheetTitle)
+                .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(2)
             Text(DetailFacts.caption(flight).uppercased())
                 .scaledFont(13, weight: .medium)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
-                .padding(.top, 3)
+                .scaledPadding(.top, 3)
         }
-        .padding(.trailing, 60)
+        .scaledPadding(.trailing, 60)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
@@ -196,7 +196,7 @@ struct StatusNotice: View {
                 Circle().fill(color.opacity(0.25)).frame(width: 16, height: 16)
                 Circle().fill(color).frame(width: 7, height: 7)
             }
-            .padding(.top, 3)
+            .scaledPadding(.top, 3)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
                 Text(text).scaledFont(15).foregroundStyle(Theme.primary.opacity(0.8))
@@ -204,7 +204,7 @@ struct StatusNotice: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
+        .scaledPadding(.all, 16)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(color.opacity(0.16)))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(color.opacity(0.35), lineWidth: 1))
         .accessibilityElement(children: .combine)
@@ -326,7 +326,7 @@ struct AirportLinkRow: View {
                 Spacer(minLength: 8)
                 RowChevron()
             }
-            .padding(.vertical, 10)
+            .scaledPadding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -355,7 +355,7 @@ struct EventRow: View {
                     .monospacedDigit()
                     .foregroundStyle(Theme.secondary)
             }
-            .padding(.vertical, 8)
+            .scaledPadding(.vertical, 8)
             .accessibilityElement(children: .combine)
         }
     }

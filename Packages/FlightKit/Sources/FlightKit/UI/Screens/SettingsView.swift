@@ -41,9 +41,9 @@ public struct SettingsView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScreenTitle("Settings")
-                .padding(.horizontal, Theme.gutter)
-                .padding(.top, 22)
-                .padding(.bottom, 16)
+                .scaledPadding(.horizontal, Theme.gutter)
+                .scaledPadding(.top, 22)
+                .scaledPadding(.bottom, 16)
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
@@ -53,8 +53,8 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let error = session.error {
                 ErrorBanner(error: error)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.bottom, 12)
             }
             AccountRow(session: session.session, onSignIn: onSignIn)
             Hairline()
@@ -104,7 +104,7 @@ public struct SettingsView: View {
                 }
             }
         }
-        .padding(.bottom, 32)
+        .scaledPadding(.bottom, 32)
         .confirmationDialog(confirming == .deleteAccount ? "Delete your account?" : "Sign out?",
                             isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
                             titleVisibility: .visible, presenting: confirming) { action in
@@ -133,12 +133,12 @@ public struct SettingsView: View {
     private func group<C: View>(_ title: String, @ViewBuilder _ rows: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             CapsHeader(title)
-                .padding(.horizontal, 16)
-                .padding(.top, 34)
-                .padding(.bottom, 8)
-            Hairline().padding(.horizontal, 16)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 34)
+                .scaledPadding(.bottom, 8)
+            Hairline().scaledPadding(.horizontal, 16)
             rows()
-            Hairline().padding(.horizontal, 16)
+            Hairline().scaledPadding(.horizontal, 16)
         }
     }
 
@@ -165,8 +165,8 @@ struct AccountRow: View {
                 Text(pro ? "PRO" : "FREE")
                     .scaledFont(13, weight: .bold)
                     .foregroundStyle(Theme.diverted)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
+                    .scaledPadding(.horizontal, 7)
+                    .scaledPadding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.diverted.opacity(0.18)))
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -183,14 +183,14 @@ struct AccountRow: View {
                 Button("Sign In", action: onSignIn)
                     .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
+                    .scaledPadding(.horizontal, 14)
+                    .scaledPadding(.vertical, 8)
                     .background(Capsule().fill(Theme.accent))
                     .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 18)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 18)
         .accessibilityElement(children: .combine)
     }
 
@@ -217,7 +217,7 @@ struct SettingsRow<Accessory: View>: View {
             } else {
                 row
             }
-            if !last { Hairline().padding(.leading, 60).padding(.trailing, 16) }
+            if !last { Hairline().scaledPadding(.leading, 60).scaledPadding(.trailing, 16) }
         }
     }
 
@@ -237,8 +237,8 @@ struct SettingsRow<Accessory: View>: View {
             Spacer(minLength: 8)
             accessory
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 16)
+        .scaledPadding(.leading, 16)
+        .scaledPadding(.trailing, 16)
         .frame(minHeight: 60)
         .padding(.vertical, subtitle == nil ? 0 : 6)
     }

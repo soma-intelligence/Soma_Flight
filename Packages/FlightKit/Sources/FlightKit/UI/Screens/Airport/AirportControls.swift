@@ -12,8 +12,8 @@ struct PillPicker<Value: Hashable>: View {
                     Text(label)
                         .scaledFont(14, weight: .medium)
                         .foregroundStyle(value == selection ? Theme.primary : Theme.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .scaledPadding(.horizontal, 12)
+                        .scaledPadding(.vertical, 7)
                         .background(Capsule().fill(value == selection ? Theme.pill : .clear))
                         .contentShape(Capsule())
                 }
@@ -54,8 +54,8 @@ struct FilterPill<Value: Hashable>: View {
             Image(systemName: "chevron.down").scaledFont(11, weight: .semibold).foregroundStyle(Theme.secondary)
         }
         .foregroundStyle(Theme.primary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .scaledPadding(.horizontal, 12)
+        .scaledPadding(.vertical, 7)
         .background(Capsule().fill(Theme.pill))
         .overlay(Capsule().strokeBorder(Theme.separator, lineWidth: 0.5))
         .contentShape(Capsule())

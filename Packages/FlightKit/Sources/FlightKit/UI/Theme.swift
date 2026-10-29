@@ -88,6 +88,38 @@ public enum Theme {
 
     // MARK: Metrics
     public static let gutter: CGFloat = 20
+
+    /// A reference metric (padding, control size) at the environment's `metricsScale`. At 1 it is returned
+    /// untouched, so iOS renders exactly as before.
+    public static func metric(_ value: CGFloat, _ scale: CGFloat) -> CGFloat {
+        guard scale != 1 else { return value }
+        return value * scale
+    }
+
+    /// `metric` for type: below 1 a size never shrinks under 10 pt unless it started there, which keeps
+    /// captions legible on the Mac.
+    public static func fontSize(_ size: CGFloat, _ scale: CGFloat) -> CGFloat {
+        guard scale != 1 else { return size }
+        return max(size * scale, min(size, 10))
+    }
+
+    /// The type roles that shells and screens set with `themeFont(_:)`.
+    public enum FontRole: Sendable {
+        case sheetTitle, sectionTitle, sectionSubtitle, label, bigNumber, body, axis, chip
+
+        var spec: (size: CGFloat, weight: SwiftUI.Font.Weight, design: SwiftUI.Font.Design, font: SwiftUI.Font) {
+            switch self {
+            case .sheetTitle: (20, .bold, .default, Font.sheetTitle)
+            case .sectionTitle: (17, .semibold, .default, Font.sectionTitle)
+            case .sectionSubtitle: (13, .regular, .default, Font.sectionSubtitle)
+            case .label: (15, .regular, .default, Font.label)
+            case .bigNumber: (22, .semibold, .default, Font.bigNumber)
+            case .body: (17, .regular, .default, Font.body)
+            case .axis: (12, .regular, .default, Font.axis)
+            case .chip: (11, .medium, .monospaced, Font.chip)
+            }
+        }
+    }
     public static let cardRadius: CGFloat = 14
     public static let sheetRadius: CGFloat = 38
 }
@@ -126,6 +158,7 @@ private extension NSColor {
 /// exact reference size. Use it for the custom sizes the screenshots call for.
 struct ScaledFont: ViewModifier {
     @ScaledMetric private var size: CGFloat
+    @Environment(\.metricsScale) private var scale
     var weight: SwiftUI.Font.Weight
     var design: SwiftUI.Font.Design
 
@@ -151,7 +184,52 @@ struct ScaledFont: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: size, weight: weight, design: design))
+        content.font(.system(size: Theme.fontSize(size, scale), weight: weight, design: design))
+    }
+}
+
+/// A `Theme.Font` role at the environment's metrics scale: the text style itself at 1 (iOS), a fixed size
+/// otherwise.
+struct ThemeFont: ViewModifier {
+    var role: Theme.FontRole
+    @Environment(\.metricsScale) private var scale
+
+    func body(content: Content) -> some View {
+        let spec = role.spec
+        if scale == 1 {
+            content.font(spec.font)
+        } else {
+            content.font(.system(size: Theme.fontSize(spec.size, scale), weight: spec.weight, design: spec.design))
+        }
+    }
+}
+
+/// Padding at the environment's metrics scale.
+struct ScaledPadding: ViewModifier {
+    var edges: Edge.Set
+    var length: CGFloat
+    @Environment(\.metricsScale) private var scale
+
+    func body(content: Content) -> some View {
+        content.padding(edges, Theme.metric(length, scale))
+    }
+}
+
+public extension EnvironmentValues {
+    /// How the shared screens size their type, paddings and controls against the iPhone reference: 1 on
+    /// iOS (Dynamic Type still applies on top), smaller in the Mac panel.
+    @Entry var metricsScale: CGFloat = 1
+}
+
+public extension View {
+    /// A `Theme.Font` role that follows `metricsScale`.
+    func themeFont(_ role: Theme.FontRole) -> some View {
+        modifier(ThemeFont(role: role))
+    }
+
+    /// `padding(_:_:)` in reference points, scaled by `metricsScale`.
+    func scaledPadding(_ edges: Edge.Set = .all, _ length: CGFloat) -> some View {
+        modifier(ScaledPadding(edges: edges, length: length))
     }
 }
 
@@ -169,6 +247,7 @@ public struct SectionHeader: View {
     var subtitle: String?
     var large: Bool
     var info: Bool
+    @Environment(\.metricsScale) private var scale
 
     /// - Parameter info: adds a small (i) glyph after the subtitle (or the title when there is none).
     public init(_ title: String, subtitle: String? = nil, large: Bool = false, info: Bool = false) {
@@ -176,18 +255,18 @@ public struct SectionHeader: View {
     }
 
     private var glyph: Text {
-        Text(Image(systemName: "info.circle")).font(.system(size: 11, weight: .regular))
+        Text(Image(systemName: "info.circle")).font(.system(size: Theme.fontSize(11, scale), weight: .regular))
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             (info && subtitle == nil ? Text("\(title) \(glyph.foregroundStyle(Theme.secondary))") : Text(title))
-                .font(large ? Theme.Font.sheetTitle : Theme.Font.sectionTitle)
+                .themeFont(large ? .sheetTitle : .sectionTitle)
                 .foregroundStyle(Theme.primary)
             if let subtitle {
                 let line = info ? Text("\(subtitle) \(glyph)") : Text(subtitle)
                 Group {
-                    if large { line.scaledFont(14) } else { line.font(Theme.Font.sectionSubtitle) }
+                    if large { line.scaledFont(14) } else { line.themeFont(.sectionSubtitle) }
                 }
                 .foregroundStyle(Theme.secondary)
             }

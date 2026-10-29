@@ -47,7 +47,7 @@ public struct FlightTimeline: View {
                             .strokeBorder(step.done ? Color.clear : Theme.secondary, lineWidth: 1.5)
                             .background(Circle().fill(step.done ? dotColor : Color.clear))
                             .frame(width: 12, height: 12)
-                            .padding(.top, 4)
+                            .scaledPadding(.top, 4)
                         if i < steps.count - 1 {
                             Rectangle()
                                 .fill(steps[i + 1].done ? dotColor : Theme.grid)
@@ -60,7 +60,7 @@ public struct FlightTimeline: View {
                         Text(step.title).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
                         Text(step.place).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
-                    .padding(.bottom, 18)
+                    .scaledPadding(.bottom, 18)
                     Spacer()
                     times(step)
                 }
@@ -105,7 +105,7 @@ public struct FlightTimeline: View {
                            destination: PreviewData.airport("KSFO"), now: PreviewData.now)
             FlightTimeline(flight: PreviewData.sparse, origin: nil, destination: nil)
         }
-        .padding(20)
+        .scaledPadding(.all, 20)
     }
     .background(Theme.background)
     .preferredColorScheme(.dark)

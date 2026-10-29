@@ -61,7 +61,7 @@ public struct FlightCard: View {
             }
         }
         .monospacedDigit()
-        .padding(16)
+        .scaledPadding(.all, 16)
         .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Theme.card))
         .accessibilityElement(children: .combine)
     }
@@ -98,7 +98,7 @@ public struct FlightCard: View {
                 }
             }
             .scaledFont(17, weight: .medium)
-            .padding(.top, 4)
+            .scaledPadding(.top, 4)
         }
     }
 }

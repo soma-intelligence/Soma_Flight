@@ -66,6 +66,7 @@ public struct HomeTabPill: View {
     var onSearch: () -> Void
     var bottom: CGFloat
     @Namespace private var selectionSpace
+    @Environment(\.metricsScale) private var scale
 
     /// Darkens the glass so the cards scrolling under it stay quiet, as in the reference.
     static let tint = Color(light: 0xFFFFFF, dark: 0x1C1C1E).opacity(0.55)
@@ -76,28 +77,28 @@ public struct HomeTabPill: View {
     }
 
     public var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Theme.metric(10, scale)) {
             HStack(spacing: 0) {
                 item(.flights, title: "My Flights", systemImage: "airplane.circle.fill")
                 item(.passport, title: "Passport", systemImage: "person.text.rectangle.fill")
             }
-            .padding(4)
+            .scaledPadding(.all, 4)
             .glassEffect(.regular.tint(Self.tint), in: .capsule)
 
             Button(action: onSearch) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: Theme.metric(22, scale), weight: .semibold))
                     .foregroundStyle(Theme.primary)
-                    .frame(width: 59, height: 59)
+                    .frame(width: Theme.metric(59, scale), height: Theme.metric(59, scale))
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .glassEffect(.regular.tint(Self.tint).interactive(), in: .circle)
             .accessibilityLabel("Search")
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, bottom)
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.top, 8)
+        .scaledPadding(.bottom, bottom)
     }
 
     private func item(_ value: HomeTab, title: String, systemImage: String) -> some View {
@@ -105,16 +106,16 @@ public struct HomeTabPill: View {
         return Button {
             withAnimation(.snappy) { tab = value }
         } label: {
-            VStack(spacing: 2) {
+            VStack(spacing: Theme.metric(2, scale)) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 21, weight: .medium))
-                    .frame(height: 25)
+                    .font(.system(size: Theme.metric(21, scale), weight: .medium))
+                    .frame(height: Theme.metric(25, scale))
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: Theme.fontSize(11, scale), weight: .semibold))
             }
             .foregroundStyle(selected ? Theme.accent : Theme.primary)
             .frame(maxWidth: .infinity)
-            .frame(height: 51)
+            .frame(height: Theme.metric(51, scale))
             .background {
                 if selected {
                     Capsule()
@@ -136,6 +137,7 @@ public struct RoundButton: View {
     var systemImage: String
     var label: String
     var action: () -> Void
+    @Environment(\.metricsScale) private var scale
 
     public init(systemImage: String, label: String, action: @escaping () -> Void) {
         self.systemImage = systemImage; self.label = label; self.action = action
@@ -144,9 +146,9 @@ public struct RoundButton: View {
     public var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: Theme.metric(18, scale), weight: .medium))
                 .foregroundStyle(Theme.primary)
-                .frame(width: 44, height: 44)
+                .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
                 .background(Circle().fill(Self.fill))
                 .contentShape(Circle())
         }
@@ -163,16 +165,23 @@ public struct CloseButton: View {
 
     public var body: some View {
         RoundButton(systemImage: "xmark", label: "Close", action: action)
-            .padding(.top, 16)
-            .padding(.trailing, 16)
+            .scaledPadding(.top, 16)
+            .scaledPadding(.trailing, 16)
     }
 }
 
 /// What shows for the moment the environment takes to build, or the reason it could not.
 public struct LaunchPlaceholder: View {
     var failure: String?
+    var showsProgress: Bool
+    var onRetry: (() -> Void)?
 
-    public init(failure: String?) { self.failure = failure }
+    /// - Parameters:
+    ///   - showsProgress: a spinner while there is no failure (iOS keeps the plain black screen).
+    ///   - onRetry: adds a Try Again button under the failure.
+    public init(failure: String?, showsProgress: Bool = false, onRetry: (() -> Void)? = nil) {
+        self.failure = failure; self.showsProgress = showsProgress; self.onRetry = onRetry
+    }
 
     /// The line shown when the cache cannot open.
     public static let storageFailure = "Soma Flight could not open its storage. Restart the app to try again."
@@ -181,11 +190,18 @@ public struct LaunchPlaceholder: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if let failure {
-                Text(failure)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(32)
+                VStack(spacing: 16) {
+                    Text(failure)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    if let onRetry {
+                        Button("Try Again", action: onRetry)
+                    }
+                }
+                .padding(32)
+            } else if showsProgress {
+                ProgressView()
             }
         }
     }

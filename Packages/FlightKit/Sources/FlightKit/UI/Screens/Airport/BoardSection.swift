@@ -56,19 +56,19 @@ struct BoardSection: View {
             VStack(alignment: .leading, spacing: 0) {
                 SectionFreshness(fetchedAt: fetchedAt[kind], ttl: AirportFacts.boardTTL, now: now, bottom: 10)
                 PillPicker(options: [(BoardKind.departures, "Departures"), (.arrivals, "Arrivals")], selection: $kind)
-                    .padding(.bottom, 12)
+                    .scaledPadding(.bottom, 12)
                 filters
-                    .padding(.bottom, 22)
+                    .scaledPadding(.bottom, 22)
                 SectionHeader(kind == .departures ? "Departures per hour" : "Arrivals per hour", info: true)
-                    .padding(.bottom, 4)
+                    .scaledPadding(.bottom, 4)
                 // The chart runs nearly edge to edge, as on the reference board.
                 DelayChart(perHour: perHour, timeZone: timeZone, now: now)
-                    .padding(.leading, 6 - Theme.gutter)
-                    .padding(.trailing, 10 - Theme.gutter)
-                    .padding(.bottom, 26)
+                    .scaledPadding(.leading, 6 - Theme.gutter)
+                    .scaledPadding(.trailing, 10 - Theme.gutter)
+                    .scaledPadding(.bottom, 26)
                 HStack(alignment: .firstTextBaseline) {
                     Text(kind == .departures ? "Departures" : "Arrivals")
-                        .font(Theme.Font.sheetTitle)
+                        .themeFont(.sheetTitle)
                         .foregroundStyle(Theme.primary)
                     Spacer()
                     if shown.count < filtered.count || showEarlier {
@@ -78,13 +78,13 @@ struct BoardSection: View {
                             .foregroundStyle(Theme.accent)
                     }
                 }
-                .padding(.bottom, 8)
+                .scaledPadding(.bottom, 8)
             }
-            .padding(.horizontal, Theme.gutter)
+            .scaledPadding(.horizontal, Theme.gutter)
             if rows.isEmpty {
                 Text(flights.isEmpty ? "No flights on this board yet." : "No flights match these filters.")
                     .scaledFont(15).foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, Theme.gutter).padding(.vertical, 20)
+                    .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.vertical, 20)
             }
             MaybeLazyVStack(lazy: lazy) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, f in
@@ -135,8 +135,8 @@ struct BoardSection: View {
         }
         .scaledFont(11.5, weight: .medium)
         .foregroundStyle(Theme.secondary)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 3)
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.vertical, 3)
         .frame(minHeight: 24)
         .background(Theme.background)
         .overlay(alignment: .top) { Rectangle().fill(Theme.separator).frame(height: 1) }

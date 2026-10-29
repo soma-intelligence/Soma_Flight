@@ -20,8 +20,8 @@ public struct StaleBadge: View {
                 .scaledFont(12, weight: .medium)
         }
         .foregroundStyle(isStale ? Theme.late : Theme.secondary)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 4)
+        .scaledPadding(.horizontal, 9)
+        .scaledPadding(.vertical, 4)
         .background(Capsule().fill(isStale ? Theme.late.opacity(0.14) : Theme.card))
         .overlay(Capsule().strokeBorder(Theme.separator, lineWidth: isStale ? 0 : 0.5))
         .accessibilityElement(children: .combine)

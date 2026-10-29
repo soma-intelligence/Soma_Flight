@@ -12,7 +12,7 @@ struct YearChips: View {
                 chip(nil, "All-Time")
                 ForEach(years, id: \.self) { chip($0, String($0)) }
             }
-            .padding(.horizontal, 16)
+            .scaledPadding(.horizontal, 16)
         }
     }
 
@@ -23,7 +23,7 @@ struct YearChips: View {
                 .scaledFont(17, weight: .medium)
                 .monospacedDigit()
                 .foregroundStyle(on ? Theme.primary : Theme.secondary)
-                .padding(.horizontal, 15)
+                .scaledPadding(.horizontal, 15)
                 .frame(minHeight: 38)
                 .background(Capsule().fill(on ? Theme.pill : .clear))
                 .overlay(Capsule().strokeBorder(on ? Theme.primary.opacity(0.08) : .clear, lineWidth: 1))
@@ -56,7 +56,7 @@ struct PassportCard: View {
                 Text(subtitle.uppercased()).scaledFont(12, weight: .semibold)
             }
             .foregroundStyle(Self.soft)
-            .padding(.top, 3)
+            .scaledPadding(.top, 3)
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 0) {
@@ -65,7 +65,7 @@ struct PassportCard: View {
                 }
                 VStack(alignment: .leading, spacing: 12) { flightsStat; distanceStat }
             }
-            .padding(.top, 20)
+            .scaledPadding(.top, 20)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 0) {
                     stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
@@ -81,12 +81,12 @@ struct PassportCard: View {
                     stat("Airlines", "\(stats.airlines)")
                 }
             }
-            .padding(.top, 12)
+            .scaledPadding(.top, 12)
         }
         .monospacedDigit()
-        .padding(.horizontal, 22)
-        .padding(.top, 20)
-        .padding(.bottom, 24)
+        .scaledPadding(.horizontal, 22)
+        .scaledPadding(.top, 20)
+        .scaledPadding(.bottom, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -151,18 +151,18 @@ struct DelaysCard: View {
                 .scaledFont(64, weight: .bold)
                 .monospacedDigit()
                 .foregroundStyle(.white)
-                .padding(.bottom, -4)
+                .scaledPadding(.bottom, -4)
             Text(lost.caption)
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(.white)
             Text(TravelFacts.averageDelayLine(stats.avgDelayMinutes))
                 .scaledFont(17)
                 .foregroundStyle(Color(red: 1.0, green: 0.70, blue: 0.68))
-                .padding(.top, 4)
+                .scaledPadding(.top, 4)
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 14)
-        .padding(.bottom, 22)
+        .scaledPadding(.horizontal, 22)
+        .scaledPadding(.top, 14)
+        .scaledPadding(.bottom, 22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
@@ -180,6 +180,7 @@ struct DelaysCard: View {
 
 /// The pale card with the aircraft flown most.
 struct AircraftCard: View {
+    @Environment(\.metricsScale) private var scale
     var type: String
     var count: Int
 
@@ -195,20 +196,20 @@ struct AircraftCard: View {
                 .foregroundStyle(Self.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .padding(.top, 2)
+                .scaledPadding(.top, 2)
             Text(count == 1 ? "1 flight" : "\(count) flights")
                 .scaledFont(17)
                 .foregroundStyle(Self.ink.opacity(0.6))
-                .padding(.top, 2)
+                .scaledPadding(.top, 2)
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 20)
+        .scaledPadding(.horizontal, 22)
+        .scaledPadding(.vertical, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .trailing) {
             Image(systemName: "airplane")
-                .font(.system(size: 64, weight: .light))
+                .font(.system(size: Theme.metric(64, scale), weight: .light))
                 .foregroundStyle(Self.ink.opacity(0.12))
-                .padding(.trailing, 22)
+                .scaledPadding(.trailing, 22)
                 .accessibilityHidden(true)
         }
         .background(
@@ -232,7 +233,7 @@ struct PastFlightsSection: View {
             Text("Past Flights")
                 .scaledFont(22, weight: .bold)
                 .foregroundStyle(Theme.primary)
-                .padding(.horizontal, 20)
+                .scaledPadding(.horizontal, 20)
                 .accessibilityAddTraits(.isHeader)
             HorizontalStrip(scrolls: !staticControls) {
                 HStack(spacing: 2) {
@@ -241,7 +242,7 @@ struct PastFlightsSection: View {
                             Text(s == .date && sort == .date ? "Date \u{2193}" : s.title)
                                 .scaledFont(15, weight: sort == s ? .semibold : .medium)
                                 .foregroundStyle(sort == s ? Theme.primary : Theme.secondary)
-                                .padding(.horizontal, 13)
+                                .scaledPadding(.horizontal, 13)
                                 .frame(minHeight: 32)
                                 .background(Capsule().fill(sort == s ? Theme.pill : .clear))
                                 .contentShape(Capsule())
@@ -250,10 +251,10 @@ struct PastFlightsSection: View {
                         .accessibilityAddTraits(sort == s ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 14)
+                .scaledPadding(.horizontal, 14)
             }
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .scaledPadding(.top, 12)
+            .scaledPadding(.bottom, 10)
 
             ForEach(TravelFacts.groups(flights, by: sort, city: city)) { group in
                 HStack {
@@ -263,9 +264,9 @@ struct PastFlightsSection: View {
                         .scaledFont(13, weight: .semibold)
                         .foregroundStyle(Theme.secondary)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 10)
+                .scaledPadding(.horizontal, 20)
+                .scaledPadding(.top, 18)
+                .scaledPadding(.bottom, 10)
                 .accessibilityElement(children: .combine)
                 ForEach(group.flights) { f in
                     Hairline()
@@ -307,17 +308,17 @@ struct PastFlightRow: View {
                         Text(flight.status == .canceled ? "CANCELED" : "DIVERTED")
                             .scaledFont(11, weight: .bold)
                             .foregroundStyle(flight.status == .canceled ? Theme.secondary : Theme.diverted)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
+                            .scaledPadding(.horizontal, 5)
+                            .scaledPadding(.vertical, 2)
                             .background(Capsule().strokeBorder(flight.status == .canceled ? Theme.secondary : Theme.diverted,
                                                                lineWidth: 1))
                     }
                 }
             }
         }
-        .padding(.leading, 18)
-        .padding(.trailing, 16)
-        .padding(.vertical, 10)
+        .scaledPadding(.leading, 18)
+        .scaledPadding(.trailing, 16)
+        .scaledPadding(.vertical, 10)
         .accessibilityElement(children: .combine)
     }
 }

@@ -38,9 +38,9 @@ public struct MyFlightsView: View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
                 ScreenTitle("My Flights")
-                    .padding(.horizontal, Theme.gutter)
-                    .padding(.top, 22)
-                    .padding(.bottom, 12)
+                    .scaledPadding(.horizontal, Theme.gutter)
+                    .scaledPadding(.top, 22)
+                    .scaledPadding(.bottom, 12)
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
@@ -59,15 +59,15 @@ public struct MyFlightsView: View {
         VStack(alignment: .leading, spacing: 0) {
             if store.isOffline {
                 ErrorBanner(error: .offline, retry: reload)
-                    .padding(.bottom, 10)
+                    .scaledPadding(.bottom, 10)
                 if let updated = store.fetchedAt ?? store.lastUpdated, !groups.isEmpty {
                     StaleBadge(fetchedAt: updated, ttl: Self.ttl, now: now)
-                        .padding(.bottom, 14)
+                        .scaledPadding(.bottom, 14)
                 }
             } else {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
-                        .padding(.bottom, 14)
+                        .scaledPadding(.bottom, 14)
                 }
                 // A live subscription that is healthy keeps the list current even when nothing changes.
                 if !groups.isEmpty, !store.isLiveSynced {
@@ -88,8 +88,8 @@ public struct MyFlightsView: View {
             } else {
                 ForEach(groups, id: \.title) { group in
                     CapsHeader(group.title, trailing: group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights")
-                        .padding(.top, 6)
-                        .padding(.bottom, 10)
+                        .scaledPadding(.top, 6)
+                        .scaledPadding(.bottom, 10)
                     ForEach(group.flights) { flight in
                         Button { onSelect(flight) } label: {
                             FlightCard(flight: flight, origin: lookup(flight.originIcao),
@@ -101,13 +101,13 @@ public struct MyFlightsView: View {
                                 Task { await store.unfollow(flight) }
                             }
                         }
-                        .padding(.bottom, 12)
+                        .scaledPadding(.bottom, 12)
                     }
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 24)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.bottom, 24)
     }
 
     private func reload() { Task { await store.load() } }
@@ -131,18 +131,18 @@ struct EmptyFlights: View {
                     Label("Search", systemImage: "magnifyingglass")
                         .scaledFont(15, weight: .semibold)
                         .foregroundStyle(Theme.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 9)
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.vertical, 9)
                         .background(Capsule().fill(Theme.pill))
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 10)
+                .scaledPadding(.top, 10)
             }
             Spacer(minLength: 0)
         }
         .multilineTextAlignment(.center)
-        .padding(.vertical, 24)
+        .scaledPadding(.vertical, 24)
     }
 }
 

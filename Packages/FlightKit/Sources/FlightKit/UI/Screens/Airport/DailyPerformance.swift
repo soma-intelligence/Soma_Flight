@@ -35,19 +35,19 @@ struct DailyPerformanceCard: View {
                 Text(noun).scaledFont(25, weight: .semibold)
             }
             .foregroundStyle(Theme.primary)
-            .padding(.top, 1)
+            .scaledPadding(.top, 1)
             SplitBar(parts: [(stats.onTime, Theme.splitGreen, false), (stats.delayed15, Theme.splitRed, false),
                              (stats.canceled, Theme.canceled, true)])
                 .frame(height: 4.5)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
+                .scaledPadding(.top, 18)
+                .scaledPadding(.bottom, 12)
             line("On Time", Theme.splitGreen, stats.onTime)
             line("Delayed 15m+", Theme.splitRed, stats.delayed15)
             line("Canceled", Theme.ifr, stats.canceled)
         }
         .monospacedDigit()
-        .padding(.horizontal, 12)
-        .padding(.vertical, 14)
+        .scaledPadding(.horizontal, 12)
+        .scaledPadding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -62,7 +62,7 @@ struct DailyPerformanceCard: View {
             Text("\(share(n))%").scaledFont(15).foregroundStyle(Theme.primary)
             Text("\(n)").scaledFont(15).foregroundStyle(Theme.secondary).frame(minWidth: 36, alignment: .trailing)
         }
-        .padding(.vertical, 3.5)
+        .scaledPadding(.vertical, 3.5)
     }
 }
 
@@ -107,7 +107,7 @@ struct DisruptionBars: View {
                 legend(Theme.splitRed, "Delayed", hatched: false)
                 legend(Theme.canceled, "Canceled", hatched: true)
             }
-            .padding(.bottom, 14)
+            .scaledPadding(.bottom, 14)
             if items.isEmpty {
                 Text("No disruption so far today.")
                     .scaledFont(15).foregroundStyle(Theme.secondary)
@@ -139,7 +139,7 @@ struct DisruptionBars: View {
             }
             .frame(width: 56, alignment: .leading)
             Rectangle().fill(Theme.separator).frame(width: 1, height: item.caption == nil ? 20 : 34)
-                .padding(.trailing, 6)
+                .scaledPadding(.trailing, 6)
             GeometryReader { geo in
                 let w = geo.size.width
                 let total = item.delayed + item.canceled

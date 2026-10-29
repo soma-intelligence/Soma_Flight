@@ -15,9 +15,9 @@ struct AirportHeader: View {
                 chip(airport?.id ?? code)
                 if let airport { chip(localTime(airport.timeZone)) }
             }
-            .padding(.bottom, 6)
+            .scaledPadding(.bottom, 6)
             Text(airport?.name ?? code)
-                .font(Theme.Font.sheetTitle)
+                .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -29,10 +29,10 @@ struct AirportHeader: View {
                         .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
                 }
-                .padding(.top, 3)
+                .scaledPadding(.top, 3)
             }
         }
-        .padding(.trailing, 60)
+        .scaledPadding(.trailing, 60)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
@@ -43,10 +43,10 @@ struct AirportHeader: View {
 
     private func chip(_ text: String) -> some View {
         Text(text)
-            .font(Theme.Font.chip)
+            .themeFont(.chip)
             .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
+            .scaledPadding(.horizontal, 5)
+            .scaledPadding(.vertical, 2)
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.card))
             .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Theme.grid, lineWidth: 1))
     }
@@ -72,7 +72,7 @@ struct IssuesCard: View {
                     .scaledFont(19, weight: .semibold)
                     .foregroundStyle(Theme.primary)
             }
-            .padding(.bottom, 14)
+            .scaledPadding(.bottom, 14)
             row("airplane.departure", "Departures", AirportFacts.delayLine(departures, verb: "Leaving"))
             divider
             row("airplane.arrival", "Arrivals", AirportFacts.delayLine(arrivals, verb: "Arriving"))
@@ -81,16 +81,16 @@ struct IssuesCard: View {
                 row(Sky(metar: weather.metarRaw).symbol(night: false), "Weather", AirportFacts.weatherLine(weather))
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 18)
-        .padding(.bottom, 8)
+        .scaledPadding(.horizontal, 18)
+        .scaledPadding(.top, 18)
+        .scaledPadding(.bottom, 8)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.issues))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.issuesRim, lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
     private var divider: some View {
-        Rectangle().fill(Theme.primary.opacity(0.12)).frame(height: 1).padding(.leading, 30)
+        Rectangle().fill(Theme.primary.opacity(0.12)).frame(height: 1).scaledPadding(.leading, 30)
     }
 
     private func row(_ icon: String, _ title: String, _ text: String) -> some View {
@@ -99,7 +99,7 @@ struct IssuesCard: View {
                 .scaledFont(15, weight: .medium)
                 .foregroundStyle(Theme.primary)
                 .frame(width: 20)
-                .padding(.top, 1)
+                .scaledPadding(.top, 1)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).scaledFont(15.5, weight: .medium).foregroundStyle(Theme.primary)
@@ -110,6 +110,6 @@ struct IssuesCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 10)
+        .scaledPadding(.vertical, 10)
     }
 }

@@ -25,13 +25,13 @@ public struct ErrorBanner: View {
                     .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .buttonStyle(.plain)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .scaledPadding(.horizontal, 12)
+                    .scaledPadding(.vertical, 6)
                     .background(Capsule().fill(Theme.primary.opacity(0.12)))
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .scaledPadding(.horizontal, 14)
+        .scaledPadding(.vertical, 12)
         .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.issues))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.issuesRim, lineWidth: 1))
         .accessibilityElement(children: .combine)

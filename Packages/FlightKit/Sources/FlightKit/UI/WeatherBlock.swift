@@ -6,6 +6,7 @@ public struct WeatherBlock: View {
     var weather: Weather
     var timeZone: TimeZone
     var now: Date
+    @Environment(\.metricsScale) private var scale
 
     public init(weather: Weather, timeZone: TimeZone = .current, now: Date = .now) {
         self.weather = weather; self.timeZone = timeZone; self.now = now
@@ -15,12 +16,12 @@ public struct WeatherBlock: View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-                .padding(.bottom, 20)
+                .scaledPadding(.bottom, 20)
             categoryCard
-                .padding(.bottom, 18)
+                .scaledPadding(.bottom, 18)
             windRow
-                .padding(.horizontal, 12)
-                .padding(.bottom, 14)
+                .scaledPadding(.horizontal, 12)
+                .scaledPadding(.bottom, 14)
             Rectangle().fill(Theme.separator).frame(height: 1)
             HStack(spacing: 6) {
                 Text("METAR OBSERVED \(Format.ago(weather.observedAt, now: now).uppercased())")
@@ -28,7 +29,7 @@ public struct WeatherBlock: View {
             }
             .scaledFont(12, design: .monospaced)
             .foregroundStyle(Theme.secondary)
-            .padding(.top, 14)
+            .scaledPadding(.top, 14)
         }
         .monospacedDigit()
     }
@@ -45,9 +46,9 @@ public struct WeatherBlock: View {
                     Text("°C")
                         .scaledFont(31, weight: .regular)
                         .foregroundStyle(Theme.primary)
-                        .padding(.top, 8)
+                        .scaledPadding(.top, 8)
                 }
-                .padding(.bottom, -4)
+                .scaledPadding(.bottom, -4)
                 Text(Sky(metar: weather.metarRaw).description)
                     .scaledFont(16, weight: .semibold)
                     .foregroundStyle(Theme.primary)
@@ -57,8 +58,8 @@ public struct WeatherBlock: View {
                 .accessibilityHidden(true)
                 .symbolRenderingMode(.multicolor)
                 .scaledFont(62)
-                .padding(.top, 4)
-                .padding(.trailing, 8)
+                .scaledPadding(.top, 4)
+                .scaledPadding(.trailing, 8)
         }
     }
 
@@ -77,27 +78,27 @@ public struct WeatherBlock: View {
                 Text(weather.category.rawValue)
                     .scaledFont(13.5, weight: .semibold)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
+                    .scaledPadding(.horizontal, 7)
+                    .scaledPadding(.vertical, 3)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(weather.category.color))
                 Text(weather.category.name)
                     .scaledFont(16, weight: .medium)
                     .foregroundStyle(weather.category.color)
             }
-            Text("\(weather.category.summary) \(Text(Image(systemName: "info.circle")).font(.system(size: 11)))")
+            Text("\(weather.category.summary) \(Text(Image(systemName: "info.circle")).font(.system(size: Theme.fontSize(11, scale))))")
                 .scaledFont(13.5)
                 .foregroundStyle(Theme.secondary)
-                .padding(.top, 6)
+                .scaledPadding(.top, 6)
             HStack(alignment: .top, spacing: 16) {
                 ScaleColumn(icon: "cloud", label: "Cloud Ceiling", value: ceilingText,
                             category: ceilingCategory, position: ceilingPosition)
                 ScaleColumn(icon: "eye", label: "Visibility", value: visibilityText,
                             category: visibilityCategory, position: visibilityPosition)
             }
-            .padding(.top, 16)
+            .scaledPadding(.top, 16)
         }
-        .padding(10)
-        .padding(.vertical, 2)
+        .scaledPadding(.all, 10)
+        .scaledPadding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
     }
@@ -153,6 +154,7 @@ private struct ScaleColumn: View {
     var value: (String, String?)
     @ScaledMetric(relativeTo: .body) private var valueSize: CGFloat = 17
     @ScaledMetric(relativeTo: .subheadline) private var unitSize: CGFloat = 14
+    @Environment(\.metricsScale) private var scale
     var category: FlightCategory
     var position: Double
 
@@ -173,13 +175,13 @@ private struct ScaleColumn: View {
             .foregroundStyle(Theme.secondary)
             Group {
                 if let unit = value.1 {
-                    Text("\(Text("\(value.0) ").font(.system(size: valueSize, weight: .semibold)))\(Text(unit).font(.system(size: unitSize, weight: .semibold)))")
+                    Text("\(Text("\(value.0) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text(unit).font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
                 } else {
-                    Text(value.0).font(.system(size: valueSize, weight: .semibold))
+                    Text(value.0).font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold))
                 }
             }
                 .foregroundStyle(Theme.primary)
-                .padding(.top, 1)
+                .scaledPadding(.top, 1)
             GeometryReader { geo in
                 let gap: CGFloat = 2.5
                 let seg = (geo.size.width - gap * 3) / 4
@@ -204,8 +206,8 @@ private struct ScaleColumn: View {
                 }
             }
             .frame(height: 8)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
+            .scaledPadding(.top, 8)
+            .scaledPadding(.bottom, 14)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -218,6 +220,7 @@ private struct WindColumn: View {
 
     @ScaledMetric(relativeTo: .body) private var valueSize: CGFloat = 17
     @ScaledMetric(relativeTo: .subheadline) private var unitSize: CGFloat = 14
+    @Environment(\.metricsScale) private var scale
 
     private var kmh: Int? { knots.map { Int((Double($0) * 1.852).rounded()) } }
 
@@ -231,18 +234,18 @@ private struct WindColumn: View {
                     }
                     .foregroundStyle(Theme.secondary)
                     if let kmh {
-                        Text("\(Text("\(kmh) ").font(.system(size: valueSize, weight: .semibold)))\(Text("KM/H").font(.system(size: unitSize, weight: .semibold)))")
+                        Text("\(Text("\(kmh) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text("KM/H").font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
                             .foregroundStyle(Theme.primary)
                     } else {
                         Text("None").scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
                     }
                 }
                 Spacer(minLength: 0)
-                if let compassDeg { Compass(degrees: Double(compassDeg)).frame(width: 30, height: 30).padding(.top, 2) }
+                if let compassDeg { Compass(degrees: Double(compassDeg)).frame(width: 30, height: 30).scaledPadding(.top, 2) }
             }
             Ticks(fraction: Double(kmh ?? 0) / 100)
                 .frame(height: 6)
-                .padding(.top, 10)
+                .scaledPadding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -398,7 +401,7 @@ extension FlightCategory {
             SectionHeader("Current Weather", subtitle: "Observed at AUS", large: true)
             WeatherBlock(weather: PreviewData.weather["KAUS"]!, timeZone: PreviewData.kaus.timeZone, now: PreviewData.now)
         }
-        .padding(20)
+        .scaledPadding(.all, 20)
     }
     .background(Theme.background)
     .preferredColorScheme(.dark)

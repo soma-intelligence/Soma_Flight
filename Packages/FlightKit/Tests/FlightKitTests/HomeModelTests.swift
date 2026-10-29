@@ -57,13 +57,35 @@ import Testing
         #expect(home.shell.path.isEmpty)
     }
 
-    @Test func aNewUserGetsFreshStoresAndAnEmptyStack() async throws {
+    @Test func aNewUserGetsFreshStoresAnEmptyStackAndAReload() async throws {
         let home = try await loaded()
         home.open(airport: "KSFO")
         let before = ObjectIdentifier(home.myFlights)
         home.userChanged()
         #expect(home.shell.path.isEmpty)
         #expect(ObjectIdentifier(home.myFlights) != before)
+        #expect(!home.myFlights.hasLoaded)
+        // The rebuilt stores load on their own.
+        for _ in 0..<200 where !(home.myFlights.hasLoaded && home.passport.hasLoaded) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(home.myFlights.hasLoaded)
+        #expect(home.passport.hasLoaded)
+        #expect(!home.followed.isEmpty)
+    }
+
+    @Test func storedUnitsReadAndWriteTheSharedKeys() {
+        let d = UserDefaults.standard
+        let saved = (d.object(forKey: "units.distance"), d.object(forKey: "units.clock24"))
+        defer {
+            d.set(saved.0, forKey: "units.distance"); d.set(saved.1, forKey: "units.clock24")
+        }
+        d.set("mi", forKey: "units.distance"); d.set(false, forKey: "units.clock24")
+        let stored = StoredUnits()
+        #expect(stored.wrappedValue == Units(distance: .mi, clock: .h12))
+        stored.projectedValue.wrappedValue = Units(distance: .km, clock: .h24)
+        #expect(d.string(forKey: "units.distance") == "km")
+        #expect(d.bool(forKey: "units.clock24"))
     }
 
     @Test func launchArgumentsOpenAScreen() async throws {
@@ -80,43 +102,65 @@ import Testing
         #expect(other.shell.path == [.flight(first.id)])
     }
 
-    @Test func launchPicksFakesOnlyWhenAsked() async throws {
+    /// Only the `-useFakes` branch runs here: without it `forLaunch` opens the on-disk cache and the
+    /// standard defaults of the test host, which a test must not touch.
+    @Test func launchWithUseFakesBuildsTheInMemoryEnvironment() async throws {
         let fake = try await AppEnvironment.forLaunch(arguments: ["SomaFlight", "-useFakes"])
         #expect(fake.recents == .memory)
+        #expect(fake.recentsDefaults == nil)
+    }
+
+    @Test func metricsScaleLeavesTheIPhoneUntouchedAndFloorsMacType() {
+        #expect(Theme.metric(16, 1) == 16)
+        #expect(Theme.fontSize(13.5, 1) == 13.5)
+        #expect(Theme.metric(20, 0.8) == 16)
+        #expect(Theme.fontSize(17, 0.8) == 17 * 0.8)
+        // Captions stop at 10 pt; a size already under 10 stays as it is.
+        #expect(Theme.fontSize(11, 0.8) == 10)
+        #expect(Theme.fontSize(9, 0.8) == 9)
+        #expect(EnvironmentValues().metricsScale == 1)
     }
 
     // MARK: Mac globe beside the panel
 
-    /// A 1180 x 800 window with the 360 pt panel and its 12 pt inset covering the left.
-    private let mac = GlobeViewport.mac(size: CGSize(width: 1180, height: 800),
-                                        visible: CGRect(x: 372, y: 0, width: 808, height: 800))
-
-    @Test func macClampFollowsTheMapHeight() {
-        #expect(mac.farLimit == 26_400_000)
-        #expect(GlobeMap.maximumDistance(at: 60, in: mac) < GlobeMap.maximumDistance(at: 60))
-        #expect(GlobeViewport.phone.farLimit == 40_000_000)
-        #expect(GlobeViewport.phone.centreShift == 0)
+    /// A window of `w` x `h` with the 360 pt panel and its 12 pt inset covering the left.
+    private func mac(_ w: CGFloat, _ h: CGFloat) -> GlobeViewport {
+        GlobeViewport.mac(size: CGSize(width: w, height: h), visible: CGRect(x: 372, y: 0, width: w - 372, height: h))
     }
 
-    @Test func longHaulArcFitsRightOfThePanel() throws {
+    /// The clamp MapKit applied at the equator in the sweep (width, height, km), read back from MapKit.
+    private let measured: [(CGFloat, CGFloat, Double)] = [
+        (900, 640, 26_410), (1000, 1000, 37_140), (1100, 650, 21_946), (1180, 799, 25_148), (1300, 1009, 28_826),
+        (1400, 700, 18_570), (1500, 632, 15_648), (1600, 900, 20_891), (1700, 1000, 21_847),
+    ]
+
+    @Test func macClampFitsEveryMeasuredWindow() {
+        for (w, h, km) in measured {
+            let fitted = GlobeViewport.macFarLimit(CGSize(width: w, height: h)) / 1000
+            #expect(abs(fitted - km) / km < 0.005, "\(w) x \(h): fitted \(fitted) km, measured \(km) km")
+        }
+        // The cosine law and the 1% margin below MapKit's clamp.
+        let vp = mac(1180, 799)
+        #expect(abs(GlobeMap.maximumDistance(at: 60, in: vp) - 25_148_000 * 0.5 * 0.99) < 60_000)
+        #expect(GlobeViewport.phone.farLimit == 40_000_000)
+        #expect(GlobeViewport.macFarLimit(.zero) == 40_000_000)
+    }
+
+    @Test func longHaulArcFitsRightOfThePanelAtEveryWindowSize() throws {
         let cdg = CLLocationCoordinate2D(latitude: 49.0097, longitude: 2.5479)
         let sfo = CLLocationCoordinate2D(latitude: 37.6188, longitude: -122.3750)
         let route = Route(from: cdg, to: sfo, level: .late, isPast: false)
-        let cam = GlobeMap.camera(for: .route(route), in: mac)
-        #expect(cam.distance <= GlobeMap.maximumDistance(at: cam.centerCoordinate.latitude, in: mac))
-        for end in [cdg, sfo] {
-            let p = try #require(GlobeMap.project(end, camera: cam, in: mac))
-            // Clear of the panel and inside the window.
-            #expect(p.x > 372 && p.x < 1180)
-            #expect(p.y > 0 && p.y < 800)
+        for (w, h) in [(900.0, 600.0), (1180, 800), (1400, 700), (1500, 632), (1800, 1000), (1000, 1000)] {
+            let vp = mac(w, h)
+            let cam = GlobeMap.camera(for: .route(route), in: vp)
+            // A distance MapKit accepts, so the camera it shows is the one fitted here.
+            #expect(cam.distance <= GlobeMap.maximumDistance(at: cam.centerCoordinate.latitude, in: vp), "\(w) x \(h)")
+            // Both ends inside the window and clear of the panel; the least-overflow fallback may crop the
+            // arc's middle a little in the smallest window, never its ends.
+            for end in [cdg, sfo] {
+                let p = try #require(GlobeMap.project(end, camera: cam, in: vp), "\(w) x \(h)")
+                #expect(p.x > 372 && p.x < w && p.y > 0 && p.y < h, "\(w) x \(h): \(p)")
+            }
         }
-        #expect(GlobeMap.fits(route.runs.flatMap { $0 }, camera: cam, in: mac))
-    }
-
-    @Test func macCentreLandsAboveTheMiddleOfTheVisibleArea() throws {
-        let c = CLLocationCoordinate2D(latitude: 40, longitude: -100)
-        let p = try #require(GlobeMap.project(c, camera: MapCamera(centerCoordinate: c, distance: 5_000_000, heading: 0, pitch: 0), in: mac))
-        #expect(abs(p.x - 776) < 0.5)
-        #expect(abs(p.y - 358) < 0.5)
     }
 }

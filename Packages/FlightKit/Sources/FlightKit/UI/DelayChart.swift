@@ -111,7 +111,7 @@ public struct DelayChart: View {
                         Text("NOW")
                             .scaledFont(12, weight: .medium)
                             .foregroundStyle(Theme.secondary)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .scaledPadding(.horizontal, 8).scaledPadding(.vertical, 3)
                             .background(Capsule().strokeBorder(Theme.grid, lineWidth: 1.5))
                             .fixedSize()
                             .frame(width: 60)
@@ -164,7 +164,7 @@ public struct DelayChart: View {
         SectionHeader("Departures per hour")
         DelayChart(perHour: PreviewData.stats("KAUS").perHour, timeZone: PreviewData.kaus.timeZone, now: PreviewData.now)
     }
-    .padding(16)
+    .scaledPadding(.all, 16)
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }

@@ -85,8 +85,8 @@ public struct BoardRow: View {
             }
         }
         .monospacedDigit()
-        .padding(.horizontal, 16)
-        .padding(.vertical, 7)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 7)
         .frame(minHeight: 54)
         .background(striped ? Theme.rowAlt : Theme.background)
         // Three fixed columns: past accessibility2 the row would truncate the city.

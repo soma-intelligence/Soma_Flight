@@ -33,12 +33,12 @@ public struct PassportView: View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
                 ScreenTitle("Passport")
-                    .padding(.horizontal, Theme.gutter)
-                    .padding(.top, 22)
-                    .padding(.bottom, 10)
+                    .scaledPadding(.horizontal, Theme.gutter)
+                    .scaledPadding(.top, 22)
+                    .scaledPadding(.bottom, 10)
                 if !store.years.isEmpty {
                     YearChips(years: store.years, selection: $store.year)
-                        .padding(.bottom, 10)
+                        .scaledPadding(.bottom, 10)
                 }
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
@@ -78,13 +78,13 @@ public struct PassportView: View {
                     AircraftCard(type: most.type, count: most.count)
                 }
                 PastFlightsSection(flights: flights, lookup: lookup, sort: $sort)
-                    .padding(.horizontal, -16)
-                    .padding(.top, 14)
+                    .scaledPadding(.horizontal, -16)
+                    .scaledPadding(.top, 14)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
-        .padding(.bottom, 32)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.top, 4)
+        .scaledPadding(.bottom, 32)
     }
 
     private var emptyState: some View {
@@ -98,7 +98,7 @@ public struct PassportView: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
+        .scaledPadding(.vertical, 60)
     }
 
     private func reload() { Task { await store.load() } }

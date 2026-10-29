@@ -51,26 +51,36 @@ public struct GlobeViewport: Equatable, Sendable {
     /// How MapKit on this platform clamps the camera far out: the farthest distance is this many metres
     /// times the cosine of the centre's latitude.
     public var farLimit: Double
-    /// Where the camera's centre coordinate lands, measured from the middle of the visible area (down is
-    /// positive).
-    public var centreShift: CGFloat
 
-    /// - Parameters:
-    ///   - farLimit: nil is the iPhone's measured clamp (40,000 km).
-    ///   - centreShift: 0 is the iPhone's placement, in the middle of the visible area.
-    public init(size: CGSize, visible: CGRect, farLimit: Double? = nil, centreShift: CGFloat = 0) {
+    /// - Parameter farLimit: nil is the iPhone's measured clamp (40,000 km).
+    public init(size: CGSize, visible: CGRect, farLimit: Double? = nil) {
         self.size = size; self.visible = visible
-        self.farLimit = farLimit ?? Self.phoneFarLimit; self.centreShift = centreShift
+        self.farLimit = farLimit ?? Self.phoneFarLimit
     }
 
     static let phoneFarLimit = 40_000_000.0
 
-    /// The Mac's MapKit, measured in a 1180 pt wide window at 632 and 800 pt tall with a 372 pt panel on the
-    /// left: the far clamp grows with the map's height (about 33,000 m per point, so a Mac window never
-    /// shows the whole globe over high latitudes), and the centre coordinate lands about 42 pt above the
-    /// middle of the visible area.
+    /// The Mac's MapKit (`#if os(macOS)` in `GlobeMap`; Catalyst and visionOS take the iPhone values).
+    /// Measured by asking for a 400,000 km camera and reading back the one MapKit applied, at four
+    /// latitudes, in windows with the 372 pt panel on the left (map width x height, farthest distance at
+    /// the equator, in km):
+    ///
+    ///     900 x 640: 26,410     1000 x 1000: 37,140    1100 x 650: 21,946
+    ///     1180 x 799: 25,148    1300 x 1009: 28,826    1400 x 700: 18,570
+    ///     1500 x 632: 15,648    1600 x 900: 20,891     1700 x 1000: 21,847
+    ///
+    /// Every row is 37,130 km x height / width within 0.1% (the panel's inset plays no part), and every
+    /// latitude follows the cosine. Below the clamp MapKit puts the centre coordinate exactly in the middle
+    /// of the visible area; past it, it does not, which is what an earlier one-size estimate mistook for an
+    /// offset. Sizes outside 900 to 1700 wide and 632 to 1009 tall are extrapolated.
     public static func mac(size: CGSize, visible: CGRect) -> GlobeViewport {
-        GlobeViewport(size: size, visible: visible, farLimit: 33_000 * Double(size.height), centreShift: -42)
+        GlobeViewport(size: size, visible: visible, farLimit: macFarLimit(size))
+    }
+
+    /// The Mac clamp's metres at the equator for a map of `size`.
+    static func macFarLimit(_ size: CGSize) -> Double {
+        guard size.width > 0, size.height > 0 else { return phoneFarLimit }
+        return 37_130_000 * Double(size.height) / Double(size.width)
     }
 
     /// An iPhone 17 Pro in portrait with the sheet at its medium detent (the map ends 44 pt under the
@@ -119,10 +129,10 @@ public struct GlobeMap: View {
     static let earthRadius = 6_371_000.0
     static let minimumRouteDistance = 1_200_000.0
 
-    /// The farthest MapKit takes the globe camera over a given latitude: it clamps the distance to about
-    /// 40,000 km times the cosine of the centre's latitude (measured at 33, 43, 53 and 63 degrees north),
-    /// and it keeps north up that far out (a heading is ignored).
-    /// On the Mac the limit follows the map's height (`GlobeViewport.mac`).
+    /// The farthest MapKit takes the globe camera over a given latitude: it clamps the distance to the
+    /// viewport's `farLimit` times the cosine of the centre's latitude, and it keeps north up that far out
+    /// (a heading is ignored). On the iPhone the limit is about 40,000 km (measured at 33, 43, 53 and 63
+    /// degrees north); on the Mac it follows the map's aspect (`GlobeViewport.mac`).
     static func maximumDistance(at latitude: Double, in viewport: GlobeViewport = .phone) -> Double {
         max(minimumRouteDistance, viewport.farLimit * cos(latitude * .pi / 180) * 0.99)
     }
@@ -237,7 +247,7 @@ public struct GlobeMap: View {
         guard depth > 0 else { return nil }
         let focal = Double(viewport.size.height) / 2 / tan(fieldOfView / 2)
         return CGPoint(x: Double(viewport.visible.midX) + simd_dot(v, right) / depth * focal,
-                       y: Double(viewport.visible.midY + viewport.centreShift) - simd_dot(v, up) / depth * focal)
+                       y: Double(viewport.visible.midY) - simd_dot(v, up) / depth * focal)
     }
 
     private static func unit(_ p: CLLocationCoordinate2D) -> SIMD3<Double> {
@@ -315,7 +325,7 @@ public struct GlobeMap: View {
             let i = proxy.safeAreaInsets
             let size = CGSize(width: proxy.size.width + i.leading + i.trailing, height: proxy.size.height + i.top + i.bottom)
             let visible = CGRect(x: i.leading, y: i.top, width: proxy.size.width, height: proxy.size.height)
-            #if os(macOS)
+            #if os(macOS)  // deliberately the Mac only: Catalyst and visionOS keep the iPhone clamp
             return GlobeViewport.mac(size: size, visible: visible)
             #else
             return GlobeViewport(size: size, visible: visible)

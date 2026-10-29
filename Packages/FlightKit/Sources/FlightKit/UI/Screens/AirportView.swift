@@ -37,9 +37,9 @@ public struct AirportView: View {
     private func page(now: Date) -> some View {
         VStack(spacing: 0) {
             AirportHeader(airport: store.airport, code: store.airport?.id ?? "", now: now)
-                .padding(.horizontal, Theme.gutter)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
+                .scaledPadding(.horizontal, Theme.gutter)
+                .scaledPadding(.top, 18)
+                .scaledPadding(.bottom, 12)
             Rectangle().fill(Theme.separator).frame(height: 1)
             if scrolls {
                 ScrollView { sections(now: now) }
@@ -90,13 +90,13 @@ struct AirportSections: View {
         MaybeLazyVStack(lazy: lazy) {
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
-                    .padding(.horizontal, 16).padding(.top, 16)
+                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
             }
             if let stats = store.stats {
                 let severity = AirportFacts.worst(stats.departures.severity, stats.arrivals.severity)
                 if severity != .normal {
                     IssuesCard(severity: severity, departures: stats.departures, arrivals: stats.arrivals, weather: store.weather)
-                        .padding(.horizontal, 16).padding(.top, 16)
+                        .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
                 }
                 performance(.departures, stats.departures)
                 performance(.arrivals, stats.arrivals)
@@ -104,7 +104,7 @@ struct AirportSections: View {
             if let weather = store.weather {
                 section {
                     SectionHeader("Current Weather", subtitle: "Latest METAR from \(code)", large: true)
-                        .padding(.bottom, 10)
+                        .scaledPadding(.bottom, 10)
                     freshness(.weather, AirportFacts.weatherTTL, bottom: 12)
                     WeatherBlock(weather: weather, timeZone: tz, now: now)
                 }
@@ -113,18 +113,18 @@ struct AirportSections: View {
             if let dep = store.departures?.flights, let arr = store.arrivals?.flights {
                 section {
                     SectionHeader("Airport Stats", subtitle: "Today in numbers", large: true)
-                        .padding(.bottom, 18)
+                        .scaledPadding(.bottom, 18)
                     AirportCountsGrid(counts: AirportFacts.counts(departures: dep, arrivals: arr, lookup: lookup))
                 }
             }
             if store.departures != nil || store.arrivals != nil {
                 BoardSection(departures: store.departures, arrivals: store.arrivals, timeZone: tz, now: now,
                              lookup: lookup, fetchedAt: store.fetchedAt, rowLimit: rowLimit, lazy: lazy)
-                .padding(.top, 24)
-                .padding(.bottom, 40)
+                .scaledPadding(.top, 24)
+                .scaledPadding(.bottom, 40)
             }
             if store.airport == nil && store.stats == nil && store.departures == nil && store.error == nil {
-                ProgressView().frame(maxWidth: .infinity).padding(.vertical, 60)
+                ProgressView().frame(maxWidth: .infinity).scaledPadding(.vertical, 60)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,13 +148,13 @@ struct AirportSections: View {
             SectionHeader(dep ? "Departure Performance" : "Arrival Performance", subtitle: "Today so far and the hours ahead")
             freshness(.stats, AirportFacts.boardTTL, top: 8)
             PerformanceSplit(stats: stats)
-                .padding(.top, 12)
+                .scaledPadding(.top, 12)
             SectionHeader(dep ? "Departure Delay Trend" : "Arrival Delay Trend",
                           subtitle: "Average gate delay, actual then estimated", info: true)
-                .padding(.top, 22)
+                .scaledPadding(.top, 22)
             if !window.isEmpty {
                 DelayTrendChart(flights: window, kind: kind, timeZone: tz, now: now, binMinutes: 20, windowMinutes: 60)
-                    .padding(.top, 6)
+                    .scaledPadding(.top, 6)
             }
         }
     }
@@ -163,7 +163,7 @@ struct AirportSections: View {
         let stats = dailyStats
         return section {
             SectionHeader("Daily Performance", subtitle: "The whole day, flown and planned", large: true)
-                .padding(.bottom, 14)
+                .scaledPadding(.bottom, 14)
             freshness(.stats, AirportFacts.boardTTL, bottom: 12)
             HStack {
                 PillPicker(options: [(DailyScope.departures, "Departures"), (.arrivals, "Arrivals"), (.totals, "Totals")],
@@ -171,18 +171,18 @@ struct AirportSections: View {
                 Spacer()
                 FilterPill(icon: nil, title: "Today", options: [(0, "Today")], selection: .constant(0))
             }
-            .padding(.bottom, 14)
+            .scaledPadding(.bottom, 14)
             DailyPerformanceCard(stats: stats, scope: scope, day: now, timeZone: tz)
             Text("Most disrupted routes")
-                .font(Theme.Font.sectionTitle).foregroundStyle(Theme.primary)
-                .padding(.top, 26).padding(.bottom, 8)
+                .themeFont(.sectionTitle).foregroundStyle(Theme.primary)
+                .scaledPadding(.top, 26).scaledPadding(.bottom, 8)
             DisruptionBars(items: stats.worstRoutes.map {
                 .init(id: $0.icao, code: lookup($0.icao)?.iata ?? $0.icao, caption: lookup($0.icao)?.city,
                       delayed: $0.delayed, canceled: $0.canceled)
             })
             Text("Most disrupted airlines")
-                .font(Theme.Font.sectionTitle).foregroundStyle(Theme.primary)
-                .padding(.top, 22).padding(.bottom, 8)
+                .themeFont(.sectionTitle).foregroundStyle(Theme.primary)
+                .scaledPadding(.top, 22).scaledPadding(.bottom, 8)
             DisruptionBars(items: stats.worstAirlines.map {
                 .init(id: $0.operator, code: AirportFacts.airlineCode($0.operator), caption: nil,
                       delayed: $0.delayed, canceled: $0.canceled)
@@ -208,8 +208,8 @@ struct AirportSections: View {
 
     private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 0) { content() }
-            .padding(.horizontal, Theme.gutter)
-            .padding(.vertical, 24)
+            .scaledPadding(.horizontal, Theme.gutter)
+            .scaledPadding(.vertical, 24)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.separator).frame(height: 1) }
     }

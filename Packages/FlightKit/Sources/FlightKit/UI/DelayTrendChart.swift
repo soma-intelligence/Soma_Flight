@@ -188,7 +188,7 @@ public struct DelayTrendChart: View {
         DelayTrendChart(flights: PreviewData.board("KAUS", .departures).flights, kind: .departures,
                         timeZone: PreviewData.kaus.timeZone, now: PreviewData.now)
     }
-    .padding(16)
+    .scaledPadding(.all, 16)
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }

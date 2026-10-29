@@ -75,7 +75,7 @@ public struct SignInView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 28)
+        .scaledPadding(.horizontal, 28)
     }
 
     private var form: some View {
@@ -87,7 +87,7 @@ public struct SignInView: View {
             Text("or")
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
-                .padding(.vertical, 2)
+                .scaledPadding(.vertical, 2)
             if case .sent(let address) = emailState {
                 sentNotice(address)
             } else {
@@ -96,10 +96,10 @@ public struct SignInView: View {
             Text("We only use your email to sign you in.")
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
-                .padding(.top, 4)
+                .scaledPadding(.top, 4)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 28)
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.bottom, 28)
     }
 
     @ViewBuilder private var emailForm: some View {
@@ -112,8 +112,8 @@ public struct SignInView: View {
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
             #endif
-            .padding(.horizontal, 14)
-            .padding(.vertical, 4)
+            .scaledPadding(.horizontal, 14)
+            .scaledPadding(.vertical, 4)
             .frame(minHeight: 50)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
             .onSubmit(sendEmail)
@@ -133,7 +133,7 @@ public struct SignInView: View {
             }
             .foregroundStyle(canSend || emailState == .sending ? Color.white : Theme.secondary)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+            .scaledPadding(.vertical, 4)
             .frame(minHeight: 50)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(canSend || emailState == .sending ? Theme.accent : Theme.pill))
@@ -160,10 +160,10 @@ public struct SignInView: View {
                 .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Theme.accent)
                 .buttonStyle(.plain)
-                .padding(.top, 4)
+                .scaledPadding(.top, 4)
         }
         .frame(maxWidth: .infinity)
-        .padding(16)
+        .scaledPadding(.all, 16)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
         .accessibilityElement(children: .contain)
     }
@@ -195,7 +195,7 @@ public struct SignInView: View {
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(scheme == .dark ? Color.black : Color.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+                .scaledPadding(.vertical, 4)
                 .frame(minHeight: 50)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(scheme == .dark ? Color.white : Color.black))
         } else {

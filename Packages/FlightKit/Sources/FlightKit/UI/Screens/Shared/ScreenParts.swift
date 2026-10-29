@@ -43,7 +43,7 @@ struct ScreenTitle: View {
                 Text(subtitle).scaledFont(17).foregroundStyle(Theme.secondary)
             }
         }
-        .padding(.trailing, 60)
+        .scaledPadding(.trailing, 60)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -77,10 +77,10 @@ struct CodeChip: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.Font.chip)
+            .themeFont(.chip)
             .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
+            .scaledPadding(.horizontal, 5)
+            .scaledPadding(.vertical, 2)
             .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.card))
             .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Theme.grid, lineWidth: 1))
     }

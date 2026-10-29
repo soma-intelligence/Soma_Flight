@@ -48,7 +48,7 @@ public struct PerformanceSplit: View {
                 RoundedRectangle(cornerRadius: 1).fill(part.color).frame(width: 2.5, height: 12)
                 Text(part.label).scaledFont(13).foregroundStyle(Theme.primary)
             }
-            .padding(.bottom, 4)
+            .scaledPadding(.bottom, 4)
             Text("\(share(part.count))%")
                 .scaledFont(22, weight: .semibold)
                 .foregroundStyle(Theme.primary)
@@ -83,7 +83,7 @@ public struct PerformanceSplit: View {
 #if DEBUG
 #Preview {
     PerformanceSplit(stats: PreviewData.stats("KAUS"))
-        .padding(20)
+        .scaledPadding(.all, 20)
         .background(Theme.background)
         .preferredColorScheme(.dark)
 }

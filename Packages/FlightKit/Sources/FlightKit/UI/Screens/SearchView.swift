@@ -32,12 +32,12 @@ public struct SearchView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScreenTitle("Find a Flight", subtitle: "Flight number, route, or airport")
-                .padding(.horizontal, 20)
-                .padding(.top, 22)
+                .scaledPadding(.horizontal, 20)
+                .scaledPadding(.top, 22)
             field
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 16)
+                .scaledPadding(.bottom, 8)
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
@@ -66,7 +66,7 @@ public struct SearchView: View {
                 .accessibilityLabel("Clear")
             }
         }
-        .padding(.horizontal, 14)
+        .scaledPadding(.horizontal, 14)
         .frame(minHeight: 48)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
     }
@@ -97,8 +97,8 @@ public struct SearchView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let error = store.error {
                 ErrorBanner(error: error, retry: retryAction(error))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.vertical, 8)
             }
             if store.results.isEmpty {
                 suggestions
@@ -106,16 +106,16 @@ public struct SearchView: View {
                 results
             }
         }
-        .padding(.bottom, 24)
+        .scaledPadding(.bottom, 24)
     }
 
     private var results: some View {
         VStack(alignment: .leading, spacing: 0) {
             let count = store.results.count
             CapsHeader("Results", trailing: count == 1 ? "1 flight" : "\(count) flights")
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 4)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 16)
+                .scaledPadding(.bottom, 4)
             ForEach(store.results) { flight in
                 ResultRow(flight: flight, origin: lookup(flight.originIcao), destination: lookup(flight.destinationIcao),
                           state: followState(flight)) { follow(flight) }
@@ -137,9 +137,9 @@ public struct SearchView: View {
         VStack(alignment: .leading, spacing: 0) {
             if !store.recent.isEmpty {
                 CapsHeader("Recent searches")
-                    .padding(.horizontal, 16)
-                    .padding(.top, 18)
-                    .padding(.bottom, 4)
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, 18)
+                    .scaledPadding(.bottom, 4)
                 ForEach(store.recent, id: \.self) { q in
                     OptionRow(icon: icon(for: q), title: q, subtitle: describe(q)) {
                         store.text = q
@@ -148,9 +148,9 @@ public struct SearchView: View {
                 }
             }
             CapsHeader("Ways to search")
-                .padding(.horizontal, 16)
-                .padding(.top, 22)
-                .padding(.bottom, 4)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 22)
+                .scaledPadding(.bottom, 4)
             OptionRow(icon: "number", title: "By flight number", subtitle: "Airline code and number, like UA1527") {
                 focused = true
             }
@@ -226,8 +226,8 @@ struct OptionRow: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -264,8 +264,8 @@ struct ResultRow: View {
             Spacer(minLength: 8)
             followButton
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 10)
     }
 
     private var times: String {
@@ -287,8 +287,8 @@ struct ResultRow: View {
             }
             .scaledFont(14, weight: .semibold)
             .foregroundStyle(state == .following ? Theme.primary : .white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .scaledPadding(.horizontal, 12)
+            .scaledPadding(.vertical, 4)
             .frame(minHeight: 30)
             .background(Capsule().fill(state == .following ? Theme.pill : Theme.accent))
         }

@@ -12,11 +12,17 @@ public enum HomeTab: String, Hashable, Sendable {
 /// sidebar only lay it out.
 @MainActor @Observable
 public final class HomeModel {
+    /// The services, cache and airport list the stores are made from.
     public let env: AppEnvironment
+    /// The signed-in account; the shells rebuild the stores (`userChanged()`) when its user changes.
     public let session: SessionStore
+    /// Followed flights for the current owner, replaced on every account change.
     public private(set) var myFlights: MyFlightsStore
+    /// Past flights for the current owner, replaced on every account change.
     public private(set) var passport: PassportStore
+    /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
+    /// The section on show.
     public var tab: HomeTab = .flights
 
     public init(env: AppEnvironment) {
@@ -30,6 +36,7 @@ public final class HomeModel {
     /// The account the stores read and write for.
     public var owner: UUID? { session.session?.userId }
 
+    /// Followed flights, the ones in the air first.
     public var followed: [Flight] { myFlights.live + myFlights.upcoming }
 
     /// Arcs, planes and pins for the tab on show.
@@ -51,6 +58,7 @@ public final class HomeModel {
 
     // MARK: Navigation
 
+    /// Opens a flight's detail as the only screen, keeping its arc for the camera.
     public func open(flight: Flight) {
         shell.open(flight: flight.id, route: GlobeContent.route(for: flight, lookup: env.lookup))
     }
@@ -70,19 +78,22 @@ public final class HomeModel {
 
     // MARK: Loading
 
-    /// Starts following the session, then loads both lists and live updates.
+    /// Starts following the session, then loads both lists and live updates. Call once, when the home
+    /// appears.
     public func start() async {
         session.start()
         await load()
     }
 
+    /// Loads both lists for the current owner and starts My Flights' live updates.
     public func load() async {
         await myFlights.load()
         myFlights.startUpdates()
         await passport.load()
     }
 
-    /// The session store has already handed the device's saved data to the new user (or to nobody)
+    /// Call when the session's user changes: clears the panel's stack and rebuilds both stores for the
+    /// new owner, then loads them. The session store has already handed the device's saved data to the new user (or to nobody)
     /// before publishing it, so the rebuilt stores never read the previous account's.
     public func userChanged() {
         shell.reset()
@@ -114,6 +125,7 @@ public final class HomeModel {
 
 /// Distance and clock units kept in the app's defaults, as one `Units` value for the screens and a
 /// binding for Settings. The iOS app and both Mac scenes read the same keys, so they stay in step.
+/// Main actor only: the setter writes through `@AppStorage`, which views read on the main actor.
 @MainActor @propertyWrapper
 public struct StoredUnits: DynamicProperty {
     @AppStorage("units.distance") private var distance: DistanceUnit = .km
