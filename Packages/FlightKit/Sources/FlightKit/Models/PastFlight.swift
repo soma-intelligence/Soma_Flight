@@ -18,16 +18,19 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var blockMinutes: Int?
     public var delayMinutes: Int
     public var status: PastFlightStatus
+    /// IANA zone of the origin airport. The core buckets years by local departure date; nil falls back to UTC.
+    public var originTz: String?
 
     public init(
         id: UUID = UUID(), date: Date, ident: String, originIcao: String, destinationIcao: String,
         airline: String? = nil, aircraftType: String? = nil, registration: String? = nil, seat: String? = nil,
-        distanceKm: Int, blockMinutes: Int? = nil, delayMinutes: Int = 0, status: PastFlightStatus = .completed
+        distanceKm: Int, blockMinutes: Int? = nil, delayMinutes: Int = 0, status: PastFlightStatus = .completed,
+        originTz: String? = nil
     ) {
         self.id = id; self.date = date; self.ident = ident
         self.originIcao = originIcao; self.destinationIcao = destinationIcao
         self.airline = airline; self.aircraftType = aircraftType; self.registration = registration; self.seat = seat
         self.distanceKm = distanceKm; self.blockMinutes = blockMinutes
-        self.delayMinutes = delayMinutes; self.status = status
+        self.delayMinutes = delayMinutes; self.status = status; self.originTz = originTz
     }
 }
