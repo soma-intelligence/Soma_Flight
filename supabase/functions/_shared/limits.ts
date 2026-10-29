@@ -42,18 +42,44 @@ export async function checkPlanFollowLimit(
   }
 }
 
-/** onCall hook for AeroApi: atomic daily counter per endpoint. */
+/** Global daily AeroAPI budget in USD when AEROAPI_DAILY_CAP_USD is unset or invalid (ruling F6). */
+export const DEFAULT_DAILY_CAP_USD = 50;
+
+/** AEROAPI_DAILY_CAP_USD, or the default for a missing, negative or non-numeric value. */
+export function dailyCap(
+  raw: string | undefined = Deno.env.get("AEROAPI_DAILY_CAP_USD"),
+): number {
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n >= 0 ? n : DEFAULT_DAILY_CAP_USD;
+}
+
+/**
+ * onCall hook for AeroApi: counts every request in today's usage_counters (UTC day) through
+ * charge_usage, which refuses a paid request that would take today's estimated spend past `cap`.
+ * A refusal throws provider_unavailable (503) before the request goes out, so callers fall back to
+ * what they have cached. Free requests (alert create and delete) always pass.
+ */
 export function usageCounter(
   db: SupabaseClient,
   now: () => Date = () => new Date(),
+  cap: number = dailyCap(),
 ): (endpoint: string) => Promise<void> {
   return async (endpoint) => {
-    const { error } = await db.rpc("increment_usage", {
+    const { data, error } = await db.rpc("charge_usage", {
       p_day: now().toISOString().slice(0, 10),
       p_endpoint: endpoint,
       p_cost: estimateCost(endpoint),
+      p_cap: cap,
     });
-    if (error) throw new Error(`increment_usage failed: ${error.message}`);
+    if (error) throw new Error(`charge_usage failed: ${error.message}`);
+    if (data !== true) {
+      console.error(`daily AeroAPI cap reached, ${endpoint} refused`);
+      throw new ApiError(
+        "provider_unavailable",
+        503,
+        "Daily provider budget reached",
+      );
+    }
   };
 }
 

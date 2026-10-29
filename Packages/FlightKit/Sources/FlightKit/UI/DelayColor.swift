@@ -18,6 +18,7 @@ public extension APIError {
         switch self {
         case .providerUnavailable, .decoding: "Flight data is temporarily unavailable. Showing the last update."
         case .notFound: "No flight found. Check the number and date."
+        case .outOfWindow: "Flights can be searched from 10 days back to 2 days ahead. Pick another date."
         case .rateLimited: "Too many searches. Try again in a few minutes."
         case .planLimit: "Free accounts follow up to 3 flights at a time."
         case .unauthorized: "Please sign in again."

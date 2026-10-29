@@ -85,34 +85,108 @@ test(db, "lookup by ident upserts once", async () => {
   assertEquals(d.aero.calls.ident[0][0], "AF84");
 });
 
-test(db, "ident search filters on the origin local date", async () => {
-  // Departs 20:00 on 11-03 in San Francisco, which is 04:00Z on 11-04.
-  const late: AeroFlight = {
-    ...af84[0],
-    fa_flight_id: "UAL999-1793600000-schedule-9p",
-    ident: "UAL999",
-    ident_iata: "UA999",
-    scheduled_out: "2026-11-04T04:00:00Z",
-    origin: {
-      ...af84[0].origin!,
-      code_icao: "KSFO",
-      timezone: "America/Los_Angeles",
-    },
-  };
-  track([late]);
-  const user = await makeUser(db);
-  const d = deps(fakeAero([late]));
-  const on3 = await (await handler(
-    post(user, { ident: "UA999", date: "2026-11-03" }),
-    d,
-  )).json();
-  assertEquals(on3.flights.length, 1);
-  const on4 = await (await handler(
-    post(user, { ident: "UA999", date: "2026-11-04" }),
-    d,
-  )).json();
-  assertEquals(on4.flights.length, 0);
-});
+test(
+  db,
+  "ident search answers origin-local dates from the day before to the day after",
+  async () => {
+    // Departs 20:00 on 11-03 in San Francisco, which is 04:00Z on 11-04.
+    const late: AeroFlight = {
+      ...af84[0],
+      fa_flight_id: "UAL999-1793600000-schedule-9p",
+      ident: "UAL999",
+      ident_iata: "UA999",
+      scheduled_out: "2026-11-04T04:00:00Z",
+      origin: {
+        ...af84[0].origin!,
+        code_icao: "KSFO",
+        timezone: "America/Los_Angeles",
+      },
+    };
+    // The same ident a day earlier, 20:00 on 11-02 in San Francisco.
+    const earlier: AeroFlight = {
+      ...late,
+      fa_flight_id: "UAL999-1793500000-schedule-9p",
+      scheduled_out: "2026-11-03T04:00:00Z",
+    };
+    track([late, earlier]);
+    const user = await makeUser(db);
+    const d = deps(fakeAero([late, earlier]));
+    const ask = async (date: string) =>
+      (await (await handler(post(user, { ident: "UA999", date }), d)).json())
+        .flights.map((f: { provider_id: string }) => f.provider_id);
+    // A user in Paris on 11-04 still finds the flight that left San Francisco on its 11-03.
+    assertEquals(await ask("2026-11-04"), [late.fa_flight_id]);
+    // All matches, sorted by departure, none picked silently.
+    assertEquals(await ask("2026-11-03"), [
+      earlier.fa_flight_id,
+      late.fa_flight_id,
+    ]);
+    assertEquals(await ask("2026-11-02"), [
+      earlier.fa_flight_id,
+      late.fa_flight_id,
+    ]);
+    assertEquals(await ask("2026-10-31"), []);
+    // The provider window: two days back, three ahead of the UTC date, clipped to now + 2 days.
+    assertEquals(d.aero.calls.ident[1].slice(1), [
+      "2026-11-01T00:00:00.000Z",
+      "2026-11-04T12:00:00.000Z",
+    ]);
+  },
+);
+
+test(
+  db,
+  "flights without an ICAO origin or destination are left out",
+  async () => {
+    const noIcao: AeroFlight = {
+      ...af84[0],
+      fa_flight_id: "AFR84-LID-schedule-1p",
+      origin: { ...af84[0].origin!, code_icao: null as unknown as string },
+    };
+    track(af84, [noIcao]);
+    const user = await makeUser(db);
+    const res = await handler(
+      post(user, { ident: "AF84", date: "2026-11-03" }),
+      deps(fakeAero([...af84, noIcao])),
+    );
+    assertEquals(res.status, 200);
+    const ids = (await res.json()).flights.map((f: { provider_id: string }) =>
+      f.provider_id
+    );
+    assertEquals(ids, [af84[0].fa_flight_id]);
+    const stored = await db.from("flights").select("id").eq(
+      "provider_id",
+      noIcao.fa_flight_id,
+    );
+    assertEquals(stored.data?.length, 0);
+  },
+);
+
+test(
+  db,
+  "a lookup never moves the webhook's status and actual times backwards",
+  async () => {
+    track(af84);
+    const user = await makeUser(db);
+    const d = deps();
+    await handler(post(user, { ident: "AF84", date: "2026-11-03" }), d);
+    // The webhook has seen the flight land; the provider's /flights snapshot (en route) lags.
+    const up = await db.from("flights").update({
+      status: "landed",
+      actual_out: "2026-11-03T13:40:00Z",
+      actual_on: "2026-11-03T20:00:00Z",
+    }).eq("provider_id", af84[0].fa_flight_id);
+    if (up.error) throw up.error;
+    const res = await handler(
+      post(user, { ident: "AF84", date: "2026-11-03" }),
+      d,
+    );
+    const [f] = (await res.json()).flights;
+    assertEquals(f.status, "landed");
+    assertEquals(Date.parse(f.actual_out), Date.parse("2026-11-03T13:40:00Z"));
+    assertEquals(Date.parse(f.actual_on), Date.parse("2026-11-03T20:00:00Z"));
+  },
+);
 
 test(
   db,
@@ -277,7 +351,7 @@ test(
     });
     if (ins.error) throw ins.error;
     trackAirport("ZZTZ");
-  track(route);
+    track(route);
     trackRoute("ZZTZ", "KSFO", "2026-11-03");
     const user = await makeUser(db);
     const d = deps();

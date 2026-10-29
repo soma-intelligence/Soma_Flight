@@ -40,14 +40,17 @@ enum PastFlightExport {
 }
 
 extension PastFlight {
+    /// The UTF-8 byte order mark every CSV export starts with.
+    static let csvBOM = Data([0xEF, 0xBB, 0xBF])
+
     /// The CSV header, one column per field.
     static let csvHeader = "date,flight,from,to,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status"
 
     /// RFC 4180 CSV: CRLF between records, a field holding a comma, a double quote, CR or LF is wrapped in
     /// double quotes with its quotes doubled. Dates are ISO 8601 in UTC; a missing value is an empty field.
     /// Text cells are defused against spreadsheet formulas (`csvText`); dates and numbers are left as they
-    /// are, so a negative delay stays a number. No byte order mark: plain UTF-8 (Excel needs the BOM to
-    /// read non-ASCII airline names, an owner call).
+    /// are, so a negative delay stays a number. The file starts with the UTF-8 byte order mark (EF BB BF):
+    /// without it Excel reads the file as the system code page and garbles non-ASCII airline names.
     public static func csv(_ past: [PastFlight]) -> Data {
         var records = [csvHeader]
         for p in past {
@@ -58,7 +61,7 @@ extension PastFlight {
             ]
             records.append(fields.map(csvField).joined(separator: ","))
         }
-        return Data(records.joined(separator: "\r\n").utf8)
+        return csvBOM + Data(records.joined(separator: "\r\n").utf8)
     }
 
     /// A text cell a spreadsheet would run as a formula (first character `=`, `+`, `-`, `@`, TAB or CR)

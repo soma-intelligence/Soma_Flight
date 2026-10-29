@@ -17,7 +17,12 @@ public struct FlightScreen: View {
     public var body: some View {
         FlightDetailView(store: store, onAirport: onAirport)
             .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
-            .task { await store.load() }
+            .task {
+                await store.load()
+                // The live position of a followed flight in the air; it also reaches the globe through
+                // My Flights' live updates.
+                await store.followPosition()
+            }
     }
 }
 
@@ -220,6 +225,7 @@ public struct SignInGate<Home: View>: View {
     var home: HomeModel
     var showsProgress: Bool
     var content: () -> Home
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(home: HomeModel, showsProgress: Bool = false, @ViewBuilder content: @escaping () -> Home) {
         self.home = home; self.showsProgress = showsProgress; self.content = content
@@ -236,5 +242,10 @@ public struct SignInGate<Home: View>: View {
             }
         }
         .task { home.session.startIfNeeded() }
+        // Above the gate, so it runs signed out too: an activity can only start in the foreground, and
+        // one a previous account left must end even while Sign In is on screen.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await home.reconcileActivities() } }
+        }
     }
 }

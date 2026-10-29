@@ -354,6 +354,8 @@ export class AeroApi {
     try {
       await this.onCall?.(endpoint);
     } catch (e) {
+      // A refusal (the daily budget is spent) stops the request before it is billed.
+      if (e instanceof ApiError) throw e;
       // A counter outage must not block lookups.
       console.error(`usage counter failed for ${endpoint}`, e);
     }

@@ -19,7 +19,9 @@ import Testing
     }
 
     @Test func unknownCodesAreProviderUnavailable() {
-        #expect(SupabaseBackend.map(FunctionsError.httpError(code: 400, data: body("out_of_window"))) == .providerUnavailable)
+        #expect(SupabaseBackend.map(FunctionsError.httpError(code: 400, data: body("something_new"))) == .providerUnavailable)
+        // out_of_window is in the contract since the final review: it has its own case.
+        #expect(SupabaseBackend.map(FunctionsError.httpError(code: 400, data: body("out_of_window"))) == .outOfWindow)
         #expect(SupabaseBackend.map(FunctionsError.httpError(code: 400, data: body("invalid_request"))) == .providerUnavailable)
     }
 

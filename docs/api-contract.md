@@ -3,7 +3,10 @@
 Base URL: `<project>/functions/v1/<name>`. Every endpoint except `aeroapi-webhook`, `push-sender`, `maintenance` and `usage-alert` needs
 `Authorization: Bearer <user JWT>`. Errors are `{ "error": { "code", "message" } }` with codes
 `unauthorized` (401), `invalid_request` (400/405), `not_found` (404), `rate_limited` (429),
-`plan_limit` (403), `provider_unavailable` (503 or 500 for internal errors).
+`plan_limit` (403), `out_of_window` (400, a `flight-lookup` date outside 10 days back and 2 ahead),
+`provider_unavailable` (503 or 500 for internal errors, also when the daily AeroAPI budget is spent).
+The app maps each code to an `APIError` case (`APIError(code:)`); an unknown code becomes
+`providerUnavailable`.
 
 Decoding: `FlightJSON.decoder` (snake_case keys converted, ISO 8601 dates with or without milliseconds).
 Keys that are already camelCase (stats, weather) pass through unchanged. The backend always writes
@@ -14,16 +17,61 @@ seconds (the Rust core emits it that way and `HourBucket` decodes `Int64`).
 
 | Endpoint | Method | Body or query | Answer |
 | --- | --- | --- | --- |
-| `flight-lookup` | POST | `{ ident }` or `{ origin, destination }`, plus `date` | `{ flights: [Flight] }` |
+| `flight-lookup` | POST | `{ ident }` or `{ origin, destination }`, plus `date` | `{ flights: [Flight] }` (below) |
+| `flight-position` | POST | `{ flightId }` | `{ flight: Flight }` (below) |
 | `follow-flight` | POST, DELETE | `{ flightId, notify? }` (DELETE: `{ flightId }`) | `{ ok: true }` |
 | `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
-| `usage-alert` | POST | none | service role only (pg_cron) |
+| `usage-alert` | POST | none, or `?mode=cap` | service role only (pg_cron) |
 
 The rows above the line are summaries; the sources are the header comments in each `handler.ts`.
+
+## flight-lookup dates
+
+`date` is `YYYY-MM-DD`, a local date at the origin airport, within 10 days back and 2 days ahead of
+today (else `out_of_window`). The app sends the day the user picked on its own calendar.
+
+- Ident search: every flight with that ident whose origin-local departure date is `date - 1`, `date`
+  or `date + 1`, sorted by `scheduled_out`. A user in Paris on 30 Oct who looks up a flight that left
+  New York on its 29 Oct and is still in the air finds it. The app shows all of them and picks none.
+- Route search: the flights whose origin-local departure date is `date` only.
+
+Flights whose origin or destination has no ICAO code are left out. A flight already stored is merged
+with the rules of the webhook (`merge_flight`): actual times are set once, estimates are ignored once
+the actual exists, and the status only rises (canceled, diverted and arrived never change), so a
+lookup never moves a followed flight backwards.
+
+## flight-position
+
+`POST { flightId }` answers `{ flight }`, the `flights` row. When the caller follows the flight and it
+is departed or en route, the first call in each 2 minute window per flight (shared by every follower)
+fetches the live position from the provider and stores it in `position_*` (the answer and Realtime
+carry it). Other calls answer the stored row. Provider trouble answers the stored row too. The app
+calls it while a flight's detail is open and draws the plane when `position_lat`, `position_lon` and
+`position_at` are present.
+
+## Flight event payload
+
+`flight_events.payload` (read by the app as `FlightEvent.payload`, flattened to strings). The source of
+truth is `process_alert` (`supabase/migrations/20261029000006_flight_merge.sql`); an example of each kind
+lives in `supabase/functions/aeroapi-webhook/contract/events.json`, written by the webhook tests and
+decoded by the Swift tests.
+
+| Key | On | Value |
+| --- | --- | --- |
+| `gate` | any event of a delivery that changed it | new departure gate |
+| `minutes` | `delay` | delay in minutes against schedule (worst of departure and arrival) |
+| `destination` | `diversion`, or a delivery that changed it | destination ICAO after the delivery |
+| `event_code`, `alert_id`, `short_description`, `summary` | all | the provider's alert fields |
+| `changes` | all | `{ field: { from, to } }` of every changed column (nested, the app does not read it) |
+| `delay_minutes`, `previous_delay_minutes` | `delay` | as `minutes`, and the last delay notified |
+
+The keys the app reads are single words: `FlightJSON.decoder` converts snake_case dictionary keys
+too (`delay_minutes` arrives as `delayMinutes`), so a single word is the only spelling both sides
+agree on without a conversion rule.
 
 ## airport-board
 

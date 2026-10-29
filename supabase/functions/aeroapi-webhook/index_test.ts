@@ -998,3 +998,88 @@ wtest("changes keep an explicit null for a first-time value", async () => {
   assertEquals(ev.payload.changes.gate_origin.from, null);
   assertEquals(ev.payload.changes.gate_origin.to, "K50");
 });
+
+// --- Event payload contract: what FlightKit's FlightEvent decodes (docs/api-contract.md) ---
+
+const CONTRACT_DIR = new URL("./contract/", import.meta.url);
+
+/** Compares to contract/<name>.json; UPDATE_CONTRACT=1 rewrites it from the stored rows. */
+async function checkContract(name: string, actual: unknown) {
+  const url = new URL(`${name}.json`, CONTRACT_DIR);
+  const text = JSON.stringify(actual, null, 2) + "\n";
+  if (Deno.env.get("UPDATE_CONTRACT") === "1") {
+    await Deno.mkdir(CONTRACT_DIR, { recursive: true });
+    await Deno.writeTextFile(url, text);
+    return;
+  }
+  assertEquals(
+    JSON.parse(await Deno.readTextFile(url)),
+    JSON.parse(text),
+    `contract/${name}.json is out of date: run with UPDATE_CONTRACT=1`,
+  );
+}
+
+wtest(
+  "event payloads carry the flat keys the app reads, and match contract/events.json",
+  async () => {
+    const p = fakePush();
+    const gate = await followedFlight();
+    const late = await followedFlight();
+    const diverted = await followedFlight();
+    const canceled = await followedFlight();
+    await handler(
+      post(delivery(gateFixture, gate.providerId, { gate_origin: "K42" })),
+      deps(p),
+    );
+    await handler(
+      post(delivery(gateFixture, late.providerId, {
+        gate_origin: null,
+        terminal_origin: null,
+        estimated_out: "2026-11-03T23:10:00Z",
+      })),
+      deps(p),
+    );
+    await handler(
+      post(
+        delivery(gateFixture, diverted.providerId, {
+          destination_icao: "KOAK",
+        }, { event_code: "diverted" }),
+      ),
+      deps(p),
+    );
+    await handler(
+      post(delivery(gateFixture, canceled.providerId, { cancelled: true }, {
+        event_code: "cancelled",
+      })),
+      deps(p),
+    );
+    const [g] = await eventsOf(gate.id);
+    assertEquals([g.kind, g.payload.gate], ["gate_change", "K42"]);
+    const [d] = await eventsOf(late.id);
+    assertEquals([d.kind, d.payload.minutes, d.payload.delay_minutes], [
+      "delay",
+      40,
+      40,
+    ]);
+    const [v] = await eventsOf(diverted.id);
+    assertEquals([v.kind, v.payload.destination], ["diversion", "KOAK"]);
+    const [c] = await eventsOf(canceled.id);
+    assertEquals(c.kind, "cancel");
+    for (const e of [g, d, v, c]) {
+      for (const k of Object.keys(e.payload)) {
+        // Top-level keys are what the app reads: event_code etc. come through as they are, and the
+        // keys the timeline reads are single words the snake_case conversion leaves alone.
+        assert(/^[a-z_]+$/.test(k), k);
+      }
+    }
+    // As the app reads them (a PostgREST select), with the per-run ids and times fixed.
+    const rows = [g, d, v, c].map((e, i) => ({
+      ...e,
+      id: `00000000-0000-4000-8000-00000000000${i + 1}`,
+      flight_id: "00000000-0000-4000-8000-0000000000f1",
+      provider_event_id: "sha256-of-the-delivery",
+      received_at: "2026-11-03T21:00:00.123456+00:00",
+    }));
+    await checkContract("events", rows);
+  },
+);

@@ -17,8 +17,20 @@ import Testing
                    status: status, originTz: "Europe/Paris")
     }
 
+    /// The records after the byte order mark.
     static func records(_ data: Data) -> [String] {
-        String(decoding: data, as: UTF8.self).components(separatedBy: "\r\n")
+        String(decoding: data.starts(with: PastFlight.csvBOM) ? data.dropFirst(3) : data, as: UTF8.self)
+            .components(separatedBy: "\r\n")
+    }
+
+    @Test func csvStartsWithTheUTF8ByteOrderMark() {
+        let data = PastFlight.csv([Self.flight(airline: "Aerolíneas Argentinas")])
+        #expect(Array(data.prefix(3)) == [0xEF, 0xBB, 0xBF])
+        #expect(Array(PastFlight.csv([]).prefix(3)) == [0xEF, 0xBB, 0xBF])
+        // Once, at the start only, and the rest is the plain UTF-8 text.
+        #expect(Self.records(data)[0] == Self.header)
+        #expect(Self.records(data)[1].contains("Aerolíneas Argentinas"))
+        #expect(!data.dropFirst(3).starts(with: PastFlight.csvBOM))
     }
 
     @Test func csvHasHeaderAndRows() {

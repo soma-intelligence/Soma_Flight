@@ -14,7 +14,8 @@ public enum HomeTab: String, Hashable, Sendable {
 public final class HomeModel {
     /// The services, cache and airport list the stores are made from.
     public let env: AppEnvironment
-    /// The signed-in account; the shells rebuild the stores (`userChanged()`) when its user changes.
+    /// The signed-in account. The home watches it itself (`watchSession()`), so a sign-out or an account
+    /// deletion is handled even when the shell has swapped the home for Sign In.
     public let session: SessionStore
     /// Followed flights for the current owner, replaced on every account change.
     public private(set) var myFlights: MyFlightsStore
@@ -31,6 +32,11 @@ public final class HomeModel {
     @ObservationIgnored private var pushInbox: PushInbox?
     /// The flight Live Activity; nil until the iOS shell calls `attachLiveActivities` (never on the Mac).
     @ObservationIgnored public private(set) var activities: FlightActivityController?
+    /// `start()` has run: the stores have been built for an owner and loaded once.
+    @ObservationIgnored private var started = false
+    /// The owner and session state the session watch last acted on.
+    @ObservationIgnored private var seenOwner: UUID?
+    @ObservationIgnored private var seenAwaiting = true
 
     public init(env: AppEnvironment) {
         self.env = env
@@ -38,6 +44,37 @@ public final class HomeModel {
         session = env.makeSessionStore()
         myFlights = env.makeMyFlightsStore(owner: nil)
         passport = env.makePassportStore(owner: nil)
+        seenAwaiting = awaitingSession
+        watchSession()
+    }
+
+    // MARK: Session watch
+
+    /// Follows the account from the model, not from a view: the shells show Sign In instead of the home
+    /// once nobody is signed in, so a modifier on the home would never see the sign-out. An account change
+    /// after `start()` runs `userChanged()` (the previous account's Live Activity ends, the token moves);
+    /// before it, `start()` builds the stores itself. The stored session being read runs the activity
+    /// rules (a signed-out launch ends what a previous account left on the Lock Screen).
+    private func watchSession() {
+        withObservationTracking {
+            _ = owner
+            _ = awaitingSession
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.sessionDidChange() }
+        }
+    }
+
+    func sessionDidChange() {
+        watchSession()
+        let now = owner, awaiting = awaitingSession
+        let ownerChanged = now != seenOwner, resolved = awaiting != seenAwaiting
+        seenOwner = now
+        seenAwaiting = awaiting
+        if ownerChanged, started {
+            userChanged()
+        } else if ownerChanged || resolved {
+            Task { await reconcileActivities() }
+        }
     }
 
     /// The account the stores read and write for.
@@ -97,6 +134,8 @@ public final class HomeModel {
     /// rebuilt then for the account signed in now.
     public func start() async {
         session.startIfNeeded()
+        started = true
+        seenOwner = owner
         if storesOwner != owner { rebuildStores() }
         // A tap that launched the app opens first, without waiting for the lists.
         await processInbox()
@@ -113,8 +152,8 @@ public final class HomeModel {
         await passport.load()
     }
 
-    /// Call when the session's user changes: clears the panel's stack and rebuilds both stores for the
-    /// new owner, then loads them. The session store has already handed the device's saved data to the new user (or to nobody)
+    /// Runs when the session's user changes (the session watch calls it): clears the panel's stack and
+    /// rebuilds both stores for the new owner, then loads them. The session store has already handed the device's saved data to the new user (or to nobody)
     /// before publishing it, so the rebuilt stores never read the previous account's.
     public func userChanged() {
         shell.reset()
@@ -156,8 +195,8 @@ public final class HomeModel {
     /// Settles the activities for the account signed in now: signed out ends them all, otherwise the
     /// controller adopts the owner (ending any other account's) and re-runs its rules on the list when
     /// the list is trusted (loaded, not offline). Waits while the stored session is still being read.
-    /// Called at start, on every account change, when the session resolves and when the app becomes
-    /// active.
+    /// Called at start, on every account change, when the session resolves (the session watch) and when
+    /// the app becomes active (`SignInGate`).
     public func reconcileActivities() async {
         guard let activities, !awaitingSession else { return }
         if env.requiresSignIn, owner == nil {

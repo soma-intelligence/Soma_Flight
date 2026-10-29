@@ -367,6 +367,28 @@ Deno.test("onCall is invoked once per request with the endpoint template, and a 
   }
 });
 
+Deno.test("an ApiError from onCall (budget spent) stops the request before it is sent", async () => {
+  let fetched = 0;
+  const api = new AeroApi(
+    "k",
+    (() => {
+      fetched++;
+      return Promise.resolve(new Response("{}"));
+    }) as typeof fetch,
+    () =>
+      Promise.reject(
+        new ApiError(
+          "provider_unavailable",
+          503,
+          "Daily provider budget reached",
+        ),
+      ),
+  );
+  const e = await assertRejects(() => api.flightPosition("X-1"), ApiError);
+  assertEquals(e.code, "provider_unavailable");
+  assertEquals(fetched, 0);
+});
+
 Deno.test("estimateCost covers every endpoint the client uses and throws on unknown", async () => {
   const used = new Set<string>();
   const record = (e: string) => {

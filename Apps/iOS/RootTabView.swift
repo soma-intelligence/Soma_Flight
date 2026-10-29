@@ -13,7 +13,6 @@ struct RootTabView: View {
     @State private var showSettings = false
     @State private var screenHeight: CGFloat = 874
     @StoredUnits private var units: Units
-    @Environment(\.scenePhase) private var scenePhase
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -45,13 +44,8 @@ struct RootTabView: View {
                 selection = nil
                 home.select(picked)
             }
-            .onChange(of: home.owner) { home.userChanged() }
-            // The Live Activity rules: once the stored session is read, and each time the app comes to
-            // the front (an activity can only start in the foreground).
-            .onChange(of: home.awaitingSession) { Task { await home.reconcileActivities() } }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await home.reconcileActivities() } }
-            }
+            // Account changes and the Live Activity rules run above this view (HomeModel's session watch
+            // and SignInGate), so they still run once Sign In has replaced it.
             .task {
                 await home.start()
                 #if DEBUG
@@ -92,7 +86,7 @@ struct RootTabView: View {
         .presentationCornerRadius(Theme.sheetRadius)
         .interactiveDismissDisabled()
         .sheet(isPresented: $showSearch) {
-            SearchSheet(env: env, followedIDs: Set(home.followed.map(\.id)), onFollowed: { _ in Task { await home.didFollow() } })
+            SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), onFollowed: { _ in Task { await home.didFollow() } })
                 .environment(\.units, units)
         }
         .sheet(isPresented: $showSettings) {
@@ -151,17 +145,17 @@ struct RootTabView: View {
 private struct SearchSheet: View {
     @State private var store: SearchStore
     var lookup: (String) -> Airport?
-    var followedIDs: Set<Flight.ID>
+    var alreadyFollowed: FollowedFlights
     var onFollowed: (Flight) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(env: AppEnvironment, followedIDs: Set<Flight.ID>, onFollowed: @escaping (Flight) -> Void) {
+    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, onFollowed: @escaping (Flight) -> Void) {
         _store = State(initialValue: env.makeSearchStore())
-        self.lookup = env.lookup; self.followedIDs = followedIDs; self.onFollowed = onFollowed
+        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.onFollowed = onFollowed
     }
 
     var body: some View {
-        SearchView(store: store, onFollowed: onFollowed, lookup: lookup, followedIDs: followedIDs)
+        SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)

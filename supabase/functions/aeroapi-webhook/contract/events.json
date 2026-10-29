@@ -1,0 +1,173 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "flight_id": "00000000-0000-4000-8000-0000000000f1",
+    "provider_event_id": "sha256-of-the-delivery",
+    "kind": "gate_change",
+    "payload": {
+      "gate": "K42",
+      "changes": {
+        "gate_origin": {
+          "to": "K42",
+          "from": null
+        },
+        "origin_iata": {
+          "to": "CDG",
+          "from": null
+        },
+        "registration": {
+          "to": "F-HPJB",
+          "from": null
+        },
+        "aircraft_type": {
+          "to": "B77W",
+          "from": null
+        },
+        "terminal_origin": {
+          "to": "2E",
+          "from": null
+        },
+        "destination_iata": {
+          "to": "SFO",
+          "from": null
+        }
+      },
+      "summary": "AFR84 LFPG to KSFO: gate change",
+      "alert_id": 4242001,
+      "event_code": "change",
+      "short_description": "AFR84 gate change at LFPG"
+    },
+    "received_at": "2026-11-03T21:00:00.123456+00:00"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "flight_id": "00000000-0000-4000-8000-0000000000f1",
+    "provider_event_id": "sha256-of-the-delivery",
+    "kind": "delay",
+    "payload": {
+      "changes": {
+        "origin_iata": {
+          "to": "CDG",
+          "from": null
+        },
+        "registration": {
+          "to": "F-HPJB",
+          "from": null
+        },
+        "aircraft_type": {
+          "to": "B77W",
+          "from": null
+        },
+        "estimated_out": {
+          "to": "2026-11-03T23:10:00+00:00",
+          "from": "2026-11-03T22:30:00+00:00"
+        },
+        "destination_iata": {
+          "to": "SFO",
+          "from": null
+        }
+      },
+      "minutes": 40,
+      "summary": "AFR84 LFPG to KSFO: gate change",
+      "alert_id": 4242001,
+      "event_code": "change",
+      "delay_minutes": 40,
+      "short_description": "AFR84 gate change at LFPG",
+      "previous_delay_minutes": null
+    },
+    "received_at": "2026-11-03T21:00:00.123456+00:00"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "flight_id": "00000000-0000-4000-8000-0000000000f1",
+    "provider_event_id": "sha256-of-the-delivery",
+    "kind": "diversion",
+    "payload": {
+      "gate": "K42",
+      "changes": {
+        "status": {
+          "to": "diverted",
+          "from": "scheduled"
+        },
+        "gate_origin": {
+          "to": "K42",
+          "from": null
+        },
+        "origin_iata": {
+          "to": "CDG",
+          "from": null
+        },
+        "registration": {
+          "to": "F-HPJB",
+          "from": null
+        },
+        "aircraft_type": {
+          "to": "B77W",
+          "from": null
+        },
+        "terminal_origin": {
+          "to": "2E",
+          "from": null
+        },
+        "destination_iata": {
+          "to": "SFO",
+          "from": null
+        },
+        "destination_icao": {
+          "to": "KOAK",
+          "from": "KSFO"
+        }
+      },
+      "summary": "AFR84 LFPG to KSFO: gate change",
+      "alert_id": 4242001,
+      "event_code": "diverted",
+      "destination": "KOAK",
+      "short_description": "AFR84 gate change at LFPG"
+    },
+    "received_at": "2026-11-03T21:00:00.123456+00:00"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "flight_id": "00000000-0000-4000-8000-0000000000f1",
+    "provider_event_id": "sha256-of-the-delivery",
+    "kind": "cancel",
+    "payload": {
+      "gate": "K42",
+      "changes": {
+        "status": {
+          "to": "canceled",
+          "from": "scheduled"
+        },
+        "gate_origin": {
+          "to": "K42",
+          "from": null
+        },
+        "origin_iata": {
+          "to": "CDG",
+          "from": null
+        },
+        "registration": {
+          "to": "F-HPJB",
+          "from": null
+        },
+        "aircraft_type": {
+          "to": "B77W",
+          "from": null
+        },
+        "terminal_origin": {
+          "to": "2E",
+          "from": null
+        },
+        "destination_iata": {
+          "to": "SFO",
+          "from": null
+        }
+      },
+      "summary": "AFR84 LFPG to KSFO: gate change",
+      "alert_id": 4242001,
+      "event_code": "cancelled",
+      "short_description": "AFR84 gate change at LFPG"
+    },
+    "received_at": "2026-11-03T21:00:00.123456+00:00"
+  }
+]

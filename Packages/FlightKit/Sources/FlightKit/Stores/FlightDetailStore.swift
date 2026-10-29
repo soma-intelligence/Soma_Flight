@@ -59,6 +59,27 @@ public final class FlightDetailStore {
         error = firstError
     }
 
+    /// How often an open detail asks for the live position while the flight is in the air: the
+    /// backend's shared window, so asking more often never buys a fresher one.
+    public static let positionInterval: Duration = .seconds(120)
+
+    /// Keeps the live position fresh while the screen is open (run it in the screen's task, after
+    /// `load()`): asks at once, then every `interval`, until the task is cancelled.
+    public func followPosition(every interval: Duration = positionInterval) async {
+        while !Task.isCancelled {
+            await refreshPosition()
+            do { try await Task.sleep(for: interval) } catch { return }
+        }
+    }
+
+    /// One position refresh for a followed flight that is departed or en route; nothing for the rest.
+    /// A failure keeps what is on screen: the position is a nicety, never an error banner.
+    func refreshPosition() async {
+        guard let f = flight, f.status == .departed || f.status == .enRoute, notify != nil else { return }
+        guard let fresh = try? await flights.refreshPosition(id), fresh.id == flight?.id else { return }
+        flight = fresh
+    }
+
     /// Turns alerts for the followed flight on or off (`follow(_:notify:)`). The switch moves at once and
     /// goes back, with `error` set, when the server refuses.
     public func setNotify(_ on: Bool) async {

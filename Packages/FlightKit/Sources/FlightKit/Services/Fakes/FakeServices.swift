@@ -168,6 +168,16 @@ public actor FakeFlightService: FlightService {
         notify[id] = nil
     }
 
+    /// Ids `refreshPosition` was asked for, in order.
+    public private(set) var positionRequests: [Flight.ID] = []
+
+    /// The stored flight: the seed already carries positions for flights in the air.
+    public func refreshPosition(_ id: Flight.ID) async throws(APIError) -> Flight? {
+        try check()
+        positionRequests.append(id)
+        return pool[id]
+    }
+
     public func flight(_ id: Flight.ID) async throws(APIError) -> Flight {
         try check()
         guard let f = pool[id] else { throw .notFound }

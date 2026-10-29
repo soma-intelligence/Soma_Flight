@@ -1,4 +1,6 @@
 // POST /flight-lookup { ident? | origin+destination, date } -> { flights }
+// An ident search answers the flights departing the day before, the day and the day after `date`
+// (origin-local dates); a route search answers the origin-local `date` only (docs/api-contract.md).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { type AeroApi, toFlightRows } from "../_shared/aeroapi.ts";
 import type { AeroFlight } from "../_shared/aeroapi_types.ts";
@@ -19,17 +21,29 @@ export interface Deps {
 
 const DAY_MS = 86_400_000;
 
+/**
+ * Stores provider flights through upsert_provider_flights: new ones as given, known ones merged with
+ * the webhook's rules (merge_flight), so a lagging snapshot never moves status, actual times or gates
+ * backwards. Rows without an ICAO origin or destination (airports known only by a local id) are
+ * dropped, as boards drop them: the app needs both.
+ */
 async function upsertFlights(
   db: SupabaseClient,
   flights: AeroFlight[],
   now: Date,
 ) {
-  const rows = toFlightRows(flights, now);
+  const rows = toFlightRows(flights, now).filter((r) =>
+    r.origin_icao && r.destination_icao
+  );
   if (rows.length === 0) return [];
-  const { data, error } = await db.from("flights")
-    .upsert(rows, { onConflict: "provider_id" }).select();
+  const { data, error } = await db.rpc("upsert_provider_flights", {
+    p_rows: rows,
+  });
   if (error) throw new Error(`flights upsert failed: ${error.message}`);
-  return data ?? [];
+  return (data ?? []) as {
+    provider_id: string;
+    scheduled_out: string | null;
+  }[];
 }
 
 /** YYYY-MM-DD of an instant in a timezone. */
@@ -45,6 +59,11 @@ export function localDate(tz: string, iso: string): string {
   } catch {
     return at.toISOString().slice(0, 10);
   }
+}
+
+function prevDate(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - DAY_MS).toISOString()
+    .slice(0, 10);
 }
 
 function nextDate(date: string): string {
@@ -173,13 +192,17 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       if (!/^[A-Z0-9]{2,8}$/.test(ident)) {
         throw new ApiError("invalid_request", 400, "Invalid ident");
       }
-      // Local date at the origin can sit a day either side of the UTC date: widen, then filter.
+      // Ruling F4: the flights whose origin-local departure date is the day before, the day or the
+      // day after `date`, all of them, sorted by departure. A user whose own date differs from the
+      // origin's (a flight still in the air from yesterday, over there) still finds it. Origin-local
+      // dates sit up to 14 h either side of UTC: two days back and three ahead cover them, clipped
+      // to the provider window.
       const from = new Date(Math.max(
-        start.getTime() - DAY_MS,
+        start.getTime() - 2 * DAY_MS,
         now.getTime() - 10 * DAY_MS,
       ));
       const to = new Date(Math.min(
-        start.getTime() + 2 * DAY_MS,
+        start.getTime() + 3 * DAY_MS,
         now.getTime() + 2 * DAY_MS,
       ));
       if (from.getTime() >= to.getTime()) return json({ flights: [] });
@@ -188,17 +211,19 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         from.toISOString(),
         to.toISOString(),
       );
+      const days = new Set([prevDate(date), date, nextDate(date)]);
       const tzs = await originTimezones(db, found);
-      const onDay = found.filter((f) =>
+      const near = found.filter((f) =>
         f.scheduled_out != null &&
-        localDate(
+        days.has(
+          localDate(
             tzs.get(f.origin?.code_icao ?? "") ?? "UTC",
             f.scheduled_out,
-          ) ===
-          date
+          ),
+        )
       );
       return json({
-        flights: sortFlights(await upsertFlights(db, onDay, now)),
+        flights: sortFlights(await upsertFlights(db, near, now)),
       });
     }
 

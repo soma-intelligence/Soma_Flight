@@ -50,10 +50,8 @@ struct RootSidebarView: View {
                 showSearch = false
                 home.select(picked)
             }
-            .onChange(of: home.owner) {
-                showSearch = false
-                home.userChanged()
-            }
+            // HomeModel's session watch rebuilds the stores; this only closes the search.
+            .onChange(of: home.owner) { showSearch = false }
             .task {
                 await home.start()
                 #if DEBUG
@@ -106,7 +104,7 @@ struct RootSidebarView: View {
         Group {
             if showSearch {
                 SearchView(store: search, onFollowed: { _ in Task { await home.didFollow() } }, lookup: env.lookup,
-                           followedIDs: Set(home.followed.map(\.id)))
+                           alreadyFollowed: FollowedFlights(home.followed))
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {
                 switch home.tab {

@@ -394,6 +394,10 @@ verify_jwt = true
 [functions.usage-alert]
 verify_jwt = true
 
+# Live position of a followed flight in the air, fetched lazily (one provider call per flight per 2 min).
+[functions.flight-position]
+verify_jwt = true
+
 # Boards, delay stats and weather. The flightcore WASM is read at runtime, so it ships as a static file.
 [functions.airport-board]
 verify_jwt = true

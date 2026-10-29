@@ -27,10 +27,12 @@ public final class SupabaseFlightService: FlightService {
         self.backend = backend; self.airport = airport; self.timeZone = timeZone
     }
 
-    private struct FlightsAnswer: Decodable { var flights: [Flight] }
+    private struct FlightsAnswer: Decodable { var flights: [Lossy<Flight>] }
 
+    /// The flights of a `flight-lookup` answer. A row the app cannot read is logged and left out, so
+    /// one bad row never fails the whole search.
     static func decodeLookup(_ data: Data) throws -> [Flight] {
-        try FlightJSON.decoder.decode(FlightsAnswer.self, from: data).flights
+        try FlightJSON.decoder.decode(FlightsAnswer.self, from: data).flights.compactMap(\.value)
     }
 
     // MARK: Search
@@ -95,14 +97,24 @@ public final class SupabaseFlightService: FlightService {
 
     // MARK: Following
 
-    /// `user_flights` rows with their flight (RLS keeps them to the signed-in user).
-    private struct FollowRow: Decodable { var flights: Flight? }
+    /// `user_flights` rows with their flight (RLS keeps them to the signed-in user). A flight the app
+    /// cannot read is logged and left out rather than failing the list.
+    struct FollowRow: Decodable {
+        var flights: Flight?
+        private enum CodingKeys: String, CodingKey { case flights }
+        init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            flights = try c.decodeIfPresent(Lossy<Flight>.self, forKey: .flights)?.value
+        }
+    }
+
+    static func decodeFollowed(_ data: Data) throws -> [Flight] {
+        try FlightJSON.decoder.decode([FollowRow].self, from: data).compactMap(\.flights)
+    }
 
     public func followed() async throws(APIError) -> [Flight] {
         let data = try await backend.rows { $0.from("user_flights").select("created_at, flights(*)").order("created_at") }
-        do {
-            return try FlightJSON.decoder.decode([FollowRow].self, from: data).compactMap(\.flights)
-        } catch { throw SupabaseBackend.map(error) }
+        do { return try Self.decodeFollowed(data) } catch { throw SupabaseBackend.map(error) }
     }
 
     public func follow(_ id: Flight.ID, notify: Bool) async throws(APIError) {
@@ -132,6 +144,19 @@ public final class SupabaseFlightService: FlightService {
         let data = try await backend.rows { $0.from("flights").select().eq("id", value: real.uuidString.lowercased()).limit(1) }
         guard let f = try decodeFlights(data).first else { throw .notFound }
         return f
+    }
+
+    private struct PositionAnswer: Decodable { var flight: Flight }
+
+    static func decodePosition(_ data: Data) throws -> Flight {
+        try FlightJSON.decoder.decode(PositionAnswer.self, from: data).flight
+    }
+
+    public func refreshPosition(_ id: Flight.ID) async throws(APIError) -> Flight? {
+        let real = try await resolve(id)
+        return try await backend.call("flight-position",
+                                      body: SupabaseBackend.json(["flightId": real.uuidString.lowercased()]),
+                                      decode: Self.decodePosition)
     }
 
     public func events(_ id: Flight.ID) async throws(APIError) -> [FlightEvent] {
@@ -254,6 +279,20 @@ public final class SupabaseFlightService: FlightService {
             guard !Task.isCancelled else { return }
             let delay = resubscribeDelays[min(failures, resubscribeDelays.count - 1)]
             try? await Task.sleep(for: delay)
+        }
+    }
+}
+
+/// One element of a list, or nothing when it does not decode: the failure is logged and the list goes on.
+struct Lossy<T: Decodable>: Decodable {
+    let value: T?
+
+    init(from decoder: any Decoder) throws {
+        do {
+            value = try T(from: decoder)
+        } catch {
+            SupabaseBackend.log.error("\(String(describing: T.self), privacy: .public) row left out, not decoded: \(String(describing: error), privacy: .public)")
+            value = nil
         }
     }
 }

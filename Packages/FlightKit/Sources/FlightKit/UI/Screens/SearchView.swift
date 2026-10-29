@@ -1,5 +1,22 @@
 import SwiftUI
 
+/// The flights the user already follows, as search results meet them. A flight lookup answers
+/// `flights` rows (same `id`), but an airport search answers board rows whose `id` is derived from the
+/// provider id, so a row also counts as followed when its `providerId` matches.
+public struct FollowedFlights: Sendable, Equatable {
+    public var ids: Set<Flight.ID>
+    public var providerIDs: Set<String>
+
+    public init(_ flights: [Flight] = []) {
+        ids = Set(flights.map(\.id))
+        providerIDs = Set(flights.map(\.providerId))
+    }
+
+    public func contains(_ f: Flight) -> Bool {
+        ids.contains(f.id) || providerIDs.contains(f.providerId)
+    }
+}
+
 /// Find a flight to follow: one field for a flight number, a route or an airport, the recent
 /// searches and ways to search under it, and the results with a Follow button each. Errors show
 /// in a banner and the typed text stays.
@@ -7,7 +24,7 @@ public struct SearchView: View {
     @Bindable var store: SearchStore
     var onFollowed: (Flight) -> Void
     var lookup: (String) -> Airport?
-    var followedIDs: Set<Flight.ID>
+    var alreadyFollowed: FollowedFlights
     var scrolls: Bool
 
     @State private var followed: Set<Flight.ID> = []
@@ -17,16 +34,16 @@ public struct SearchView: View {
 
     /// - Parameters:
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
-    ///   - followedIDs: flights already followed, which show "Following" instead of a second Follow.
+    ///   - alreadyFollowed: flights already followed, which show "Following" instead of a second Follow.
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
-                lookup: @escaping (String) -> Airport? = { _ in nil }, followedIDs: Set<Flight.ID> = []) {
-        self.init(store: store, onFollowed: onFollowed, lookup: lookup, followedIDs: followedIDs, scrolls: true)
+                lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init()) {
+        self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed, scrolls: true)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
-         followedIDs: Set<Flight.ID> = [], scrolls: Bool) {
+         alreadyFollowed: FollowedFlights = .init(), scrolls: Bool) {
         self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
-        self.followedIDs = followedIDs; self.scrolls = scrolls
+        self.alreadyFollowed = alreadyFollowed; self.scrolls = scrolls
     }
 
     public var body: some View {
@@ -130,7 +147,7 @@ public struct SearchView: View {
     }
 
     private func followState(_ f: Flight) -> ResultRow.FollowState {
-        followed.contains(f.id) || followedIDs.contains(f.id) ? .following : pending.contains(f.id) ? .pending : .idle
+        followed.contains(f.id) || alreadyFollowed.contains(f) ? .following : pending.contains(f.id) ? .pending : .idle
     }
 
     private var suggestions: some View {
@@ -166,7 +183,7 @@ public struct SearchView: View {
     static let routeIcon = "point.topleft.down.to.point.bottomright.curvepath"
 
     private func follow(_ flight: Flight) {
-        guard !followed.contains(flight.id), !followedIDs.contains(flight.id), !pending.contains(flight.id) else { return }
+        guard !followed.contains(flight.id), !alreadyFollowed.contains(flight), !pending.contains(flight.id) else { return }
         pending.insert(flight.id)
         // Not cancelled when the sheet closes: the follow still lands on the server, and My Flights must hear of it.
         Task {

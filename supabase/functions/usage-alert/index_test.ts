@@ -78,11 +78,12 @@ function call(
     bearer?: string | null;
     env?: (n: string) => string | undefined;
     method?: string;
+    query?: string;
   } = {},
 ) {
   const bearer = opts.bearer === undefined ? SERVICE_KEY : opts.bearer;
   return handler(
-    new Request("http://localhost/usage-alert", {
+    new Request(`http://localhost/usage-alert${opts.query ?? ""}`, {
       method: opts.method ?? "POST",
       headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
     }),
@@ -265,3 +266,73 @@ utest(
     assertEquals(resend.sent.length, 1);
   },
 );
+
+// --- mode=cap: today's running spend against the daily cap (ruling F6) ---
+
+/** `now` on `day` itself (mode=cap reads today). */
+function sameDay(day: string): Date {
+  return new Date(`${day}T15:00:00Z`);
+}
+
+utest("cap mode: below 80% of the cap sends nothing", async (day) => {
+  const resend = fakeResend();
+  await spend(day, [["/flights/{ident}", 100, 39.99]]);
+  const r = await call(sameDay(day), resend, { query: "?mode=cap" });
+  const body = await r.json();
+  assertEquals([r.status, body.mode, body.day, body.threshold, body.sent], [
+    200,
+    "cap",
+    day,
+    40,
+    false,
+  ]);
+  assertEquals(resend.sent.length, 0);
+});
+
+utest(
+  "cap mode: at 80% of the cap emails today, once a day, beside the daily email",
+  async (day) => {
+    const resend = fakeResend();
+    await spend(day, [["/airports/{id}/flights/departures", 8000, 40]]);
+    const first = await call(sameDay(day), resend, { query: "?mode=cap" });
+    assertEquals((await first.json()).sent, true);
+    assertEquals(resend.sent.length, 1);
+    assertEquals(resend.sent[0].headers["idempotency-key"], `usage-cap-${day}`);
+    assertStringIncludes(resend.sent[0].body.subject, "near the daily cap");
+    assertStringIncludes(resend.sent[0].body.text, "$50.00");
+    // The next hourly run the same day: nothing more.
+    const again = await call(sameDay(day), resend, { query: "?mode=cap" });
+    assertEquals((await again.json()).alreadySent, true);
+    assertEquals(resend.sent.length, 1);
+    // The next morning's daily email for that day is a different kind and still goes out.
+    const next = new Date(
+      Date.parse(`${day}T00:00:00Z`) + 86_400_000 + 8 * 3600_000,
+    );
+    const daily = await call(next, resend);
+    assertEquals((await daily.json()).sent, true);
+    assertEquals(resend.sent.length, 2);
+    const kinds = await db.from("usage_alerts").select("kind").eq("day", day);
+    assertEquals(
+      (kinds.data ?? []).map((k) => k.kind).sort(),
+      ["cap", "daily"],
+    );
+  },
+);
+
+utest("cap mode follows AEROAPI_DAILY_CAP_USD", async (day) => {
+  const resend = fakeResend();
+  await spend(day, [["/flights/{ident}", 2000, 8]]);
+  const r = await call(sameDay(day), resend, {
+    query: "?mode=cap",
+    env: env({ AEROAPI_DAILY_CAP_USD: "10" }),
+  });
+  const body = await r.json();
+  assertEquals([body.threshold, body.sent], [8, true]);
+});
+
+utest("an unknown mode is a 400", async (day) => {
+  const resend = fakeResend();
+  const r = await call(sameDay(day), resend, { query: "?mode=weekly" });
+  assertEquals(r.status, 400);
+  assertEquals(resend.sent.length, 0);
+});

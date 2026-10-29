@@ -32,4 +32,12 @@ public protocol FlightService: Sendable {
     func flight(_ id: Flight.ID) async throws(APIError) -> Flight
     func events(_ id: Flight.ID) async throws(APIError) -> [FlightEvent]
     func updates(for ids: [Flight.ID]) -> AsyncStream<Flight>
+    /// Asks for a fresh live position of a followed flight in the air and answers the flight as stored
+    /// then (`flight-position`). The backend fetches at most once per flight per 2 minutes, shared by
+    /// every follower; nil when the service has no live positions.
+    func refreshPosition(_ id: Flight.ID) async throws(APIError) -> Flight?
+}
+
+public extension FlightService {
+    func refreshPosition(_ id: Flight.ID) async throws(APIError) -> Flight? { nil }
 }
