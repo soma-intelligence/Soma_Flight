@@ -9,8 +9,10 @@ export interface Coord {
 
 export type FlightStatus =
   | "scheduled"
-  | "active"
+  | "departed"
+  | "en_route"
   | "landed"
+  | "arrived"
   | "canceled"
   | "diverted"
   | "unknown";
@@ -103,6 +105,12 @@ export interface PassportStats {
 }
 
 const MAX_SEGMENTS = 100_000;
+const I32_MIN = -2_147_483_648;
+const I32_MAX = 2_147_483_647;
+
+function isI32(n: number): boolean {
+  return Number.isInteger(n) && n >= I32_MIN && n <= I32_MAX;
+}
 
 function fail(e: unknown): never {
   throw new Error(e instanceof Error ? e.message : String(e));
@@ -157,8 +165,11 @@ export function flightCategory(
   ceilingFt: number | null,
   visibilitySm: number,
 ): FlightCategory {
-  if (ceilingFt !== null && !Number.isInteger(ceilingFt)) {
-    throw new Error(`invalid ceilingFt: ${ceilingFt}`);
+  if (ceilingFt !== null && !isI32(ceilingFt)) {
+    throw new Error(`invalid ceilingFt: ${ceilingFt} (i32 integer or null)`);
+  }
+  if (!Number.isFinite(visibilitySm)) {
+    throw new Error(`invalid visibilitySm: ${visibilitySm} (finite number)`);
   }
   return unwrap<FlightCategory>(wasm.flightCategory(ceilingFt, visibilitySm));
 }
@@ -167,8 +178,8 @@ export function computePassport(
   flights: PastFlight[],
   year?: number,
 ): PassportStats {
-  if (year !== undefined && !Number.isInteger(year)) {
-    throw new Error(`invalid year: ${year}`);
+  if (year !== undefined && !isI32(year)) {
+    throw new Error(`invalid year: ${year} (i32 integer)`);
   }
   return unwrap<PassportStats>(
     wasm.computePassport(stringify(flights, "flights"), year),

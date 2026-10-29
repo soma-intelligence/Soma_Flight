@@ -152,41 +152,37 @@ function throwsMessage(fn: () => unknown): string {
   throw new Error("did not throw");
 }
 
-Deno.test("malformed input throws Error, never aborts", () => {
+function expectError(fn: () => unknown, substring: string) {
+  const m = throwsMessage(fn);
+  assert(m.includes(substring), `message "${m}" lacks "${substring}"`);
+}
+
+Deno.test("malformed input throws Error with a specific message, never aborts", () => {
   // deno-lint-ignore no-explicit-any
   const bad = (v: unknown) => v as any;
-  assert(
-    throwsMessage(() => distanceKm(bad({ lat: "x" }), { lat: 0, lon: 0 }))
-      .length > 0,
-    "dist",
-  );
-  assert(
-    throwsMessage(() => greatCircle(bad(null), { lat: 0, lon: 0 }, 4)).length >
-      0,
-    "gc",
-  );
-  assert(
-    throwsMessage(() =>
-      greatCircle({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, 10_000_000)
-    ).length > 0,
-    "gc big",
-  );
-  assert(
-    throwsMessage(() => greatCircle({ lat: 0, lon: 0 }, { lat: 1, lon: 1 }, -1))
-      .length > 0,
-    "gc neg",
-  );
-  assert(
-    throwsMessage(() => computeStats(bad([{ ident: 1 }]))).length > 0,
-    "stats",
-  );
-  assert(throwsMessage(() => computeStats(bad({}))).length > 0, "stats obj");
-  assert(
-    throwsMessage(() => computePassport(bad("nope"))).length > 0,
-    "passport",
-  );
+  const z = { lat: 0, lon: 0 };
+  expectError(() => distanceKm(bad({ lat: "x" }), z), "invalid coord a");
+  expectError(() => distanceKm(z, bad(null)), "invalid coord b");
+  expectError(() => greatCircle(bad(null), z, 4), "invalid coord a");
+  expectError(() => greatCircle(z, bad({}), 4), "invalid coord b");
+  expectError(() => greatCircle(z, z, 10_000_000), "invalid segments");
+  expectError(() => greatCircle(z, z, -1), "invalid segments");
+  expectError(() => greatCircle(z, z, 1.5), "invalid segments");
+  expectError(() => computeStats(bad([{ ident: 1 }])), "invalid rows");
+  expectError(() => computeStats(bad({})), "invalid rows");
+  expectError(() => computePassport(bad("nope")), "invalid flights");
+  expectError(() => computePassport([], 2 ** 31), "invalid year");
+  expectError(() => computePassport([], 2023.5), "invalid year");
+  expectError(() => flightCategory(2 ** 31, 10), "invalid ceilingFt");
+  expectError(() => flightCategory(1.5, 10), "invalid ceilingFt");
+  expectError(() => flightCategory(null, NaN), "invalid visibilitySm");
+  expectError(() => flightCategory(null, Infinity), "invalid visibilitySm");
   // still usable afterwards
   assert(flightCategory(null, 10) === "VFR", "alive after errors");
+});
+
+Deno.test("negative visibility is LIFR", () => {
+  assert(flightCategory(null, -1) === "LIFR", "negative");
 });
 
 Deno.test("unknown timezone and empty input do not panic", () => {

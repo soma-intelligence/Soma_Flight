@@ -6,7 +6,8 @@
       "ifr": "ceiling < 1000 ft or visibility < 3 sm",
       "mvfr": "ceiling 1000 to 3000 ft inclusive or visibility 3 to 5 sm inclusive",
       "vfr": "otherwise",
-      "missing_ceiling": "unlimited"
+      "missing_ceiling": "unlimited",
+      "invalid_visibility": "negative or non-finite (NaN, infinity) visibility is LIFR"
     }
   },
   "cases": [
@@ -116,6 +117,12 @@
       "name": "zero_ceiling",
       "ceiling_ft": 0,
       "visibility_sm": 10,
+      "expected": "LIFR"
+    },
+    {
+      "name": "negative_visibility",
+      "ceiling_ft": null,
+      "visibility_sm": -1,
       "expected": "LIFR"
     }
   ]

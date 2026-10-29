@@ -131,6 +131,7 @@ with open(os.path.join(here, "delay_stats.json"), "w") as f:
 
 # ---- flight category ----
 def cat(ceil, vis):
+    if vis < 0: return "LIFR"  # negative (or non-finite) visibility is invalid: treat as worst case
     c = float("inf") if ceil is None else ceil
     if c < 500 or vis < 1: return "LIFR"
     if c < 1000 or vis < 3: return "IFR"
@@ -141,10 +142,12 @@ pts = [("clear_unlimited", None, 10), ("ceiling_800", 800, 10), ("ceiling_2500",
        ("ceiling_1000_vis_3", 1000, 3), ("ceiling_499", 499, 10), ("ceiling_500", 500, 10), ("ceiling_999", 999, 10),
        ("ceiling_3000", 3000, 10), ("ceiling_3001", 3001, 10), ("vis_0_99", None, 0.99), ("vis_1", None, 1),
        ("vis_2_99", None, 2.99), ("vis_3", None, 3), ("vis_5", None, 5), ("vis_5_01", None, 5.01),
-       ("high_ceiling_low_vis", 10000, 0.25), ("zero_ceiling", 0, 10)]
+       ("high_ceiling_low_vis", 10000, 0.25), ("zero_ceiling", 0, 10),
+       ("negative_visibility", None, -1)]
 cmeta = {"generator": "core/fixtures/gen_delay.py",
          "rules": {"lifr": "ceiling < 500 ft or visibility < 1 sm", "ifr": "ceiling < 1000 ft or visibility < 3 sm",
                    "mvfr": "ceiling 1000 to 3000 ft inclusive or visibility 3 to 5 sm inclusive", "vfr": "otherwise",
-                   "missing_ceiling": "unlimited"}}
+                   "missing_ceiling": "unlimited",
+                   "invalid_visibility": "negative or non-finite (NaN, infinity) visibility is LIFR"}}
 with open(os.path.join(here, "category.json"), "w") as f:
     json.dump({"meta": cmeta, "cases": [{"name": n, "ceiling_ft": c, "visibility_sm": v, "expected": cat(c, v)} for n, c, v in pts]}, f, indent=2); f.write("\n")
