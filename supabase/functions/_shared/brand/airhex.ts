@@ -9,14 +9,18 @@
 import { crypto as stdCrypto } from "jsr:@std/crypto@1";
 import { encodeHex } from "jsr:@std/encoding@1/hex";
 import {
+  type AssetKind,
   type BrandColors,
   contentVersion,
-  type LogoKind,
+  type FetchOpts,
+  type KnownAsset,
   type LogoProvider,
   type ProviderAirline,
   type ProviderFile,
   ProviderUnavailable,
+  redact,
 } from "./logo_provider.ts";
+import { pngSize } from "./validate.ts";
 
 export const AIRHEX_API = "https://content.airhex.com/api";
 export const AIRHEX_CONTENT = "https://content.airhex.com/content/logos";
@@ -38,6 +42,9 @@ export async function md5Hex(s: string): Promise<string> {
 
 export class AirhexLogoProvider implements LogoProvider {
   readonly name = "airhex";
+  readonly rank = 2;
+  readonly kinds = ["logo", "logo_dark", "tail_logo"] as const;
+  readonly hasColors = true;
   private signed?: Promise<string>;
   private catalog?: Promise<
     { sizes: number[]; byIcao: Map<string, ListEntry> }
@@ -52,13 +59,16 @@ export class AirhexLogoProvider implements LogoProvider {
     return this.signed ??= md5Hex(this.key);
   }
 
-  private async get(url: string): Promise<Response> {
+  private async get(url: string, etag?: string | null): Promise<Response> {
     let res: Response;
     try {
-      res = await this.fetchFn(url);
+      res = await this.fetchFn(
+        url,
+        etag ? { headers: { "if-none-match": etag } } : undefined,
+      );
     } catch (e) {
       throw new ProviderUnavailable(
-        `airhex unreachable: ${(e as Error).message}`,
+        redact(`airhex unreachable: ${(e as Error).message}`),
       );
     }
     if (res.status >= 500 || res.status === 429) {
@@ -107,45 +117,59 @@ export class AirhexLogoProvider implements LogoProvider {
     }));
   }
 
-  async logo(icao: string, kind: LogoKind): Promise<ProviderFile | null> {
+  async logo(
+    icao: string,
+    kind: AssetKind,
+    opts: FetchOpts = {},
+  ): Promise<ProviderFile | "unchanged" | null> {
+    if (kind === "side_view") return null;
     const { sizes, byIcao } = await this.loadCatalog();
     const a = byIcao.get(icao);
     if (!a || !a.iata) return null;
     if (kind === "logo_dark" && !a.dark) return null;
-    const style = kind === "tail" ? "t" : "r";
+    const style = kind === "tail_logo" ? "t" : "r";
     const variant = kind === "logo_dark" ? "&variant=dark" : "";
     const sig = await this.sig();
+    const largest = sizes.at(-1);
     const url = (size: number, ext: string) =>
       `${AIRHEX_CONTENT}/airlines_${a.iata}_${size}_${size}_${style}.${ext}` +
       `?md5apikey=${sig}${variant}`;
+    const known: KnownAsset | undefined = opts.known;
+    const tryVector = known === undefined || known.format === "svg";
+    const tryRaster = known === undefined || known.format !== "svg";
 
-    // Vector first. The size in a vector URL is only a hint.
-    const vec = await this.get(url(sizes.at(-1) ?? 512, "svg"));
-    if (vec.ok && (vec.headers.get("content-type") ?? "").includes("svg")) {
-      return await this.file(vec, "svg", null);
+    // Vector first. The size in a vector URL is only a hint. A stored validator goes out as
+    // If-None-Match, so an unchanged file costs a 304 and no body.
+    if (tryVector) {
+      const vec = await this.get(url(largest ?? 512, "svg"), known?.etag);
+      if (vec.status === 304) return "unchanged";
+      if (vec.ok && (vec.headers.get("content-type") ?? "").includes("svg")) {
+        return await this.file(vec, "svg");
+      }
+      await vec.body?.cancel();
     }
-    await vec.body?.cancel();
-
-    const largest = sizes.at(-1);
-    if (largest === undefined || largest < MIN_RASTER_PX) return null;
-    const png = await this.get(url(largest, "png"));
+    if (!tryRaster || largest === undefined || largest < MIN_RASTER_PX) {
+      return null;
+    }
+    const png = await this.get(url(largest, "png"), known?.etag);
+    if (png.status === 304) return "unchanged";
     if (!png.ok) {
       await png.body?.cancel();
       return null;
     }
-    return await this.file(png, "png", largest);
+    return await this.file(png, "png");
   }
 
   private async file(
     res: Response,
     format: "svg" | "png",
-    width: number | null,
   ): Promise<ProviderFile> {
     const bytes = new Uint8Array(await res.arrayBuffer());
     return {
       bytes,
       format,
-      width,
+      width: format === "png" ? (pngSize(bytes)?.[0] ?? null) : null,
+      mime: res.headers.get("content-type"),
       version: await contentVersion(bytes),
       etag: res.headers.get("etag"),
     };

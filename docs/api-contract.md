@@ -82,7 +82,7 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
-| `brand-assets-sync` | POST | `?mode=logos&limit=50[&icao=UAL,AFR]` | service role only (pg_cron); `{ ok, mode, checked, changed, added, failed }`, or `{ ok, mode, skipped }` with no provider |
+| `brand-assets-sync` | POST | `?mode=logos&limit=50[&icao=UAL,AFR]` | service role only (pg_cron); `{ ok, mode, checked, changed, added, failed, unchanged, missed, skipped, rejected, dropped, deferred, requests, ms, stoppedBy }`, 502 with `ok: false` when the provider is down, or `{ ok, mode, skipped }` with no provider |
 | `usage-alert` | POST | none, or `?mode=cap` | service role only (pg_cron) |
 
 The rows above the line are summaries; the sources are the header comments in each `handler.ts`.
@@ -135,7 +135,7 @@ agree on without a conversion rule.
 
 `GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]`
 
-- Answer: `{ version, format, width, url, expiresAt }`. `format` is `svg`, `pdf` or `png`; `width` may be null. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
+- Answer: `{ version, format, width, url, expiresAt }`. `format` is `svg`, `png` or `webp` (`pdf` is allowed by the table but never stored); `width` may be null. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
 - `type` is required for `side_view` (the aircraft ICAO type, e.g. `B38M`) and refused for every other kind (400 `invalid_request`).
 - Unknown airline, no stored asset, or an object gone from the bucket: 404 `not_found`. The app falls back to its own mark.
 - Object paths carry the version (`logos/<ICAO>/<kind>-<version>.<ext>`, `side-views/<ICAO>/<TYPE>-<version>.<ext>`), so a change is a new URL and a cache never mixes versions.

@@ -6,9 +6,10 @@
 // cannot see the repo (serve assets/logos/commons and set COMMONS_LOGO_BASE).
 // Only the main logo exists here: no dark variant, no tail, no brand colours.
 import {
+  type AssetKind,
   type BrandColors,
   contentVersion,
-  type LogoKind,
+  type FetchOpts,
   type LogoProvider,
   type ProviderAirline,
   type ProviderFile,
@@ -40,6 +41,9 @@ interface Manifest {
 
 export class CommonsLogoProvider implements LogoProvider {
   readonly name = "commons";
+  readonly rank = 1;
+  readonly kinds = ["logo"] as const;
+  readonly hasColors = false;
   private readonly base: URL;
   private manifest?: Promise<Manifest>;
 
@@ -88,7 +92,11 @@ export class CommonsLogoProvider implements LogoProvider {
       .map(([icao, e]) => ({ icao, iata: e.iata ?? null, name: e.name }));
   }
 
-  async logo(icao: string, kind: LogoKind): Promise<ProviderFile | null> {
+  async logo(
+    icao: string,
+    kind: AssetKind,
+    opts: FetchOpts = {},
+  ): Promise<ProviderFile | "unchanged" | null> {
     if (kind !== "logo") return null;
     const { logos } = await this.load();
     const e = logos[icao];
@@ -98,6 +106,10 @@ export class CommonsLogoProvider implements LogoProvider {
       !/^[A-Z]{3}\.(svg|png)$/.test(e.file) || e.file !== `${icao}.${e.format}`
     ) {
       throw new Error(`commons manifest entry ${icao} names ${e.file}`);
+    }
+    // The manifest carries the sha256, so an unchanged file is known without reading it.
+    if (opts.known && opts.known.version === e.sha256.slice(0, 16)) {
+      return "unchanged";
     }
     const res = await this.get(e.file);
     if (!res.ok) {

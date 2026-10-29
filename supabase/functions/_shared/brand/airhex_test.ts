@@ -5,7 +5,7 @@ import {
   AirhexLogoProvider,
   md5Hex,
 } from "./airhex.ts";
-import { ProviderUnavailable } from "./logo_provider.ts";
+import { type ProviderFile, ProviderUnavailable } from "./logo_provider.ts";
 
 const KEY = "test-key-not-a-real-licence";
 const DIR = new URL("../fixtures/airhex/", import.meta.url);
@@ -86,11 +86,11 @@ Deno.test("parsesList", async () => {
 
 Deno.test("prefersVectorElsePngAtLeast192", async () => {
   const { provider, urls } = await rig();
-  const svg = await provider.logo("UAL", "logo");
+  const svg = (await provider.logo("UAL", "logo")) as ProviderFile | null;
   assertEquals(svg?.format, "svg");
   assertEquals(svg?.width, null);
   assertEquals(svg?.version.length, 16);
-  const png = await provider.logo("AFR", "logo");
+  const png = (await provider.logo("AFR", "logo")) as ProviderFile | null;
   assertEquals(png?.format, "png");
   assertEquals(png?.width, 512); // the largest size offered
   assert(png!.width! >= 192);
@@ -115,10 +115,10 @@ Deno.test("readsDarkVariantWhenOffered", async () => {
       body: await read("logo_UA_dark.svg"),
     },
   });
-  const dark = await provider.logo("UAL", "logo_dark");
+  const dark = (await provider.logo("UAL", "logo_dark")) as ProviderFile | null;
   assertEquals(dark?.format, "svg");
   assert(urls.some((u) => u.includes("variant=dark")));
-  const light = await provider.logo("UAL", "logo");
+  const light = (await provider.logo("UAL", "logo")) as ProviderFile | null;
   assert(dark!.version !== light!.version);
   // Air France does not offer one: no request, no file.
   const before = urls.length;
@@ -149,7 +149,7 @@ Deno.test("readsBrandColors", async () => {
 Deno.test("sendsKeyAsDocumented", async () => {
   const { provider, urls } = await rig();
   await provider.list();
-  await provider.logo("UAL", "tail");
+  await provider.logo("UAL", "tail_logo");
   await provider.colors("UAL");
   const md5 = await md5Hex(KEY);
   assertEquals(md5.length, 32);
@@ -163,7 +163,7 @@ Deno.test("sendsKeyAsDocumented", async () => {
 Deno.test("404IsNull", async () => {
   const { provider } = await rig();
   assertEquals(await provider.logo("QQQ", "logo"), null);
-  assertEquals(await provider.logo("QQQ", "tail"), null);
+  assertEquals(await provider.logo("QQQ", "tail_logo"), null);
   assertEquals(await provider.logo("ZZZ", "logo"), null); // not listed
   assertEquals(await provider.logo("BAD", "logo"), null); // listed without an IATA code
 });
@@ -184,4 +184,57 @@ Deno.test("5xxThrowsProviderUnavailable", async () => {
     (p) => p.endsWith("airlines.json") ? 500 : undefined,
   );
   await assertRejects(() => listDown.provider.list(), ProviderUnavailable);
+});
+
+Deno.test("conditionalFetchSendsIfNoneMatchAndAnswers304AsUnchanged", async () => {
+  const seen: { url: string; inm: string | null }[] = [];
+  const base = await rig();
+  const catalog = await base.provider.list(); // warm nothing; separate provider below
+  assert(catalog.length > 0);
+  const listBody = await text("airlines.json");
+  const fetchFn = ((input: string | URL | Request, init?: RequestInit) => {
+    const u = new URL(String(input));
+    const inm = new Headers(init?.headers).get("if-none-match");
+    seen.push({ url: u.pathname, inm });
+    if (u.pathname.endsWith("airlines.json")) {
+      return Promise.resolve(new Response(listBody));
+    }
+    return Promise.resolve(new Response(null, { status: inm ? 304 : 200 }));
+  }) as typeof fetch;
+  const p = new AirhexLogoProvider(KEY, fetchFn);
+  const got = await p.logo("UAL", "logo", {
+    known: { etag: '"e1"', version: "v", format: "svg" },
+  });
+  assertEquals(got, "unchanged");
+  const logoCalls = seen.filter((s) => s.url.includes("/logos/"));
+  assertEquals(logoCalls.length, 1, "no second request for the raster");
+  assertEquals(logoCalls[0].inm, '"e1"');
+  assert(logoCalls[0].url.endsWith(".svg"));
+  // A stored raster goes straight to the raster URL.
+  const png = await p.logo("AFR", "logo", {
+    known: { etag: '"e2"', version: "v", format: "png" },
+  });
+  assertEquals(png, "unchanged");
+  assert(seen.at(-1)!.url.endsWith(".png"));
+});
+
+Deno.test("errorsNeverCarryTheDigest", async () => {
+  const listBody = await text("airlines.json");
+  const fetchFn = ((input: string | URL | Request) => {
+    const u = String(input);
+    if (u.includes("airlines.json")) {
+      return Promise.resolve(new Response(listBody));
+    }
+    return Promise.reject(
+      new TypeError(`error sending request for url (${u})`),
+    );
+  }) as typeof fetch;
+  const p = new AirhexLogoProvider(KEY, fetchFn);
+  const md5 = await md5Hex(KEY);
+  const e = await assertRejects(
+    () => p.logo("UAL", "logo"),
+    ProviderUnavailable,
+  );
+  assert(!e.message.includes(md5), e.message);
+  assert(e.message.includes("REDACTED"));
 });

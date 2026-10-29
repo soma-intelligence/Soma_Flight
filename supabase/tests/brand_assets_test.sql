@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(13);
 
 select is((select public from storage.buckets where id = 'brand-assets'), false, 'brand-assets bucket is private');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
@@ -25,6 +25,13 @@ reset role;
 
 select is((select schedule from cron.job where jobname = 'brand-logos-sync'), '17 * * * *', 'logo sync runs hourly at minute 17');
 
+select lives_ok(
+  $$insert into airline_assets (icao, kind, path, format, version, provider, fetched_at, checked_at)
+    values ('UAL', 'tail', 'x', 'webp', 'v1', 't', now(), now())$$, 'webp is an allowed format');
+select is((select relrowsecurity from pg_class where oid = 'public.airline_asset_misses'::regclass), true,
+  'airline_asset_misses has RLS on');
+select is((select count(*) from information_schema.role_table_grants where table_name = 'airline_asset_misses'
+  and grantee in ('anon', 'authenticated', 'public')), 0::bigint, 'airline_asset_misses has no client grants');
 select throws_ok(
   $$insert into airline_assets (icao, kind, path, format, version, provider, fetched_at, checked_at)
     values ('UAL', 'tail', 'x', 'gif', 'v1', 't', now(), now())$$,

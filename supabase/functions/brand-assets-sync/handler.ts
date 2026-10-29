@@ -2,13 +2,14 @@
 // pg_net. Pulls logos and brand colours from the licensed provider into the private brand-assets
 // bucket (see _shared/brand/sync.ts). With no provider configured (the state until the licence is
 // signed) the call is a logged no-op: { ok: true, skipped: "provider not configured" }.
-// Answer: { ok, mode, checked, changed, added, failed }.
+// Answer: { ok, mode, checked, changed, added, failed, unchanged, missed, skipped, rejected, dropped,
+// deferred, requests, ms, stoppedBy }. stoppedBy is done, deadline (100 s), budget (400 provider
+// requests) or provider_unavailable (retried with backoff first; answered 502 with ok false).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { isServiceCaller } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import type { LogoProvider } from "../_shared/brand/logo_provider.ts";
-import { ProviderUnavailable } from "../_shared/brand/logo_provider.ts";
-import { syncLogos } from "../_shared/brand/sync.ts";
+import { syncLogos, type SyncOpts } from "../_shared/brand/sync.ts";
 
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 200;
@@ -19,6 +20,8 @@ export interface Deps {
   provider: () => LogoProvider | null;
   serviceKey?: () => string | undefined;
   now?: () => Date;
+  /** Time and request budget, sleep and clock overrides (tests). */
+  budget?: Pick<SyncOpts, "budgetMs" | "maxRequests" | "clock" | "sleep">;
 }
 
 export async function handler(req: Request, deps: Deps): Promise<Response> {
@@ -56,19 +59,17 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       console.log("brand-assets-sync: provider not configured, skipping");
       return json({ ok: true, mode, skipped: "provider not configured" });
     }
-    try {
-      const report = await syncLogos(deps.db, deps.db.storage, provider, {
-        limit,
-        icaos,
-        now: (deps.now ?? (() => new Date()))(),
-      });
-      return json({ ok: true, mode, ...report });
-    } catch (e) {
-      if (e instanceof ProviderUnavailable) {
-        throw new ApiError("provider_unavailable", 502, e.message);
-      }
-      throw e;
+    const report = await syncLogos(deps.db, deps.db.storage, provider, {
+      limit,
+      icaos,
+      now: (deps.now ?? (() => new Date()))(),
+      ...deps.budget,
+    });
+    // An outage is a failed tick (cron logs it, the next tick retries); the summary rides along.
+    if (report.stoppedBy === "provider_unavailable") {
+      return json({ ok: false, mode, ...report }, 502);
     }
+    return json({ ok: true, mode, ...report });
   } catch (e) {
     return errorResponse(e);
   }

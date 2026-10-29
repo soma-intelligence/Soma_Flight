@@ -1,6 +1,10 @@
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { CommonsLogoProvider, DEFAULT_COMMONS_BASE } from "./commons.ts";
-import { contentVersion, ProviderUnavailable } from "./logo_provider.ts";
+import {
+  contentVersion,
+  type ProviderFile,
+  ProviderUnavailable,
+} from "./logo_provider.ts";
 
 // Three real entries (UAL, DAL as SVG, OMA as a 192 px PNG) copied from assets/logos/commons.
 const FIXTURE = new URL("../fixtures/commons/", import.meta.url);
@@ -16,7 +20,7 @@ Deno.test("commons: lists the manifest's airlines in ICAO order", async () => {
 
 Deno.test("commons: serves the SVG with a content version and no etag", async () => {
   const p = new CommonsLogoProvider(FIXTURE);
-  const f = await p.logo("UAL", "logo");
+  const f = (await p.logo("UAL", "logo")) as ProviderFile | null;
   assert(f);
   assertEquals(f.format, "svg");
   assertEquals(f.width, null);
@@ -27,7 +31,9 @@ Deno.test("commons: serves the SVG with a content version and no etag", async ()
 });
 
 Deno.test("commons: a PNG carries its pixel width", async () => {
-  const f = await new CommonsLogoProvider(FIXTURE).logo("OMA", "logo");
+  const f = (await new CommonsLogoProvider(FIXTURE).logo("OMA", "logo")) as
+    | ProviderFile
+    | null;
   assert(f);
   assertEquals(f.format, "png");
   assertEquals(f.width, 192);
@@ -36,7 +42,7 @@ Deno.test("commons: a PNG carries its pixel width", async () => {
 Deno.test("commons: no dark logo, no tail, no colours, unknown airline is null", async () => {
   const p = new CommonsLogoProvider(FIXTURE);
   assertEquals(await p.logo("UAL", "logo_dark"), null);
-  assertEquals(await p.logo("UAL", "tail"), null);
+  assertEquals(await p.logo("UAL", "tail_logo"), null);
   assertEquals(await p.logo("ZZZ", "logo"), null);
   assertEquals(await p.colors("UAL"), null);
 });
@@ -93,7 +99,27 @@ Deno.test("commons: the repo library loads and every file matches the manifest",
   const list = await p.list();
   assert(list.length >= 100, `only ${list.length} logos`);
   for (const a of list) {
-    const f = await p.logo(a.icao, "logo");
+    const f = (await p.logo(a.icao, "logo")) as ProviderFile | null;
     assert(f, `no file for ${a.icao}`);
   }
+});
+
+Deno.test("commons: a known current version is answered unchanged without reading the file", async () => {
+  const seen: string[] = [];
+  const fetchFn = ((input: string | URL | Request) => {
+    seen.push(String(input));
+    return fetch(input);
+  }) as typeof fetch;
+  const p = new CommonsLogoProvider(FIXTURE, fetchFn);
+  const f = (await p.logo("UAL", "logo")) as ProviderFile;
+  seen.length = 0;
+  const again = await p.logo("UAL", "logo", {
+    known: { etag: null, version: f.version, format: "svg" },
+  });
+  assertEquals(again, "unchanged");
+  assert(!seen.some((u) => u.endsWith("UAL.svg")));
+  const stale = await p.logo("UAL", "logo", {
+    known: { etag: null, version: "old", format: "svg" },
+  });
+  assert(stale && stale !== "unchanged");
 });
