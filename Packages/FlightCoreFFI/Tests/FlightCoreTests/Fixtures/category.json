@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "generator": "core/fixtures/gen_delay.py",
+    "rules": {
+      "lifr": "ceiling < 500 ft or visibility < 1 sm",
+      "ifr": "ceiling < 1000 ft or visibility < 3 sm",
+      "mvfr": "ceiling 1000 to 3000 ft inclusive or visibility 3 to 5 sm inclusive",
+      "vfr": "otherwise",
+      "missing_ceiling": "unlimited",
+      "invalid_visibility": "negative or non-finite (NaN, infinity) visibility is LIFR"
+    }
+  },
+  "cases": [
+    {
+      "name": "clear_unlimited",
+      "ceiling_ft": null,
+      "visibility_sm": 10,
+      "expected": "VFR"
+    },
+    {
+      "name": "ceiling_800",
+      "ceiling_ft": 800,
+      "visibility_sm": 10,
+      "expected": "IFR"
+    },
+    {
+      "name": "ceiling_2500",
+      "ceiling_ft": 2500,
+      "visibility_sm": 10,
+      "expected": "MVFR"
+    },
+    {
+      "name": "lifr_300_half_mile",
+      "ceiling_ft": 300,
+      "visibility_sm": 0.5,
+      "expected": "LIFR"
+    },
+    {
+      "name": "ceiling_1000_vis_3",
+      "ceiling_ft": 1000,
+      "visibility_sm": 3,
+      "expected": "MVFR"
+    },
+    {
+      "name": "ceiling_499",
+      "ceiling_ft": 499,
+      "visibility_sm": 10,
+      "expected": "LIFR"
+    },
+    {
+      "name": "ceiling_500",
+      "ceiling_ft": 500,
+      "visibility_sm": 10,
+      "expected": "IFR"
+    },
+    {
+      "name": "ceiling_999",
+      "ceiling_ft": 999,
+      "visibility_sm": 10,
+      "expected": "IFR"
+    },
+    {
+      "name": "ceiling_3000",
+      "ceiling_ft": 3000,
+      "visibility_sm": 10,
+      "expected": "MVFR"
+    },
+    {
+      "name": "ceiling_3001",
+      "ceiling_ft": 3001,
+      "visibility_sm": 10,
+      "expected": "VFR"
+    },
+    {
+      "name": "vis_0_99",
+      "ceiling_ft": null,
+      "visibility_sm": 0.99,
+      "expected": "LIFR"
+    },
+    {
+      "name": "vis_1",
+      "ceiling_ft": null,
+      "visibility_sm": 1,
+      "expected": "IFR"
+    },
+    {
+      "name": "vis_2_99",
+      "ceiling_ft": null,
+      "visibility_sm": 2.99,
+      "expected": "IFR"
+    },
+    {
+      "name": "vis_3",
+      "ceiling_ft": null,
+      "visibility_sm": 3,
+      "expected": "MVFR"
+    },
+    {
+      "name": "vis_5",
+      "ceiling_ft": null,
+      "visibility_sm": 5,
+      "expected": "MVFR"
+    },
+    {
+      "name": "vis_5_01",
+      "ceiling_ft": null,
+      "visibility_sm": 5.01,
+      "expected": "VFR"
+    },
+    {
+      "name": "high_ceiling_low_vis",
+      "ceiling_ft": 10000,
+      "visibility_sm": 0.25,
+      "expected": "LIFR"
+    },
+    {
+      "name": "zero_ceiling",
+      "ceiling_ft": 0,
+      "visibility_sm": 10,
+      "expected": "LIFR"
+    },
+    {
+      "name": "negative_visibility",
+      "ceiling_ft": null,
+      "visibility_sm": -1,
+      "expected": "LIFR"
+    }
+  ]
+}

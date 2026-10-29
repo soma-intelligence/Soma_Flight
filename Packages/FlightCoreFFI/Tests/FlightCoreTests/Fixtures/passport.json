@@ -1,0 +1,1370 @@
+{
+  "meta": {
+    "generator": "core/fixtures/gen_passport.py",
+    "rules": {
+      "long_haul_distance_km_gte": 4000,
+      "excluded_status": "canceled",
+      "counted_status": [
+        "completed",
+        "diverted"
+      ],
+      "year_filter": "local departure year in the flight tz; unknown tz falls back to UTC; year null = all time",
+      "flight_minutes": "sum of block_minutes, null counts as 0",
+      "delay_lost_minutes": "sum of delay_minutes over counted flights",
+      "avg_delay_minutes": "delay_lost_minutes / flights rounded half up to integer, 0 when no flights",
+      "airports": "unique ICAO across origin and destination",
+      "airlines": "unique non-empty airline values",
+      "most_flown_aircraft": "highest count of aircraft_type, ties alphabetical ascending, null when no types",
+      "routes": "unique (origin, destination) in first-seen order after sorting by departed_at ascending; direction matters"
+    }
+  },
+  "cases": [
+    {
+      "name": "basic_one_canceled",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1740823200,
+          "tz": "UTC",
+          "ident": "AF83",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AF",
+          "aircraft_type": "B77W",
+          "distance_km": 8950,
+          "block_minutes": 640,
+          "delay_minutes": 20,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1749542400,
+          "tz": "UTC",
+          "ident": "UA1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KJFK",
+          "airline": "UA",
+          "aircraft_type": "B739",
+          "distance_km": 4150,
+          "block_minutes": 330,
+          "delay_minutes": 10,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1751630400,
+          "tz": "UTC",
+          "ident": "B61",
+          "origin_icao": "KJFK",
+          "destination_icao": "KBOS",
+          "airline": "B6",
+          "aircraft_type": "B739",
+          "distance_km": 300,
+          "block_minutes": 75,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1754049600,
+          "tz": "UTC",
+          "ident": "B62",
+          "origin_icao": "KBOS",
+          "destination_icao": "KJFK",
+          "airline": "B6",
+          "aircraft_type": "A320",
+          "distance_km": 300,
+          "block_minutes": 70,
+          "delay_minutes": 40,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 2,
+        "distanceKm": 13400,
+        "flightMinutes": 1045,
+        "airports": 4,
+        "airlines": 3,
+        "delayLostMinutes": 30,
+        "avgDelayMinutes": 10,
+        "mostFlownAircraft": {
+          "aircraftType": "B739",
+          "count": 2
+        },
+        "routes": [
+          [
+            "LFPG",
+            "KSFO"
+          ],
+          [
+            "KSFO",
+            "KJFK"
+          ],
+          [
+            "KJFK",
+            "KBOS"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "year_filter_2025",
+      "year": 2025,
+      "flights": [
+        {
+          "departed_at": 1740823200,
+          "tz": "UTC",
+          "ident": "AF83",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AF",
+          "aircraft_type": "B77W",
+          "distance_km": 8950,
+          "block_minutes": 640,
+          "delay_minutes": 20,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1749542400,
+          "tz": "UTC",
+          "ident": "UA1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KJFK",
+          "airline": "UA",
+          "aircraft_type": "B739",
+          "distance_km": 4150,
+          "block_minutes": 330,
+          "delay_minutes": 10,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1751630400,
+          "tz": "UTC",
+          "ident": "B61",
+          "origin_icao": "KJFK",
+          "destination_icao": "KBOS",
+          "airline": "B6",
+          "aircraft_type": "B739",
+          "distance_km": 300,
+          "block_minutes": 75,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1754049600,
+          "tz": "UTC",
+          "ident": "B62",
+          "origin_icao": "KBOS",
+          "destination_icao": "KJFK",
+          "airline": "B6",
+          "aircraft_type": "A320",
+          "distance_km": 300,
+          "block_minutes": 70,
+          "delay_minutes": 40,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 2,
+        "distanceKm": 13400,
+        "flightMinutes": 1045,
+        "airports": 4,
+        "airlines": 3,
+        "delayLostMinutes": 30,
+        "avgDelayMinutes": 10,
+        "mostFlownAircraft": {
+          "aircraftType": "B739",
+          "count": 2
+        },
+        "routes": [
+          [
+            "LFPG",
+            "KSFO"
+          ],
+          [
+            "KSFO",
+            "KJFK"
+          ],
+          [
+            "KJFK",
+            "KBOS"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "year_filter_empty_year",
+      "year": 2024,
+      "flights": [
+        {
+          "departed_at": 1740823200,
+          "tz": "UTC",
+          "ident": "AF83",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AF",
+          "aircraft_type": "B77W",
+          "distance_km": 8950,
+          "block_minutes": 640,
+          "delay_minutes": 20,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1749542400,
+          "tz": "UTC",
+          "ident": "UA1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KJFK",
+          "airline": "UA",
+          "aircraft_type": "B739",
+          "distance_km": 4150,
+          "block_minutes": 330,
+          "delay_minutes": 10,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1751630400,
+          "tz": "UTC",
+          "ident": "B61",
+          "origin_icao": "KJFK",
+          "destination_icao": "KBOS",
+          "airline": "B6",
+          "aircraft_type": "B739",
+          "distance_km": 300,
+          "block_minutes": 75,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1754049600,
+          "tz": "UTC",
+          "ident": "B62",
+          "origin_icao": "KBOS",
+          "destination_icao": "KJFK",
+          "airline": "B6",
+          "aircraft_type": "A320",
+          "distance_km": 300,
+          "block_minutes": 70,
+          "delay_minutes": 40,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "pacific_new_year_eve_counts_in_2025",
+      "year": 2025,
+      "flights": [
+        {
+          "departed_at": 1767252600,
+          "tz": "America/Los_Angeles",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KLAX",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 540,
+          "block_minutes": 80,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 1,
+        "longHaul": 0,
+        "distanceKm": 540,
+        "flightMinutes": 80,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 1
+        },
+        "routes": [
+          [
+            "KSFO",
+            "KLAX"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "pacific_new_year_eve_not_in_2026",
+      "year": 2026,
+      "flights": [
+        {
+          "departed_at": 1767252600,
+          "tz": "America/Los_Angeles",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KLAX",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 540,
+          "block_minutes": 80,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "auckland_new_year_counts_in_2026_not_utc_2025",
+      "year": 2026,
+      "flights": [
+        {
+          "departed_at": 1767182400,
+          "tz": "Pacific/Auckland",
+          "ident": "XX1",
+          "origin_icao": "NZAA",
+          "destination_icao": "NZWN",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 490,
+          "block_minutes": 65,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 1,
+        "longHaul": 0,
+        "distanceKm": 490,
+        "flightMinutes": 65,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 1
+        },
+        "routes": [
+          [
+            "NZAA",
+            "NZWN"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unknown_tz_falls_back_to_utc_2026",
+      "year": 2026,
+      "flights": [
+        {
+          "departed_at": 1767252600,
+          "tz": "Mars/Olympus",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KLAX",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 540,
+          "block_minutes": 80,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 1,
+        "longHaul": 0,
+        "distanceKm": 540,
+        "flightMinutes": 80,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 1
+        },
+        "routes": [
+          [
+            "KSFO",
+            "KLAX"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "unknown_tz_falls_back_to_utc_not_2025",
+      "year": 2025,
+      "flights": [
+        {
+          "departed_at": 1767252600,
+          "tz": "Mars/Olympus",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KLAX",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 540,
+          "block_minutes": 80,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "empty",
+      "year": null,
+      "flights": [],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "empty_with_year",
+      "year": 2025,
+      "flights": [],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "only_canceled",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1740823200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": null,
+          "delay_minutes": 90,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 0,
+        "longHaul": 0,
+        "distanceKm": 0,
+        "flightMinutes": 0,
+        "airports": 0,
+        "airlines": 0,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": []
+      }
+    },
+    {
+      "name": "diverted_counts_like_completed",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1740823200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": 700,
+          "delay_minutes": 5,
+          "status": "diverted"
+        },
+        {
+          "departed_at": 1740909600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "LFPG",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": 600,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 2,
+        "longHaul": 2,
+        "distanceKm": 17900,
+        "flightMinutes": 1300,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 5,
+        "avgDelayMinutes": 3,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 2
+        },
+        "routes": [
+          [
+            "LFPG",
+            "KSFO"
+          ],
+          [
+            "KSFO",
+            "LFPG"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "long_haul_threshold",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 3999,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "CCCC",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 4000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "DDDD",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 4001,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 2,
+        "distanceKm": 12000,
+        "flightMinutes": 0,
+        "airports": 4,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 3
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ],
+          [
+            "AAAA",
+            "CCCC"
+          ],
+          [
+            "AAAA",
+            "DDDD"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "route_direction_matters_first_seen_order",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1746266400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "LFPG",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1746093600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1746180000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFPG",
+          "destination_icao": "KSFO",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1746352800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "LFPG",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 8950,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 4,
+        "longHaul": 4,
+        "distanceKm": 35800,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 4
+        },
+        "routes": [
+          [
+            "LFPG",
+            "KSFO"
+          ],
+          [
+            "KSFO",
+            "LFPG"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "routes_sorted_by_departure_not_input_order",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1756893600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "CCCC",
+          "destination_icao": "DDDD",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1756720800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1756807200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "BBBB",
+          "destination_icao": "CCCC",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 0,
+        "distanceKm": 300,
+        "flightMinutes": 0,
+        "airports": 4,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 3
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ],
+          [
+            "BBBB",
+            "CCCC"
+          ],
+          [
+            "CCCC",
+            "DDDD"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "most_flown_tie_alphabetical",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "A320",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735984800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "A320",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 4,
+        "longHaul": 0,
+        "distanceKm": 400,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "A320",
+          "count": 2
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "most_flown_ignores_missing_types_and_canceled",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": null,
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "E190",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "A320",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "canceled"
+        },
+        {
+          "departed_at": 1735984800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "A320",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 2,
+        "longHaul": 0,
+        "distanceKm": 200,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "E190",
+          "count": 1
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "no_aircraft_types",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": null,
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 1,
+        "longHaul": 0,
+        "distanceKm": 100,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": null,
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "airlines_unique_non_empty",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AF",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AF",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": null,
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735984800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1736071200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "UA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 5,
+        "longHaul": 0,
+        "distanceKm": 500,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 2,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 5
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "missing_block_minutes_count_as_zero",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": 90,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 2,
+        "longHaul": 0,
+        "distanceKm": 200,
+        "flightMinutes": 90,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 2
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "avg_delay_rounds_half_up_x_5_over_2",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 2,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 3,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 2,
+        "longHaul": 0,
+        "distanceKm": 200,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 5,
+        "avgDelayMinutes": 3,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 2
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "avg_delay_rounds_down_below_half",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 1,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 1,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 2,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 0,
+        "distanceKm": 300,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 4,
+        "avgDelayMinutes": 1,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 3
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "canceled_delay_excluded_from_totals",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 10,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 500,
+          "status": "canceled"
+        }
+      ],
+      "expected": {
+        "flights": 1,
+        "longHaul": 0,
+        "distanceKm": 100,
+        "flightMinutes": 0,
+        "airports": 2,
+        "airlines": 1,
+        "delayLostMinutes": 10,
+        "avgDelayMinutes": 10,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 1
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "airports_unique_across_origin_and_destination",
+      "year": null,
+      "flights": [
+        {
+          "departed_at": 1735725600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735812000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "BBBB",
+          "destination_icao": "CCCC",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        },
+        {
+          "departed_at": 1735898400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "CCCC",
+          "destination_icao": "AAAA",
+          "airline": "AA",
+          "aircraft_type": "B738",
+          "distance_km": 100,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "longHaul": 0,
+        "distanceKm": 300,
+        "flightMinutes": 0,
+        "airports": 3,
+        "airlines": 1,
+        "delayLostMinutes": 0,
+        "avgDelayMinutes": 0,
+        "mostFlownAircraft": {
+          "aircraftType": "B738",
+          "count": 3
+        },
+        "routes": [
+          [
+            "AAAA",
+            "BBBB"
+          ],
+          [
+            "BBBB",
+            "CCCC"
+          ],
+          [
+            "CCCC",
+            "AAAA"
+          ]
+        ]
+      }
+    }
+  ]
+}

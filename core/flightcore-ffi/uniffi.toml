@@ -1,0 +1,6 @@
+[bindings.swift]
+# Swift module holding the generated wrapper, and the C module (the
+# xcframework's modulemap) it imports.
+module_name = "FlightCore"
+ffi_module_name = "FlightCoreFFI"
+ffi_module_filename = "FlightCoreFFI"

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["flightcore", "flightcore-wasm"]
+members = ["flightcore", "flightcore-ffi", "flightcore-wasm"]
 
 [workspace.package]
 edition = "2024"

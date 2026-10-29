@@ -1,0 +1,1504 @@
+{
+  "meta": {
+    "generator": "core/fixtures/gen_delay.py",
+    "rules": {
+      "on_time_delay_minutes_lt": 15,
+      "late45_delay_minutes_gte": 45,
+      "severity_major_avg_minutes_gte": 45,
+      "severity_major_cancel_pct_gte": 10,
+      "severity_moderate_avg_minutes_gte": 15,
+      "negative_delay_floors_at": 0,
+      "worst_list_len": 5,
+      "hour_seconds": 3600,
+      "avg_delay_tolerance": 1e-09
+    },
+    "invariants": {
+      "delay": "(actual else estimated) minus scheduled, floored at 0",
+      "total": "every row, including rows without scheduled",
+      "rows_without_scheduled": "counted in total only",
+      "per_hour": "one bucket per UTC clock hour with a scheduled row, ascending",
+      "avg_delay_minutes": "mean over non-canceled, non-diverted rows with scheduled and a delay source; 0.0 if none",
+      "worst_lists": "top 5 by delayed + canceled, ties by icao / operator ascending, entries with sum > 0 only; rows without operator skipped in airlines",
+      "diverted": "per_hour.diverted only, not in canceled or average"
+    }
+  },
+  "cases": [
+    {
+      "name": "ten_departures",
+      "rows": [
+        {
+          "ident": "AA0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "AA1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000600,
+          "estimated": null,
+          "actual": 1800000600
+        },
+        {
+          "ident": "AA2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800001200,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "AA3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800001800,
+          "estimated": null,
+          "actual": 1800001800
+        },
+        {
+          "ident": "AA4",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800002400,
+          "estimated": null,
+          "actual": 1800002400
+        },
+        {
+          "ident": "BB0",
+          "operator": "UAL",
+          "other_icao": "KORD",
+          "status": "departed",
+          "scheduled": 1800003600,
+          "estimated": null,
+          "actual": 1800004800
+        },
+        {
+          "ident": "BB1",
+          "operator": "UAL",
+          "other_icao": "KORD",
+          "status": "departed",
+          "scheduled": 1800004200,
+          "estimated": null,
+          "actual": 1800005400
+        },
+        {
+          "ident": "BB2",
+          "operator": "UAL",
+          "other_icao": "KORD",
+          "status": "departed",
+          "scheduled": 1800004800,
+          "estimated": null,
+          "actual": 1800006000
+        },
+        {
+          "ident": "CC0",
+          "operator": "DAL",
+          "other_icao": "KATL",
+          "status": "departed",
+          "scheduled": 1800005400,
+          "estimated": null,
+          "actual": 1800008400
+        },
+        {
+          "ident": "CC1",
+          "operator": "DAL",
+          "other_icao": "KATL",
+          "status": "canceled",
+          "scheduled": 1800007200,
+          "estimated": null,
+          "actual": null
+        }
+      ],
+      "expected": {
+        "total": 10,
+        "onTime": 5,
+        "delayed15": 4,
+        "canceled": 1,
+        "avgDelayMinutes": 12.222222222222223,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 5,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          },
+          {
+            "hour": 1800003600,
+            "onTime": 0,
+            "late15": 3,
+            "late45": 1,
+            "canceled": 0,
+            "diverted": 0
+          },
+          {
+            "hour": 1800007200,
+            "onTime": 0,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 1,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KORD",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "icao": "KATL",
+            "delayed": 1,
+            "canceled": 1
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "UAL",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "operator": "DAL",
+            "delayed": 1,
+            "canceled": 1
+          }
+        ],
+        "severity": "major"
+      }
+    },
+    {
+      "name": "empty",
+      "rows": [],
+      "expected": {
+        "total": 0,
+        "onTime": 0,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 0.0,
+        "perHour": [],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "early_departure_counts_on_time",
+      "rows": [
+        {
+          "ident": "E1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1799999280
+        }
+      ],
+      "expected": {
+        "total": 1,
+        "onTime": 1,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 0.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "estimated_used_without_actual",
+      "rows": [
+        {
+          "ident": "E2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "scheduled",
+          "scheduled": 1800000000,
+          "estimated": 1800001800,
+          "actual": null
+        }
+      ],
+      "expected": {
+        "total": 1,
+        "onTime": 0,
+        "delayed15": 1,
+        "canceled": 0,
+        "avgDelayMinutes": 30.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 1,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "actual_wins_over_estimated",
+      "rows": [
+        {
+          "ident": "E3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "landed",
+          "scheduled": 1800000000,
+          "estimated": 1800003000,
+          "actual": 1800000300
+        }
+      ],
+      "expected": {
+        "total": 1,
+        "onTime": 1,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 5.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "no_actual_or_estimated_not_in_average",
+      "rows": [
+        {
+          "ident": "N1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "scheduled",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": null
+        },
+        {
+          "ident": "N2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001800
+        }
+      ],
+      "expected": {
+        "total": 2,
+        "onTime": 1,
+        "delayed15": 1,
+        "canceled": 0,
+        "avgDelayMinutes": 30.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 1,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "boundary_899s_on_time_900s_late",
+      "rows": [
+        {
+          "ident": "B1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000899
+        },
+        {
+          "ident": "B2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000900
+        }
+      ],
+      "expected": {
+        "total": 2,
+        "onTime": 1,
+        "delayed15": 1,
+        "canceled": 0,
+        "avgDelayMinutes": 14.991666666666667,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 1,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "boundary_2699s_late15_2700s_late45",
+      "rows": [
+        {
+          "ident": "B3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002699
+        },
+        {
+          "ident": "B4",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002700
+        }
+      ],
+      "expected": {
+        "total": 2,
+        "onTime": 0,
+        "delayed15": 2,
+        "canceled": 0,
+        "avgDelayMinutes": 44.99166666666667,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 1,
+            "late45": 1,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 2,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 2,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "unknown_status_string",
+      "rows": [
+        {
+          "ident": "U1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "holding",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        }
+      ],
+      "expected": {
+        "total": 1,
+        "onTime": 0,
+        "delayed15": 1,
+        "canceled": 0,
+        "avgDelayMinutes": 20.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 1,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "no_scheduled_counts_in_total_only",
+      "rows": [
+        {
+          "ident": "S1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": null,
+          "estimated": null,
+          "actual": null
+        },
+        {
+          "ident": "S2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "canceled",
+          "scheduled": null,
+          "estimated": null,
+          "actual": null
+        },
+        {
+          "ident": "S3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        }
+      ],
+      "expected": {
+        "total": 3,
+        "onTime": 1,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 0.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "diverted_excluded_from_average",
+      "rows": [
+        {
+          "ident": "D1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "diverted",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800018000
+        },
+        {
+          "ident": "D2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000600
+        }
+      ],
+      "expected": {
+        "total": 2,
+        "onTime": 1,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 10.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 1
+          }
+        ],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "severity_normal",
+      "rows": [
+        {
+          "ident": "N0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N4",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N5",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N6",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N7",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N8",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        },
+        {
+          "ident": "N9",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000300
+        }
+      ],
+      "expected": {
+        "total": 10,
+        "onTime": 10,
+        "delayed15": 0,
+        "canceled": 0,
+        "avgDelayMinutes": 5.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 10,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [],
+        "worstAirlines": [],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "severity_moderate_avg_15",
+      "rows": [
+        {
+          "ident": "M0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000900
+        },
+        {
+          "ident": "M1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000900
+        },
+        {
+          "ident": "M2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000900
+        }
+      ],
+      "expected": {
+        "total": 3,
+        "onTime": 0,
+        "delayed15": 3,
+        "canceled": 0,
+        "avgDelayMinutes": 15.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 3,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "severity_moderate_avg_44",
+      "rows": [
+        {
+          "ident": "M0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002640
+        },
+        {
+          "ident": "M1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002640
+        },
+        {
+          "ident": "M2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002640
+        }
+      ],
+      "expected": {
+        "total": 3,
+        "onTime": 0,
+        "delayed15": 3,
+        "canceled": 0,
+        "avgDelayMinutes": 44.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 3,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    },
+    {
+      "name": "severity_major_avg_45",
+      "rows": [
+        {
+          "ident": "J0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002700
+        },
+        {
+          "ident": "J1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002700
+        },
+        {
+          "ident": "J2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800002700
+        }
+      ],
+      "expected": {
+        "total": 3,
+        "onTime": 0,
+        "delayed15": 3,
+        "canceled": 0,
+        "avgDelayMinutes": 45.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 0,
+            "late15": 0,
+            "late45": 3,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 3,
+            "canceled": 0
+          }
+        ],
+        "severity": "major"
+      }
+    },
+    {
+      "name": "severity_major_cancel_10pct",
+      "rows": [
+        {
+          "ident": "K0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "canceled",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": null
+        },
+        {
+          "ident": "K1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K4",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K5",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K6",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K7",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K8",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K9",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        }
+      ],
+      "expected": {
+        "total": 10,
+        "onTime": 9,
+        "delayed15": 0,
+        "canceled": 1,
+        "avgDelayMinutes": 0.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 9,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 1,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 0,
+            "canceled": 1
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 0,
+            "canceled": 1
+          }
+        ],
+        "severity": "major"
+      }
+    },
+    {
+      "name": "severity_not_major_cancel_9pct",
+      "rows": [
+        {
+          "ident": "K0",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "canceled",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": null
+        },
+        {
+          "ident": "K1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K4",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K5",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K6",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K7",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K8",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K9",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        },
+        {
+          "ident": "K10",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        }
+      ],
+      "expected": {
+        "total": 11,
+        "onTime": 10,
+        "delayed15": 0,
+        "canceled": 1,
+        "avgDelayMinutes": 0.0,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 10,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 1,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 0,
+            "canceled": 1
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 0,
+            "canceled": 1
+          }
+        ],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "per_hour_sorted_and_flooring",
+      "rows": [
+        {
+          "ident": "H3",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800010805,
+          "estimated": null,
+          "actual": 1800010805
+        },
+        {
+          "ident": "H1",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800000059,
+          "estimated": null,
+          "actual": 1800000059
+        },
+        {
+          "ident": "H2",
+          "operator": "AAL",
+          "other_icao": "KJFK",
+          "status": "departed",
+          "scheduled": 1800007199,
+          "estimated": null,
+          "actual": 1800008399
+        }
+      ],
+      "expected": {
+        "total": 3,
+        "onTime": 2,
+        "delayed15": 1,
+        "canceled": 0,
+        "avgDelayMinutes": 6.666666666666667,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          },
+          {
+            "hour": 1800003600,
+            "onTime": 0,
+            "late15": 1,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          },
+          {
+            "hour": 1800010800,
+            "onTime": 1,
+            "late15": 0,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KJFK",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "AAL",
+            "delayed": 1,
+            "canceled": 0
+          }
+        ],
+        "severity": "normal"
+      }
+    },
+    {
+      "name": "worst_lists_top5_ties_by_name",
+      "rows": [
+        {
+          "ident": "R00",
+          "operator": "OP0",
+          "other_icao": "KAAA",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R10",
+          "operator": "OP1",
+          "other_icao": "KBBB",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R11",
+          "operator": "OP1",
+          "other_icao": "KBBB",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R12",
+          "operator": "OP1",
+          "other_icao": "KBBB",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R20",
+          "operator": "OP2",
+          "other_icao": "KCCC",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R21",
+          "operator": "OP2",
+          "other_icao": "KCCC",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R30",
+          "operator": "OP3",
+          "other_icao": "KDDD",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R31",
+          "operator": "OP3",
+          "other_icao": "KDDD",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R32",
+          "operator": "OP3",
+          "other_icao": "KDDD",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R40",
+          "operator": "OP4",
+          "other_icao": "KEEE",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R41",
+          "operator": "OP4",
+          "other_icao": "KEEE",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R50",
+          "operator": "OP5",
+          "other_icao": "KFFF",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R60",
+          "operator": "OP6",
+          "other_icao": "KGGG",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R61",
+          "operator": "OP6",
+          "other_icao": "KGGG",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R62",
+          "operator": "OP6",
+          "other_icao": "KGGG",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R63",
+          "operator": "OP6",
+          "other_icao": "KGGG",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R_none",
+          "operator": null,
+          "other_icao": "KZZZ",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800001200
+        },
+        {
+          "ident": "R_ok",
+          "operator": "OPOK",
+          "other_icao": "KOKK",
+          "status": "departed",
+          "scheduled": 1800000000,
+          "estimated": null,
+          "actual": 1800000000
+        }
+      ],
+      "expected": {
+        "total": 18,
+        "onTime": 1,
+        "delayed15": 17,
+        "canceled": 0,
+        "avgDelayMinutes": 18.88888888888889,
+        "perHour": [
+          {
+            "hour": 1800000000,
+            "onTime": 1,
+            "late15": 17,
+            "late45": 0,
+            "canceled": 0,
+            "diverted": 0
+          }
+        ],
+        "worstRoutes": [
+          {
+            "icao": "KGGG",
+            "delayed": 4,
+            "canceled": 0
+          },
+          {
+            "icao": "KBBB",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "icao": "KDDD",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "icao": "KCCC",
+            "delayed": 2,
+            "canceled": 0
+          },
+          {
+            "icao": "KEEE",
+            "delayed": 2,
+            "canceled": 0
+          }
+        ],
+        "worstAirlines": [
+          {
+            "operator": "OP6",
+            "delayed": 4,
+            "canceled": 0
+          },
+          {
+            "operator": "OP1",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "operator": "OP3",
+            "delayed": 3,
+            "canceled": 0
+          },
+          {
+            "operator": "OP2",
+            "delayed": 2,
+            "canceled": 0
+          },
+          {
+            "operator": "OP4",
+            "delayed": 2,
+            "canceled": 0
+          }
+        ],
+        "severity": "moderate"
+      }
+    }
+  ]
+}
