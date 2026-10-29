@@ -637,24 +637,26 @@ export async function syncSideViews(
       }),
       "upload failed",
     );
-    must(
-      await db.from("airline_assets").upsert({
-        icao: pair.icao,
-        kind: "side_view",
-        aircraft_type: pair.aircraftType,
-        path,
-        path_small: null,
-        format: v.format,
-        width: image.width,
-        version: pair.version,
-        etag: null,
-        provider: provider.name,
-        note: mirrored ? "mirrored" : null,
-        fetched_at: stamp,
-        checked_at: stamp,
-      }, { onConflict: "icao,kind,aircraft_type" }),
-      "asset upsert failed",
-    );
+    const written = await db.from("airline_assets").upsert({
+      icao: pair.icao,
+      kind: "side_view",
+      aircraft_type: pair.aircraftType,
+      path,
+      path_small: null,
+      format: v.format,
+      width: image.width,
+      version: pair.version,
+      etag: null,
+      provider: provider.name,
+      note: mirrored ? "mirrored" : null,
+      fetched_at: stamp,
+      checked_at: stamp,
+    }, { onConflict: "icao,kind,aircraft_type" });
+    if (written.error) {
+      // Do not leave an orphan object behind (unless the old row already points at it).
+      if (!row || row.path !== path) await storage.from(BUCKET).remove([path]);
+      throw new Error(`asset upsert failed: ${written.error.message}`);
+    }
     report.changed++;
     if (mirrored) report.mirrored++;
     if (row && row.path !== path) {
@@ -670,6 +672,8 @@ export async function syncSideViews(
   try {
     let pairs = await call(() => provider.list());
     const total = pairs.length;
+    // Stale detection uses the raw list: a pair that turns malformed must not drop its good row.
+    const rawKeys = new Set(pairs.map((p) => `${p.icao}/${p.aircraftType}`));
     pairs = pairs.filter((p) => {
       const ok = /^[A-Z]{3}$/.test(p.icao) &&
         /^[A-Z0-9]{2,4}$/.test(p.aircraftType) && !!p.version;
@@ -713,7 +717,7 @@ export async function syncSideViews(
     // Rows this provider wrote and no longer lists are stale, whole airlines included (not when the
     // list came back empty).
     if (total > 0) {
-      const listed = new Set(pairs.map((p) => `${p.icao}/${p.aircraftType}`));
+      const listed = rawKeys;
       const mineRows: SideRow[] = [];
       for (let from = 0;; from += 1000) {
         let q = db.from("airline_assets").select(
@@ -752,66 +756,65 @@ export async function syncSideViews(
     const bump = new Map<string, string[]>(); // icao -> types still current
     let fetched = 0;
 
-    for (let i = 0; i < queue.length; i++) {
-      const pair = queue[i];
-      const k = `${pair.icao}/${pair.aircraftType}`;
-      const row = rows.get(k);
-      const mine = row?.provider === provider.name;
-      if (row && !mine && providerRank(row.provider) >= rank) {
-        report.checked++;
-        report.skipped++; // a provider of equal or higher rank owns it
-        continue;
-      }
-      const wantNote = pair.nose === "right" ? "mirrored" : null;
-      if (
-        mine && row!.version === pair.version && row!.note === wantNote
-      ) {
-        report.checked++;
-        report.unchanged++;
-        const t = bump.get(pair.icao) ?? [];
-        t.push(pair.aircraftType);
-        bump.set(pair.icao, t);
-        continue;
-      }
-      if (misses.has(k)) {
-        report.checked++;
-        report.skipped++;
-        continue;
-      }
-      if (fetched >= opts.limit) {
-        report.deferred = queue.slice(i).filter((p) => {
-          const r = rows.get(`${p.icao}/${p.aircraftType}`);
-          return !(r?.provider === provider.name && r.version === p.version) &&
-            !misses.has(`${p.icao}/${p.aircraftType}`);
-        }).length;
-        break;
-      }
-      fetched++;
-      report.checked++;
-      try {
-        await syncPair(pair, row);
-      } catch (e) {
-        if (e instanceof Stop) {
-          report.checked--;
-          report.deferred = queue.length - i;
-          throw e;
+    try {
+      for (let i = 0; i < queue.length; i++) {
+        const pair = queue[i];
+        const k = `${pair.icao}/${pair.aircraftType}`;
+        const row = rows.get(k);
+        const mine = row?.provider === provider.name;
+        if (row && !mine && providerRank(row.provider) >= rank) {
+          report.checked++;
+          report.skipped++; // a provider of equal or higher rank owns it
+          continue;
         }
-        report.failed++;
-        console.error(
-          `brand sync: ${k} side view failed`,
-          redact((e as Error).message),
+        const wantNote = pair.nose === "right" ? "mirrored" : null;
+        if (
+          mine && row!.version === pair.version && row!.note === wantNote
+        ) {
+          report.checked++;
+          report.unchanged++;
+          const t = bump.get(pair.icao) ?? [];
+          t.push(pair.aircraftType);
+          bump.set(pair.icao, t);
+          continue;
+        }
+        if (misses.has(k)) {
+          report.checked++;
+          report.skipped++;
+          continue;
+        }
+        if (fetched >= opts.limit) {
+          report.deferred++; // left for the next tick
+          continue;
+        }
+        fetched++;
+        report.checked++;
+        try {
+          await syncPair(pair, row);
+        } catch (e) {
+          if (e instanceof Stop) {
+            report.checked--;
+            report.deferred = queue.length - i;
+            throw e;
+          }
+          report.failed++;
+          console.error(
+            `brand sync: ${k} side view failed`,
+            redact((e as Error).message),
+          );
+        }
+      }
+    } finally {
+      // Unchanged pairs keep their freshness even when the run stops early.
+      for (const [icao, types] of bump) {
+        must(
+          await db.from("airline_assets").update({ checked_at: stamp }).eq(
+            "icao",
+            icao,
+          ).eq("kind", "side_view").in("aircraft_type", types),
+          "asset bump failed",
         );
       }
-    }
-
-    for (const [icao, types] of bump) {
-      must(
-        await db.from("airline_assets").update({ checked_at: stamp }).eq(
-          "icao",
-          icao,
-        ).eq("kind", "side_view").in("aircraft_type", types),
-        "asset bump failed",
-      );
     }
   } catch (e) {
     if (!(e instanceof Stop)) throw e;

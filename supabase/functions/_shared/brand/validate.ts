@@ -148,7 +148,15 @@ function renderPng(svg: string, size: number, byWidth = false): Png {
   const probe = new Resvg(svg, OPTS);
   const wide = probe.width >= probe.height;
   if (!(probe.width > 0 && probe.height > 0)) throw new Error("empty svg");
+  const ratio = probe.height / probe.width;
   probe.free();
+  if (byWidth) {
+    // Fixed width: refuse a result taller than the raster cap, and (side views) taller than wide.
+    if (size * ratio > MAX_RASTER_PX) {
+      throw new Error(`render would be over ${MAX_RASTER_PX} px tall`);
+    }
+    if (ratio > 1) throw new Error("taller than wide");
+  }
   const r = new Resvg(svg, {
     ...OPTS,
     fitTo: byWidth || wide
@@ -189,11 +197,14 @@ export interface ValidateRule {
   minWidth?: number;
   /** Render a vector this many px wide (instead of 384 px on the long side) and skip the small one. */
   svgWidth?: number;
+  /** Refuse anything taller than wide (side views are landscape). */
+  landscape?: boolean;
 }
 export const SIDE_VIEW_RULE: ValidateRule = {
   pngOnly: true,
   minWidth: 1200,
   svgWidth: 1600,
+  landscape: true,
 };
 
 /**
@@ -208,7 +219,7 @@ export async function mirrorPng(png: Png): Promise<Png> {
   }
   const { width: w, height: h } = png;
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image width="${w}" height="${h}" transform="translate(${w} 0) scale(-1 1)" href="data:image/png;base64,${
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image width="${w}" height="${h}" image-rendering="optimizeSpeed" transform="translate(${w} 0) scale(-1 1)" href="data:image/png;base64,${
       btoa(bin)
     }"/></svg>`;
   const out = renderPng(svg, w, true);
@@ -285,6 +296,9 @@ export async function validateFile(
   }
   if (Math.max(w, h) < MIN_RASTER_PX) {
     return bad(`raster ${w}x${h} under ${MIN_RASTER_PX} px`);
+  }
+  if (rule?.landscape && h > w) {
+    return bad(`raster ${w}x${h} is taller than wide`);
   }
   if (rule?.minWidth && w < rule.minWidth) {
     return bad(`raster ${w}x${h} under ${rule.minWidth} px wide`);

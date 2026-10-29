@@ -8,6 +8,7 @@ import {
   pngComplete,
   pngSize,
   RENDER_PX,
+  SIDE_VIEW_RULE,
   SMALL_PX,
   validateFile,
   webpSize,
@@ -277,3 +278,33 @@ async function realLogo(
   const f = await p.logo(icao, "logo");
   return f as ProviderFile;
 }
+
+Deno.test("side view vectors: tall or extreme viewBoxes are refused, a normal one renders 1600 wide", async () => {
+  const svg = (vb: string) =>
+    enc(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}"><rect width="100%" height="100%" fill="#123"/></svg>`,
+    );
+  for (
+    const vb of ["0 0 100 1000", "0 0 10 3000", "0 0 100 101", "0 0 1000 5"]
+  ) {
+    const v = await validateFile(file(svg(vb), "svg"), SIDE_VIEW_RULE);
+    if (vb === "0 0 1000 5") {
+      assert(v.ok, "a very wide strip is still within the caps");
+    } else {
+      assert(!v.ok, `${vb} refused`);
+    }
+  }
+  const ok = await validateFile(
+    file(svg("0 0 800 240"), "svg"),
+    SIDE_VIEW_RULE,
+  );
+  assert(ok.ok && ok.main.width === 1600 && ok.main.height === 480);
+});
+
+Deno.test("logos keep the long-side cap: tall vectors never exceed 384 px", async () => {
+  const tall = enc(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 1000"><rect width="100" height="1000"/></svg>',
+  );
+  const v = await validateFile(file(tall, "svg"));
+  assert(v.ok && Math.max(v.main.width, v.main.height) === RENDER_PX);
+});

@@ -7,6 +7,7 @@ import {
   RecordedSideViewProvider,
 } from "./side_view_provider.ts";
 import { syncSideViews } from "./sync.ts";
+import { mirrorPng } from "./validate.ts";
 import { handler } from "../../brand-assets-sync/handler.ts";
 
 const db = await testDb();
@@ -148,6 +149,23 @@ async function decode(bytes: Uint8Array) {
   return { w, h, px };
 }
 
+/**
+ * Pixels that differ: alpha off by more than 2, or colour different where both are opaque.
+ * (Semi-transparent edge pixels are premultiplied by the renderer, so their colour may round.)
+ */
+function diffs(a: Uint8Array, b: Uint8Array): number {
+  if (a.length !== b.length) return -1;
+  let n = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    if (Math.abs(a[i + 3] - b[i + 3]) > 2) n++;
+    else if (
+      a[i + 3] === 255 && b[i + 3] === 255 &&
+      (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2])
+    ) n++;
+  }
+  return n;
+}
+
 /** Mean x of the red nose cone, as a fraction of the width: under 0.5 means the nose points left. */
 async function noseAt(path: string): Promise<number> {
   const d = await db.storage.from(BUCKET).download(path);
@@ -271,6 +289,72 @@ guarded("noseRightMirrored", async () => {
   assert((await noseAt(a320.path)) < 0.3, "mirrored nose is on the left");
   assert((await noseAt(b738.path)) < 0.3, "left nose untouched");
   assertEquals(a320.width, 1300);
+
+  // Transparency survives: the top-left corner stays alpha 0. Mirroring twice gives back the original.
+  const stored = async (path: string) => {
+    const d = await db.storage.from(BUCKET).download(path);
+    if (d.error) throw d.error;
+    return new Uint8Array(await d.data.arrayBuffer());
+  };
+  const m = await decode(await stored(a320.path));
+  assertEquals(m.px[3], 0, "corner pixel stays transparent");
+  assertEquals(m.px[(m.w - 1) * 4 + 3], 0);
+  const twice = await decode(
+    (await mirrorPng({
+      bytes: (await mirrorPng({
+        bytes: await stored(a320.path),
+        width: m.w,
+        height: m.h,
+      })).bytes,
+      width: m.w,
+      height: m.h,
+    })).bytes,
+  );
+  const once = await decode(
+    (await mirrorPng({
+      bytes: await stored(a320.path),
+      width: m.w,
+      height: m.h,
+    })).bytes,
+  );
+  const orig = await decode(await fixtureBytes("ZQA-A320.png"));
+  assertEquals(
+    diffs(once.px, orig.px),
+    0,
+    "mirror(mirrored) equals the drawn original",
+  );
+  assertEquals(diffs(twice.px, m.px), 0);
+});
+
+guarded("unchangedBumpedWhenRunStops", async () => {
+  await addAirlines("ZQA", "ZQB");
+  const png = await fixtureBytes("ZQA-B738.png");
+  const p = new FakeSideViewProvider("fake");
+  p.set("ZQA", "B738", { bytes: png, format: "png", version: "a1" });
+  p.set("ZQB", "B738", { bytes: png, format: "png", version: "b1" });
+  await syncSideViews(db, db.storage, p, opts(NOW1));
+  // ZQB changes; the request budget allows only the list call, so the run stops at ZQB's file.
+  p.set("ZQB", "B738", { bytes: png, format: "png", version: "b2" });
+  const r = await syncSideViews(db, db.storage, p, {
+    ...opts(NOW2),
+    maxRequests: 1,
+  });
+  assertEquals([r.stoppedBy, r.unchanged], ["budget", 1]);
+  const a = (await rows("ZQA"))[0];
+  assertEquals(new Date(a.checked_at).getTime(), NOW2.getTime());
+});
+
+guarded("badListEntryKeepsGoodRow", async () => {
+  await addAirlines("ZQA");
+  const png = await fixtureBytes("ZQA-B738.png");
+  const p = new FakeSideViewProvider("fake");
+  p.set("ZQA", "B738", { bytes: png, format: "png", version: "a1" });
+  await syncSideViews(db, db.storage, p, opts());
+  p.set("ZQA", "B738", { bytes: png, format: "png", version: "" }); // turns malformed
+  const r = await syncSideViews(db, db.storage, p, opts(NOW2));
+  assertEquals([r.dropped, r.rejected], [0, 1]);
+  assertEquals((await rows("ZQA")).length, 1);
+  assertEquals((await objects()).length, 1);
 });
 
 guarded("notConfiguredIsNoOp", async () => {

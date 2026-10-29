@@ -3,7 +3,12 @@
 // airline and type pairs with a version, and one file per pair. The concrete adapter (Logostream API
 // or Airliners Illustrated delivery) is written once the owner picks one and signs; both fit.
 // Until then SIDE_VIEW_PROVIDER stays unset and the sync is a no-op.
-import { type ProviderFile, ProviderUnavailable } from "./logo_provider.ts";
+import {
+  MAX_BODY_BYTES,
+  type ProviderFile,
+  ProviderUnavailable,
+  readCapped,
+} from "./logo_provider.ts";
 
 export interface SideViewPair {
   /** Airline ICAO. */
@@ -111,13 +116,21 @@ export class RecordedSideViewProvider implements SideViewProvider {
 
   private async read(name: string): Promise<Uint8Array> {
     const url = new URL(name, this.base);
-    if (url.protocol === "file:") return await Deno.readFile(url);
+    if (url.protocol === "file:") {
+      const b = await Deno.readFile(url);
+      if (b.length > MAX_BODY_BYTES) {
+        throw new Error(`recorded ${name}: too large`);
+      }
+      return b;
+    }
     const res = await fetch(url);
     if (!res.ok) {
       await res.body?.cancel();
       throw new ProviderUnavailable(`recorded ${name}: ${res.status}`);
     }
-    return new Uint8Array(await res.arrayBuffer());
+    const body = await readCapped(res);
+    if (!body) throw new Error(`recorded ${name}: too large`);
+    return body;
   }
 
   private load(): Promise<RecordedManifest> {
