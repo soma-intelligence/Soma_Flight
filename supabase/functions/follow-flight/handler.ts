@@ -13,7 +13,6 @@ export interface Deps {
   verifier?: TokenVerifier;
 }
 
-const DAY_MS = 86_400_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface FlightRef {
@@ -81,39 +80,50 @@ export async function ensureAlert(
   if (flight.status === "arrived" || flight.status === "canceled") return;
 
   // AeroAPI alert idents are ICAO: the part of fa_flight_id before the first dash (AFR84-...).
+  // An alert fires for every flight with that ident inside its window, so the window is the one
+  // local departure date (end inclusive): neighbouring days of the same ident have their own alert.
   const ident = flight.provider_id.split("-")[0];
   const out = flight.scheduled_out
     ? new Date(flight.scheduled_out)
     : new Date();
-  const arrive = flight.scheduled_in
-    ? new Date(flight.scheduled_in)
-    : new Date(out.getTime() + DAY_MS);
   let tz = "UTC";
   if (flight.origin_icao) {
     const a = await db.from("airports").select("tz").eq(
       "icao",
       flight.origin_icao,
-    ).maybeSingle();
+    )
+      .maybeSingle();
     if (a.data?.tz) tz = a.data.tz as string;
   }
-  // Window: scheduled departure minus 1 day to scheduled arrival plus 1 day.
-  const start = dateIn(tz, new Date(out.getTime() - DAY_MS));
-  const end = dateIn(tz, new Date(arrive.getTime() + DAY_MS));
+  const day = dateIn(tz, out);
 
-  const alertId = await aero.createAlert(ident, start, end);
+  const alertId = await aero.createAlert(ident, day, day);
   const claimed = await db.from("flights").update({ alert_id: alertId })
     .eq("id", flightId).is("alert_id", null).select("id");
   if (claimed.error || (claimed.data ?? []).length === 0) {
     // Lost the race (or the write failed): do not leave an orphan alert billing us.
-    await aero.deleteAlert(alertId);
+    try {
+      await aero.deleteAlert(alertId);
+    } catch (e) {
+      console.error(`orphan alert ${alertId} not deleted`, e);
+    }
     if (claimed.error) {
       throw new Error(`alert claim failed: ${claimed.error.message}`);
     }
+    return;
+  }
+  // Every follower may have left while createAlert was in flight: release at once.
+  if ((await countFollowers(db, flightId)) === 0) {
+    await releaseAlert(db, aero, flightId);
   }
 }
 
-/** Deletes the alert when nobody follows the flight any more. Re-creates it if a follower slipped in meanwhile. */
-async function releaseAlert(
+/**
+ * Deletes the alert when nobody follows the flight any more. The provider delete comes first and
+ * alert_id is cleared only on success, so a provider error never loses the id (it is logged and
+ * the id stays for a later retry). Re-creates the alert if a follower slipped in meanwhile.
+ */
+export async function releaseAlert(
   db: SupabaseClient,
   aero: Deps["aero"],
   flightId: string,
@@ -121,13 +131,17 @@ async function releaseAlert(
   if ((await countFollowers(db, flightId)) > 0) return;
   const flight = await loadFlight(db, flightId);
   if (!flight || flight.alert_id === null) return;
+  try {
+    await aero.deleteAlert(Number(flight.alert_id));
+  } catch (e) {
+    console.error(`alert ${flight.alert_id} not deleted, id kept`, e);
+    return;
+  }
   const cleared = await db.from("flights").update({ alert_id: null })
     .eq("id", flightId).eq("alert_id", flight.alert_id).select("id");
   if (cleared.error) {
     throw new Error(`alert clear failed: ${cleared.error.message}`);
   }
-  if ((cleared.data ?? []).length === 0) return; // someone else released it
-  await aero.deleteAlert(Number(flight.alert_id));
   // A follower may have arrived between the count and the clear and seen alert_id still set.
   if ((await countFollowers(db, flightId)) > 0) {
     await ensureAlert(db, aero, flightId);

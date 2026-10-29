@@ -1,6 +1,13 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import type { AeroFlight } from "../_shared/aeroapi_types.ts";
-import { fakeVerifier, makeUser, testDb } from "../_shared/test_util.ts";
+import {
+  fakeVerifier,
+  makeUser,
+  test,
+  testDb,
+  trackProviderIds,
+  trackRoute,
+} from "../_shared/test_util.ts";
 import { handler } from "./handler.ts";
 
 const NOW = new Date("2026-11-02T12:00:00Z");
@@ -16,7 +23,7 @@ const route: AeroFlight[] = (await fixture("route_kaus_kdfw.json")).flights
 
 const db = await testDb();
 
-function fakeAero() {
+function fakeAero(idents: AeroFlight[] = af84) {
   const calls = {
     ident: [] as unknown[][],
     route: [] as unknown[][],
@@ -25,7 +32,7 @@ function fakeAero() {
     calls,
     flightsByIdent(...a: unknown[]) {
       calls.ident.push(a);
-      return Promise.resolve(af84);
+      return Promise.resolve(idents);
     },
     searchRoute(...a: unknown[]) {
       calls.route.push(a);
@@ -46,9 +53,13 @@ function deps(aero = fakeAero()) {
   return { db, aero, verifier: fakeVerifier, now: () => NOW };
 }
 
-const opts = { sanitizeOps: false, sanitizeResources: false };
+/** Fixture flights land in the shared table: track them so the test removes them. */
+function track(...lists: AeroFlight[][]) {
+  trackProviderIds(lists.flat().map((f) => f.fa_flight_id));
+}
 
-Deno.test({ name: "lookup by ident upserts once", ...opts }, async () => {
+test(db, "lookup by ident upserts once", async () => {
+  track(af84);
   const user = await makeUser(db);
   const d = deps();
   for (let i = 0; i < 2; i++) {
@@ -69,67 +80,106 @@ Deno.test({ name: "lookup by ident upserts once", ...opts }, async () => {
   assertEquals(d.aero.calls.ident[0][0], "AF84");
 });
 
-Deno.test({ name: "lookup accepts IATA airports", ...opts }, async () => {
+test(db, "ident search filters on the origin local date", async () => {
+  // Departs 20:00 on 11-03 in San Francisco, which is 04:00Z on 11-04.
+  const late: AeroFlight = {
+    ...af84[0],
+    fa_flight_id: "UAL999-1793600000-schedule-9p",
+    ident: "UAL999",
+    ident_iata: "UA999",
+    scheduled_out: "2026-11-04T04:00:00Z",
+    origin: {
+      ...af84[0].origin!,
+      code_icao: "KSFO",
+      timezone: "America/Los_Angeles",
+    },
+  };
+  track([late]);
   const user = await makeUser(db);
-  await db.from("route_cache").delete().eq("origin_icao", "LFPG");
-  const d = deps();
-  const res = await handler(
-    post(user, { origin: "cdg", destination: "SFO", date: "2026-11-03" }),
+  const d = deps(fakeAero([late]));
+  const on3 = await (await handler(
+    post(user, { ident: "UA999", date: "2026-11-03" }),
     d,
-  );
-  assertEquals(res.status, 200);
-  assertEquals(d.aero.calls.route.length, 1);
-  assertEquals(d.aero.calls.route[0].slice(0, 3), [
-    "LFPG",
-    "KSFO",
-    "2026-11-03",
-  ]);
+  )).json();
+  assertEquals(on3.flights.length, 1);
+  const on4 = await (await handler(
+    post(user, { ident: "UA999", date: "2026-11-04" }),
+    d,
+  )).json();
+  assertEquals(on4.flights.length, 0);
 });
 
-Deno.test(
-  { name: "ICAO airports work and the route is cached", ...opts },
+test(
+  db,
+  "lookup accepts IATA airports and searches each UTC day of the local date",
   async () => {
-    const user = await makeUser(db);
-    await db.from("route_cache").delete().eq("origin_icao", "KAUS");
-    const d = deps();
-    const body = { origin: "KAUS", destination: "DFW", date: "2026-11-03" };
-    const first = await (await handler(post(user, body), d)).json();
-    const second = await (await handler(post(user, body), d)).json();
-    assertEquals(d.aero.calls.route.length, 1); // second search served from the cache
-    assert(first.flights.length > 0);
-    assertEquals(
-      second.flights.map((f: { id: string }) => f.id).sort(),
-      first.flights.map((f: { id: string }) => f.id).sort(),
+    track(route);
+    trackRoute("LFPG", "KSFO", "2026-11-03");
+    await db.from("route_cache").delete().eq("origin_icao", "LFPG").eq(
+      "destination_icao",
+      "KSFO",
     );
-    // After the cache expires the provider is called again.
-    const later = { ...d, now: () => new Date(NOW.getTime() + 11 * 60_000) };
-    await handler(post(user, body), later);
-    assertEquals(d.aero.calls.route.length, 2);
+    const user = await makeUser(db);
+    const d = deps();
+    const res = await handler(
+      post(user, { origin: "cdg", destination: "SFO", date: "2026-11-03" }),
+      d,
+    );
+    assertEquals(res.status, 200);
+    // Paris is UTC+1: local 11-03 spans UTC 11-02 (from 23:00) and 11-03.
+    assertEquals(d.aero.calls.route.map((c) => c.slice(0, 3)), [
+      ["LFPG", "KSFO", "2026-11-02"],
+      ["LFPG", "KSFO", "2026-11-03"],
+    ]);
+    // Only flights leaving on the local date stay (the 01:30Z one is 02:30 on 11-04 in Paris).
+    assertEquals((await res.json()).flights.length, 2);
   },
 );
 
-Deno.test(
-  { name: "31st lookup in an hour returns 429 rate_limited", ...opts },
-  async () => {
-    const user = await makeUser(db);
-    const d = deps();
-    for (let i = 0; i < 30; i++) {
-      const res = await handler(
-        post(user, { ident: "AF84", date: "2026-11-03" }),
-        d,
-      );
-      assertEquals(res.status, 200);
-    }
+test(db, "ICAO airports work and the route is cached", async () => {
+  track(route);
+  trackRoute("KAUS", "KDFW", "2026-11-03");
+  await db.from("route_cache").delete().eq("origin_icao", "KAUS").eq(
+    "destination_icao",
+    "KDFW",
+  );
+  const user = await makeUser(db);
+  const d = deps();
+  const body = { origin: "KAUS", destination: "DFW", date: "2026-11-03" };
+  const first = await (await handler(post(user, body), d)).json();
+  const callsAfterFirst = d.aero.calls.route.length;
+  const second = await (await handler(post(user, body), d)).json();
+  assertEquals(d.aero.calls.route.length, callsAfterFirst);
+  assertEquals(first.flights.length, 3);
+  assertEquals(
+    second.flights.map((f: { id: string }) => f.id).sort(),
+    first.flights.map((f: { id: string }) => f.id).sort(),
+  );
+  const later = { ...d, now: () => new Date(NOW.getTime() + 11 * 60_000) };
+  await handler(post(user, body), later);
+  assert(d.aero.calls.route.length > callsAfterFirst);
+});
+
+test(db, "31st lookup in an hour returns 429 rate_limited", async () => {
+  track(af84);
+  const user = await makeUser(db);
+  const d = deps();
+  for (let i = 0; i < 30; i++) {
     const res = await handler(
       post(user, { ident: "AF84", date: "2026-11-03" }),
       d,
     );
-    assertEquals(res.status, 429);
-    assertEquals((await res.json()).error.code, "rate_limited");
-  },
-);
+    assertEquals(res.status, 200);
+  }
+  const res = await handler(
+    post(user, { ident: "AF84", date: "2026-11-03" }),
+    d,
+  );
+  assertEquals(res.status, 429);
+  assertEquals((await res.json()).error.code, "rate_limited");
+});
 
-Deno.test({ name: "no JWT returns 401 unauthorized", ...opts }, async () => {
+test(db, "no JWT returns 401 unauthorized", async () => {
   const res = await handler(
     post(null, { ident: "AF84", date: "2026-11-03" }),
     deps(),
@@ -143,15 +193,13 @@ Deno.test({ name: "no JWT returns 401 unauthorized", ...opts }, async () => {
   assertEquals(bad.status, 401);
 });
 
-Deno.test({
-  name: "dates outside the provider window never reach AeroAPI",
-  ...opts,
-}, async () => {
+test(db, "dates outside the provider window never reach AeroAPI", async () => {
   const user = await makeUser(db);
   const d = deps();
-  for (const date of ["2026-10-01", "2026-11-20"]) {
+  // now = 2026-11-02T12:00Z: 10-22 ended before now - 10 days, 11-05 starts after now + 2 days.
+  for (const date of ["2026-10-01", "2026-10-22", "2026-11-05", "2026-11-20"]) {
     const res = await handler(post(user, { ident: "AF84", date }), d);
-    assertEquals(res.status, 400);
+    assertEquals(res.status, 400, date);
     assertEquals((await res.json()).error.code, "out_of_window");
     const r2 = await handler(
       post(user, { origin: "CDG", destination: "SFO", date }),
@@ -162,7 +210,16 @@ Deno.test({
   assertEquals(d.aero.calls.ident.length + d.aero.calls.route.length, 0);
 });
 
-Deno.test({ name: "bad input is a typed 400", ...opts }, async () => {
+test(db, "oldest and newest days of the window are accepted", async () => {
+  const user = await makeUser(db);
+  const d = deps();
+  for (const date of ["2026-10-23", "2026-11-04"]) {
+    const res = await handler(post(user, { ident: "AF84", date }), d);
+    assertEquals(res.status, 200, date);
+  }
+});
+
+test(db, "bad input is a typed 400", async () => {
   const user = await makeUser(db);
   const d = deps();
   const cases: unknown[] = [

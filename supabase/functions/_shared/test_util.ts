@@ -32,6 +32,24 @@ export async function testDb(): Promise<SupabaseClient> {
   });
 }
 
+/** Everything a test creates, removed by `cleanup` so the database ends as it began. */
+const made = {
+  users: [] as string[],
+  flightIds: [] as string[],
+  providerIds: new Set<string>(),
+  routes: [] as { origin: string; destination: string; date: string }[],
+};
+
+export function trackFlightId(id: string): void {
+  made.flightIds.push(id);
+}
+export function trackProviderIds(ids: string[]): void {
+  for (const id of ids) made.providerIds.add(id);
+}
+export function trackRoute(origin: string, destination: string, date: string) {
+  made.routes.push({ origin, destination, date });
+}
+
 export async function makeUser(
   db: SupabaseClient,
   plan: "free" | "pro" = "free",
@@ -42,11 +60,64 @@ export async function makeUser(
   });
   if (error) throw error;
   const id = data.user.id;
+  made.users.push(id);
   if (plan === "pro") {
     const r = await db.from("profiles").update({ plan }).eq("user_id", id);
     if (r.error) throw r.error;
   }
   return id;
+}
+
+/** Deletes tracked rows: flights (cascades user_flights), route cache, rate events, profiles, users. */
+export async function cleanup(db: SupabaseClient): Promise<void> {
+  const users = made.users.splice(0);
+  const flightIds = made.flightIds.splice(0);
+  const providerIds = [...made.providerIds];
+  made.providerIds.clear();
+  const routes = made.routes.splice(0);
+  const check = (r: { error: { message: string } | null }) => {
+    if (r.error) throw new Error(`cleanup failed: ${r.error.message}`);
+  };
+  for (const r of routes) {
+    check(
+      await db.from("route_cache").delete().eq("origin_icao", r.origin)
+        .eq("destination_icao", r.destination).eq("date", r.date),
+    );
+  }
+  if (flightIds.length) {
+    check(await db.from("flights").delete().in("id", flightIds));
+  }
+  if (providerIds.length) {
+    check(await db.from("flights").delete().in("provider_id", providerIds));
+  }
+  if (users.length) {
+    check(await db.from("rate_events").delete().in("user_id", users));
+    check(await db.from("profiles").delete().in("user_id", users));
+    for (const id of users) {
+      const r = await db.auth.admin.deleteUser(id);
+      if (r.error) throw new Error(`cleanup failed: ${r.error.message}`);
+    }
+  }
+}
+
+/** Deno.test wrapper that always cleans up, pass or fail. */
+export function test(
+  db: SupabaseClient,
+  name: string,
+  fn: () => Promise<void>,
+): void {
+  Deno.test({
+    name,
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+      try {
+        await fn();
+      } finally {
+        await cleanup(db);
+      }
+    },
+  });
 }
 
 /** Token verifier for tests: the bearer token is the user id. */
