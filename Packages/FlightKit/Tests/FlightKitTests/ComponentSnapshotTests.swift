@@ -27,16 +27,16 @@ struct ComponentSnapshotTests {
     static let screensDir: URL = outDir.deletingLastPathComponent().appending(path: "screens")
 
     @discardableResult
-    private func render<V: View>(_ name: String, to dir: URL = outDir, write: Bool = true,
+    private func render<V: View>(_ name: String, to dir: URL = outDir, write: Bool = true, light: Bool = false,
                                  @ViewBuilder _ content: () -> V) throws -> CGImage {
         let view = content()
             .frame(width: Self.width)
             .background(Theme.background)
-            .environment(\.colorScheme, .dark)
+            .environment(\.colorScheme, light ? .light : .dark)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
         var image: CGImage?
-        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance { image = renderer.cgImage }
+        NSAppearance(named: light ? .aqua : .darkAqua)!.performAsCurrentDrawingAppearance { image = renderer.cgImage }
         let cg = try #require(image, "no image for \(name)")
         #expect(cg.width == Int(Self.width * 3))
         if write { try save(cg, name, to: dir) }
@@ -159,6 +159,13 @@ struct ComponentSnapshotTests {
             let slice = try #require(full.cropping(to: rect))
             try save(slice, "airport-\(i + 1)", to: Self.screensDir)
         }
+        // Light mode: the top of the sheet.
+        let light = try render("airport-light", write: false, light: true) {
+            AirportView(store: store, lookup: PreviewData.airport, now: now, scrolls: false, rowLimit: 22)
+                .environment(\.airportStaticControls, true)
+        }
+        try save(try #require(light.cropping(to: CGRect(x: 0, y: 0, width: light.width, height: 1010 * 3))),
+                 "airport-light-1", to: Self.screensDir)
     }
 
     @Test func badgesAndBanners() throws {

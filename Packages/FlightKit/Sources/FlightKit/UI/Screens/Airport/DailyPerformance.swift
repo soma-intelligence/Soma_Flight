@@ -18,9 +18,9 @@ struct DailyPerformanceCard: View {
     }
 
     private var dateLine: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US"); f.timeZone = timeZone; f.dateFormat = "EEEE, MMMM d"
-        return f.string(from: day)
+        var style = AirportFacts.longDay
+        style.timeZone = timeZone
+        return day.formatted(style)
     }
 
     private func share(_ n: Int) -> Int {
@@ -38,7 +38,7 @@ struct DailyPerformanceCard: View {
             .padding(.top, 1)
             SplitBar(parts: [(stats.onTime, Theme.splitGreen, false), (stats.delayed15, Theme.splitRed, false),
                              (stats.canceled, Theme.canceled, true)])
-                .frame(height: 6)
+                .frame(height: 4.5)
                 .padding(.top, 18)
                 .padding(.bottom, 12)
             line("On Time", Theme.splitGreen, stats.onTime)

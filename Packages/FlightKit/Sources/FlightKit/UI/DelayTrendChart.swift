@@ -70,12 +70,16 @@ public struct DelayTrendChart: View {
         return max(step * 3, Int((peak / Double(step)).rounded(.up)) * step)
     }
 
+    /// Bars after now are dimmed; before, the scale starts at amber like the reference
+    /// (under 15 min is a quiet neutral, not green).
     private func color(_ bin: Bin) -> Color {
-        if bin.start > nowBin { return Theme.trendFuture }
-        let m = bin.minutes ?? 0
+        bin.start > nowBin ? Theme.trendFuture : level(bin.minutes ?? 0)
+    }
+
+    private func level(_ m: Double) -> Color {
         if m >= 45 { return Theme.splitRed }
         if m >= 15 { return Theme.trendAmber }
-        return Theme.splitGreen
+        return Theme.trendCalm
     }
 
     private func axisLabel(_ m: Int) -> String {
@@ -113,16 +117,17 @@ public struct DelayTrendChart: View {
                 if let i = bins.firstIndex(where: { $0.start == nowBin }) {
                     let x = slot * (CGFloat(i) + 0.5)
                     let m = Int((bins[i].minutes ?? 0).rounded())
+                    let marker = level(bins[i].minutes ?? 0)
                     Rectangle().fill(Theme.secondary.opacity(0.6)).frame(width: 1, height: h)
                         .offset(x: x - 0.5, y: Self.top)
                     HStack(spacing: 6) {
                         ZStack {
-                            Circle().fill(color(bins[i]).opacity(0.25)).frame(width: 14, height: 14)
-                            Circle().fill(color(bins[i])).frame(width: 6, height: 6)
+                            Circle().fill(marker.opacity(0.25)).frame(width: 14, height: 14)
+                            Circle().fill(marker).frame(width: 6, height: 6)
                         }
                         Text(axisLabel(m))
                             .scaledFont(14.5, weight: .semibold)
-                            .foregroundStyle(color(bins[i]))
+                            .foregroundStyle(marker == Theme.trendCalm ? Theme.secondary : marker)
                     }
                     .fixedSize()
                     .frame(width: 120)

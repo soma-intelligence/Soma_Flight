@@ -62,16 +62,35 @@ struct FilterPill<Value: Hashable>: View {
     }
 }
 
+/// A LazyVStack in the scrolling sheet, a plain VStack where everything must draw at once (snapshots).
+struct MaybeLazyVStack<Content: View>: View {
+    var lazy: Bool
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if lazy {
+            LazyVStack(alignment: .leading, spacing: 0) { content }
+        } else {
+            VStack(alignment: .leading, spacing: 0) { content }
+        }
+    }
+}
+
 /// Stale badge for one section, shown only once its data is older than `ttl`.
 struct SectionFreshness: View {
     var fetchedAt: Date?
     var ttl: Duration
     var now: Date
+    /// Space around the badge, only taken while it shows.
+    var top: CGFloat = 0
+    var bottom: CGFloat = 0
 
     var body: some View {
         if let fetchedAt, now.timeIntervalSince(fetchedAt) > Double(ttl.components.seconds) {
             StaleBadge(fetchedAt: fetchedAt, ttl: ttl, now: now)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, top)
+                .padding(.bottom, bottom)
         }
     }
 }

@@ -62,7 +62,7 @@ import Testing
         #expect(AirportFacts.worst(.normal, .major) == .major && AirportFacts.worst(.moderate, .normal) == .moderate)
         let line = AirportFacts.delayLine(s, verb: "Leaving")
         #expect(line.hasPrefix("Leaving ") && line.contains("\(s.delayed15) of \(s.total)"))
-        #expect(!line.contains("—"))
+        #expect(!line.contains("\u{2014}"))
         let w = AirportFacts.weatherLine(PreviewData.weather["KAUS"]!)
         #expect(w.contains("°C"))
     }

@@ -62,9 +62,10 @@ struct IssuesCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
+                let dot = severity == .major ? Theme.veryLate : Theme.late
                 ZStack {
-                    Circle().fill(Theme.veryLate.opacity(0.25)).frame(width: 16, height: 16)
-                    Circle().fill(Theme.veryLate).frame(width: 7, height: 7)
+                    Circle().fill(dot.opacity(0.25)).frame(width: 16, height: 16)
+                    Circle().fill(dot).frame(width: 7, height: 7)
                 }
                 Text(AirportFacts.issuesTitle(severity))
                     .scaledFont(19, weight: .semibold)

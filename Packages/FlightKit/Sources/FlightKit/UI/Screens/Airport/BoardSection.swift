@@ -8,24 +8,40 @@ struct BoardSection: View {
     var timeZone: TimeZone
     var now: Date
     var lookup: (String) -> Airport?
+    var fetchedAt: [BoardKind: Date] = [:]
     /// Caps the rows drawn (snapshots); nil draws them all.
     var rowLimit: Int?
+    /// Rows in a LazyVStack (inside a ScrollView). Off for ImageRenderer, which draws no lazy content.
+    var lazy = true
 
     @State private var kind: BoardKind = .departures
     @State private var filter = AirportFacts.Filter()
     /// The day picked from the menu; until then the board shows today when it has flights today.
     @State private var pickedDay: Date??
     @State private var showEarlier = false
+    @State private var chartCache: (key: ChartKey, perHour: [HourBucket])?
+
+    /// What the per-hour chart depends on; the core runs again only when it changes.
+    struct ChartKey: Hashable {
+        var kind: BoardKind
+        var fetchedAt: Date?
+        var count: Int
+        var filter: AirportFacts.Filter
+    }
 
     private var board: AirportBoard? { kind == .departures ? departures : arrivals }
     private var flights: [Flight] { board?.flights ?? [] }
     private var today: Date { AirportFacts.calendar(timeZone).startOfDay(for: now) }
     private var days: [Date] { AirportFacts.days(flights, kind, tz: timeZone) }
     private var day: Date? { pickedDay ?? (days.contains(today) ? today : nil) }
-    private var filtered: [Flight] {
+    private var effectiveFilter: AirportFacts.Filter {
         var f = filter
         f.day = day
-        return AirportFacts.apply(f, to: flights, kind: kind, tz: timeZone)
+        return f
+    }
+    private var filtered: [Flight] { AirportFacts.apply(effectiveFilter, to: flights, kind: kind, tz: timeZone) }
+    private var chartKey: ChartKey {
+        ChartKey(kind: kind, fetchedAt: board?.fetchedAt, count: flights.count, filter: effectiveFilter)
     }
 
     var body: some View {
@@ -33,8 +49,11 @@ struct BoardSection: View {
         let shown = showEarlier ? filtered : AirportFacts.current(filtered, kind: kind, now: now)
         let rows = rowLimit.map { Array(shown.prefix($0)) } ?? shown
         let divider = AirportFacts.nowIndex(rows, kind: kind, now: now)
+        let key = chartKey
+        let perHour = chartCache?.key == key ? chartCache!.perHour : DelayStats.compute(filtered, kind: kind).perHour
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
+                SectionFreshness(fetchedAt: fetchedAt[kind], ttl: AirportFacts.boardTTL, now: now, bottom: 10)
                 PillPicker(options: [(BoardKind.departures, "Departures"), (.arrivals, "Arrivals")], selection: $kind)
                     .padding(.bottom, 12)
                 filters
@@ -42,7 +61,7 @@ struct BoardSection: View {
                 SectionHeader(kind == .departures ? "Departures per hour" : "Arrivals per hour", info: true)
                     .padding(.bottom, 4)
                 // The chart runs nearly edge to edge, as on the reference board.
-                DelayChart(perHour: DelayStats.compute(filtered, kind: kind).perHour, timeZone: timeZone, now: now)
+                DelayChart(perHour: perHour, timeZone: timeZone, now: now)
                     .padding(.leading, 6 - Theme.gutter)
                     .padding(.trailing, 10 - Theme.gutter)
                     .padding(.bottom, 26)
@@ -52,7 +71,7 @@ struct BoardSection: View {
                         .foregroundStyle(Theme.primary)
                     Spacer()
                     if shown.count < filtered.count || showEarlier {
-                        Button(showEarlier ? "Hide Earlier Flights" : "Earlier Flights") { showEarlier.toggle() }
+                        Button(showEarlier ? "Hide Past Flights" : "Past Flights") { showEarlier.toggle() }
                             .buttonStyle(.plain)
                             .scaledFont(14, weight: .medium)
                             .foregroundStyle(Theme.accent)
@@ -66,14 +85,17 @@ struct BoardSection: View {
                     .scaledFont(15).foregroundStyle(Theme.secondary)
                     .padding(.horizontal, Theme.gutter).padding(.vertical, 20)
             }
-            ForEach(Array(rows.enumerated()), id: \.element.id) { i, f in
-                if i == divider { nowRow }
-                BoardRow(flight: f, kind: kind, airport: lookup(kind == .arrivals ? f.originIcao : f.destinationIcao),
-                         timeZone: timeZone, now: now, striped: !i.isMultiple(of: 2))
+            MaybeLazyVStack(lazy: lazy) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { i, f in
+                    if i == divider { nowRow }
+                    BoardRow(flight: f, kind: kind, airport: lookup(kind == .arrivals ? f.originIcao : f.destinationIcao),
+                             timeZone: timeZone, now: now, striped: !i.isMultiple(of: 2))
+                }
+                if divider == nil, !rows.isEmpty, rowLimit == nil || rows.count == shown.count { nowRow }
             }
-            if divider == nil, !rows.isEmpty, rowLimit == nil || rows.count == shown.count { nowRow }
         }
         .onChange(of: kind) { filter.place = nil; showEarlier = false }
+        .onChange(of: key, initial: true) { chartCache = (key, DelayStats.compute(filtered, kind: kind).perHour) }
     }
 
     private var filters: some View {
@@ -83,8 +105,9 @@ struct BoardSection: View {
             if d == today { return "Today" }
             if d == cal.date(byAdding: .day, value: -1, to: today) { return "Yesterday" }
             if d == cal.date(byAdding: .day, value: 1, to: today) { return "Tomorrow" }
-            let f = DateFormatter(); f.locale = Locale(identifier: "en_US"); f.timeZone = timeZone; f.dateFormat = "EEE d"
-            return f.string(from: d)
+            var style = AirportFacts.shortDay
+            style.timeZone = timeZone
+            return d.formatted(style)
         }
         let places = Set(flights.map { kind == .arrivals ? $0.originIcao : $0.destinationIcao })
             .map { ($0, lookup($0)?.city ?? $0) }.sorted { $0.1 < $1.1 }

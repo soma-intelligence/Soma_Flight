@@ -50,7 +50,7 @@ public struct AirportView: View {
     }
 
     private func sections(now: Date) -> some View {
-        AirportSections(store: store, lookup: lookup, now: now, rowLimit: rowLimit)
+        AirportSections(store: store, lookup: lookup, now: now, rowLimit: rowLimit, lazy: scrolls)
     }
 }
 
@@ -60,14 +60,34 @@ struct AirportSections: View {
     var lookup: (String) -> Airport?
     var now: Date
     var rowLimit: Int?
+    /// LazyVStack root and board rows when scrolling; plain stacks for the snapshot render.
+    var lazy = true
 
     @State private var scope: DailyScope = .departures
+    @State private var totalsCache: (key: TotalsKey, stats: DelayStats)?
+
+    /// What the Totals segment depends on, so the core runs once per board refresh.
+    struct TotalsKey: Hashable {
+        var departures: Date?, arrivals: Date?
+        var depCount: Int, arrCount: Int
+    }
+
+    private var totalsKey: TotalsKey {
+        TotalsKey(departures: store.departures?.fetchedAt, arrivals: store.arrivals?.fetchedAt,
+                  depCount: store.departures?.flights.count ?? 0, arrCount: store.arrivals?.flights.count ?? 0)
+    }
+
+    private func computeTotals() -> DelayStats {
+        let dep = (store.departures?.flights ?? []).map { ($0, BoardKind.departures) }
+        let arr = (store.arrivals?.flights ?? []).map { ($0, BoardKind.arrivals) }
+        return DelayStats.compute(dep + arr)
+    }
 
     private var tz: TimeZone { store.airport?.timeZone ?? .current }
     private var code: String { store.airport?.iata ?? store.airport?.id ?? "" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        MaybeLazyVStack(lazy: lazy) {
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
                     .padding(.horizontal, 16).padding(.top, 16)
@@ -85,7 +105,7 @@ struct AirportSections: View {
                 section {
                     SectionHeader("Current Weather", subtitle: "Latest METAR from \(code)", large: true)
                         .padding(.bottom, 10)
-                    freshness(.weather, AirportFacts.weatherTTL)
+                    freshness(.weather, AirportFacts.weatherTTL, bottom: 12)
                     WeatherBlock(weather: weather, timeZone: tz, now: now)
                 }
             }
@@ -98,11 +118,8 @@ struct AirportSections: View {
                 }
             }
             if store.departures != nil || store.arrivals != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    freshness(.departures, AirportFacts.boardTTL).padding(.horizontal, Theme.gutter)
-                    BoardSection(departures: store.departures, arrivals: store.arrivals, timeZone: tz, now: now,
-                                 lookup: lookup, rowLimit: rowLimit)
-                }
+                BoardSection(departures: store.departures, arrivals: store.arrivals, timeZone: tz, now: now,
+                             lookup: lookup, fetchedAt: store.fetchedAt, rowLimit: rowLimit, lazy: lazy)
                 .padding(.top, 24)
                 .padding(.bottom, 40)
             }
@@ -111,7 +128,12 @@ struct AirportSections: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: TotalsTrigger(key: totalsKey, scope: scope), initial: true) {
+            if scope == .totals, totalsCache?.key != totalsKey { totalsCache = (totalsKey, computeTotals()) }
+        }
     }
+
+    private struct TotalsTrigger: Equatable { var key: TotalsKey; var scope: DailyScope }
 
     // MARK: Sections
 
@@ -124,7 +146,7 @@ struct AirportSections: View {
         }
         return section {
             SectionHeader(dep ? "Departure Performance" : "Arrival Performance", subtitle: "Today so far and the hours ahead")
-            freshness(.stats, AirportFacts.boardTTL).padding(.top, 8)
+            freshness(.stats, AirportFacts.boardTTL, top: 8)
             PerformanceSplit(stats: stats)
                 .padding(.top, 12)
             SectionHeader(dep ? "Departure Delay Trend" : "Arrival Delay Trend",
@@ -142,6 +164,7 @@ struct AirportSections: View {
         return section {
             SectionHeader("Daily Performance", subtitle: "The whole day, flown and planned", large: true)
                 .padding(.bottom, 14)
+            freshness(.stats, AirportFacts.boardTTL, bottom: 12)
             HStack {
                 PillPicker(options: [(DailyScope.departures, "Departures"), (.arrivals, "Arrivals"), (.totals, "Totals")],
                            selection: $scope)
@@ -173,16 +196,14 @@ struct AirportSections: View {
         case .departures: return stats.departures
         case .arrivals: return stats.arrivals
         case .totals:
-            let dep = (store.departures?.flights ?? []).map { ($0, BoardKind.departures) }
-            let arr = (store.arrivals?.flights ?? []).map { ($0, BoardKind.arrivals) }
-            return DelayStats.compute(dep + arr)
+            return totalsCache?.key == totalsKey ? totalsCache!.stats : computeTotals()
         }
     }
 
     // MARK: Pieces
 
-    private func freshness(_ part: BoardKind, _ ttl: Duration) -> some View {
-        SectionFreshness(fetchedAt: store.fetchedAt[part], ttl: ttl, now: now)
+    private func freshness(_ part: BoardKind, _ ttl: Duration, top: CGFloat = 0, bottom: CGFloat = 0) -> some View {
+        SectionFreshness(fetchedAt: store.fetchedAt[part], ttl: ttl, now: now, top: top, bottom: bottom)
     }
 
     private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {

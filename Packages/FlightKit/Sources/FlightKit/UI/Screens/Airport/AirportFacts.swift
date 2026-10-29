@@ -51,6 +51,10 @@ enum AirportFacts {
         return known[icao] ?? icao
     }
 
+    /// "Friday, October 23" and "Fri 23"; set `timeZone` on a copy before use.
+    static let longDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.wide).month(.wide).day()
+    static let shortDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.abbreviated).day()
+
     static func scheduled(_ f: Flight, _ kind: BoardKind) -> Date? {
         kind == .arrivals ? f.scheduledIn : f.scheduledOut
     }
@@ -63,7 +67,7 @@ enum AirportFacts {
 
     // MARK: Board filters
 
-    struct Filter: Equatable {
+    struct Filter: Hashable {
         /// Local start of day, or nil for every day on the board.
         var day: Date?
         /// Operator (ICAO), or nil for all.

@@ -42,6 +42,8 @@ public enum Theme {
     public static let splitGreen = Color(light: 0x34A15A, dark: 0x54B471)
     public static let splitRed = Color(light: 0xD8412F, dark: 0xEB5545)
     public static let trendAmber = Color(light: 0xE0A030, dark: 0xF2B347)
+    /// Delay trend bars under 15 min.
+    public static let trendCalm = Color(light: 0xB8B8BE, dark: 0x5C5C62)
     public static let trendFuture = Color(light: 0xF2C5BF, dark: 0x562826)
 
     // MARK: Flight categories (weather scale bars)

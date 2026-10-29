@@ -147,10 +147,15 @@ import Testing
     }
 
     @Test func timesShiftToNow() async throws {
+        // The seed's first departure sits at a fixed offset from the seed clock; after shifting it
+        // must sit at the same offset from now (to the minute).
+        let seed = try await FakeAirportService(now: FakeSeed.reference).board("KAUS", .departures)
+        let seedFirst = try #require(seed.flights.compactMap(\.scheduledOut).min())
+        let offset = seedFirst.timeIntervalSince(FakeSeed.reference)
         let svc = FakeAirportService()
         let dep = try await svc.board("KAUS", .departures)
         let first = try #require(dep.flights.compactMap(\.scheduledOut).min())
-        #expect(abs(first.timeIntervalSinceNow) < 6 * 3600)
+        #expect(abs(first.timeIntervalSinceNow - offset) < 90)
         let w = try await svc.weather("KAUS")
         #expect(abs(w.weather.observedAt.timeIntervalSinceNow) < 3600)
     }
