@@ -78,6 +78,7 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 | `follow-flight` | POST, DELETE | `{ flightId, notify? }` (DELETE: `{ flightId }`) | `{ ok: true }` |
 | `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
+| `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, expiresAt }` |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
@@ -128,6 +129,16 @@ decoded by the Swift tests.
 The keys the app reads are single words: `FlightJSON.decoder` converts snake_case dictionary keys
 too (`delay_minutes` arrives as `delayMinutes`), so a single word is the only spelling both sides
 agree on without a conversion rule.
+
+## brand-asset
+
+`GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]`
+
+- Answer: `{ version, format, width, url, expiresAt }`. `format` is `svg`, `pdf` or `png`; `width` may be null. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
+- `type` is required for `side_view` (the aircraft ICAO type, e.g. `B38M`) and refused for every other kind (400 `invalid_request`).
+- Unknown airline, no stored asset, or an object gone from the bucket: 404 `not_found`. The app falls back to its own mark.
+- Object paths carry the version (`logos/<ICAO>/<kind>-<version>.<ext>`, `side-views/<ICAO>/<TYPE>-<version>.<ext>`), so a change is a new URL and a cache never mixes versions.
+- Limit: 600 calls per user per hour (429 `rate_limited`).
 
 ## airport-board
 

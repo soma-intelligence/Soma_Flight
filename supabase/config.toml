@@ -403,6 +403,10 @@ verify_jwt = true
 verify_jwt = true
 static_files = ["./functions/_shared/flightcore/pkg/*"]
 
+# Signed URLs for brand assets (logos, tails, side views) in the private brand-assets bucket.
+[functions.brand-asset]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
