@@ -13,6 +13,51 @@ Keys that are already camelCase (stats, weather) pass through unchanged. The bac
 dates as `YYYY-MM-DDTHH:mm:ss.sssZ`. Exceptions are the `hour` of an `HourBucket`, which is integer epoch
 seconds (the Rust core emits it that way and `HourBucket` decodes `Int64`).
 
+## Tables the app reads and writes
+
+Clients reach these through PostgREST with the user JWT. Row level security scopes every table to its
+owner (`auth.uid() = user_id`); `flights`, `flight_events`, `airports` and `aircraft` are read-only
+shared data.
+
+### user_flights (follows)
+
+Written by `follow-flight` and `delete-account` (service role). Clients get `select` on their own rows
+and exactly one write: a PostgREST `update` of the five user fields, through a column-level grant
+`update (seat_class, seat, reason, booking_code, notes)` and the owner policy `user_flights_owner`.
+Updating any other column (`user_id`, `flight_id`, `notify`, `created_at`), inserting a row or deleting
+one is refused with 42501; updating a row of another user touches 0 rows.
+
+| Column | Type | Rule |
+| --- | --- | --- |
+| `seat_class` | enum | `economy`, `premium_economy`, `business`, `first`, or null |
+| `seat` | text | `^[0-9]{1,3}[A-K]$` (for example `12A`), or null |
+| `reason` | enum | `personal`, `business`, or null |
+| `booking_code` | text | `^[A-Z0-9]{5,8}$`, or null |
+| `notes` | text | at most 2000 characters, or null |
+
+A violated rule is a 23514 (check violation). Send `null` to clear a field.
+
+### past_flights (history)
+
+Written by the nightly archive job only (clients keep `select` and the owner policy). When a followed
+flight is archived, the row copies the follower's five user fields above (null when never set) and adds:
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `origin_country`, `destination_country` | text | ISO 3166-1 alpha-2 from `airports.country`; null when the airport is unknown |
+| `air_minutes` | int | `actual_on - actual_off` in minutes when both exist and on is after off, else null |
+
+### aircraft
+
+Reference data, `select` for signed-in users, written by the service role only; empty until filled.
+Columns: `registration` (primary key), `aircraft_type`, `airline_icao`, `delivered_on` (date), `name`.
+
+### flights
+
+Four new nullable times, same format as the others (`YYYY-MM-DDTHH:mm:ss.sssZ`): `scheduled_off`,
+`scheduled_on`, `estimated_off`, `estimated_on` (runway departure and arrival). `flight-lookup` and
+`airport-board` return them; the webhook does not update them yet.
+
 ## Endpoints
 
 | Endpoint | Method | Body or query | Answer |

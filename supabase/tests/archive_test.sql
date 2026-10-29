@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49);
+select plan(50);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -233,6 +233,14 @@ select is_empty(
            or has_function_privilege('authenticated', p.oid, 'execute'))
       and p.oid::regprocedure::text <> all (array[]::text[])$$,
   'no public function is executable by anon or authenticated');
+
+-- Guard: every function in public pins search_path to the empty string (extension-owned ones excepted).
+select is(
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+      and not coalesce(p.proconfig @> array['search_path=""'], false)),
+  0::bigint, 'every public function sets search_path to the empty string');
 
 -- Cron jobs and the pg_net call through Vault (rolled back: nothing is sent).
 select bag_has('select jobname::text from cron.job',

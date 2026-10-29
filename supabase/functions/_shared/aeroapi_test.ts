@@ -68,6 +68,22 @@ Deno.test("flightsByIdent parses fixture", async () => {
   assert(!("position_lat" in row));
 });
 
+Deno.test("toFlightRow maps off and on times", async () => {
+  const f = (await flightsOf("flight_af84.json", "flights"))[0];
+  const row = toFlightRow({
+    ...f,
+    scheduled_off: "2026-11-03T01:00:00Z",
+    scheduled_on: "2026-11-03T11:00:00Z",
+    estimated_off: "2026-11-03T01:05:00Z",
+    estimated_on: "2026-11-03T11:05:00Z",
+  }, NOW);
+  assertEquals(row.scheduled_off, "2026-11-03T01:00:00Z");
+  assertEquals(row.scheduled_on, "2026-11-03T11:00:00Z");
+  assertEquals(row.estimated_off, "2026-11-03T01:05:00Z");
+  assertEquals(row.estimated_on, "2026-11-03T11:05:00Z");
+  assertEquals(toFlightRow({ ...f, scheduled_off: null }, NOW).scheduled_off, null);
+});
+
 Deno.test("flight fixture has no last_position (real endpoint does not return it)", async () => {
   const f = (await flightsOf("flight_af84.json", "flights"))[0];
   assert(!("last_position" in f));

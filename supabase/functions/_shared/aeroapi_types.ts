@@ -105,6 +105,10 @@ export interface FlightRow {
   scheduled_in: string | null;
   estimated_out: string | null;
   estimated_in: string | null;
+  scheduled_off: string | null;
+  scheduled_on: string | null;
+  estimated_off: string | null;
+  estimated_on: string | null;
   actual_out: string | null;
   actual_off: string | null;
   actual_on: string | null;
