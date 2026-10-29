@@ -408,8 +408,10 @@ static_files = ["./functions/_shared/flightcore/pkg/*"]
 verify_jwt = true
 
 # Called by pg_cron through pg_net with the service role key from Vault. Also checks the role claim.
+# The resvg WASM that rasterises vector logos is read at runtime, so it ships as a static file.
 [functions.brand-assets-sync]
 verify_jwt = true
+static_files = ["./functions/_shared/brand/resvg/*"]
 
 [edge_runtime]
 enabled = true

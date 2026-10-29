@@ -3,8 +3,8 @@
 // about two days and every airline again each week.
 //
 // Rules, in the order they matter:
-// - Every file passes validateFile before upload (mime, size, magic bytes, PNG size, sanitised SVG).
-//   An invalid file counts as a miss: nothing stored, the existing row stays.
+// - Every file passes validateFile before upload. SVG is never stored: it is rasterised to PNG
+//   (384 px stored, 192 px small). An invalid file counts as a miss: nothing stored, the row stays.
 // - Unchanged files are not downloaded: the stored etag or version goes to the provider, which
 //   answers "unchanged"; only checked_at moves.
 // - A provider outage (5xx, 429, network) is retried with backoff, then aborts the run without
@@ -131,6 +131,7 @@ interface AssetRow {
   kind: string;
   aircraft_type: string;
   path: string;
+  path_small: string | null;
   format: string;
   version: string;
   etag: string | null;
@@ -147,11 +148,16 @@ export function assetPath(
   item: Item,
   version: string,
   ext: string,
+  small = false,
 ): string {
+  const tail = `${version}${small ? "-small" : ""}.${ext}`;
   return item.kind === "side_view"
-    ? `side-views/${icao}/${item.type}-${version}.${ext}`
-    : `logos/${icao}/${dbKind(item.kind)}-${version}.${ext}`;
+    ? `side-views/${icao}/${item.type}-${tail}`
+    : `logos/${icao}/${dbKind(item.kind)}-${tail}`;
 }
+
+const paths = (r: { path: string; path_small: string | null }) =>
+  r.path_small ? [r.path, r.path_small] : [r.path];
 
 export async function syncLogos(
   db: SupabaseClient,
@@ -211,7 +217,7 @@ export async function syncLogos(
       ).eq("aircraft_type", row.aircraft_type),
       "asset delete failed",
     );
-    const rm = await storage.from(BUCKET).remove([row.path]);
+    const rm = await storage.from(BUCKET).remove(paths(row));
     if (rm.error) console.error(`brand sync: object kept ${row.path}`);
   }
 
@@ -224,7 +230,7 @@ export async function syncLogos(
         provider: provider.name,
         miss_until: new Date(opts.now.getTime() + MISS_HOURS * 3_600_000)
           .toISOString(),
-      }, { onConflict: "icao,kind,aircraft_type" }),
+      }, { onConflict: "icao,kind,aircraft_type,provider" }),
       "miss write failed",
     );
   }
@@ -233,7 +239,7 @@ export async function syncLogos(
     icao: string,
     item: Item,
     rows: AssetRow[],
-    misses: Map<string, string>,
+    misses: Set<string>,
   ): Promise<void> {
     const k = dbKind(item.kind);
     const row = rows.find((r) => r.kind === k && r.aircraft_type === item.type);
@@ -242,8 +248,7 @@ export async function syncLogos(
       report.skipped++; // a provider of equal or higher rank owns it
       return;
     }
-    const missProvider = misses.get(`${k}/${item.type}`);
-    if (missProvider === provider.name) {
+    if (misses.has(`${k}/${item.type}/${provider.name}`)) {
       report.skipped++; // remembered miss, still fresh
       return;
     }
@@ -275,7 +280,7 @@ export async function syncLogos(
       }
       return;
     }
-    const v = validateFile(got);
+    const v = await validateFile(got);
     if (!v.ok) {
       console.error(`brand sync: ${icao} ${item.kind} rejected: ${v.reason}`);
       report.rejected++;
@@ -299,21 +304,34 @@ export async function syncLogos(
       return;
     }
     const path = assetPath(icao, item, got.version, v.format);
+    const pathSmall = v.small
+      ? assetPath(icao, item, got.version, v.format, true)
+      : null;
     must(
-      await storage.from(BUCKET).upload(path, v.bytes, {
+      await storage.from(BUCKET).upload(path, v.main.bytes, {
         contentType: v.mime,
         upsert: true,
       }),
       "upload failed",
     );
+    if (pathSmall && v.small) {
+      must(
+        await storage.from(BUCKET).upload(pathSmall, v.small.bytes, {
+          contentType: v.mime,
+          upsert: true,
+        }),
+        "small upload failed",
+      );
+    }
     must(
       await db.from("airline_assets").upsert({
         icao,
         kind: k,
         aircraft_type: item.type,
         path,
+        path_small: pathSmall,
         format: v.format,
-        width: v.width,
+        width: v.main.width,
         version: got.version,
         etag: got.etag,
         provider: provider.name,
@@ -323,22 +341,26 @@ export async function syncLogos(
       "asset upsert failed",
     );
     report.changed++;
-    if (row && row.path !== path) {
-      const rm = await storage.from(BUCKET).remove([row.path]);
-      if (rm.error) console.error(`brand sync: old object kept ${row.path}`);
+    if (row) {
+      const keep = new Set([path, ...(pathSmall ? [pathSmall] : [])]);
+      const old = paths(row).filter((p) => !keep.has(p));
+      if (old.length) {
+        const rm = await storage.from(BUCKET).remove(old);
+        if (rm.error) console.error(`brand sync: old object kept ${row.path}`);
+      }
     }
-    if (misses.has(`${k}/${item.type}`)) {
+    if (misses.has(`${k}/${item.type}/${provider.name}`)) {
       await db.from("airline_asset_misses").delete().eq("icao", icao).eq(
         "kind",
         k,
-      ).eq("aircraft_type", item.type);
+      ).eq("aircraft_type", item.type).eq("provider", provider.name);
     }
   }
 
   async function doAirline(icao: string): Promise<void> {
     const rows = (must(
       await db.from("airline_assets").select(
-        "kind, aircraft_type, path, format, version, etag, provider",
+        "kind, aircraft_type, path, path_small, format, version, etag, provider",
       ).eq("icao", icao),
       "asset read failed",
     ).data ?? []) as AssetRow[];
@@ -348,10 +370,10 @@ export async function syncLogos(
       ).eq("icao", icao).gt("miss_until", stamp),
       "miss read failed",
     ).data ?? [];
-    const misses = new Map<string, string>(
+    const misses = new Set<string>(
       missRows.map((
         m: { kind: string; aircraft_type: string; provider: string },
-      ) => [`${m.kind}/${m.aircraft_type}`, m.provider]),
+      ) => `${m.kind}/${m.aircraft_type}/${m.provider}`),
     );
     const items: Item[] = [];
     for (const kind of provider.kinds) {

@@ -210,12 +210,32 @@ Deno.test("conditionalFetchSendsIfNoneMatchAndAnswers304AsUnchanged", async () =
   assertEquals(logoCalls.length, 1, "no second request for the raster");
   assertEquals(logoCalls[0].inm, '"e1"');
   assert(logoCalls[0].url.endsWith(".svg"));
-  // A stored raster goes straight to the raster URL.
-  const png = await p.logo("AFR", "logo", {
-    known: { etag: '"e2"', version: "v", format: "png" },
-  });
-  assertEquals(png, "unchanged");
-  assert(seen.at(-1)!.url.endsWith(".png"));
+  // Stored assets are always PNG whatever the source was, so the vector is tried first and, when
+  // it is gone upstream, the raster still answers (the row is kept, not dropped).
+  seen.length = 0;
+  const gone = ((input: string | URL | Request, init?: RequestInit) => {
+    const u = new URL(String(input));
+    const inm = new Headers(init?.headers).get("if-none-match");
+    seen.push({ url: u.pathname, inm });
+    if (u.pathname.endsWith("airlines.json")) {
+      return Promise.resolve(new Response(listBody));
+    }
+    if (u.pathname.endsWith(".svg")) {
+      return Promise.resolve(new Response("nope", { status: 404 }));
+    }
+    return Promise.resolve(new Response(null, { status: inm ? 304 : 200 }));
+  }) as typeof fetch;
+  const q = new AirhexLogoProvider(KEY, gone);
+  assertEquals(
+    await q.logo("AFR", "logo", {
+      known: { etag: '"e2"', version: "v", format: "png" },
+    }),
+    "unchanged",
+  );
+  const paths = seen.filter((x) => x.url.includes("/logos/")).map((x) =>
+    x.url.split(".").pop()
+  );
+  assertEquals(paths, ["svg", "png"]);
 });
 
 Deno.test("errorsNeverCarryTheDigest", async () => {
@@ -237,4 +257,20 @@ Deno.test("errorsNeverCarryTheDigest", async () => {
   );
   assert(!e.message.includes(md5), e.message);
   assert(e.message.includes("REDACTED"));
+});
+
+Deno.test("an oversize body is refused while streaming", async () => {
+  const listBody = await text("airlines.json");
+  const huge = new Uint8Array(3 * 1024 * 1024);
+  const fetchFn = ((input: string | URL | Request) => {
+    const u = new URL(String(input));
+    if (u.pathname.endsWith("airlines.json")) {
+      return Promise.resolve(new Response(listBody));
+    }
+    return Promise.resolve(
+      new Response(huge, { headers: { "content-type": "image/svg+xml" } }),
+    );
+  }) as typeof fetch;
+  const p = new AirhexLogoProvider(KEY, fetchFn);
+  await assertRejects(() => p.logo("UAL", "logo"), Error, "size cap");
 });

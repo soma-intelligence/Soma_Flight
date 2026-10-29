@@ -4,3 +4,4 @@ Replace with a real recording once the licence is signed (see docs/operations.md
 
 These are a contract to re-verify, not a recording: the Airhex tests prove the adapter against these hand-written shapes only.
 The PNGs are real 512 px images (generated, flat colour) so they pass the sync's size validation.
+The PNG stand-ins here are 512 px flat colour images. Hostile SVG samples for the validator live in ../svg-evil/.

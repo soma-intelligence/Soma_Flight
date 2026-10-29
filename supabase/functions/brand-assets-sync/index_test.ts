@@ -22,7 +22,10 @@ const NOW1 = new Date("2026-11-01T10:00:00Z");
 const NOW2 = new Date("2026-11-09T10:00:00Z"); // 8 days later: due again
 
 const enc = (s: string) => new TextEncoder().encode(s);
-const svg = (s: string) => new TextEncoder().encode(`<svg id="${s}"/>`);
+const svg = (s: string) =>
+  new TextEncoder().encode(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40"><title>${s}</title><rect width="100" height="40" fill="#0033a0"/></svg>`,
+  );
 
 function fake(...icaos: string[]): FakeLogoProvider {
   const p = new FakeLogoProvider("fake");
@@ -130,12 +133,21 @@ guarded("firstRunUploadsAll", async () => {
   );
   const rows = await db.from("airline_assets").select("*").eq("icao", "ZQA");
   assertEquals(rows.data!.length, 3);
-  assertEquals((await objects("ZQA")).length, 3);
+  // Vectors are rasterised: a 384 px and a 192 px PNG per kind, never an svg.
+  assertEquals((await objects("ZQA")).length, 6);
+  assert((await objects("ZQA")).every((n) => n.endsWith(".png")));
   for (const r of rows.data!) {
     assertEquals(r.provider, "fake");
-    assert(r.path.startsWith(`logos/ZQA/${r.kind}-`));
+    assertEquals(r.format, "png");
+    assert(
+      r.path.startsWith(`logos/ZQA/${r.kind}-`) && r.path.endsWith(".png"),
+    );
+    assert(r.path_small.endsWith("-small.png"));
     const dl = await db.storage.from(BUCKET).download(r.path);
-    assert(dl.data && (await dl.data.text()).startsWith("<svg"));
+    assertEquals(dl.data!.type, "image/png");
+    const bytes = new Uint8Array(await dl.data!.arrayBuffer());
+    assertEquals(Array.from(bytes.slice(0, 4)), [0x89, 0x50, 0x4e, 0x47]);
+    assertEquals([r.width], [384]);
   }
   const al = await db.from("airlines").select("*").eq("icao", "ZQA").single();
   assertEquals(al.data!.color_primary, "#AA0000");
@@ -191,7 +203,7 @@ guarded("changedEtagUploadsNewVersion", async () => {
   assert(now.data!.path !== first.data!.path);
   assertEquals(now.data!.etag, '"e2"');
   const names = await objects("ZQA");
-  assertEquals(names.length, 3, "old objects removed after the rows moved");
+  assertEquals(names.length, 6, "old objects removed after the rows moved");
   assert(!names.includes(first.data!.path.split("/").pop()!));
   assert(names.includes(now.data!.path.split("/").pop()!));
 });
@@ -240,9 +252,9 @@ guarded("oneFailureDoesNotStopBatch", async () => {
   assertEquals(body.checked, 3);
   assertEquals(body.failed, 1);
   assertEquals(body.changed, 6);
-  assertEquals((await objects("ZQA")).length, 3);
+  assertEquals((await objects("ZQA")).length, 6);
   assertEquals((await objects("ZQB")).length, 0);
-  assertEquals((await objects("ZQC")).length, 3);
+  assertEquals((await objects("ZQC")).length, 6);
   // The failed airline is retried in about a day, not stuck at the head of the queue.
   const al = await db.from("airlines").select("logo_checked_at").eq(
     "icao",
@@ -254,7 +266,7 @@ guarded("oneFailureDoesNotStopBatch", async () => {
   p.failIcao.clear();
   const next = await run(p, new Date(NOW1.getTime() + 25 * 3_600_000));
   assertEquals(next.body.checked, 1);
-  assertEquals((await objects("ZQB")).length, 3);
+  assertEquals((await objects("ZQB")).length, 6);
 });
 
 Deno.test({
@@ -359,7 +371,7 @@ guarded("hostileFilesNeverReachTheBucket", async () => {
   assertEquals(rows.data!.length, 0);
 });
 
-guarded("sanitisedSvgIsWhatGetsStored", async () => {
+guarded("hostileSvgsAreStoredOnlyAsPlainPng", async () => {
   const p = fake("ZQA");
   p.files.set("ZQA/logo", {
     bytes: await EVIL("script.svg"),
@@ -370,14 +382,47 @@ guarded("sanitisedSvgIsWhatGetsStored", async () => {
     bytes: await EVIL("external.svg"),
     version: "s2",
   });
+  p.files.set("ZQA/tail_logo", {
+    bytes: await EVIL("entity.svg"),
+    version: "s3",
+  });
   const { body } = await run(p, NOW1);
   assertEquals(body.changed, 2);
-  const rows = await db.from("airline_assets").select("path").eq("icao", "ZQA");
+  assertEquals(body.rejected, 1); // the DTD fails closed
+  const rows = await db.from("airline_assets").select("path,path_small,format")
+    .eq(
+      "icao",
+      "ZQA",
+    );
+  assertEquals(rows.data!.length, 2);
   for (const r of rows.data!) {
-    const dl = await db.storage.from(BUCKET).download(r.path);
-    const t = await dl.data!.text();
-    assert(!/script|evil\.test|javascript:/i.test(t), t);
+    assertEquals(r.format, "png");
+    for (const path of [r.path, r.path_small]) {
+      const dl = await db.storage.from(BUCKET).download(path);
+      const b = new Uint8Array(await dl.data!.arrayBuffer());
+      assertEquals(Array.from(b.slice(0, 4)), [0x89, 0x50, 0x4e, 0x47]);
+      assert(
+        !/<svg|script|evil\.test/i.test(new TextDecoder("latin1").decode(b)),
+      );
+    }
   }
+});
+
+guarded("aMissIsKeptPerProvider", async () => {
+  const c = new FakeLogoProvider("commons");
+  c.kinds = ["logo"];
+  c.hasColors = false;
+  c.airlines = fake("ZQA").airlines;
+  await run(c, NOW1); // commons has nothing: a commons miss
+  const a = new FakeLogoProvider("airhex");
+  a.airlines = c.airlines;
+  await db.from("airlines").update({ logo_checked_at: null }).eq("icao", "ZQA");
+  await run(a, NOW1);
+  const m = await db.from("airline_asset_misses").select("provider,kind").eq(
+    "icao",
+    "ZQA",
+  ).eq("kind", "logo");
+  assertEquals(m.data!.map((x) => x.provider).sort(), ["airhex", "commons"]);
 });
 
 guarded("pngWidthComesFromTheBytesAndFormatIsStored", async () => {
@@ -451,7 +496,7 @@ guarded("timeAndRequestBudgetsStopCleanlyWithASummary", async () => {
   const rest = await run(p, NOW1);
   assertEquals(rest.body.stoppedBy, "done");
   for (const c of ["ZQA", "ZQB", "ZQC"]) {
-    assertEquals((await objects(c)).length, 3);
+    assertEquals((await objects(c)).length, 6);
   }
 });
 
@@ -481,13 +526,13 @@ guarded("rowTheProviderStoppedOfferingIsDropped", async () => {
   const p = fake("ZQA");
   withFiles(p, "ZQA", "v1");
   await run(p, NOW1);
-  assertEquals((await objects("ZQA")).length, 3);
+  assertEquals((await objects("ZQA")).length, 6);
   p.files.delete("ZQA/logo_dark");
   const { body } = await run(p, NOW2);
   assertEquals(body.dropped, 1);
   const rows = await db.from("airline_assets").select("kind").eq("icao", "ZQA");
   assertEquals(rows.data!.map((r) => r.kind).sort(), ["logo", "tail"]);
-  assertEquals((await objects("ZQA")).length, 2);
+  assertEquals((await objects("ZQA")).length, 4);
 });
 
 guarded("aProviderThatDoesNotServeAKindNeverTouchesItsRows", async () => {
@@ -565,7 +610,7 @@ guarded("licensedProviderOutranksCommonsAndNeverTheOtherWayRound", async () => {
   assertEquals(await rowOf(), { provider: "airhex", version: "a1" });
   assertEquals(
     (await objects("ZQA")).filter((n) => n.startsWith("logo-")).length,
-    1,
+    2,
   );
 
   // Commons later never replaces it, even with a newer file, and does not even ask.

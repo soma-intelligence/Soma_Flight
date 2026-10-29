@@ -170,3 +170,50 @@ test(db, "startsWithNoProviderKey", async () => {
   const res = await h(get(null, "airline=UAL&kind=logo"));
   assertEquals(res.status, 401);
 });
+
+test(db, "returnsSmallUrlWhenARenditionExists", async () => {
+  const user = await makeUser(db);
+  const path = `logos/UAL/logo-t${TAG}.png`;
+  const small = `logos/UAL/logo-t${TAG}-small.png`;
+  for (const p of [path, small]) {
+    const up = await db.storage.from(BUCKET).upload(
+      p,
+      new Uint8Array([1, 2, 3]),
+      {
+        contentType: "image/png",
+        upsert: true,
+      },
+    );
+    if (up.error) throw up.error;
+  }
+  const row = await db.from("airline_assets").insert({
+    icao: "UAL",
+    kind: "logo",
+    aircraft_type: "",
+    path,
+    path_small: small,
+    format: "png",
+    width: 384,
+    version: `t${TAG}`,
+    provider: "test",
+    fetched_at: new Date().toISOString(),
+    checked_at: new Date().toISOString(),
+  });
+  if (row.error) throw row.error;
+  try {
+    const res = await handler(get(user, "airline=UAL&kind=logo"), {
+      db,
+      verifier: fakeVerifier,
+    });
+    const body = await res.json();
+    assertEquals(res.status, 200);
+    assertMatch(body.url, /logo-t[0-9a-f]+\.png\?token=/);
+    assertMatch(body.smallUrl, /-small\.png\?token=/);
+  } finally {
+    await db.from("airline_assets").delete().eq("icao", "UAL").eq(
+      "kind",
+      "logo",
+    );
+    await db.storage.from(BUCKET).remove([path, small]);
+  }
+});

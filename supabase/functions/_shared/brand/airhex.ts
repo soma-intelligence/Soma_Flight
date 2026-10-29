@@ -18,6 +18,7 @@ import {
   type ProviderAirline,
   type ProviderFile,
   ProviderUnavailable,
+  readCapped,
   redact,
 } from "./logo_provider.ts";
 import { pngSize } from "./validate.ts";
@@ -135,12 +136,10 @@ export class AirhexLogoProvider implements LogoProvider {
       `${AIRHEX_CONTENT}/airlines_${a.iata}_${size}_${size}_${style}.${ext}` +
       `?md5apikey=${sig}${variant}`;
     const known: KnownAsset | undefined = opts.known;
-    const tryVector = known === undefined || known.format === "svg";
-    const tryRaster = known === undefined || known.format !== "svg";
 
     // Vector first. The size in a vector URL is only a hint. A stored validator goes out as
     // If-None-Match, so an unchanged file costs a 304 and no body.
-    if (tryVector) {
+    {
       const vec = await this.get(url(largest ?? 512, "svg"), known?.etag);
       if (vec.status === 304) return "unchanged";
       if (vec.ok && (vec.headers.get("content-type") ?? "").includes("svg")) {
@@ -148,9 +147,8 @@ export class AirhexLogoProvider implements LogoProvider {
       }
       await vec.body?.cancel();
     }
-    if (!tryRaster || largest === undefined || largest < MIN_RASTER_PX) {
-      return null;
-    }
+    // Stored assets are always PNG (vectors are rasterised), so the source kind is unknown: try both.
+    if (largest === undefined || largest < MIN_RASTER_PX) return null;
     const png = await this.get(url(largest, "png"), known?.etag);
     if (png.status === 304) return "unchanged";
     if (!png.ok) {
@@ -164,7 +162,8 @@ export class AirhexLogoProvider implements LogoProvider {
     res: Response,
     format: "svg" | "png",
   ): Promise<ProviderFile> {
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await readCapped(res);
+    if (!bytes) throw new Error("airhex body over the size cap");
     return {
       bytes,
       format,

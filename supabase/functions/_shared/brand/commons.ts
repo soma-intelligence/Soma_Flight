@@ -14,6 +14,7 @@ import {
   type ProviderAirline,
   type ProviderFile,
   ProviderUnavailable,
+  readCapped,
   sha256Hex,
 } from "./logo_provider.ts";
 
@@ -119,7 +120,8 @@ export class CommonsLogoProvider implements LogoProvider {
       }
       return null;
     }
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await readCapped(res);
+    if (!bytes) throw new Error(`commons file ${e.file} is over the size cap`);
     if ((await sha256Hex(bytes)) !== e.sha256) {
       throw new Error(
         `commons file ${e.file} does not match its manifest sha256`,

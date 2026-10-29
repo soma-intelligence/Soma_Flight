@@ -87,6 +87,45 @@ export interface LogoProvider {
   colors(icao: string): Promise<BrandColors | null>;
 }
 
+/** Largest body any provider file may have (the raster cap); the SVG cap is checked after. */
+export const MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Reads a response body with a running byte cap: content-length is checked first, then the stream is
+ * cancelled as soon as it passes the cap. Returns null when the body is too large.
+ */
+export async function readCapped(
+  res: Response,
+  max = MAX_BODY_BYTES,
+): Promise<Uint8Array | null> {
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > max) {
+    await res.body?.cancel();
+    return null;
+  }
+  if (!res.body) return new Uint8Array(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
+}
+
 /** Removes the provider credential digest from text that may reach logs or errors. */
 export function redact(text: string): string {
   return text.replace(/md5apikey=[^&\s"')]*/gi, "md5apikey=REDACTED");

@@ -1,5 +1,5 @@
 // GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]
-//   -> { version, format, width, url, expiresAt }
+//   -> { version, format, width, url, smallUrl, expiresAt }
 // Reads airline_assets and signs the object in the private brand-assets bucket for 3600 s. The app
 // only ever sees our bucket; the provider licence key stays with the sync job. No row is 404
 // not_found (the app falls back to its own mark). `type` is required for side_view and refused for
@@ -67,7 +67,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (!known.data) throw new ApiError("not_found", 404, "Unknown airline");
 
     const got = await db.from("airline_assets")
-      .select("path, format, width, version")
+      .select("path, path_small, format, width, version")
       .eq("icao", airline).eq("kind", kind).eq("aircraft_type", aircraftType)
       .maybeSingle();
     if (got.error) throw new Error(`asset read failed: ${got.error.message}`);
@@ -85,12 +85,22 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       );
       throw new ApiError("not_found", 404, "No asset");
     }
+    // The 192 px rendition of a rendered vector, when there is one; a failure to sign it is not an error.
+    let smallUrl: string | null = null;
+    if (got.data.path_small) {
+      const small = await db.storage.from(BUCKET).createSignedUrl(
+        got.data.path_small,
+        SIGNED_URL_SECONDS,
+      );
+      smallUrl = small.data?.signedUrl ?? null;
+    }
     const now = (deps.now ?? (() => new Date()))();
     return json({
       version: got.data.version,
       format: got.data.format,
       width: got.data.width,
       url: signed.data.signedUrl,
+      smallUrl,
       expiresAt: new Date(now.getTime() + SIGNED_URL_SECONDS * 1000)
         .toISOString(),
     });

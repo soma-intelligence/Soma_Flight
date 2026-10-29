@@ -78,7 +78,7 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 | `follow-flight` | POST, DELETE | `{ flightId, notify? }` (DELETE: `{ flightId }`) | `{ ok: true }` |
 | `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
-| `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, expiresAt }` |
+| `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
@@ -135,7 +135,7 @@ agree on without a conversion rule.
 
 `GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]`
 
-- Answer: `{ version, format, width, url, expiresAt }`. `format` is `svg`, `png` or `webp` (`pdf` is allowed by the table but never stored); `width` may be null. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
+- Answer: `{ version, format, width, url, smallUrl, expiresAt }`. `format` is `png` or `webp`: SVG is never stored or served, vectors are rasterised at sync (stored image 384 px on the long side, `smallUrl` the 192 px one, null for provider rasters). `width` is the pixel width of `url`. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
 - `type` is required for `side_view` (the aircraft ICAO type, e.g. `B38M`) and refused for every other kind (400 `invalid_request`).
 - Unknown airline, no stored asset, or an object gone from the bucket: 404 `not_found`. The app falls back to its own mark.
 - Object paths carry the version (`logos/<ICAO>/<kind>-<version>.<ext>`, `side-views/<ICAO>/<TYPE>-<version>.<ext>`), so a change is a new URL and a cache never mixes versions.

