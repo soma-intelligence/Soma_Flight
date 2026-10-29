@@ -6,7 +6,7 @@
 
 **Architecture:** All logic lives in the `FlightKit` Swift package (models, service protocols with Supabase and fake implementations, `@Observable` stores, SwiftData cache, shared views, map layer). The iOS and macOS app targets are thin shells. Stores depend only on service protocols, so every task before Task 9 runs on fakes and does not need the backend.
 
-**Tech Stack:** Swift 6 (strict concurrency), SwiftUI, iOS 26 and macOS 26, XcodeGen, `supabase-swift` 2.x, MapKit, Swift Charts, SwiftData, ActivityKit, WidgetKit, UserNotifications, AuthenticationServices, Swift Testing.
+**Tech Stack:** Rust core `flightcore` via `Packages/FlightCoreFFI` (see `docs/superpowers/plans/2026-10-28-soma-flight-core.md`), Swift 6 (strict concurrency), SwiftUI, iOS 26 and macOS 26, XcodeGen, `supabase-swift` 2.x, MapKit, Swift Charts, SwiftData, ActivityKit, WidgetKit, UserNotifications, AuthenticationServices, Swift Testing.
 
 **Spec:** `docs/superpowers/specs/2026-10-28-soma-flight-v1-design.md`
 **Backend contract:** `docs/superpowers/plans/2026-10-28-soma-flight-backend.md` (function names, request and response shapes, error codes)
@@ -18,6 +18,7 @@
 - The app never calls AeroAPI or aviationweather.gov; only Supabase (PostgREST, Realtime, edge functions).
 - Error codes from the backend, exactly: `provider_unavailable`, `not_found`, `rate_limited`, `plan_limit`, `unauthorized`.
 - Data older than its TTL (boards and stats 5 min, weather 15 min, live flight 10 min) is shown dimmed with its age, never as current.
+- Design match (owner request 2026-10-28): every screen matches the reference screenshots in `~/Desktop/Screenshot FLight app` closely: layout, hierarchy, spacing, type scale, colours, component shapes, sheet and tab bar behaviour. Excluded: the reference app's name, logo, icon, custom illustrations, and copy text. Each screen task ends with a side-by-side screenshot (reference left, ours right) saved under `docs/screens/compare/`, checked by the task reviewer.
 - Dark first, light supported. Delay colours: on time green, 15 to 44 min late amber, 45 min or more and canceled red, diverted purple. Small caps section labels.
 - Name and icon: Soma Flight only. No other product's name, marks, or copy.
 - Location is not requested in v1.
@@ -212,7 +213,7 @@ Apps/Widgets/    FlightLiveActivity.swift, WidgetsBundle.swift
 **Interfaces:**
 - Produces: `RootTabView(env: AppEnvironment)` with the full-screen `GlobeMap` behind a resizable bottom sheet (`presentationDetents([.height(120), .medium, .large])`, background interaction enabled), floating tab bar for My Flights and Passport, a search button, and a gear in the sheet header. `struct AppEnvironment { flights: FlightService; airports: AirportService; auth: AuthService; history: HistoryService; push: PushService; cache: CacheStore; static func fake() -> AppEnvironment }`. A launch argument `-useFakes` selects `.fake()`.
 - [ ] **Step 1:** Implement. Selecting a flight centres the globe on its arc and pushes `FlightDetailView` in the sheet; tapping an airport pin opens `AirportView`.
-- [ ] **Step 2:** Run on the simulator with `-useFakes`, take screenshots of home, detail, airport, Passport. Compare against the references for density and hierarchy (not a copy).
+- [ ] **Step 2:** Run on the simulator with `-useFakes`, take screenshots of home, detail, airport, Passport. Save side-by-side comparisons with the matching reference screenshots to `docs/screens/compare/ios-*.png` and fix visible differences in layout, spacing, type, and colour before committing.
 - [ ] **Step 3:** Commit `feat(ios): tab shell over the globe`.
 
 ### Task 8: macOS shell
@@ -224,7 +225,7 @@ Apps/Widgets/    FlightLiveActivity.swift, WidgetsBundle.swift
 **Interfaces:**
 - Produces: `RootSidebarView(env:)` with the full-window `GlobeMap` and a floating glass panel (width 360) on the left holding the same sections, a toolbar search field, and `Settings` scene for `SettingsView`. Minimum window 900 x 600.
 - [ ] **Step 1:** Implement.
-- [ ] **Step 2:** Run with `-useFakes`, screenshot home, detail, airport, Passport.
+- [ ] **Step 2:** Run with `-useFakes`, screenshot home, detail, airport, Passport, and save side-by-side comparisons with the Mac reference screenshots to `docs/screens/compare/mac-*.png`; fix visible differences before committing.
 - [ ] **Step 3:** Commit `feat(macos): sidebar shell over the globe`.
 
 ### Task 9: Supabase services and sign in
