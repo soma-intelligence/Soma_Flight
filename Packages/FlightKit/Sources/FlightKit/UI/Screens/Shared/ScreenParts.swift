@@ -111,11 +111,17 @@ struct RowChevron: View {
 /// draw a ScrollView's content).
 struct ScreenScroll<Content: View>: View {
     var scrolls: Bool
+    /// Pull to refresh; nil leaves the scroll view without it.
+    var refresh: (() async -> Void)?
     @ViewBuilder var content: Content
 
     var body: some View {
         if scrolls {
-            ScrollView { content }
+            if let refresh {
+                ScrollView { content }.refreshable { await refresh() }
+            } else {
+                ScrollView { content }
+            }
         } else {
             VStack(spacing: 0) { content; Spacer(minLength: 0) }
         }
@@ -142,12 +148,14 @@ enum ScreenFormat {
     /// "Paris to San Francisco" with codes as fallback.
     static func route(_ from: String, _ to: String) -> String { "\(from) to \(to)" }
 
-    /// Hours and minutes until or since `date`: "2h 14m".
-    static func span(_ seconds: TimeInterval) -> String {
-        Format.minutes(Int((abs(seconds) / 60).rounded()))
+    /// Hours and minutes until or since `date`: "2h 14m". Under a minute reads `floor` ("under a minute")
+    /// instead of "0m".
+    static func span(_ seconds: TimeInterval, floor: String = "0m") -> String {
+        let m = Int((abs(seconds) / 60).rounded())
+        return m < 1 ? floor : Format.minutes(m)
     }
 
-    /// "Apr 25, 2026" in `tz`.
+    /// "Apr 25, 2026" in `tz`, worded for the user's locale.
     static func day(_ date: Date, _ tz: TimeZone) -> String {
         var style = mediumDay
         style.timeZone = tz
@@ -161,20 +169,11 @@ enum ScreenFormat {
         return date.formatted(style)
     }
 
-    private static let mediumDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).month(.abbreviated).day().year()
-    private static let shortDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.abbreviated).month(.abbreviated).day()
-
-    /// "12:40" or "12:40 PM".
-    static func clock(_ date: Date, _ tz: TimeZone, _ style: TimeStyle) -> String {
-        guard style == .h12 else { return Format.clock(date, tz) }
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = tz
-        let c = cal.dateComponents([.hour, .minute], from: date)
-        let h = c.hour ?? 0
-        return String(format: "%d:%02d %@", h % 12 == 0 ? 12 : h % 12, c.minute ?? 0, h < 12 ? "AM" : "PM")
-    }
+    private static let mediumDay = Date.FormatStyle(locale: .autoupdatingCurrent).month(.abbreviated).day().year()
+    private static let shortDay = Date.FormatStyle(locale: .autoupdatingCurrent).weekday(.abbreviated).month(.abbreviated).day()
 }
 
+#if DEBUG
 // MARK: - Preview and snapshot support
 
 /// A fixed offline copy for previews: the seed's flights and history, saved `age` seconds
@@ -206,3 +205,4 @@ actor EmptyPreviewCache: FlightListCache, PastFlightCache {
     func past() -> [PastFlight] { [] }
     func pastSavedAt() -> Date? { nil }
 }
+#endif

@@ -9,6 +9,10 @@ public final class PassportStore {
     public private(set) var isOffline = false
     /// Save time of the cached history while offline, nil when the data is live.
     public private(set) var lastUpdated: Date?
+    /// True once a `load()` has finished, whatever its outcome (see `MyFlightsStore.hasLoaded`).
+    public private(set) var hasLoaded = false
+    /// When the history was last confirmed: now after a successful load, the cache's save time while offline.
+    public internal(set) var fetchedAt: Date?
     private var all: [PastFlight] = []
 
     private let history: any HistoryService
@@ -34,11 +38,13 @@ public final class PassportStore {
         do {
             all = try await history.pastFlights()
             error = nil; isOffline = false; lastUpdated = nil
+            fetchedAt = Date.now; hasLoaded = true
             await cache?.save(past: all)
         } catch {
             self.error = error
             isOffline = error == .offline
-            if isOffline, let cache { lastUpdated = await cache.pastSavedAt() }
+            hasLoaded = true
+            if isOffline, let cache { lastUpdated = await cache.pastSavedAt(); fetchedAt = lastUpdated }
         }
     }
 }

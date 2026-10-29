@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Gate out, take-off, landing, gate in: one row each with the schedule struck when it moved.
 public struct FlightTimeline: View {
+    @Environment(\.units) private var units
     var flight: Flight
     var origin: Airport?
     var destination: Airport?
@@ -75,12 +76,12 @@ public struct FlightTimeline: View {
         let moved = step.scheduled != nil && best != nil && abs(best!.timeIntervalSince(step.scheduled!)) >= 60
         VStack(alignment: .trailing, spacing: 1) {
             if let s = step.scheduled {
-                Text(Format.clock(s, step.tz))
+                Text(Format.clock(s, step.tz, units.clock))
                     .strikethrough(moved, color: Theme.secondary)
                     .foregroundStyle(moved ? Theme.secondary : Theme.primary)
             }
             if let best, moved || step.scheduled == nil {
-                Text(Format.clock(best, step.tz))
+                Text(Format.clock(best, step.tz, units.clock))
                     .foregroundStyle(moved ? DelayLevel.for(delay: .seconds(best.timeIntervalSince(step.scheduled!)), status: flight.status).color : Theme.primary)
             }
             if step.scheduled == nil && best == nil {
@@ -96,6 +97,7 @@ public struct FlightTimeline: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         VStack(alignment: .leading, spacing: 30) {
@@ -108,3 +110,4 @@ public struct FlightTimeline: View {
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }
+#endif

@@ -258,13 +258,14 @@ struct GatesGrid: View {
 struct AircraftRow: View {
     var type: String?
     var registration: String?
+    @ScaledMetric(relativeTo: .body) private var icon = 40
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: "airplane")
                 .scaledFont(18, weight: .semibold)
                 .foregroundStyle(Theme.primary)
-                .frame(width: 40, height: 40)
+                .frame(width: icon, height: icon)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
@@ -292,6 +293,7 @@ struct AirportLinkRow: View {
     var iata: String?
     var tag: String?
     var action: () -> Void
+    @ScaledMetric(relativeTo: .body) private var badge = 40
 
     var body: some View {
         Button(action: action) {
@@ -299,7 +301,7 @@ struct AirportLinkRow: View {
                 Text(airport?.iata ?? iata ?? code)
                     .scaledFont(15, weight: .bold)
                     .foregroundStyle(Theme.primary)
-                    .frame(width: 40, height: 40)
+                    .frame(width: badge, height: badge)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
@@ -334,6 +336,7 @@ struct AirportLinkRow: View {
 
 /// One change seen on the flight, newest first.
 struct EventRow: View {
+    @Environment(\.units) private var units
     var event: FlightEvent
     var timeZone: TimeZone
 
@@ -347,7 +350,7 @@ struct EventRow: View {
                     .accessibilityHidden(true)
                 Text(text).scaledFont(15).foregroundStyle(Theme.primary)
                 Spacer(minLength: 8)
-                Text(Format.clock(event.receivedAt, timeZone))
+                Text(Format.clock(event.receivedAt, timeZone, units.clock))
                     .scaledFont(14)
                     .monospacedDigit()
                     .foregroundStyle(Theme.secondary)
@@ -382,13 +385,14 @@ enum DetailFacts {
         case .canceled, .diverted, .unknown: return nil
         case .landed, .arrived:
             guard let at = f.actualIn ?? f.actualOn else { return nil }
-            return "Landed \(ScreenFormat.span(now.timeIntervalSince(at))) ago"
+            let since = now.timeIntervalSince(at)
+            return since < 60 ? "Landed just now" : "Landed \(ScreenFormat.span(since)) ago"
         case .departed, .enRoute:
             guard let end = f.actualIn ?? f.estimatedIn ?? f.scheduledIn, end > now else { return nil }
-            return "Arrives in \(ScreenFormat.span(end.timeIntervalSince(now)))"
+            return "Arrives in \(ScreenFormat.span(end.timeIntervalSince(now), floor: "under a minute"))"
         case .scheduled:
             guard let out = f.actualOut ?? f.estimatedOut ?? f.scheduledOut, out > now else { return nil }
-            return "Leaves the gate in \(ScreenFormat.span(out.timeIntervalSince(now)))"
+            return "Leaves the gate in \(ScreenFormat.span(out.timeIntervalSince(now), floor: "under a minute"))"
         }
     }
 
@@ -417,6 +421,7 @@ enum DetailFacts {
     }
 }
 
+#if DEBUG
 // MARK: - Previews
 
 /// Loads a detail store from the seed at the seed's own clock.
@@ -465,3 +470,4 @@ struct FlightDetailPreview: View {
 #Preview("Error, data kept") { FlightDetailPreview(mode: .error).preferredColorScheme(.dark) }
 #Preview("Stale") { FlightDetailPreview(mode: .stale).preferredColorScheme(.dark) }
 #Preview("Failed, nothing to show") { FlightDetailPreview(mode: .failed).preferredColorScheme(.light) }
+#endif

@@ -1,20 +1,38 @@
 import SwiftUI
 
 /// Account, units, alerts, privacy, data export, account deletion and about, as a grouped list
-/// of icon rows. Export and deletion are wired in Task 12.
+/// of icon rows. A row whose action the shell has not supplied is not drawn, so nothing taps to
+/// no effect: export and account deletion appear once Task 12 passes their closures.
 public struct SettingsView: View {
     var session: SessionStore
     @Binding var units: Units
+    var onSignIn: (() -> Void)?
+    var onExport: ((ExportFormat) -> Void)?
+    var onDeleteAccount: (() -> Void)?
     var scrolls: Bool
 
     @Environment(\.openURL) private var openURL
+    @State private var confirming: Confirmation?
 
-    public init(session: SessionStore, units: Binding<Units>) {
-        self.init(session: session, units: units, scrolls: true)
+    private enum Confirmation: Identifiable {
+        case signOut, deleteAccount
+        var id: Self { self }
     }
 
-    init(session: SessionStore, units: Binding<Units>, scrolls: Bool) {
-        self.session = session; self._units = units; self.scrolls = scrolls
+    /// - Parameters:
+    ///   - onSignIn: shows the sign-in screen from the signed-out account row; nil hides the button.
+    ///   - onExport: starts a history export in the chosen format; nil hides the export rows.
+    ///   - onDeleteAccount: runs after the user confirms deleting the account; nil hides the row.
+    public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
+                onExport: ((ExportFormat) -> Void)? = nil, onDeleteAccount: (() -> Void)? = nil) {
+        self.init(session: session, units: units, onSignIn: onSignIn, onExport: onExport,
+                  onDeleteAccount: onDeleteAccount, scrolls: true)
+    }
+
+    init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
+         onExport: ((ExportFormat) -> Void)? = nil, onDeleteAccount: (() -> Void)? = nil, scrolls: Bool) {
+        self.session = session; self._units = units; self.onSignIn = onSignIn; self.onExport = onExport
+        self.onDeleteAccount = onDeleteAccount; self.scrolls = scrolls
     }
 
     static let privacyURL = URL(string: "https://somalabs.me/privacy")!
@@ -38,7 +56,7 @@ public struct SettingsView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 12)
             }
-            AccountRow(session: session.session)
+            AccountRow(session: session.session, onSignIn: onSignIn)
             Hairline()
 
             group("Units") {
@@ -58,17 +76,23 @@ public struct SettingsView: View {
                 SettingsRow(icon: "lock.shield.fill", title: "What We Keep",
                             subtitle: "Flights you follow and your flight history, nothing else", last: true) { EmptyView() }
             }
-            group("Your Data") {
-                SettingsRow(icon: "curlybraces", title: "Export History as JSON", action: {}) { RowChevron() }
-                SettingsRow(icon: "tablecells.fill", title: "Export History as CSV", last: true, action: {}) { RowChevron() }
-            }
-            group("Account") {
-                if session.session != nil {
-                    SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out",
-                                action: { Task { await session.signOut() } }) { EmptyView() }
+            if let onExport {
+                group("Your Data") {
+                    SettingsRow(icon: "curlybraces", title: "Export History as JSON", action: { onExport(.json) }) { RowChevron() }
+                    SettingsRow(icon: "tablecells.fill", title: "Export History as CSV", last: true,
+                                action: { onExport(.csv) }) { RowChevron() }
                 }
-                SettingsRow(icon: "trash.fill", title: "Delete Account", tint: Theme.veryLate, last: true, action: {}) {
-                    EmptyView()
+            }
+            if session.session != nil || onDeleteAccount != nil {
+                group("Account") {
+                    if session.session != nil {
+                        SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out",
+                                    last: onDeleteAccount == nil, action: { confirming = .signOut }) { EmptyView() }
+                    }
+                    if onDeleteAccount != nil {
+                        SettingsRow(icon: "trash.fill", title: "Delete Account", tint: Theme.veryLate, last: true,
+                                    action: { confirming = .deleteAccount }) { EmptyView() }
+                    }
                 }
             }
             group("About") {
@@ -81,6 +105,22 @@ public struct SettingsView: View {
             }
         }
         .padding(.bottom, 32)
+        .confirmationDialog(confirming == .deleteAccount ? "Delete your account?" : "Sign out?",
+                            isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+                            titleVisibility: .visible, presenting: confirming) { action in
+            switch action {
+            case .signOut:
+                Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
+            case .deleteAccount:
+                Button("Delete Account", role: .destructive) { onDeleteAccount?() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { action in
+            switch action {
+            case .signOut: Text("Flights you follow stay on your account. The saved copy on this device is cleared.")
+            case .deleteAccount: Text("This removes your account, the flights you follow and your history. It can't be undone.")
+            }
+        }
     }
 
     private static var version: String {
@@ -116,26 +156,38 @@ public struct SettingsView: View {
 /// Plan badge and the signed-in account.
 struct AccountRow: View {
     var session: UserSession?
+    var onSignIn: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 14) {
             let pro = session?.plan == .pro
-            Text(pro ? "PRO" : "FREE")
-                .scaledFont(13, weight: .bold)
-                .foregroundStyle(Theme.diverted)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.diverted.opacity(0.18)))
+            if session != nil {
+                Text(pro ? "PRO" : "FREE")
+                    .scaledFont(13, weight: .bold)
+                    .foregroundStyle(Theme.diverted)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.diverted.opacity(0.18)))
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(pro ? "Soma Flight Pro" : "Soma Flight Free")
+                Text(session == nil ? "Not signed in" : pro ? "Soma Flight Pro" : "Soma Flight Free")
                     .scaledFont(19, weight: .semibold)
                     .foregroundStyle(Theme.diverted)
                 Text(detail)
                     .scaledFont(15)
                     .foregroundStyle(Theme.diverted.opacity(0.75))
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer(minLength: 0)
+            if session == nil, let onSignIn {
+                Button("Sign In", action: onSignIn)
+                    .scaledFont(15, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Theme.accent))
+                    .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 18)
@@ -143,7 +195,7 @@ struct AccountRow: View {
     }
 
     private var detail: String {
-        guard let session else { return "Not signed in" }
+        guard let session else { return "Sign in to keep your flights on every device" }
         return session.email ?? "Signed in with Apple"
     }
 }
@@ -192,41 +244,42 @@ struct SettingsRow<Accessory: View>: View {
     }
 }
 
+#if DEBUG
 // MARK: - Previews
 
 struct SettingsPreview: View {
     var plan: Plan? = .free
     var failDelete = false
+    var full = false
     @State private var units = Units()
     @State private var session: SessionStore?
 
     var body: some View {
         Group {
             if let session {
-                SettingsView(session: session, units: $units)
+                if full {
+                    SettingsView(session: session, units: $units, onSignIn: {}, onExport: { _ in }, onDeleteAccount: {})
+                } else {
+                    SettingsView(session: session, units: $units, onSignIn: {})
+                }
             } else {
                 ProgressView()
             }
         }
-        .task { session = await Self.makeSession(plan: plan, failDelete: failDelete) }
+        .task { session = Self.makeSession(plan: plan, failDelete: failDelete) }
     }
 
-    static func makeSession(plan: Plan?, failDelete: Bool) async -> SessionStore {
-        let auth = FakeAuthService(plan: plan ?? .free)
-        let s = SessionStore(auth: auth)
-        s.start()
-        if plan != nil { try? await auth.signInWithEmail("quentin@somalabs.me") }
-        if failDelete {
-            await auth.setNextError(.providerUnavailable)
-            await s.deleteAccount()
-        }
-        var tries = 0
-        while (s.session == nil) == (plan != nil), tries < 200 { await Task.yield(); tries += 1 }
+    @MainActor static func makeSession(plan: Plan?, failDelete: Bool) -> SessionStore {
+        let s = SessionStore(auth: FakeAuthService(plan: plan ?? .free))
+        let user = plan.map { UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!,
+                                           email: "quentin@somalabs.me", plan: $0) }
+        s.seed(session: user, error: failDelete ? .providerUnavailable : nil)
         return s
     }
 }
 
 #Preview("Free, dark") { SettingsPreview().preferredColorScheme(.dark) }
-#Preview("Pro, light") { SettingsPreview(plan: .pro).preferredColorScheme(.light) }
+#Preview("Pro, light, all rows") { SettingsPreview(plan: .pro, full: true).preferredColorScheme(.light) }
 #Preview("Signed out") { SettingsPreview(plan: nil).preferredColorScheme(.dark) }
-#Preview("Delete failed") { SettingsPreview(failDelete: true).preferredColorScheme(.dark) }
+#Preview("Delete failed") { SettingsPreview(failDelete: true, full: true).preferredColorScheme(.dark) }
+#endif

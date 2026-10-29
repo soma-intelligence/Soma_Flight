@@ -2,7 +2,12 @@ import SwiftUI
 
 /// The home sheet: followed flights as cards, in the air first, then the ones still to come,
 /// then the finished, canceled and diverted ones until they are removed. Offline it shows the
-/// last saved list with its age. With nothing followed it invites a search.
+/// last saved list with its age, and online it flags a list older than the TTL. With nothing followed
+/// it invites a search; before the first load finishes it shows a spinner, and after a failed load with
+/// nothing saved it shows only the error banner with its retry.
+///
+/// The shell owns loading: call `store.load()` and `store.startUpdates()` when it appears (the view
+/// itself only reloads on pull to refresh and on the banner's retry).
 public struct MyFlightsView: View {
     var store: MyFlightsStore
     var onSelect: (Flight) -> Void
@@ -36,7 +41,7 @@ public struct MyFlightsView: View {
                     .padding(.horizontal, Theme.gutter)
                     .padding(.top, 22)
                     .padding(.bottom, 12)
-                ScreenScroll(scrolls: scrolls) { content(now: now) }
+                ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
         .background(Theme.background)
@@ -55,18 +60,29 @@ public struct MyFlightsView: View {
             if store.isOffline {
                 ErrorBanner(error: .offline, retry: reload)
                     .padding(.bottom, 10)
-                if let updated = store.lastUpdated, !groups.isEmpty {
+                if let updated = store.fetchedAt ?? store.lastUpdated, !groups.isEmpty {
                     StaleBadge(fetchedAt: updated, ttl: Self.ttl, now: now)
                         .padding(.bottom, 14)
                 }
-            } else if let error = store.error {
-                ErrorBanner(error: error, retry: reload)
-                    .padding(.bottom, 14)
+            } else {
+                if let error = store.error {
+                    ErrorBanner(error: error, retry: reload)
+                        .padding(.bottom, 14)
+                }
+                if !groups.isEmpty {
+                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now, bottom: 14)
+                }
             }
             if groups.isEmpty {
-                EmptyFlights(onSearch: onSearch)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 200)
+                if !store.hasLoaded {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .accessibilityLabel("Loading your flights")
+                } else if store.error == nil {
+                    EmptyFlights(onSearch: onSearch)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 200)
+                }
             } else {
                 ForEach(groups, id: \.title) { group in
                     CapsHeader(group.title, trailing: group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights")
@@ -128,11 +144,12 @@ struct EmptyFlights: View {
     }
 }
 
+#if DEBUG
 // MARK: - Previews
 
 /// Loads a My Flights store from the seed at the seed's own clock.
 struct MyFlightsPreview: View {
-    enum Mode { case full, empty, error, offline, offlineEmpty }
+    enum Mode { case full, empty, error, offline, offlineEmpty, stale, loading }
     var state: Mode = .full
     @State private var store: MyFlightsStore?
 
@@ -171,6 +188,13 @@ struct MyFlightsPreview: View {
             await svc.setNextError(.offline)
             await s.load()
             return s
+        case .stale:
+            let s = MyFlightsStore(flights: svc)
+            await s.load()
+            s.fetchedAt = PreviewData.now.addingTimeInterval(-25 * 60)
+            return s
+        case .loading:
+            return MyFlightsStore(flights: svc)
         case .offlineEmpty:
             let s = MyFlightsStore(flights: svc, cache: EmptyPreviewCache())
             await svc.setNextError(.offline)
@@ -200,6 +224,15 @@ struct MyFlightsPreview: View {
     MyFlightsPreview(state: .offline).preferredColorScheme(.dark)
 }
 
+#Preview("Online, list stale") {
+    MyFlightsPreview(state: .stale).preferredColorScheme(.dark)
+}
+
+#Preview("Loading") {
+    MyFlightsPreview(state: .loading).preferredColorScheme(.dark)
+}
+
 #Preview("Offline, nothing saved") {
     MyFlightsPreview(state: .offlineEmpty).preferredColorScheme(.light)
 }
+#endif

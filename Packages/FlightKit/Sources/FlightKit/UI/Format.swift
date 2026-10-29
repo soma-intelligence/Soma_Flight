@@ -2,12 +2,14 @@ import Foundation
 
 /// Small display formatters shared by the components.
 enum Format {
-    /// "18:25" in `tz`.
-    static func clock(_ date: Date, _ tz: TimeZone) -> String {
+    /// "18:25" in `tz`, or "6:25 PM" for `.h12`. Screens pass `Units.clock` from the environment.
+    static func clock(_ date: Date, _ tz: TimeZone, _ style: TimeStyle = .h24) -> String {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = tz
         let c = cal.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+        let h = c.hour ?? 0, m = c.minute ?? 0
+        guard style == .h12 else { return String(format: "%02d:%02d", h, m) }
+        return String(format: "%d:%02d %@", h % 12 == 0 ? 12 : h % 12, m, h < 12 ? "AM" : "PM")
     }
 
     /// "2h 37m", "50m", "2h".

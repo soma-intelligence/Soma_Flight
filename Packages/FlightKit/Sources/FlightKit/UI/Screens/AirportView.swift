@@ -215,6 +215,7 @@ struct AirportSections: View {
     }
 }
 
+#if DEBUG
 // MARK: - Previews
 
 #Preview("Austin, dark") {
@@ -265,3 +266,4 @@ struct AirportPreview: View {
         }
     }
 }
+#endif

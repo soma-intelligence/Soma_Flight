@@ -31,6 +31,13 @@ public final class SessionStore {
         }
     }
 
+    #if DEBUG
+    /// Previews and snapshots: sets the state a screen shows without running the auth flow.
+    func seed(session: UserSession? = nil, error: APIError? = nil) {
+        self.session = session; self.error = error
+    }
+    #endif
+
     public func signOut() async {
         await auth.signOut()
         await onSignedOut?()

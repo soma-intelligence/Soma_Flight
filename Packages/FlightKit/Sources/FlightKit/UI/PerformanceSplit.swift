@@ -80,9 +80,11 @@ public struct PerformanceSplit: View {
     }
 }
 
+#if DEBUG
 #Preview {
     PerformanceSplit(stats: PreviewData.stats("KAUS"))
         .padding(20)
         .background(Theme.background)
         .preferredColorScheme(.dark)
 }
+#endif

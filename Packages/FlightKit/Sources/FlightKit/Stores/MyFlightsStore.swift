@@ -25,6 +25,12 @@ public final class MyFlightsStore {
     public private(set) var error: APIError?
     public private(set) var lastUpdated: Date?
     public private(set) var isOffline = false
+    /// True once a `load()` has finished, whatever its outcome. Screens show a spinner, not the empty
+    /// invitation, until then; an empty list with `error` set is a failure, not an empty account.
+    public private(set) var hasLoaded = false
+    /// When the list was last confirmed: now after a successful load or pushed update, the cache's save
+    /// time while offline. Unlike `lastUpdated` (newest flight change) it measures how fresh the whole list is.
+    public internal(set) var fetchedAt: Date?
     private var all: [Flight.ID: Flight] = [:]
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var unfollowedDuringLoad: Set<Flight.ID> = []
@@ -66,19 +72,22 @@ public final class MyFlightsStore {
             }
             all = merged
             lastUpdated = merged.values.map(\.updatedAt).max()
-            error = nil; isOffline = false
+            fetchedAt = Date.now
+            error = nil; isOffline = false; hasLoaded = true
             if updatesTask != nil, Set(all.keys) != subscribed { subscribe() }
             await cache?.save(flights: Array(merged.values))
         } catch {
             guard gen == loadGeneration else { return }
             self.error = error
             isOffline = error == .offline
+            hasLoaded = true
             if isOffline, all.isEmpty, let cache {
                 let cached = await cache.flights()
                 let savedAt = await cache.flightsSavedAt()
                 guard gen == loadGeneration, all.isEmpty else { return }
                 all = Dictionary(cached.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
                 lastUpdated = savedAt ?? cached.map(\.updatedAt).max()
+                fetchedAt = savedAt
             }
         }
     }
@@ -105,6 +114,7 @@ public final class MyFlightsStore {
         guard let cur = all[f.id], f.updatedAt >= cur.updatedAt else { return }
         all[f.id] = f
         lastUpdated = max(lastUpdated ?? f.updatedAt, f.updatedAt)
+        fetchedAt = Date.now
     }
 
     public func unfollow(_ flight: Flight) async {

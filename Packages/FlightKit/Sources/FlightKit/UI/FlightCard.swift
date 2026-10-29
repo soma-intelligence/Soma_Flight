@@ -3,6 +3,7 @@ import SwiftUI
 /// A followed flight at a glance: number and status, the two airports with their best times,
 /// and a progress line with the plane where it is now.
 public struct FlightCard: View {
+    @Environment(\.units) private var units
     var flight: Flight
     var origin: Airport?
     var destination: Airport?
@@ -88,12 +89,12 @@ public struct FlightCard: View {
                 .lineLimit(1)
             HStack(spacing: 6) {
                 if let scheduled {
-                    Text(Format.clock(scheduled, zone))
+                    Text(Format.clock(scheduled, zone, units.clock))
                         .strikethrough(changed, color: Theme.secondary)
                         .foregroundStyle(changed ? Theme.secondary : Theme.primary)
                 }
                 if changed, let best {
-                    Text(Format.clock(best, zone)).foregroundStyle(level == .onTime ? Theme.onTime : level.color)
+                    Text(Format.clock(best, zone, units.clock)).foregroundStyle(level == .onTime ? Theme.onTime : level.color)
                 }
             }
             .scaledFont(17, weight: .medium)
@@ -127,6 +128,7 @@ struct ProgressLine: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         VStack(spacing: 12) {
@@ -141,3 +143,4 @@ struct ProgressLine: View {
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }
+#endif

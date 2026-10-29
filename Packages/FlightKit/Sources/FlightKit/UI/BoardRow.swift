@@ -3,6 +3,7 @@ import SwiftUI
 /// One line of a departures or arrivals board: struck schedule over the real time, the other
 /// end's city with a coloured status, and the flight number with gate (or belt) on the right.
 public struct BoardRow: View {
+    @Environment(\.units) private var units
     var flight: Flight
     var kind: BoardKind
     var airport: Airport?
@@ -97,13 +98,13 @@ public struct BoardRow: View {
         let changed = scheduled != nil && best != nil && abs(best!.timeIntervalSince(scheduled!)) >= 60
         VStack(alignment: .leading, spacing: 2) {
             if let scheduled {
-                Text(Format.clock(scheduled, timeZone))
+                Text(Format.clock(scheduled, timeZone, units.clock))
                     .scaledFont(16.5, weight: .medium)
                     .strikethrough(changed || level == .canceled, color: Theme.secondary)
                     .foregroundStyle(changed || level == .canceled ? Theme.secondary : Theme.primary)
             }
             if changed, let best, level != .canceled {
-                Text(Format.clock(best, timeZone))
+                Text(Format.clock(best, timeZone, units.clock))
                     .scaledFont(15.5, weight: .medium)
                     .foregroundStyle(level == .onTime ? Theme.onTime : level.color)
             }
@@ -111,6 +112,7 @@ public struct BoardRow: View {
     }
 }
 
+#if DEBUG
 #Preview("Departures") {
     let board = PreviewData.board("KAUS", .departures)
     ScrollView {
@@ -129,3 +131,4 @@ public struct BoardRow: View {
     BoardRow(flight: PreviewData.sparse, kind: .departures, airport: nil)
         .preferredColorScheme(.dark)
 }
+#endif

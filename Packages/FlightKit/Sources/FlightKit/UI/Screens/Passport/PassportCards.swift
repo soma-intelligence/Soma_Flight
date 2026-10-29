@@ -24,7 +24,7 @@ struct YearChips: View {
                 .monospacedDigit()
                 .foregroundStyle(on ? Theme.primary : Theme.secondary)
                 .padding(.horizontal, 15)
-                .frame(height: 38)
+                .frame(minHeight: 38)
                 .background(Capsule().fill(on ? Theme.pill : .clear))
                 .overlay(Capsule().strokeBorder(on ? Theme.primary.opacity(0.08) : .clear, lineWidth: 1))
                 .contentShape(Capsule())
@@ -58,21 +58,28 @@ struct PassportCard: View {
             .foregroundStyle(Self.soft)
             .padding(.top, 3)
 
-            HStack(alignment: .top, spacing: 0) {
-                stat("Flights", "\(stats.flights)", big: true,
-                     caption: stats.longHaul > 0 ? "\(stats.longHaul) Long Haul" : nil)
-                    .frame(width: 112, alignment: .leading)
-                stat("Distance", TravelFacts.distance(stats.distanceKm, units.distance), big: true,
-                     caption: stats.distanceKm > 0 ? TravelFacts.aroundTheWorld(stats.distanceKm) : nil)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 0) {
+                    flightsStat.frame(minWidth: 112, alignment: .leading)
+                    distanceStat
+                }
+                VStack(alignment: .leading, spacing: 12) { flightsStat; distanceStat }
             }
             .padding(.top, 20)
-            HStack(alignment: .top, spacing: 0) {
-                stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
-                    .frame(width: 112, alignment: .leading)
-                stat("Airports", "\(stats.airports)")
-                    .frame(width: 84, alignment: .leading)
-                stat("Airlines", "\(stats.airlines)")
-                Spacer(minLength: 0)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 0) {
+                    stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
+                        .frame(minWidth: 112, alignment: .leading)
+                    stat("Airports", "\(stats.airports)")
+                        .frame(minWidth: 84, alignment: .leading)
+                    stat("Airlines", "\(stats.airlines)")
+                    Spacer(minLength: 0)
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    stat("Flight Time", TravelFacts.flightTime(stats.flightTime))
+                    stat("Airports", "\(stats.airports)")
+                    stat("Airlines", "\(stats.airlines)")
+                }
             }
             .padding(.top, 12)
         }
@@ -85,6 +92,15 @@ struct PassportCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.12), lineWidth: 1))
         .accessibilityElement(children: .combine)
+    }
+
+    private var flightsStat: some View {
+        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) Long Haul" : nil)
+    }
+
+    private var distanceStat: some View {
+        stat("Distance", TravelFacts.distance(stats.distanceKm, units.distance), big: true,
+             caption: stats.distanceKm > 0 ? TravelFacts.aroundTheWorld(stats.distanceKm) : nil)
     }
 
     private var subtitle: String {
@@ -226,7 +242,7 @@ struct PastFlightsSection: View {
                                 .scaledFont(15, weight: sort == s ? .semibold : .medium)
                                 .foregroundStyle(sort == s ? Theme.primary : Theme.secondary)
                                 .padding(.horizontal, 13)
-                                .frame(height: 32)
+                                .frame(minHeight: 32)
                                 .background(Capsule().fill(sort == s ? Theme.pill : .clear))
                                 .contentShape(Capsule())
                         }

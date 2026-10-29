@@ -3,6 +3,7 @@ import SwiftUI
 /// Code chips (IATA, ICAO, local time), the airport name and flag with city and country.
 /// The close button belongs to the sheet shell, so the trailing edge is left free for it.
 struct AirportHeader: View {
+    @Environment(\.units) private var units
     var airport: Airport?
     var code: String
     var now: Date
@@ -37,7 +38,7 @@ struct AirportHeader: View {
     }
 
     private func localTime(_ tz: TimeZone) -> String {
-        "\(Format.clock(now, tz)) \(tz.abbreviation(for: now) ?? "")"
+        "\(Format.clock(now, tz, units.clock)) \(tz.abbreviation(for: now) ?? "")"
     }
 
     private func chip(_ text: String) -> some View {

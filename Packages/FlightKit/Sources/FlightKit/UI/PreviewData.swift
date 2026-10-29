@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// Seed-backed samples for `#Preview`s and snapshot tests. Times stay at the seed's own "now".
@@ -26,3 +27,4 @@ enum PreviewData {
     static var diverted: Flight { followed.first { $0.status == .diverted }! }
     static var kaus: Airport { airport("KAUS")! }
 }
+#endif

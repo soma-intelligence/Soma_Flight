@@ -158,6 +158,7 @@ public struct DelayChart: View {
     }
 }
 
+#if DEBUG
 #Preview {
     VStack(alignment: .leading, spacing: 12) {
         SectionHeader("Departures per hour")
@@ -167,6 +168,7 @@ public struct DelayChart: View {
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }
+#endif
 
 extension DelayChart {
     /// "Busiest hour 8 AM with 3 flights. 40 percent on time, 44 percent late, 16 percent canceled."

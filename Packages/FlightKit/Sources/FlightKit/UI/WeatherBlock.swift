@@ -391,6 +391,7 @@ extension FlightCategory {
     }
 }
 
+#if DEBUG
 #Preview {
     ScrollView {
         VStack(alignment: .leading, spacing: 18) {
@@ -402,3 +403,4 @@ extension FlightCategory {
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }
+#endif

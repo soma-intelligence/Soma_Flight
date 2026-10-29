@@ -117,7 +117,7 @@ struct RootTabView: View {
         .interactiveDismissDisabled()
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
         .sheet(isPresented: $showSearch) {
-            SearchSheet(env: env, onFollowed: { _ in Task { await myFlights.load() } })
+            SearchSheet(env: env, followedIDs: Set(followed.map(\.id)), onFollowed: { _ in Task { await myFlights.load() } })
                 .environment(\.units, units)
         }
         .sheet(isPresented: $showSettings) {
@@ -268,16 +268,17 @@ private struct AirportScreen: View {
 private struct SearchSheet: View {
     @State private var store: SearchStore
     var lookup: (String) -> Airport?
+    var followedIDs: Set<Flight.ID>
     var onFollowed: (Flight) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(env: AppEnvironment, onFollowed: @escaping (Flight) -> Void) {
+    init(env: AppEnvironment, followedIDs: Set<Flight.ID>, onFollowed: @escaping (Flight) -> Void) {
         _store = State(initialValue: env.makeSearchStore())
-        self.lookup = env.lookup; self.onFollowed = onFollowed
+        self.lookup = env.lookup; self.followedIDs = followedIDs; self.onFollowed = onFollowed
     }
 
     var body: some View {
-        SearchView(store: store, onFollowed: onFollowed, lookup: lookup)
+        SearchView(store: store, onFollowed: onFollowed, lookup: lookup, followedIDs: followedIDs)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)

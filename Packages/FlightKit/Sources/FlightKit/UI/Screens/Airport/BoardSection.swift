@@ -3,6 +3,7 @@ import SwiftUI
 /// Departures or arrivals board: filters (day, far end, airline), flights per hour for the
 /// filtered set, then the rows with a "now" divider at the current local time.
 struct BoardSection: View {
+    @Environment(\.units) private var units
     var departures: AirportBoard?
     var arrivals: AirportBoard?
     var timeZone: TimeZone
@@ -128,14 +129,15 @@ struct BoardSection: View {
 
     private var nowRow: some View {
         HStack {
-            Text("\(Format.clock(now, timeZone))  LOCAL TIME")
+            Text("\(Format.clock(now, timeZone, units.clock))  LOCAL TIME")
             Spacer()
             Text("NOW")
         }
         .scaledFont(11.5, weight: .medium)
         .foregroundStyle(Theme.secondary)
         .padding(.horizontal, 20)
-        .frame(height: 24)
+        .padding(.vertical, 3)
+        .frame(minHeight: 24)
         .background(Theme.background)
         .overlay(alignment: .top) { Rectangle().fill(Theme.separator).frame(height: 1) }
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.separator).frame(height: 1) }

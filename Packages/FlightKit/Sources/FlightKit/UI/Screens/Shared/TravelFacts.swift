@@ -7,18 +7,17 @@ enum TravelFacts {
     // MARK: Aircraft
 
     /// Marketing name for common ICAO type designators; the designator itself otherwise.
-    static func aircraftName(_ type: String) -> String {
-        let names: [String: String] = [
-            "A20N": "Airbus A320neo", "A21N": "Airbus A321neo", "A220": "Airbus A220", "BCS3": "Airbus A220-300",
-            "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321", "A332": "Airbus A330-200",
-            "A333": "Airbus A330-300", "A339": "Airbus A330-900", "A359": "Airbus A350-900", "A35K": "Airbus A350-1000",
-            "A388": "Airbus A380", "B737": "Boeing 737-700", "B738": "Boeing 737-800", "B739": "Boeing 737-900",
-            "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B752": "Boeing 757-200", "B763": "Boeing 767-300",
-            "B772": "Boeing 777-200", "B77W": "Boeing 777-300ER", "B788": "Boeing 787-8", "B789": "Boeing 787-9",
-            "B78X": "Boeing 787-10", "E175": "Embraer 175", "E190": "Embraer 190", "CRJ9": "Bombardier CRJ900",
-        ]
-        return names[type] ?? type
-    }
+    static func aircraftName(_ type: String) -> String { aircraftNames[type] ?? type }
+
+    private static let aircraftNames: [String: String] = [
+        "A20N": "Airbus A320neo", "A21N": "Airbus A321neo", "A220": "Airbus A220", "BCS3": "Airbus A220-300",
+        "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321", "A332": "Airbus A330-200",
+        "A333": "Airbus A330-300", "A339": "Airbus A330-900", "A359": "Airbus A350-900", "A35K": "Airbus A350-1000",
+        "A388": "Airbus A380", "B737": "Boeing 737-700", "B738": "Boeing 737-800", "B739": "Boeing 737-900",
+        "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B752": "Boeing 757-200", "B763": "Boeing 767-300",
+        "B772": "Boeing 777-200", "B77W": "Boeing 777-300ER", "B788": "Boeing 787-8", "B789": "Boeing 787-9",
+        "B78X": "Boeing 787-10", "E175": "Embraer 175", "E190": "Embraer 190", "CRJ9": "Bombardier CRJ900",
+    ]
 
     // MARK: Airlines
 
@@ -112,7 +111,8 @@ enum TravelFacts {
             case .date: String(f.localYear)
             case .from: city(f.originIcao)
             case .to: city(f.destinationIcao)
-            case .airline: f.airline ?? airlineCode(ident: f.ident)
+            // The code, so "UA" and "United" rows for one carrier land in one group.
+            case .airline: airlineCode(ident: f.ident)
             case .aircraft: f.aircraftType.map(aircraftName) ?? "Unknown aircraft"
             }
         }
@@ -123,7 +123,12 @@ enum TravelFacts {
             if buckets[k] == nil { order.append(k) }
             buckets[k, default: []].append(f)
         }
-        var out = order.map { Group(title: $0, flights: buckets[$0]!) }
+        var out: [Group] = order.compactMap { k in
+            guard let list = buckets[k] else { return nil }
+            // Airline groups show the carrier's name when any row carries it, else the code.
+            let title = sort == .airline ? (list.lazy.compactMap(\.airline).first ?? k) : k
+            return Group(title: title, flights: list)
+        }
         if sort != .date {
             out.sort { ($0.flights.count, $1.title) > ($1.flights.count, $0.title) }
         }

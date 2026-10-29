@@ -7,6 +7,7 @@ public struct SearchView: View {
     @Bindable var store: SearchStore
     var onFollowed: (Flight) -> Void
     var lookup: (String) -> Airport?
+    var followedIDs: Set<Flight.ID>
     var scrolls: Bool
 
     @State private var followed: Set<Flight.ID> = []
@@ -14,15 +15,18 @@ public struct SearchView: View {
     @FocusState private var focused: Bool
     @Environment(\.airportStaticControls) private var staticControls
 
-    /// - Parameter lookup: airport by ICAO or IATA, for city names and local times in the results.
+    /// - Parameters:
+    ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
+    ///   - followedIDs: flights already followed, which show "Following" instead of a second Follow.
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
-                lookup: @escaping (String) -> Airport? = { _ in nil }) {
-        self.init(store: store, onFollowed: onFollowed, lookup: lookup, scrolls: true)
+                lookup: @escaping (String) -> Airport? = { _ in nil }, followedIDs: Set<Flight.ID> = []) {
+        self.init(store: store, onFollowed: onFollowed, lookup: lookup, followedIDs: followedIDs, scrolls: true)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
-         scrolls: Bool) {
-        self.store = store; self.onFollowed = onFollowed; self.lookup = lookup; self.scrolls = scrolls
+         followedIDs: Set<Flight.ID> = [], scrolls: Bool) {
+        self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
+        self.followedIDs = followedIDs; self.scrolls = scrolls
     }
 
     public var body: some View {
@@ -63,7 +67,7 @@ public struct SearchView: View {
             }
         }
         .padding(.horizontal, 14)
-        .frame(height: 48)
+        .frame(minHeight: 48)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
     }
 
@@ -126,7 +130,7 @@ public struct SearchView: View {
     }
 
     private func followState(_ f: Flight) -> ResultRow.FollowState {
-        followed.contains(f.id) ? .following : pending.contains(f.id) ? .pending : .idle
+        followed.contains(f.id) || followedIDs.contains(f.id) ? .following : pending.contains(f.id) ? .pending : .idle
     }
 
     private var suggestions: some View {
@@ -162,8 +166,9 @@ public struct SearchView: View {
     static let routeIcon = "point.topleft.down.to.point.bottomright.curvepath"
 
     private func follow(_ flight: Flight) {
-        guard !followed.contains(flight.id), !pending.contains(flight.id) else { return }
+        guard !followed.contains(flight.id), !followedIDs.contains(flight.id), !pending.contains(flight.id) else { return }
         pending.insert(flight.id)
+        // Not cancelled when the sheet closes: the follow still lands on the server, and My Flights must hear of it.
         Task {
             let ok = await store.follow(flight)
             pending.remove(flight.id)
@@ -203,6 +208,7 @@ struct OptionRow: View {
     var title: String
     var subtitle: String?
     var action: () -> Void
+    @ScaledMetric(relativeTo: .body) private var glyph = 30
 
     var body: some View {
         Button(action: action) {
@@ -210,7 +216,7 @@ struct OptionRow: View {
                 Image(systemName: icon)
                     .scaledFont(19, weight: .medium)
                     .foregroundStyle(Theme.primary)
-                    .frame(width: 30, height: 30)
+                    .frame(width: glyph, height: glyph)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).scaledFont(17).foregroundStyle(Theme.primary)
@@ -237,6 +243,7 @@ struct ResultRow: View {
     var destination: Airport?
     var state: FollowState
     var onFollow: () -> Void
+    @Environment(\.units) private var units
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -263,8 +270,8 @@ struct ResultRow: View {
 
     private var times: String {
         let o = origin?.timeZone ?? .gmt, d = destination?.timeZone ?? .gmt
-        let out = (flight.estimatedOut ?? flight.scheduledOut).map { Format.clock($0, o) } ?? "--:--"
-        let inn = (flight.estimatedIn ?? flight.scheduledIn).map { Format.clock($0, d) } ?? "--:--"
+        let out = (flight.estimatedOut ?? flight.scheduledOut).map { Format.clock($0, o, units.clock) } ?? "--:--"
+        let inn = (flight.estimatedIn ?? flight.scheduledIn).map { Format.clock($0, d, units.clock) } ?? "--:--"
         let day = flight.scheduledOut.map { ScreenFormat.chipDay($0, o) } ?? ""
         return "\(day)  \(out) \u{2192} \(inn)"
     }
@@ -281,7 +288,8 @@ struct ResultRow: View {
             .scaledFont(14, weight: .semibold)
             .foregroundStyle(state == .following ? Theme.primary : .white)
             .padding(.horizontal, 12)
-            .frame(height: 30)
+            .padding(.vertical, 4)
+            .frame(minHeight: 30)
             .background(Capsule().fill(state == .following ? Theme.pill : Theme.accent))
         }
         .buttonStyle(.plain)
@@ -306,7 +314,7 @@ struct RouteText: View {
 struct AirlineBadge: View {
     var code: String
     var key: String
-    var size: CGFloat = 34
+    @ScaledMetric(relativeTo: .body) private var size = 34
 
     var body: some View {
         Text(code)
@@ -318,6 +326,7 @@ struct AirlineBadge: View {
     }
 }
 
+#if DEBUG
 // MARK: - Previews
 
 /// A search store from the seed, optionally searched or failing.
@@ -371,3 +380,4 @@ struct SearchPreview: View {
 #Preview("Not found") { SearchPreview(mode: .notFound).preferredColorScheme(.dark) }
 #Preview("Plan limit") { SearchPreview(mode: .planLimit).preferredColorScheme(.dark) }
 #Preview("Rate limited") { SearchPreview(mode: .rateLimited).preferredColorScheme(.light) }
+#endif

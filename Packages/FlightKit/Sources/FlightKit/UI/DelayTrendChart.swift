@@ -4,6 +4,7 @@ import SwiftUI
 /// estimated delays after now dimmed, a "Now" rule with the current value above it, and a
 /// right-hand duration axis.
 public struct DelayTrendChart: View {
+    @Environment(\.units) private var units
     var flights: [Flight]
     var kind: BoardKind
     var timeZone: TimeZone
@@ -174,6 +175,7 @@ public struct DelayTrendChart: View {
     private func hourLabel(_ d: Date) -> String { "\(calendar.component(.hour, from: d))" }
 }
 
+#if DEBUG
 #Preview {
     VStack(alignment: .leading, spacing: 18) {
         SectionHeader("Departure delays", subtitle: "Average, actual then estimated")
@@ -184,6 +186,7 @@ public struct DelayTrendChart: View {
     .background(Theme.background)
     .preferredColorScheme(.dark)
 }
+#endif
 
 extension DelayTrendChart {
     /// "Now 30 minutes on average. Worst 1h 5m at 9:00."
@@ -194,6 +197,6 @@ extension DelayTrendChart {
         }
         let current = bins.first { $0.start == nowBin }?.minutes
         let nowPart = current.map { "Now \(Format.minutes(Int($0.rounded()))) on average. " } ?? ""
-        return nowPart + "Worst \(Format.minutes(Int((worst.minutes ?? 0).rounded()))) at \(Format.clock(worst.start, timeZone))."
+        return nowPart + "Worst \(Format.minutes(Int((worst.minutes ?? 0).rounded()))) at \(Format.clock(worst.start, timeZone, units.clock))."
     }
 }

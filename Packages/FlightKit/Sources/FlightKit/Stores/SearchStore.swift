@@ -64,10 +64,12 @@ public final class SearchStore {
         defaults?.removeObject(forKey: Self.recentKey)
     }
 
+    #if DEBUG
     /// Replaces the recent list without persisting it (previews and snapshots).
     func seedRecent(_ queries: [String]) {
         recent = Array(queries.prefix(Self.recentLimit))
     }
+    #endif
 
     /// Normalised (trimmed, upper case), moved to the front, deduplicated, capped.
     private func remember(_ raw: String) {

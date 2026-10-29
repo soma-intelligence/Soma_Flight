@@ -2,7 +2,10 @@ import SwiftUI
 
 /// The travel record: year chips, the passport card with lifetime or yearly totals, time lost to
 /// delays, the aircraft flown most, and every past flight, sortable. The route arcs live on the
-/// shell's globe, not here.
+/// shell's globe, not here. Pull to refresh reloads; the shell calls `store.load()` when the tab opens.
+/// Before the first load finishes it shows a spinner, and after a failed load with nothing saved only
+/// the error banner with its retry. Offline it shows the age of the saved copy, online a badge once the
+/// history is older than the TTL.
 public struct PassportView: View {
     @Bindable var store: PassportStore
     var lookup: (String) -> Airport?
@@ -37,7 +40,7 @@ public struct PassportView: View {
                     YearChips(years: store.years, selection: $store.year)
                         .padding(.bottom, 10)
                 }
-                ScreenScroll(scrolls: scrolls) { content(now: now) }
+                ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
         .background(Theme.background)
@@ -49,14 +52,25 @@ public struct PassportView: View {
         return VStack(alignment: .leading, spacing: 12) {
             if store.isOffline {
                 ErrorBanner(error: .offline, retry: reload)
-                if let saved = store.lastUpdated {
+                if let saved = store.fetchedAt ?? store.lastUpdated {
                     StaleBadge(fetchedAt: saved, ttl: Self.ttl, now: now)
                 }
-            } else if let error = store.error {
-                ErrorBanner(error: error, retry: reload)
+            } else {
+                if let error = store.error {
+                    ErrorBanner(error: error, retry: reload)
+                }
+                if !flights.isEmpty {
+                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now)
+                }
             }
             if flights.isEmpty {
-                emptyState
+                if !store.hasLoaded {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .accessibilityLabel("Loading your passport")
+                } else if store.error == nil {
+                    emptyState
+                }
             } else {
                 PassportCard(stats: stats, year: store.year, since: store.years.last, units: units)
                 DelaysCard(stats: stats)
@@ -90,11 +104,18 @@ public struct PassportView: View {
     private func reload() { Task { await store.load() } }
 }
 
+#if DEBUG
 // MARK: - Previews
+
+/// A history with nothing in it, for the empty state.
+struct EmptyHistory: HistoryService {
+    func pastFlights() async throws(APIError) -> [PastFlight] { [] }
+    func export(_ format: ExportFormat) async throws(APIError) -> Data { Data() }
+}
 
 /// A Passport store from the seed history, optionally failing or offline.
 struct PassportPreview: View {
-    enum Mode { case full, year, sparse, empty, error, offline }
+    enum Mode { case full, year, sparse, empty, failed, error, offline, stale, loading }
     var mode: Mode = .full
     @State private var store: PassportStore?
 
@@ -119,10 +140,21 @@ struct PassportPreview: View {
             if mode == .sparse { s.year = s.years.last }
             return s
         case .empty:
+            let s = PassportStore(history: EmptyHistory())
+            await s.load()
+            return s
+        case .failed:
             let s = PassportStore(history: svc, cache: EmptyPreviewCache())
             await svc.setNextError(.offline)
             await s.load()
             return s
+        case .stale:
+            let s = PassportStore(history: svc)
+            await s.load()
+            s.fetchedAt = PreviewData.now.addingTimeInterval(-2 * 86_400)
+            return s
+        case .loading:
+            return PassportStore(history: svc)
         case .error:
             let s = PassportStore(history: svc)
             await s.load()
@@ -143,5 +175,9 @@ struct PassportPreview: View {
 #Preview("One year, miles") { PassportPreview(mode: .year).environment(\.units, Units(distance: .mi)).preferredColorScheme(.dark) }
 #Preview("Sparse year") { PassportPreview(mode: .sparse).preferredColorScheme(.dark) }
 #Preview("Empty") { PassportPreview(mode: .empty).preferredColorScheme(.dark) }
+#Preview("Failed, nothing saved") { PassportPreview(mode: .failed).preferredColorScheme(.dark) }
+#Preview("Online, history stale") { PassportPreview(mode: .stale).preferredColorScheme(.dark) }
+#Preview("Loading") { PassportPreview(mode: .loading).preferredColorScheme(.dark) }
 #Preview("Error, data kept") { PassportPreview(mode: .error).preferredColorScheme(.dark) }
 #Preview("Offline, stale") { PassportPreview(mode: .offline).preferredColorScheme(.light) }
+#endif

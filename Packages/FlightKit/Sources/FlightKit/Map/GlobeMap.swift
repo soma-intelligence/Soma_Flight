@@ -145,6 +145,7 @@ public struct GlobeMap: View {
     }
 }
 
+#if DEBUG
 #Preview {
     @Previewable @State var selection: GlobeSelection?
     let byID = Dictionary(uniqueKeysWithValues: PreviewData.airports.map { ($0.id, $0) })
@@ -161,3 +162,4 @@ public struct GlobeMap: View {
     )
     .ignoresSafeArea()
 }
+#endif
