@@ -28,6 +28,8 @@ export interface Deps {
   db: SupabaseClient;
   /** Reads WEBHOOK_SECRET at request time. Undefined or empty rejects every request. */
   secret: () => string | undefined;
+  /** The secret being rotated out, accepted alongside the current one. */
+  previousSecret?: () => string | undefined;
   /** Notifies followers of a stored event. Failures are logged and never fail the webhook. */
   push: (flightId: string, eventId: string) => Promise<void>;
   now?: () => Date;
@@ -184,27 +186,58 @@ interface Plan {
   update: Row;
   changes: Record<string, { from: unknown; to: unknown }>;
   placeChanged: boolean;
-  timeChanged: boolean;
+  /** Set when this delivery moves the flight to canceled or diverted. */
+  statusTo: "canceled" | "diverted" | null;
+  /** Current delay in minutes against schedule (worst of out and in), null when unknown. */
+  delay: number | null;
 }
 
-/** What the delivery changes on the stored flight. Null payload values never wipe stored ones. */
+/** A delay event fires from this many minutes, then whenever it moves this far from the last one. */
+export const DELAY_STEP_MIN = 15;
+
+const RANK: Record<string, number> = {
+  unknown: -1,
+  scheduled: 0,
+  departed: 1,
+  en_route: 2,
+  landed: 3,
+  arrived: 4,
+};
+const ACTUAL_OF: Record<string, (typeof TIME_COLS)[number]> = {
+  estimated_out: "actual_out",
+  estimated_in: "actual_in",
+};
+
+/**
+ * What the delivery changes on the stored flight. Deliveries carry no timestamp, so ordering cannot
+ * be proven; damage from a stale one is limited instead: null never wipes, an actual time is set
+ * once, an estimate is ignored once its actual exists, status never goes backwards and canceled
+ * and diverted are sticky.
+ */
 function plan(alert: Alert, stored: Row, now: Date): Plan {
   const f = alert.flight;
   const update: Row = {};
   const changes: Plan["changes"] = {};
   let placeChanged = false;
-  let timeChanged = false;
 
   const note = (col: string, to: unknown) => {
     update[col] = to;
     changes[col] = { from: stored[col] ?? null, to };
   };
+  const have = (col: string) => update[col] ?? stored[col] ?? null;
+
   for (const col of TIME_COLS) {
     const to = f[col];
     if (typeof to !== "string" || instant(to) === null) continue;
-    if (instant(to) !== instant(stored[col])) {
-      note(col, to);
-      if (col.startsWith("estimated")) timeChanged = true;
+    if (col.startsWith("actual") && stored[col] != null) continue;
+    if (instant(to) === instant(stored[col])) continue;
+    note(col, to);
+  }
+  // An estimate for a leg that already has its actual time is stale.
+  for (const [est, act] of Object.entries(ACTUAL_OF)) {
+    if (have(act) != null && est in update) {
+      delete update[est];
+      delete changes[est];
     }
   }
   for (const [key, col] of PLACE_COLS) {
@@ -221,40 +254,70 @@ function plan(alert: Alert, stored: Row, now: Date): Plan {
     }
   }
 
-  // Status from the merged actual times plus the cancelled/diverted flags. "unknown" keeps the old one.
-  const merged = (col: (typeof TIME_COLS)[number]) =>
-    (update[col] ?? stored[col] ?? null) as string | null;
-  const probe = toFlightRow({
-    fa_flight_id: f.fa_flight_id,
-    ident: str(f.ident) ?? "",
-    cancelled: alert.event_code === "cancelled" || f.cancelled === true,
-    diverted: alert.event_code === "diverted" || f.diverted === true,
-    actual_out: merged("actual_out"),
-    actual_off: merged("actual_off"),
-    actual_on: merged("actual_on"),
-    actual_in: merged("actual_in"),
-    status: "",
-  } as unknown as AeroFlight, now);
-  if (probe.status !== "unknown" && probe.status !== stored.status) {
-    note("status", probe.status);
+  const sticky = stored.status === "canceled" || stored.status === "diverted" ||
+    stored.status === "arrived";
+  let statusTo: Plan["statusTo"] = null;
+  if (!sticky) {
+    if (alert.event_code === "cancelled" || f.cancelled === true) {
+      statusTo = "canceled";
+    } else if (alert.event_code === "diverted" || f.diverted === true) {
+      statusTo = "diverted";
+    }
   }
+  if (statusTo) {
+    note("status", statusTo);
+  } else if (!sticky) {
+    const probe = toFlightRow({
+      fa_flight_id: f.fa_flight_id,
+      ident: str(f.ident) ?? "",
+      cancelled: false,
+      diverted: false,
+      actual_out: have("actual_out"),
+      actual_off: have("actual_off"),
+      actual_on: have("actual_on"),
+      actual_in: have("actual_in"),
+      status: "",
+    } as unknown as AeroFlight, now);
+    if ((RANK[probe.status] ?? -1) > (RANK[stored.status as string] ?? -1)) {
+      note("status", probe.status);
+    }
+  }
+
+  const minutes = (sched: string, est: string, act: string) => {
+    const s = instant(have(sched));
+    const e = instant(have(act)) ?? instant(have(est));
+    return s === null || e === null ? null : Math.round((e - s) / 60000);
+  };
+  const dOut = minutes("scheduled_out", "estimated_out", "actual_out");
+  const dIn = minutes("scheduled_in", "estimated_in", "actual_in");
+  const known = [dOut, dIn].filter((d): d is number => d !== null);
+  const delay = known.length ? Math.max(...known) : null;
+
   if (Object.keys(update).length > 0) update.updated_at = now.toISOString();
-  return { update, changes, placeChanged, timeChanged };
+  return { update, changes, placeChanged, statusTo, delay };
 }
 
-function kindFor(alert: Alert, p: Plan): EventKind | null {
+function delayDue(delay: number | null, last: unknown): boolean {
+  if (delay === null) return false;
+  if (typeof last !== "number") return delay >= DELAY_STEP_MIN;
+  return Math.abs(delay - last) >= DELAY_STEP_MIN;
+}
+
+function kindFor(alert: Alert, p: Plan, stored: Row): EventKind | null {
   const fixed = FIXED_KIND[alert.event_code];
   if (fixed) return fixed;
+  if (p.statusTo === "canceled") return "cancel";
+  if (p.statusTo === "diverted") return "diversion";
   if (!DIFF_CODES.has(alert.event_code)) return null;
   if (p.placeChanged) return "gate_change";
-  if (p.timeChanged) return "delay";
+  if (delayDue(p.delay, stored.notified_delay_min)) return "delay";
   return null;
 }
 
 async function mark(
   db: SupabaseClient,
   inboxId: number,
-  patch: { processed_at?: string; error?: string },
+  patch: { processed_at?: string; error?: string; note?: string },
 ): Promise<void> {
   const { error } = await db.from("webhook_inbox").update(patch).eq(
     "id",
@@ -263,16 +326,24 @@ async function mark(
   if (error) console.error(`inbox ${inboxId} not marked: ${error.message}`);
 }
 
-async function recordCost(db: SupabaseClient, now: Date): Promise<void> {
-  const { error } = await db.rpc("increment_usage", {
-    p_day: now.toISOString().slice(0, 10),
-    p_endpoint: ALERT_USAGE_ENDPOINT,
-    p_cost: ALERT_DELIVERY_COST,
-  });
-  // The delivery itself succeeded: a counter failure is logged, never retried (it would double count).
-  if (error) console.error(`increment_usage failed: ${error.message}`);
+/** Secret check without early exit; any configured secret may match. */
+async function authorised(
+  given: string,
+  secrets: (string | undefined)[],
+): Promise<boolean> {
+  let ok = false;
+  for (const s of secrets.length ? secrets : [undefined]) {
+    const match = await secretMatches(given, s ?? "");
+    if (s && match) ok = true;
+  }
+  return ok;
 }
 
+/**
+ * Replay rule for webhook_inbox: a row needs replay when error is not null and processed_at is
+ * null (a failed attempt). Malformed or wrong-shape bodies carry an error and processed_at, since
+ * a replay cannot fix them. Remarks that are not failures go in note.
+ */
 export async function handler(req: Request, deps: Deps): Promise<Response> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
@@ -281,11 +352,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (req.method !== "POST") {
       return json({ error: { code: "invalid_request" } }, 405);
     }
-    const expected = deps.secret();
     const given = new URL(req.url).searchParams.get("secret") ?? "";
-    // Compare even when the secret is missing so timing does not reveal the misconfiguration.
-    const ok = await secretMatches(given, expected ?? "");
-    if (!expected || !ok) {
+    if (!(await authorised(given, [deps.secret(), deps.previousSecret?.()]))) {
       return json({ error: { code: "unauthorized" } }, 401);
     }
 
@@ -298,42 +366,38 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     let malformed: string | null = null;
     try {
       parsed = JSON.parse(text);
+      if (parsed === null || typeof parsed !== "object") {
+        malformed = "malformed body: not a JSON object";
+      } else if (JSON.stringify(parsed).includes("\\u0000")) {
+        malformed = "malformed body: contains NUL";
+      }
     } catch {
       malformed = "malformed body: not valid JSON";
     }
 
     const ins = await db.from("webhook_inbox").insert({
-      body: malformed ? { _unparsed: text } : parsed,
+      body: malformed
+        ? { _unparsed: text.replaceAll("\u0000", "\uFFFD") }
+        : parsed,
       body_sha256: eventId,
-      ...(malformed ? { error: malformed } : {}),
+      // A replay cannot fix these: error for the record, processed_at so they are not replayed.
+      ...(malformed
+        ? { error: malformed, processed_at: now.toISOString() }
+        : {}),
     }).select("id").single();
     if (ins.error) throw new Step(`inbox insert failed: ${ins.error.message}`);
     inboxId = ins.data.id as number;
     if (malformed) return json({ ok: true, ignored: "malformed" });
 
-    // Same raw body already handled: the provider retried or replayed. Bill and notify once.
-    const prior = await db.from("webhook_inbox").select("id").eq(
-      "body_sha256",
-      eventId,
-    ).not("processed_at", "is", null).neq("id", inboxId).limit(1);
-    if (prior.error) {
-      throw new Step(`inbox read failed: ${prior.error.message}`);
-    }
-    if ((prior.data ?? []).length > 0) {
-      await mark(db, inboxId, {
-        processed_at: now.toISOString(),
-        error: "note: duplicate delivery",
-      });
-      return json({ ok: true, duplicate: true });
-    }
-
     const alert = asAlert(parsed);
     if (!alert) {
-      await mark(db, inboxId, { error: "invalid alert shape" });
+      await mark(db, inboxId, {
+        error: "invalid alert shape",
+        processed_at: now.toISOString(),
+      });
       return json({ ok: true, ignored: "invalid_shape" });
     }
 
-    // Every well-formed delivery is billed by the provider, followed flight or not.
     const flightRes = await db.from("flights").select("*").eq(
       "provider_id",
       alert.flight.fa_flight_id,
@@ -351,83 +415,64 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       if (c.error) throw new Step(`follower read failed: ${c.error.message}`);
       followed = (c.count ?? 0) > 0;
     }
+
+    let flightId: string | null = null;
+    let kind: EventKind | null = null;
+    let payload: Row = {};
+    let update: Row = {};
+    let noteText: string | null = null;
     if (!stored || !followed) {
-      await recordCost(db, now);
-      await mark(db, inboxId, {
-        processed_at: now.toISOString(),
-        error: "note: no followed flight for this fa_flight_id",
-      });
-      return json({ ok: true, ignored: "not_followed" });
-    }
-
-    const p = plan(alert, stored, now);
-    const kind = kindFor(alert, p);
-    if (!kind) {
-      if (Object.keys(p.update).length > 0) {
-        const u = await db.from("flights").update(p.update).eq(
-          "id",
-          stored.id as string,
-        );
-        if (u.error) throw new Step(`flight update failed: ${u.error.message}`);
-      }
-      await recordCost(db, now);
-      await mark(db, inboxId, {
-        processed_at: now.toISOString(),
-        error: `note: ${alert.event_code} produced no event`,
-      });
-      return json({ ok: true, event: null });
-    }
-
-    // Claim the event first: a duplicate delivery inserts nothing and must not touch the flight
-    // again (an old replay could overwrite newer data) nor bill again.
-    const claim = await db.from("flight_events").upsert({
-      flight_id: stored.id,
-      provider_event_id: eventId,
-      kind,
-      payload: {
+      noteText = "no followed flight for this fa_flight_id";
+    } else {
+      flightId = stored.id as string;
+      const p = plan(alert, stored, now);
+      kind = kindFor(alert, p, stored);
+      update = { ...p.update };
+      delete update.updated_at;
+      if (kind === "delay") update.notified_delay_min = p.delay;
+      payload = {
         event_code: alert.event_code,
         alert_id: alert.alert_id,
         short_description: str(alert.short_description),
         summary: str(alert.summary),
         changes: p.changes,
-      },
-    }, { onConflict: "provider_event_id", ignoreDuplicates: true })
-      .select("id");
-    if (claim.error) {
-      throw new Step(`event insert failed: ${claim.error.message}`);
-    }
-    const newEventId = claim.data?.[0]?.id as string | undefined;
-    if (!newEventId) {
-      await mark(db, inboxId, {
-        processed_at: now.toISOString(),
-        error: "note: duplicate delivery",
-      });
-      return json({ ok: true, duplicate: true });
+        ...(kind === "delay"
+          ? {
+            delay_minutes: p.delay,
+            previous_delay_minutes: stored.notified_delay_min ?? null,
+          }
+          : {}),
+      };
+      if (!kind) noteText = `${alert.event_code} produced no event`;
     }
 
-    if (Object.keys(p.update).length > 0) {
-      const u = await db.from("flights").update(p.update).eq(
-        "id",
-        stored.id as string,
-      );
-      if (u.error) {
-        // Undo the claim so the provider's retry is processed instead of treated as a duplicate.
-        await db.from("flight_events").delete().eq("id", newEventId);
-        throw new Step(`flight update failed: ${u.error.message}`);
-      }
-    }
-    await recordCost(db, now);
-    await mark(db, inboxId, { processed_at: now.toISOString() });
+    // One transaction: duplicate check, event, flight update, cost, inbox mark.
+    const res = await db.rpc("process_alert", {
+      p_inbox: inboxId,
+      p_hash: eventId,
+      p_flight: flightId,
+      p_kind: kind,
+      p_payload: payload,
+      p_update: update,
+      p_note: noteText,
+      p_day: now.toISOString().slice(0, 10),
+      p_cost: ALERT_DELIVERY_COST,
+    });
+    if (res.error) throw new Step(`process_alert failed: ${res.error.message}`);
+    const out = res.data as { duplicate: boolean; event_id: string | null };
+    if (out.duplicate) return json({ ok: true, duplicate: true });
+    if (!out.event_id || !flightId) return json({ ok: true, event: null });
 
+    // After the commit, so a crash before this point is reprocessed by the provider's retry.
     try {
-      await deps.push(stored.id as string, newEventId);
+      await deps.push(flightId, out.event_id);
     } catch (e) {
       console.error(
-        `push failed for event ${newEventId}`,
+        `push failed for event ${out.event_id}`,
         e instanceof Error ? e.message : "unknown",
       );
     }
-    return json({ ok: true, event: newEventId, kind });
+    return json({ ok: true, event: out.event_id, kind });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown error";
     console.error("aeroapi-webhook failed:", msg);

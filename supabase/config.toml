@@ -373,6 +373,10 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# FlightAware calls this with a shared secret in the query string, not a Supabase JWT.
+[functions.aeroapi-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

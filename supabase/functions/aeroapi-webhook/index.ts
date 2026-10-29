@@ -6,6 +6,7 @@ Deno.serve((req) =>
   handler(req, {
     db,
     secret: () => Deno.env.get("WEBHOOK_SECRET"),
+    previousSecret: () => Deno.env.get("WEBHOOK_SECRET_PREVIOUS"),
     push: pushViaFunction(db),
   })
 );

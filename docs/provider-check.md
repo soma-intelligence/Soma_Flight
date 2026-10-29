@@ -123,3 +123,7 @@ The AeroAPI OpenAPI file (4.17.1) publishes no prices, so these come from the pr
 | `/alerts`, `/alerts/{id}` | $0.000 | official pricing page |
 
 `/flights/search` is no longer used (it returns only airborne flights).
+
+## Alert webhook secret
+
+The AeroAPI alert callback has no signature or auth header, so `aeroapi-webhook` is gated by `?secret=` in the callback URL (`verify_jwt = false`). Use 32 random bytes or more. The URL shows up in Supabase function request logs and in the FlightAware alert config. Rotate: set `WEBHOOK_SECRET_PREVIOUS` to the old value and `WEBHOOK_SECRET` to the new one, change the callback URL at FlightAware (`/alerts/endpoint` and any alert with its own target_url), then remove the old value.

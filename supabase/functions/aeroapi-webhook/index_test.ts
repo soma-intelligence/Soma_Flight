@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
+import { parse as parseToml } from "jsr:@std/toml@1";
 import { makeUser, test, testDb, trackFlightId } from "../_shared/test_util.ts";
 import { type Deps, handler, MAX_BODY_BYTES } from "./handler.ts";
 
@@ -256,7 +257,7 @@ wtest("malformed body keeps inbox row with error and returns 200", async () => {
     ascending: false,
   }).limit(1).single();
   assert(row.data?.error?.includes("malformed"));
-  assertEquals(row.data?.processed_at, null);
+  assert(row.data?.processed_at); // not replayable
   assertEquals(p.calls.length, 0);
 });
 
@@ -341,7 +342,8 @@ wtest(
     }).limit(2);
     for (const r of inbox.data ?? []) {
       assert(r.processed_at);
-      assert(r.error.startsWith("note:"));
+      assert(r.note.includes("no followed flight"));
+      assertEquals(r.error, null);
     }
     const u1 = await usage();
     assertEquals((u1?.calls ?? 0) - (u0?.calls ?? 0), 2);
@@ -460,3 +462,213 @@ wtest("non-POST is rejected", async () => {
   );
   assertEquals(res.status, 405);
 });
+
+Deno.test("config.toml turns JWT verification off for aeroapi-webhook", async () => {
+  const toml = parseToml(
+    await Deno.readTextFile(new URL("../../config.toml", import.meta.url)),
+  ) as { functions?: Record<string, { verify_jwt?: boolean }> };
+  assertEquals(toml.functions?.["aeroapi-webhook"]?.verify_jwt, false);
+});
+
+wtest(
+  "delay events: first at 15 min, then every 15 min move either way",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    const base = Date.parse("2026-11-03T22:30:00Z");
+    const send = async (min: number, alertId: number) => {
+      const est = new Date(base + min * 60000).toISOString();
+      const r = await handler(
+        post(delivery(gateFixture, providerId, {
+          gate_origin: null,
+          terminal_origin: null,
+          estimated_out: est,
+        }, { alert_id: alertId })),
+        deps(p),
+      );
+      assertEquals(r.status, 200);
+    };
+    const steps: [number, boolean][] = [[3, false], [16, true], [20, false], [
+      32,
+      true,
+    ], [10, true]];
+    let n = 0;
+    for (const [min, expectEvent] of steps) {
+      await send(min, 5000 + n++);
+      assertEquals(
+        (await eventsOf(id)).length,
+        steps.slice(0, n).filter((s) => s[1]).length,
+        `after ${min} min`,
+      );
+    }
+    assertEquals(p.calls.length, 3);
+    const events = (await eventsOf(id)).sort((a, b) =>
+      a.payload.delay_minutes - b.payload.delay_minutes
+    );
+    assertEquals(events.map((e) => e.kind), ["delay", "delay", "delay"]);
+    assertEquals(events.map((e) => e.payload.delay_minutes), [10, 16, 32]);
+    const row = await db.from("flights").select(
+      "notified_delay_min, estimated_out",
+    ).eq("id", id).single();
+    assertEquals(row.data?.notified_delay_min, 10);
+  },
+);
+
+wtest(
+  "an older body cannot undo a cancel, an actual time or a later status",
+  async () => {
+    const p = fakePush();
+    const a = await followedFlight();
+    const cancel = delivery(gateFixture, a.providerId, { cancelled: true }, {
+      event_code: "cancelled",
+    });
+    await handler(post(cancel), deps(p));
+    const stale = delivery(gateFixture, a.providerId, { gate_origin: "Q1" }, {
+      alert_id: 1,
+    });
+    await handler(post(stale), deps(p));
+    const ra = await db.from("flights").select("status").eq("id", a.id)
+      .single();
+    assertEquals(ra.data?.status, "canceled");
+
+    const b = await followedFlight();
+    await handler(
+      post(
+        delivery(departureFixture, b.providerId, {
+          actual_out: "2026-11-03T22:41:00Z",
+          actual_off: "2026-11-03T22:58:00Z",
+        }),
+      ),
+      deps(p),
+    );
+    // Older change: no actuals, an estimate for a leg that already left, and a different actual.
+    await handler(
+      post(delivery(gateFixture, b.providerId, {
+        gate_origin: null,
+        terminal_origin: null,
+        estimated_out: "2026-11-03T22:20:00Z",
+        actual_out: "2026-11-03T22:50:00Z",
+      }, { alert_id: 2 })),
+      deps(p),
+    );
+    const rb = await db.from("flights").select(
+      "status, actual_out, estimated_out",
+    ).eq("id", b.id).single();
+    assertEquals(rb.data?.status, "en_route");
+    assertEquals(
+      Date.parse(rb.data?.actual_out),
+      Date.parse("2026-11-03T22:41:00Z"),
+    );
+    assertEquals(
+      Date.parse(rb.data?.estimated_out),
+      Date.parse("2026-11-03T22:30:00Z"),
+    );
+  },
+);
+
+wtest(
+  "a change delivery carrying cancelled=true raises a cancel event",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    await handler(
+      post(delivery(gateFixture, providerId, { cancelled: true })),
+      deps(p),
+    );
+    assertEquals((await eventsOf(id)).map((e) => e.kind), ["cancel"]);
+  },
+);
+
+wtest(
+  "body null and NUL characters are kept as malformed with 200",
+  async () => {
+    const p = fakePush();
+    for (const body of ["null", "[1]", '{"a":"x\\u0000y"}']) {
+      assertEquals((await handler(post(body), deps(p))).status, 200, body);
+    }
+    const rows = await db.from("webhook_inbox").select("error").order("id", {
+      ascending: false,
+    }).limit(3);
+    assertEquals(
+      (rows.data ?? []).filter((r) => r.error).length,
+      3,
+    );
+  },
+);
+
+wtest(
+  "a crash in the transaction leaves nothing and the retry is processed",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    let fail = true;
+    const flaky = new Proxy(db, {
+      get(t, prop, r) {
+        if (prop === "rpc") {
+          return (name: string, args: unknown) =>
+            fail && name === "process_alert"
+              ? Promise.resolve({ data: null, error: { message: "boom" } })
+              : t.rpc(name, args as Record<string, unknown>);
+        }
+        return Reflect.get(t, prop, r);
+      },
+    });
+    const body = delivery(gateFixture, providerId, { gate_origin: "K77" });
+    const u0 = await usage();
+    const r1 = await handler(post(body), { ...deps(p), db: flaky });
+    assertEquals(r1.status, 500);
+    assertEquals((await eventsOf(id)).length, 0);
+    assertEquals((await usage())?.calls, u0?.calls);
+    const failed = await db.from("webhook_inbox").select("*").order("id", {
+      ascending: false,
+    }).limit(1).single();
+    assert(failed.data?.error && failed.data?.processed_at === null);
+    fail = false;
+    const r2 = await handler(post(body), deps(p));
+    assertEquals(r2.status, 200);
+    assertEquals((await eventsOf(id)).length, 1);
+    assertEquals(p.calls.length, 1);
+    const settled = await db.from("webhook_inbox").select("*").eq(
+      "id",
+      failed.data!.id,
+    ).single();
+    assertEquals(settled.data?.error, null);
+    assert(settled.data?.processed_at);
+  },
+);
+
+wtest(
+  "identical deliveries for an unfollowed flight at once bill once",
+  async () => {
+    const p = fakePush();
+    const body = delivery(gateFixture, `WHT${tag()}-1793900000-schedule-1p`);
+    const u0 = await usage();
+    const res = await Promise.all([
+      handler(post(body), deps(p)),
+      handler(post(body), deps(p)),
+      handler(post(body), deps(p)),
+    ]);
+    assertEquals(res.map((r) => r.status), [200, 200, 200]);
+    assertEquals(((await usage())?.calls ?? 0) - (u0?.calls ?? 0), 1);
+  },
+);
+
+wtest(
+  "a wrong secret of the right length is rejected; the previous secret still works",
+  async () => {
+    const p = fakePush();
+    const { providerId } = await followedFlight();
+    const body = delivery(gateFixture, providerId);
+    assertEquals(
+      (await handler(post(body, "x".repeat(SECRET.length)), deps(p))).status,
+      401,
+    );
+    const rotating = { ...deps(p, "new-secret"), previousSecret: () => SECRET };
+    assertEquals((await handler(post(body, SECRET), rotating)).status, 200);
+    assertEquals(
+      (await handler(post(body, "new-secret"), rotating)).status,
+      200,
+    );
+    assertEquals((await handler(post(body, "other"), rotating)).status, 401);
+  },
+);
