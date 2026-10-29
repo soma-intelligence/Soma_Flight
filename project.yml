@@ -43,6 +43,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # iPhone only in v1 (every layout and screenshot is a phone); iPad later, with all four orientations.
         TARGETED_DEVICE_FAMILY: "1"
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig), the somaflight:// sign-in
@@ -75,6 +76,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig) and the somaflight:// sign-in
         # callback. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/macOS/Info.plist
