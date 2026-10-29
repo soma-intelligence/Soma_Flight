@@ -21,13 +21,19 @@ alter table past_flights
   add column origin_country text,
   add column destination_country text,
   add column air_minutes int,
-  add constraint past_flights_seat_check check (seat ~ '^[0-9]{1,3}[A-K]$');
+  -- not valid: rows already stored (manual entries) are not checked, every new write is.
+  add constraint past_flights_seat_check check (seat ~ '^[0-9]{1,3}[A-K]$') not valid;
 
--- Backfill from airports (matched on ICAO) and from the flight's own off and on times.
-update past_flights p set origin_country = a.country
-  from airports a where a.icao = p.origin_icao and p.origin_country is null;
-update past_flights p set destination_country = a.country
-  from airports a where a.icao = p.destination_icao and p.destination_country is null;
+-- Backfill from airports, matched on ICAO else IATA (the ICAO match wins), like archive_landed_flights,
+-- and from the flight's own off and on times.
+update past_flights p set origin_country = (
+  select a.country from airports a where a.icao = p.origin_icao or a.iata = p.origin_icao
+  order by (a.icao = p.origin_icao) desc limit 1)
+  where p.origin_country is null;
+update past_flights p set destination_country = (
+  select a.country from airports a where a.icao = p.destination_icao or a.iata = p.destination_icao
+  order by (a.icao = p.destination_icao) desc limit 1)
+  where p.destination_country is null;
 update past_flights p
   set air_minutes = round(extract(epoch from (f.actual_on - f.actual_off)) / 60)::int
   from flights f
@@ -123,6 +129,8 @@ $$;
 
 -- upsert_provider_flights: also stores the four new times, and takes its row locks in provider_id
 -- order (the parked deadlock: two lookups overlapping on several flights locked in input order).
+-- Rows come back in input order; when one batch repeats a provider_id, every occurrence returns the
+-- final stored row (read after the loop), not the state at that step.
 
 create or replace function public.upsert_provider_flights(p_rows jsonb)
 returns setof public.flights

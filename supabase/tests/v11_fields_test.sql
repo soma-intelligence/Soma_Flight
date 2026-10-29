@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(36);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -103,15 +103,28 @@ select results_eq(
   $$values (null::int, null::text, 'FR'::text)$$,
   'no actual_off: air_minutes null; unknown origin airport: country null');
 
--- merge_flight and upsert_provider_flights: the new times, and the result in input order.
+-- merge_flight and upsert_provider_flights: the new times, result order, and lock order. A trigger
+-- logs the order in which new rows are inserted; the batch is fed in reverse provider_id order, so
+-- the log is ascending only if the function sorts before it locks and inserts.
+create table v11_ins_log (seq serial, pid text);
+create function v11_log_ins() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.provider_id like 'V11-%' then insert into public.v11_ins_log (pid) values (new.provider_id); end if;
+  return new;
+end; $$;
+create trigger v11_log_ins before insert on flights for each row execute function v11_log_ins();
 select results_eq(
   $$select provider_id from upsert_provider_flights(jsonb_build_array(
       jsonb_build_object('provider_id', 'V11-ZZ', 'ident', 'T2', 'scheduled_off', '2026-11-03T01:00:00Z',
         'estimated_on', '2026-11-03T11:00:00Z'),
-      jsonb_build_object('provider_id', 'V11-AA', 'ident', 'T1'),
-      jsonb_build_object('provider_id', 'V11-MM', 'ident', 'T3')))$$,
-  $$values ('V11-ZZ'::text), ('V11-AA'::text), ('V11-MM'::text)$$,
-  'upsert_provider_flights returns rows in input order (it locks them in provider_id order)');
+      jsonb_build_object('provider_id', 'V11-MM', 'ident', 'T3'),
+      jsonb_build_object('provider_id', 'V11-AA', 'ident', 'T1')))$$,
+  $$values ('V11-ZZ'::text), ('V11-MM'::text), ('V11-AA'::text)$$,
+  'upsert_provider_flights returns rows in input order');
+select results_eq(
+  $$select pid from v11_ins_log order by seq$$,
+  $$values ('V11-AA'::text), ('V11-MM'::text), ('V11-ZZ'::text)$$,
+  'rows are inserted (and so locked) in provider_id order, not input order');
 select is((select scheduled_off from flights where provider_id = 'V11-ZZ'), '2026-11-03T01:00:00Z'::timestamptz,
   'a new flight stores scheduled_off');
 select results_eq(
@@ -122,6 +135,48 @@ select results_eq(
   $$values ('V11-ZZ'::text, '2026-11-03T01:10:00Z'::timestamptz, '2026-11-03T11:00:00Z'::timestamptz),
            ('V11-ZZ'::text, '2026-11-03T01:10:00Z'::timestamptz, '2026-11-03T11:00:00Z'::timestamptz)$$,
   'a known flight merges estimated_off; estimated_on is frozen once actual_on exists');
+
+-- past_flights is client-writable for the owner: the same checks apply to manual entries.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"a1a1a1a1-0000-0000-0000-000000000001","role":"authenticated"}';
+select lives_ok($$insert into past_flights (user_id, date, ident, seat, booking_code, notes)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN1', '3C', 'ABCDE', 'manual')$$,
+  'owner inserts a manual past flight with valid fields');
+select throws_ok($$insert into past_flights (user_id, date, ident, seat)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN2', 'Window')$$, '23514', null,
+  'past_flights seat is checked on new writes');
+select throws_ok($$insert into past_flights (user_id, date, ident, booking_code)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN3', 'abc')$$, '23514', null,
+  'past_flights booking_code is checked');
+select throws_ok($$insert into past_flights (user_id, date, ident, notes)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN4', repeat('x', 2001))$$, '23514', null,
+  'past_flights notes are checked');
+reset role;
+select is((select convalidated from pg_constraint where conname = 'past_flights_seat_check'), false,
+  'the seat check is NOT VALID: stored rows are not checked');
+
+-- Backfill rule (same statement as the migration): ICAO or IATA, ICAO wins; unknown stays null.
+insert into past_flights (id, user_id, date, ident, origin_icao, destination_icao) values
+  ('d1000000-0000-0000-0000-000000000001', 'a1a1a1a1-0000-0000-0000-000000000001', now(), 'BF1', 'SFO', 'LFPG'),
+  ('d1000000-0000-0000-0000-000000000002', 'a1a1a1a1-0000-0000-0000-000000000001', now(), 'BF2', 'ZZZZ', 'CDG');
+update past_flights p set origin_country = (
+  select a.country from airports a where a.icao = p.origin_icao or a.iata = p.origin_icao
+  order by (a.icao = p.origin_icao) desc limit 1)
+  where p.origin_country is null and p.id::text like 'd1000000%';
+update past_flights p set destination_country = (
+  select a.country from airports a where a.icao = p.destination_icao or a.iata = p.destination_icao
+  order by (a.icao = p.destination_icao) desc limit 1)
+  where p.destination_country is null and p.id::text like 'd1000000%';
+select results_eq(
+  $$select ident, origin_country, destination_country from past_flights
+    where id::text like 'd1000000%' order by ident$$,
+  $$values ('BF1'::text, 'US'::text, 'FR'::text), ('BF2'::text, null::text, 'FR'::text)$$,
+  'backfill matches IATA as well as ICAO, unknown airports stay null');
+
+-- anon has no access to aircraft.
+set local role anon;
+select throws_ok($$select * from aircraft$$, '42501', null, 'anon cannot read aircraft');
+reset role;
 
 -- Privileges of the functions this migration restates.
 select ok(

@@ -39,11 +39,19 @@ A violated rule is a 23514 (check violation). Send `null` to clear a field.
 
 ### past_flights (history)
 
-Written by the nightly archive job only (clients keep `select` and the owner policy). When a followed
-flight is archived, the row copies the follower's five user fields above (null when never set) and adds:
+Written by the nightly archive job and by the app (manual entries). Clients have full DML
+(`select`, `insert`, `update`, `delete`) on their own rows through the owner policy, so every column
+below is client-writable, `origin_country`, `destination_country` and `air_minutes` included. The same
+rules as `user_flights` apply to `seat`, `booking_code` and `notes` (23514 when violated; the constraint
+on `seat` is not validated against rows stored before v1.1). The database does not normalize: the app
+trims and upper-cases `seat` and `booking_code` before sending.
+
+When a followed flight is archived, the row copies the follower's five user fields (null when never
+set) and adds:
 
 | Column | Type | Meaning |
 | --- | --- | --- |
+| `seat_class`, `reason`, `booking_code`, `notes` | as in `user_flights` | copied from the follow |
 | `origin_country`, `destination_country` | text | ISO 3166-1 alpha-2 from `airports.country`; null when the airport is unknown |
 | `air_minutes` | int | `actual_on - actual_off` in minutes when both exist and on is after off, else null |
 
@@ -56,7 +64,10 @@ Columns: `registration` (primary key), `aircraft_type`, `airline_icao`, `deliver
 
 Four new nullable times, same format as the others (`YYYY-MM-DDTHH:mm:ss.sssZ`): `scheduled_off`,
 `scheduled_on`, `estimated_off`, `estimated_on` (runway departure and arrival). `flight-lookup` and
-`airport-board` return them; the webhook does not update them yet.
+`airport-board` return them; the webhook does not update them yet, so after a webhook the stored values
+can lag until the next lookup. Merge rules: `scheduled_off` and `scheduled_on` take the new value when
+given; `estimated_off` and `estimated_on` are frozen once the matching `actual_off` or `actual_on` exists
+(a later estimate is ignored).
 
 ## Endpoints
 
