@@ -50,6 +50,7 @@ struct RootTabView: View {
                 #if DEBUG
                 home.applyLaunchArguments()
                 await home.applyPushLaunchArguments()
+                await home.applyLiveActivityLaunchArguments()
                 #endif
             }
             .onChange(of: home.pushSerial) { Task { await home.processInbox() } }

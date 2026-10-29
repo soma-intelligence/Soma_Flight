@@ -13,25 +13,14 @@ enum Format {
     }
 
     /// "2h 37m", "50m", "2h".
-    static func minutes(_ total: Int) -> String {
-        let m = abs(total)
-        let h = m / 60, r = m % 60
-        if h == 0 { return "\(r)m" }
-        return r == 0 ? "\(h)h" : "\(h)h \(r)m"
-    }
+    static func minutes(_ total: Int) -> String { FlightActivityDisplay.duration(minutes: total) }
 
     /// Whole minutes, truncated toward zero. `DelayLevel` uses the same value, so a label and its
     /// colour always agree (14m 30s is "14m", on time).
-    static func minutes(_ d: Duration) -> Int { Int(d.components.seconds / 60) }
+    static func minutes(_ d: Duration) -> Int { DelayLevel.wholeMinutes(d) }
 
     /// "AA 2178", "B6 717", "EJM 444": airline code, space, number.
-    static func ident(_ raw: String) -> String {
-        let chars = Array(raw)
-        guard chars.count > 2 else { return raw }
-        let split = chars[2].isLetter ? 3 : 2
-        guard split < chars.count else { return raw }
-        return String(chars[..<split]) + " " + String(chars[split...])
-    }
+    static func ident(_ raw: String) -> String { FlightActivityDisplay.ident(raw) }
 
     static func ago(_ date: Date, now: Date) -> String {
         let m = max(0, Int(now.timeIntervalSince(date) / 60))

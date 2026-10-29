@@ -8,6 +8,9 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
+    # The app and its widget extension must carry the same versions.
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
 packages:
   FlightKit:
     path: Packages/FlightKit
@@ -31,13 +34,15 @@ targets:
     dependencies:
       - package: FlightKit
         product: FlightKit
+      # The flight Live Activity (embedded app extension).
+      - target: SomaFlightWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
-        # Supabase URL and anon key (from Config.Debug/Release.xcconfig) and the somaflight:// sign-in
-        # callback. Debug's plist also allows local networking for the local stack.
+        # Supabase URL and anon key (from Config.Debug/Release.xcconfig), the somaflight:// sign-in
+        # callback and NSSupportsLiveActivities. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/iOS/Info.plist
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
@@ -85,13 +90,19 @@ targets:
   SomaFlightWidgets:
     type: app-extension
     platform: iOS
-    sources: [Apps/Widgets]
+    sources:
+      - path: Apps/Widgets
+        excludes: ["Info.plist"]
     dependencies:
+      # Only the Live Activity attributes and views: FlightKit would pull Supabase and MapKit into the
+      # extension, which has a tight memory budget and needs neither.
       - package: FlightKit
-        product: FlightKit
+        product: FlightActivityKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.widgets
+        PRODUCT_NAME: SomaFlightWidgets
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        INFOPLIST_FILE: Apps/Widgets/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64

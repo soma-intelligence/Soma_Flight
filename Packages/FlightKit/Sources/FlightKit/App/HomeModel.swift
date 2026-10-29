@@ -29,6 +29,8 @@ public final class HomeModel {
     /// Notification permission and token registration; nil until the shell calls `attachPush`.
     @ObservationIgnored public private(set) var push: PushCoordinator?
     @ObservationIgnored private var pushInbox: PushInbox?
+    /// The flight Live Activity; nil until the iOS shell calls `attachLiveActivities` (never on the Mac).
+    @ObservationIgnored public private(set) var activities: FlightActivityController?
 
     public init(env: AppEnvironment) {
         self.env = env
@@ -115,6 +117,8 @@ public final class HomeModel {
         shell.reset()
         rebuildStores()
         Task {
+            // The previous account's activity goes, whoever signs in next (nobody, at sign-out).
+            await activities?.endAll()
             await load()
             await processInbox()
         }
@@ -122,8 +126,25 @@ public final class HomeModel {
 
     private func rebuildStores() {
         storesOwner = owner
+        // A pushed update still reaching the old store must not restart the previous account's activity.
+        myFlights.onListChange = nil
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
+        wireActivities()
+    }
+
+    // MARK: Live Activity
+
+    /// Hands the flight Live Activity to the home: from now on every trusted change of My Flights
+    /// (load, pushed update, unfollow) re-runs its start and end rules. Call once, before `start()`.
+    public func attachLiveActivities(_ controller: FlightActivityController) {
+        activities = controller
+        wireActivities()
+    }
+
+    private func wireActivities() {
+        guard let activities else { return }
+        myFlights.onListChange = { list in Task { await activities.sync(list) } }
     }
 
     // MARK: Notifications
@@ -183,6 +204,18 @@ public final class HomeModel {
         if let id = args.string(forKey: "pushFlight"), pushInbox?.receiveTap(["flightId": id]) == true {
             await processInbox()
         }
+    }
+    #endif
+
+    #if DEBUG
+    /// `-liveActivityPush <path>`: once the activity rules have run on the loaded list, applies the
+    /// Live Activity push in that file (push-sender's JSON) as ActivityKit would. `simctl push` only
+    /// delivers alert pushes, so this stands in for it on the simulator.
+    public func applyLiveActivityLaunchArguments(_ args: UserDefaults = .standard) async {
+        guard let activities, let path = args.string(forKey: "liveActivityPush"),
+              let data = FileManager.default.contents(atPath: path) else { return }
+        await activities.sync(followed)
+        await activities.applyDebugPush(data)
     }
     #endif
 

@@ -6,6 +6,8 @@
 	<string>$(SUPABASE_URL)</string>
 	<key>SupabaseAnonKey</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

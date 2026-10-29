@@ -43,6 +43,10 @@ public final class MyFlightsStore {
     @ObservationIgnored private var loadGeneration = 0
     @ObservationIgnored private var unfollowedDuringLoad: Set<Flight.ID> = []
 
+    /// Called with the whole list after each change the store trusts: a successful load, a pushed update,
+    /// an unfollow. Not after a failed load, so an offline launch never ends the Live Activity.
+    @ObservationIgnored public var onListChange: (@MainActor ([Flight]) -> Void)?
+
     private let service: any FlightService
     private let cache: (any FlightListCache)?
     @ObservationIgnored private var updatesTask: Task<Void, Never>?
@@ -86,6 +90,7 @@ public final class MyFlightsStore {
             error = nil; isOffline = false; hasLoaded = true
             isLiveSynced = updatesTask != nil
             if updatesTask != nil, Set(all.keys) != subscribed { subscribe() }
+            onListChange?(Array(merged.values))
             await cache?.save(flights: Array(merged.values))
         } catch {
             guard gen == loadGeneration else { return }
@@ -132,6 +137,7 @@ public final class MyFlightsStore {
         all[f.id] = f
         lastUpdated = max(lastUpdated ?? f.updatedAt, f.updatedAt)
         fetchedAt = Date.now
+        onListChange?(Array(all.values))
     }
 
     public func unfollow(_ flight: Flight) async {
@@ -140,6 +146,7 @@ public final class MyFlightsStore {
             all[flight.id] = nil
             unfollowedDuringLoad.insert(flight.id)
             error = nil
+            onListChange?(Array(all.values))
         } catch { self.error = error }
     }
 }

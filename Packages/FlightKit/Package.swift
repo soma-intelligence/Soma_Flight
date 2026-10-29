@@ -7,6 +7,8 @@ let package = Package(
     platforms: [.iOS("26.0"), .macOS("26.0")],
     products: [
         .library(name: "FlightKit", targets: ["FlightKit"]),
+        // What the widget extension links: the Live Activity attributes and views, no Supabase or MapKit.
+        .library(name: "FlightActivityKit", targets: ["FlightActivityKit"]),
     ],
     dependencies: [
         .package(path: "../FlightCoreFFI"),
@@ -15,8 +17,13 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "FlightActivityKit",
+            swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
+        ),
+        .target(
             name: "FlightKit",
             dependencies: [
+                "FlightActivityKit",
                 .product(name: "FlightCore", package: "FlightCoreFFI"),
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
