@@ -56,9 +56,9 @@ struct FullPassportView: View {
     @ViewBuilder private var sections: some View {
         let detail = store.detail
         if detail.flights > 0 {
-            PassportFlightsSection(detail: detail, key: store.revision)
-            PassportDistanceSection(detail: detail, lookup: lookup, key: store.revision)
-            PassportTimeSection(detail: detail, lookup: lookup, key: store.revision)
+            PassportFlightsSection(detail: detail)
+            PassportDistanceSection(detail: detail, lookup: lookup)
+            PassportTimeSection(detail: detail, lookup: lookup)
         }
     }
 }
@@ -95,7 +95,7 @@ struct MRZStrip: View {
                     .font(.system(size: 14, weight: .regular, design: .monospaced))
                     .foregroundStyle(Color(red: 0.72, green: 0.70, blue: 0.86))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.4)
+                    .minimumScaleFactor(0.6)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

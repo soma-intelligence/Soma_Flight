@@ -70,8 +70,14 @@ enum TravelFacts {
 
     /// "280,017 km" or "173,994 mi".
     static func distance(_ km: Int, _ unit: DistanceUnit) -> String {
+        let p = distanceParts(km, unit)
+        return "\(p.number) \(p.unit)"
+    }
+
+    /// The number ("280,017") and the unit ("km") apart, for screens that set them in two sizes.
+    static func distanceParts(_ km: Int, _ unit: DistanceUnit) -> (number: String, unit: String) {
         let value = unit == .km ? km : Int((Double(km) / kmPerMile).rounded())
-        return "\(value.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US")))) \(unit.rawValue)"
+        return (value.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US"))), unit.rawValue)
     }
 
     /// "7.0x around the world".

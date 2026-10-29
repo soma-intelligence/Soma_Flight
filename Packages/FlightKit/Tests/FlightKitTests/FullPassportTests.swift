@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import FlightCore
+import CoreGraphics
 @testable import FlightKit
 
 private func flight(_ day: Int, km: Int = 8_950, minutes: Int? = 640) -> FlightKit.PastFlight {
@@ -102,5 +103,55 @@ private func detail(_ flights: [FlightKit.PastFlight]) -> PassportDetail {
         #expect(PassportFacts.ticks(max: 3).values == [0, 1, 2, 3])
         #expect(PassportFacts.ticks(max: 0).values == [0, 1])
         #expect(PassportFacts.ticks(max: 57).top == 60)
+    }
+}
+
+@Suite struct FullPassportReviewTests {
+    @Test func mrzTransliteratesLettersWithoutDiacritics() {
+        #expect(PassportFacts.mrzName("Østergaard") == "OESTERGAARD")
+        #expect(PassportFacts.mrzName("Łukasz Żółć") == "LUKASZ<ZOLC")
+        #expect(PassportFacts.mrzName("Æsa Þórsdóttir") == "AESA<THORSDOTTIR")
+        #expect(PassportFacts.mrzName("Straße") == "STRASSE")
+    }
+
+    @Test func missingBlockTimeShowsADash() {
+        #expect(PassportTimeSection.text(nil) == "-")
+        #expect(PassportTimeSection.text(69) == "1h 9m")
+    }
+
+    @Test func distancePartsKeepNumberAndUnitApart() {
+        let p = TravelFacts.distanceParts(280_017, .km)
+        #expect(p.number == "280,017" && p.unit == "km")
+        #expect(TravelFacts.distance(280_017, .mi) == "173,994 mi")
+    }
+
+    @Test func mapValueNamesTopRoutes() {
+        let sfo = Airport(id: "KSFO", iata: "SFO", name: "SFO", city: "San Francisco", country: "US", lat: 37.6, lon: -122.4,
+                          tz: "America/Los_Angeles")
+        let cdg = Airport(id: "LFPG", iata: "CDG", name: "CDG", city: "Paris", country: "FR", lat: 49, lon: 2.5, tz: "Europe/Paris")
+        #expect(PassportMap.accessibilityValue(routes: [(sfo, cdg)], airports: 2) == "1 routes, 2 airports. Top routes: SFO to CDG")
+    }
+}
+
+@Suite @MainActor struct PassportTickerTests {
+    @Test func tickerStripRendersOnce() throws {
+        let strip = try #require(PassportTicker.strip(["SFO", "CDG", "JFK"], size: 13, scale: 2))
+        #expect(strip.width > 100)
+        #expect(strip.image.height >= 26)
+        // Something is drawn: some pixels are not transparent.
+        let w = strip.image.width, h = strip.image.height
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn = pixels.withUnsafeMutableBytes { buf -> Int in
+            guard let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return 0 }
+            ctx.draw(strip.image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return stride(from: 3, to: buf.count, by: 4).filter { buf[$0] > 0 }.count
+        }
+        #expect(drawn > 200)
+        #expect(PassportTicker.strip([], size: 13, scale: 2) == nil)
+        // A long row stays under the GPU's texture width.
+        let long = try #require(PassportTicker.strip(Array(repeating: "SFO", count: PassportTicker.limit), size: 13, scale: 3))
+        #expect(CGFloat(long.image.width) <= PassportTicker.maxPixels, "\(long.image.width) for \(long.width)")
     }
 }

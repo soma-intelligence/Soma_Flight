@@ -1,30 +1,25 @@
 import SwiftUI
 import Charts
+import ImageIO
+import UniformTypeIdentifiers
 import FlightCore
 
-/// A capsule "Share" that hands over `content` rendered as an image (phone width, dark, on the page
-/// colour). The image is rendered again whenever `key` changes.
+/// A capsule "Share" that hands over `content` as a PNG (phone width, dark, on the page colour). Nothing is
+/// rendered until the share sheet asks for the file, so the image is the section as it is at that moment
+/// (the chosen year and chart tab).
 struct SectionShareButton<Content: View>: View {
     var title: String
-    var key: Int = 0
     @ViewBuilder var content: Content
 
-    @State private var image: Image?
     @Environment(\.units) private var units
     @Environment(\.displayScale) private var displayScale
     @Environment(\.reference) private var reference
 
     var body: some View {
-        Group {
-            if let image {
-                ShareLink(item: image, preview: SharePreview(title, image: image)) { label }
-                    .buttonStyle(.plain)
-            } else {
-                label.opacity(0.5)
-            }
-        }
-        .accessibilityLabel("Share \(title)")
-        .task(id: key) { render() }
+        ShareLink(item: SectionSnapshot(source: SectionRenderer(page: AnyView(page), scale: max(displayScale, 2))),
+                  preview: SharePreview(title, image: Image(systemName: "square.and.arrow.up"))) { label }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Share \(title)")
     }
 
     private var label: some View {
@@ -40,8 +35,8 @@ struct SectionShareButton<Content: View>: View {
         .contentShape(Capsule())
     }
 
-    @MainActor private func render() {
-        let page = VStack(alignment: .leading, spacing: 12) {
+    private var page: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
             content
             Text("Soma Flight Passport").scaledFont(13, weight: .medium).foregroundStyle(Theme.secondary)
@@ -52,16 +47,44 @@ struct SectionShareButton<Content: View>: View {
         .environment(\.units, units)
         .environment(\.reference, reference)
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Renders a section to PNG on demand, on the main actor.
+@MainActor final class SectionRenderer {
+    let page: AnyView
+    let scale: CGFloat
+
+    init(page: AnyView, scale: CGFloat) { self.page = page; self.scale = scale }
+
+    func png() -> Data? {
         let renderer = ImageRenderer(content: page)
-        renderer.scale = max(displayScale, 2)
-        image = renderer.cgImage.map { Image(decorative: $0, scale: renderer.scale) }
+        renderer.scale = scale
+        guard let cg = renderer.cgImage else { return nil }
+        let data = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, cg, nil)
+        return CGImageDestinationFinalize(dest) ? data as Data : nil
+    }
+}
+
+/// What a section's Share hands over: a PNG made only when the receiver asks for it.
+struct SectionSnapshot: Transferable {
+    let source: SectionRenderer
+
+    struct RenderFailed: Error {}
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { snapshot in
+            guard let data = await snapshot.source.png() else { throw RenderFailed() }
+            return data
+        }
     }
 }
 
 /// One Passport section: title and Share on one line, then the body, with a full width hairline above.
 struct PassportSection<Content: View>: View {
     var title: String
-    var key: Int
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -74,7 +97,7 @@ struct PassportSection<Content: View>: View {
                         .foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    SectionShareButton(title: title, key: key) { content }
+                    SectionShareButton(title: title) { content }
                 }
                 content.scaledPadding(.top, 6)
             }
@@ -86,14 +109,24 @@ struct PassportSection<Content: View>: View {
 }
 
 /// "359h 8m" or "280,017 km": numbers large, units smaller and grey.
+/// Both sizes follow Dynamic Type (scaled like the large title) and the Mac's metrics scale; a line too long
+/// for its width shrinks to fit.
 struct UnitNumber: View {
     var parts: [(number: String, unit: String)]
-    var size: CGFloat
-    var unitSize: CGFloat
-    var weight: Font.Weight = .bold
+    var weight: Font.Weight
+    @ScaledMetric private var size: CGFloat
+    @ScaledMetric private var unitSize: CGFloat
+    @Environment(\.metricsScale) private var scale
+
+    init(parts: [(number: String, unit: String)], size: CGFloat, unitSize: CGFloat, weight: Font.Weight = .bold) {
+        self.parts = parts; self.weight = weight
+        _size = ScaledMetric(wrappedValue: size, relativeTo: .largeTitle)
+        _unitSize = ScaledMetric(wrappedValue: unitSize, relativeTo: .largeTitle)
+    }
 
     var body: some View {
-        parts.enumerated().reduce(Text("")) { text, item in
+        let size = Theme.fontSize(size, scale), unitSize = Theme.fontSize(unitSize, scale)
+        return parts.enumerated().reduce(Text("")) { text, item in
             let (i, p) = item
             let number = Text((i > 0 ? " " : "") + p.number).font(.system(size: size, weight: weight))
                 .foregroundStyle(Theme.primary)
@@ -103,7 +136,6 @@ struct UnitNumber: View {
         .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.5)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 }
 
@@ -111,11 +143,10 @@ struct UnitNumber: View {
 
 struct PassportFlightsSection: View {
     var detail: PassportDetail
-    var key: Int
     @State private var period: PassportFacts.Period = .weekday
 
     var body: some View {
-        PassportSection(title: "Flights", key: key) { FlightsBody(detail: detail, period: $period) }
+        PassportSection(title: "Flights") { FlightsBody(detail: detail, period: $period) }
     }
 }
 
@@ -185,6 +216,7 @@ private struct FlightsBody: View {
         }
         .frame(height: 180)
         .accessibilityLabel("Flights per \(period.rawValue.lowercased())")
+        .accessibilityValue(bars.map { "\($0.label) \($0.count)" }.joined(separator: ", "))
     }
 }
 
@@ -193,11 +225,10 @@ private struct FlightsBody: View {
 struct PassportDistanceSection: View {
     var detail: PassportDetail
     var lookup: (String) -> Airport?
-    var key: Int
     @Environment(\.units) private var units
 
     var body: some View {
-        PassportSection(title: "Flight distance", key: key) {
+        PassportSection(title: "Flight distance") {
             VStack(alignment: .leading, spacing: 0) {
                 totals
                 VStack(spacing: 12) {
@@ -221,9 +252,9 @@ struct PassportDistanceSection: View {
     private var totals: some View {
         let km = Int(detail.distanceKm)
         let other: DistanceUnit = units.distance == .km ? .mi : .km
-        let main = TravelFacts.distance(km, units.distance).split(separator: " ").map(String.init)
+        let main = TravelFacts.distanceParts(km, units.distance)
         return VStack(alignment: .leading, spacing: 2) {
-            UnitNumber(parts: [(main.first ?? "", " " + units.distance.rawValue)], size: 46, unitSize: 32)
+            UnitNumber(parts: [(main.number, " " + main.unit)], size: 46, unitSize: 32)
             Text(TravelFacts.distance(km, other))
                 .scaledFont(21)
                 .monospacedDigit()
@@ -335,27 +366,28 @@ struct ExtremeBlock: View {
 struct PassportTimeSection: View {
     var detail: PassportDetail
     var lookup: (String) -> Airport?
-    var key: Int
 
     var body: some View {
-        PassportSection(title: "Flight time", key: key) {
+        PassportSection(title: "Flight time") {
             VStack(alignment: .leading, spacing: 0) {
                 UnitNumber(parts: PassportFacts.hoursMinutes(detail.flightMinutes), size: 46, unitSize: 36)
                 grid.scaledPadding(.top, 18)
                 if PassportFacts.showsExtremes(detail) {
                     ExtremeBlock(title: "Shortest flight", flight: detail.shortestByTime, lookup: lookup) {
-                        Self.text(UInt64($0.blockMinutes ?? 0))
+                        Self.text($0.blockMinutes)
                     }
                     ExtremeBlock(title: "Longest flight", flight: detail.longestByTime, lookup: lookup) {
-                        Self.text(UInt64($0.blockMinutes ?? 0))
+                        Self.text($0.blockMinutes)
                     }
                 }
             }
         }
     }
 
-    static func text(_ minutes: UInt64) -> String {
-        PassportFacts.hoursMinutes(minutes).map { $0.number + $0.unit }.joined(separator: " ")
+    /// "1h 9m"; "-" when the flight has no block time.
+    nonisolated static func text(_ minutes: UInt32?) -> String {
+        guard let minutes else { return "-" }
+        return PassportFacts.hoursMinutes(UInt64(minutes)).map { $0.number + $0.unit }.joined(separator: " ")
     }
 
     private var grid: some View {

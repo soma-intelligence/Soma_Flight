@@ -65,14 +65,18 @@ public struct AppEnvironment: Sendable {
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
     /// over an in-memory cache (screenshot runs), anything else the backend (`live()`). Both shells call this.
-    /// With fakes, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
+    /// With fakes in DEBUG builds, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
         HistoryExport.removeTemporaryFiles()
         guard arguments.contains("-useFakes") else { return try await live() }
+        #if DEBUG
         let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
             arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
         }
         return try await fake(pastLimit: limit)
+        #else
+        return try await fake()
+        #endif
     }
 
     /// Airport by ICAO or IATA, for the screens' `lookup`.

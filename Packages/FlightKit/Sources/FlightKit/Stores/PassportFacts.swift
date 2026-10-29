@@ -27,9 +27,17 @@ enum PassportFacts {
         return [padded(line1), padded(line2)]
     }
 
-    /// "José-María  de la Peña" gives "JOSE<MARIA<DE<LA<PENA".
+    /// Letters with no diacritic to fold away, transliterated as ICAO Doc 9303 (part 3) does.
+    static let transliterations: [Character: String] = [
+        "Æ": "AE", "æ": "AE", "Ø": "OE", "ø": "OE", "Œ": "OE", "œ": "OE", "Þ": "TH", "þ": "TH",
+        "Ð": "D", "ð": "D", "Đ": "D", "đ": "D", "Ł": "L", "ł": "L", "Ħ": "H", "ħ": "H", "Ŋ": "N", "ŋ": "N",
+        "ı": "I", "ß": "SS", "Ŧ": "T", "ŧ": "T", "Ŀ": "L", "ŀ": "L",
+    ]
+
+    /// "José-María  de la Peña" gives "JOSE<MARIA<DE<LA<PENA", "Østergaard" gives "OESTERGAARD".
     static func mrzName(_ name: String) -> String {
-        let folded = name.folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US"))
+        let spelled = name.map { transliterations[$0] ?? String($0) }.joined()
+        let folded = spelled.folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US"))
             .uppercased()
         var out = ""
         for ch in folded {

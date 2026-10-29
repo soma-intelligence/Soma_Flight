@@ -58,6 +58,13 @@ struct PassportMap: View {
         }
     }
 
+    /// "12 routes, 18 airports. Top routes: SFO to CDG, JFK to BOS, ..." (five routes at most).
+    nonisolated static func accessibilityValue(routes: [(Airport, Airport)], airports: Int) -> String {
+        let top = routes.prefix(5).map { "\($0.0.iata ?? $0.0.id) to \($0.1.iata ?? $0.1.id)" }
+        let head = "\(routes.count) routes, \(airports) airports"
+        return top.isEmpty ? head : head + ". Top routes: " + top.joined(separator: ", ")
+    }
+
     static func point(lon: Double, lat: Double, in size: CGSize) -> CGPoint {
         CGPoint(x: (lon + 180) / 360 * size.width,
                 y: (north - lat) / (north - south) * size.height)
@@ -100,79 +107,142 @@ struct PassportMap: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement()
         .accessibilityLabel("Map of your routes")
-        .accessibilityValue("\(routes.count) routes, \(airports.count) airports")
+        .accessibilityValue(Self.accessibilityValue(routes: routes, airports: airports.count))
     }
 }
 
-/// The airport codes flown, a few small planes between each, sliding left in a loop (still with Reduce
-/// Motion), coloured by a soft gradient across the row.
+/// The airport codes flown (the most visited first, `limit` at most), a few small planes between each,
+/// sliding left in a loop. The row is rendered to one bitmap when the codes or the text size change; each
+/// frame only moves the copies of that bitmap. Still with Reduce Motion, and paused while scrolled off screen.
 struct PassportTicker: View {
     var codes: [String]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var width: CGFloat = 0
+    static let limit = 20
 
-    private var row: some View {
-        HStack(spacing: 10) {
-            ForEach(Array(codes.enumerated()), id: \.offset) { _, code in
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.displayScale) private var displayScale
+    @ScaledMetric(relativeTo: .footnote) private var codeSize: CGFloat = 13
+    @State private var strip: Image?
+    @State private var stripWidth: CGFloat = 0
+    @State private var visible = true
+
+    private var shown: [String] { Array(codes.prefix(Self.limit)) }
+    /// Copies of the strip side by side: the widest window (a Mac sheet, an iPad) plus one.
+    private var copies: Int { stripWidth > 1 ? Int((1_400 / stripWidth).rounded(.up)) + 1 : 0 }
+
+    /// One pass of the row, coloured by a gradient that cycles along it.
+    static func row(_ shown: [String], size: CGFloat) -> some View {
+        let content = HStack(spacing: 10) {
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, code in
                 HStack(spacing: 4) {
                     Image(systemName: "airplane.circle.fill")
-                    Text(code).scaledFont(13, weight: .semibold).monospaced()
+                    Text(code).font(.system(size: size, weight: .semibold, design: .monospaced))
                 }
                 ForEach(0..<4, id: \.self) { _ in Image(systemName: "airplane") }
             }
         }
-        .scaledFont(12, weight: .semibold)
+        .font(.system(size: size * 0.92, weight: .semibold))
         .fixedSize()
         .padding(.trailing, 10)
+        return content
+            .hidden()
+            .frame(height: size * 1.5)
+            // The colours cycle about every screen width along the long row.
+            .overlay(LinearGradient(colors: Array(repeating: PassportMap.tickerColors, count: max(1, shown.count / 4)).flatMap { $0 },
+                                    startPoint: .leading, endPoint: .trailing))
+            .mask(content)
+    }
+
+    /// The widest bitmap the GPU draws (8,192 px textures), with a margin.
+    static let maxPixels: CGFloat = 8_000
+
+    /// The row as one bitmap and its width in points; nil when nothing could be drawn. A long row is drawn at
+    /// a lower scale so the bitmap stays under `maxPixels` wide (a wider one is not drawn at all on iOS).
+    @MainActor static func strip(_ shown: [String], size: CGFloat, scale: CGFloat) -> (image: CGImage, width: CGFloat)? {
+        guard !shown.isEmpty else { return nil }
+        let renderer = ImageRenderer(content: row(shown, size: size))
+        renderer.scale = 1
+        guard let points = renderer.cgImage.map({ CGFloat($0.width) }), points > 0 else { return nil }
+        // Text does not scale exactly linearly, so measure and step down until the bitmap fits.
+        var s = min(scale, maxPixels / points)
+        for _ in 0..<4 {
+            renderer.scale = s
+            guard let cg = renderer.cgImage else { return nil }
+            if CGFloat(cg.width) <= maxPixels { return (cg, CGFloat(cg.width) / s) }
+            s *= maxPixels / CGFloat(cg.width) * 0.99
+        }
+        return nil
+    }
+
+    @MainActor private func render() {
+        let scale = max(displayScale, 2)
+        guard let made = Self.strip(shown, size: codeSize, scale: scale) else { strip = nil; return }
+        strip = Image(decorative: made.image, scale: CGFloat(made.image.width) / made.width)
+        stripWidth = made.width
     }
 
     var body: some View {
-        TimelineView(.animation(paused: reduceMotion)) { context in
+        TimelineView(.animation(paused: reduceMotion || !visible || strip == nil)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            let shift = width > 0 && !reduceMotion ? CGFloat((t * 24).truncatingRemainder(dividingBy: Double(width))) : 0
-            LinearGradient(colors: PassportMap.tickerColors, startPoint: .leading, endPoint: .trailing)
-                .mask(alignment: .leading) {
-                    HStack(spacing: 0) {
-                        row.onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-                        row
-                        row
+            let shift = reduceMotion || stripWidth <= 1 ? 0 : CGFloat((t * 24).truncatingRemainder(dividingBy: Double(stripWidth)))
+            // The same bitmap a few times over, enough to cover the width while it slides by one, in an
+            // overlay so the long row never sizes the page.
+            Color.clear.overlay(alignment: .leading) {
+                HStack(spacing: 0) {
+                    if let strip {
+                        ForEach(0..<copies, id: \.self) { _ in strip }
                     }
-                    .offset(x: -shift)
                 }
+                .fixedSize()
+                .offset(x: -shift)
+            }
         }
-        .frame(height: 20)
+        .frame(height: codeSize * 1.5)
         .frame(maxWidth: .infinity)
         .clipped()
+        .onScrollVisibilityChange(threshold: 0.01) { visible = $0 }
+        .task(id: TickerKey(codes: shown, size: codeSize, scale: displayScale)) { render() }
         .accessibilityElement()
         .accessibilityLabel("Airports flown")
-        .accessibilityValue(codes.joined(separator: ", "))
+        .accessibilityValue(shown.joined(separator: ", "))
     }
+
+    private struct TickerKey: Hashable { var codes: [String]; var size: CGFloat; var scale: CGFloat }
 }
 
-/// The visited countries' round flags, overlapping, centred; past 12 a "+N" closes the row.
+/// The visited countries' round flags, overlapping, centred; past `limit` a "+N" closes the row. The row
+/// falls back to fewer flags when it does not fit the width (narrow screens, large text).
 struct FlagRow: View {
     var codes: [String]
-    static let limit = 12
+    static let limits = [12, 8, 5, 3]
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            ForEach(Self.limits, id: \.self) { flags($0) }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement()
+        .accessibilityLabel("Countries visited")
+        .accessibilityValue(codes.map { CountryFlag.accessibilityName($0) }.joined(separator: ", "))
+    }
+
+    private func flags(_ limit: Int) -> some View {
         HStack(spacing: -7) {
-            ForEach(codes.prefix(Self.limit), id: \.self) { code in
+            ForEach(codes.prefix(limit), id: \.self) { code in
                 CountryFlag(code: code, size: 30, decorative: true)
                     .overlay(Circle().strokeBorder(Theme.passportPage, lineWidth: 1.5))
             }
-            if codes.count > Self.limit {
-                Text("+\(codes.count - Self.limit)")
+            if codes.count > limit {
+                Text("+\(codes.count - limit)")
                     .scaledFont(14, weight: .semibold)
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .fixedSize()
                     .frame(minWidth: 30, minHeight: 30)
                     .padding(.horizontal, 4)
                     .background(Capsule().fill(Theme.passportChip))
                     .padding(.leading, 10)
             }
         }
-        .frame(maxWidth: .infinity)
-        .accessibilityElement()
-        .accessibilityLabel("Countries visited")
-        .accessibilityValue(codes.map { CountryFlag.accessibilityName($0) }.joined(separator: ", "))
+        .fixedSize()
     }
 }
