@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(12);
 
 -- users A and B (profile trigger fires on insert)
 insert into auth.users (id, instance_id, aud, role, email)
@@ -39,6 +39,23 @@ select is((select count(*) from user_flights), 1::bigint, 'A sees own user_fligh
 
 reset role;
 select is((select count(*) from profiles), 2::bigint, 'profile trigger created both profiles');
+
+-- deletion path: the profile has no FK to auth.users, so it survives; user rows cascade away.
+-- (delete-account marks the profile first, then deletes the auth user.)
+update profiles set status = 'deleted', display_name = null
+where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+delete from auth.users where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+select is((select count(*) from user_flights where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  0::bigint, 'deleting the auth user removes user_flights');
+select is((select count(*) from past_flights where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  0::bigint, 'deleting the auth user removes past_flights');
+select is((select count(*) from push_tokens where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  0::bigint, 'deleting the auth user removes push_tokens');
+select results_eq(
+  $$select status::text, display_name from profiles where user_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$,
+  $$values ('deleted'::text, null::text)$$,
+  'profile survives as deleted with no display name');
 
 select * from finish();
 rollback;

@@ -129,7 +129,10 @@ export async function cleanup(db: SupabaseClient): Promise<void> {
     check(await db.from("profiles").delete().in("user_id", users));
     for (const id of users) {
       const r = await db.auth.admin.deleteUser(id);
-      if (r.error) throw new Error(`cleanup failed: ${r.error.message}`);
+      // A test that deleted the account itself leaves nothing to remove.
+      if (r.error && r.error.status !== 404) {
+        throw new Error(`cleanup failed: ${r.error.message}`);
+      }
     }
   }
 }
