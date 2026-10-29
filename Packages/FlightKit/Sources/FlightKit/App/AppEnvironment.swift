@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 /// The services, cache and airport list one app run works with. The iOS and macOS shells build one
 /// at launch and make every store from it.
@@ -12,13 +13,17 @@ public struct AppEnvironment: Sendable {
     public var directory: AirportDirectory
     /// Where recent searches persist.
     public var recents: RecentsStorage
+    /// True when nothing works without an account (the backend): the shells show Sign In until there
+    /// is a session. The fakes answer without one, so screenshot runs open straight on the home.
+    public var requiresSignIn: Bool
 
     public init(flights: any FlightService, airports: any AirportService, auth: any AuthService,
                 history: any HistoryService, push: any PushService, cache: CacheStore,
-                directory: AirportDirectory = .bundled(), recents: RecentsStorage = .memory) {
+                directory: AirportDirectory = .bundled(), recents: RecentsStorage = .memory,
+                requiresSignIn: Bool = false) {
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.push = push; self.cache = cache
-        self.directory = directory; self.recents = recents
+        self.directory = directory; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
     /// Seeded fakes over an in-memory cache. `now` is the clock the seed is shifted to.
@@ -28,18 +33,28 @@ public struct AppEnvironment: Sendable {
                        history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.inMemory())
     }
 
-    /// The configuration a normal launch uses: the on-disk cache and persisted recent searches.
-    /// The fake data saved here while nobody is signed in belongs to no owner, so the cache drops it at
-    /// the first real sign-in (`CacheStore.claim(for:)`).
-    // TODO(Task 9): swap the fake services for the Supabase ones.
+    /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
+    /// recent searches. The backend is the one in Info.plist (`SupabaseConfig.fromBundle()`).
     @concurrent public static func live() async throws -> AppEnvironment {
-        AppEnvironment(flights: FakeFlightService(), airports: FakeAirportService(), auth: FakeAuthService(),
-                       history: FakeHistoryService(), push: FakePushService(), cache: try CacheStore.onDisk(),
-                       recents: .standard)
+        try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard)
+    }
+
+    /// The Supabase services over one client, with the bundled airport directory.
+    /// - Parameter authStorage: where the session persists; nil is the Keychain.
+    public static func supabase(config: SupabaseConfig, cache: CacheStore, recents: RecentsStorage,
+                                directory: AirportDirectory = .bundled(),
+                                authStorage: (any AuthLocalStorage)? = nil) -> AppEnvironment {
+        let backend = SupabaseBackend(config: config, authStorage: authStorage)
+        let lookup = directory.lookup
+        return AppEnvironment(flights: SupabaseFlightService(backend: backend, airport: lookup),
+                              airports: SupabaseAirportService(backend: backend, airport: lookup),
+                              auth: SupabaseAuthService(backend: backend), history: SupabaseHistoryService(backend: backend),
+                              push: SupabasePushService(backend: backend), cache: cache, directory: directory,
+                              recents: recents, requiresSignIn: true)
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
-    /// over an in-memory cache, anything else the `live()` configuration. Both shells call this.
+    /// over an in-memory cache (screenshot runs), anything else the backend (`live()`). Both shells call this.
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
         arguments.contains("-useFakes") ? try await fake() : try await live()
     }

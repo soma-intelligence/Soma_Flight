@@ -6,6 +6,9 @@ import os
 public final class SessionStore {
     public private(set) var session: UserSession?
     public private(set) var error: APIError?
+    /// False until the auth stream has reported once: before that nobody is known to be signed out, so
+    /// the shells do not flash Sign In at launch.
+    public private(set) var isResolved = false
     private let auth: any AuthService
     private let onUserChange: (@Sendable (UUID?) async throws -> Void)?
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -28,6 +31,12 @@ public final class SessionStore {
 
     deinit { task?.cancel(); retryTask?.cancel() }
 
+    /// Starts following auth state unless it already does.
+    public func startIfNeeded() {
+        guard task == nil else { return }
+        start()
+    }
+
     /// Starts following auth state. Calling it again replaces the previous loop.
     public func start() {
         task?.cancel()
@@ -46,6 +55,7 @@ public final class SessionStore {
     /// event tries again too.
     private func follow(_ s: UserSession?) async {
         retryTask?.cancel()
+        defer { isResolved = true }
         if await handOver(to: s?.userId) {
             session = s
             return
@@ -72,6 +82,36 @@ public final class SessionStore {
         self.session = session; self.error = error
     }
     #endif
+
+    // MARK: Signing in
+
+    /// Sign in with Apple: the identity token and the raw nonce whose hash the request carried. The session
+    /// arrives through the auth stream; on failure `error` is set.
+    public func signInWithApple(idToken: String, nonce: String) async {
+        do {
+            try await auth.signInWithApple(idToken: idToken, nonce: nonce)
+            error = nil
+        } catch { self.error = error }
+    }
+
+    /// Sends the sign-in link; true when it went out. On failure `error` is set.
+    public func signInWithEmail(_ email: String) async -> Bool {
+        do {
+            try await auth.signInWithEmail(email)
+            error = nil
+            return true
+        } catch {
+            self.error = error
+            return false
+        }
+    }
+
+    /// A URL the app was opened with: the email link's way back becomes a session.
+    public func handle(url: URL) async {
+        do {
+            try await auth.handleOpenURL(url)
+        } catch { self.error = error }
+    }
 
     /// Wipes the device first, then signs out: an app killed between the two keeps nothing of the account.
     /// When the wipe fails the account stays signed in and `error` is `.localData`, so the user can retry.

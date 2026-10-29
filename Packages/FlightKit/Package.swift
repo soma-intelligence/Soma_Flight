@@ -10,7 +10,8 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../FlightCoreFFI"),
-        .package(url: "https://github.com/supabase/supabase-swift", from: "2.0.0"),
+        // Pinned: a new release is taken on purpose, after its changelog is read.
+        .package(url: "https://github.com/supabase/supabase-swift", exact: "2.55.5"),
     ],
     targets: [
         .target(
@@ -24,7 +25,11 @@ let package = Package(
         ),
         .testTarget(
             name: "FlightKitTests",
-            dependencies: ["FlightKit"],
+            dependencies: [
+                "FlightKit",
+                // The local-stack smoke test (INTEGRATION=1) signs a user in through the client.
+                .product(name: "Supabase", package: "supabase-swift"),
+            ],
             resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),

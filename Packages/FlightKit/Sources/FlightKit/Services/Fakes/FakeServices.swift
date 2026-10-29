@@ -340,24 +340,7 @@ public actor FakeHistoryService: HistoryService {
 
     public func export(_ format: ExportFormat) async throws(APIError) -> Data {
         try check()
-        switch format {
-        case .json:
-            do { return try FlightJSON.encoder.encode(past) }
-            catch { throw .decoding(String(describing: error)) }
-        case .csv:
-            let day = ISO8601DateFormatter()
-            day.formatOptions = [.withFullDate]
-            var lines = ["date,ident,origin,destination,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status"]
-            for p in past {
-                let cols: [String] = [
-                    day.string(from: p.date), p.ident, p.originIcao, p.destinationIcao, p.airline ?? "",
-                    p.aircraftType ?? "", p.registration ?? "", p.seat ?? "", String(p.distanceKm),
-                    p.blockMinutes.map(String.init) ?? "", String(p.delayMinutes), p.status.rawValue,
-                ]
-                lines.append(cols.map { $0.contains(",") ? "\"\($0)\"" : $0 }.joined(separator: ","))
-            }
-            return Data(lines.joined(separator: "\n").utf8)
-        }
+        return try PastFlightExport.data(past, format: format)
     }
 }
 

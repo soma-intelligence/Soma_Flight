@@ -185,6 +185,13 @@ public struct LaunchPlaceholder: View {
 
     /// The line shown when the cache cannot open.
     public static let storageFailure = "Soma Flight could not open its storage. Restart the app to try again."
+    /// The line shown when the build carries no backend address (Config.xcconfig).
+    public static let configFailure = "This build of Soma Flight has no server configured."
+
+    /// The line for a launch that threw `error`.
+    public static func failure(for error: any Error) -> String {
+        error is SupabaseConfig.Failure ? configFailure : storageFailure
+    }
 
     public var body: some View {
         ZStack {
@@ -204,5 +211,30 @@ public struct LaunchPlaceholder: View {
                 ProgressView()
             }
         }
+    }
+}
+
+/// Sign In instead of the home while the backend needs an account and nobody is signed in; a blank
+/// launch screen while the stored session is still being read. Starts following the session.
+public struct SignInGate<Home: View>: View {
+    var home: HomeModel
+    var showsProgress: Bool
+    var content: () -> Home
+
+    public init(home: HomeModel, showsProgress: Bool = false, @ViewBuilder content: @escaping () -> Home) {
+        self.home = home; self.showsProgress = showsProgress; self.content = content
+    }
+
+    public var body: some View {
+        Group {
+            if home.needsSignIn {
+                SignInView(session: home.session, onEmail: { await home.session.signInWithEmail($0) })
+            } else if home.awaitingSession {
+                LaunchPlaceholder(failure: nil, showsProgress: showsProgress)
+            } else {
+                content()
+            }
+        }
+        .task { home.session.startIfNeeded() }
     }
 }

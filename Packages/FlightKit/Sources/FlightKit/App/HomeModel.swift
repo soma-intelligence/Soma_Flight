@@ -24,6 +24,8 @@ public final class HomeModel {
     public let shell = ShellModel()
     /// The section on show.
     public var tab: HomeTab = .flights
+    /// The account the two stores were built for.
+    @ObservationIgnored private var storesOwner: UUID?
 
     public init(env: AppEnvironment) {
         self.env = env
@@ -35,6 +37,12 @@ public final class HomeModel {
 
     /// The account the stores read and write for.
     public var owner: UUID? { session.session?.userId }
+
+    /// The shells show Sign In instead of the home: the backend needs an account and nobody is signed in.
+    public var needsSignIn: Bool { env.requiresSignIn && session.isResolved && session.session == nil }
+
+    /// The backend needs an account and the stored session has not been read yet (a launch placeholder).
+    public var awaitingSession: Bool { env.requiresSignIn && !session.isResolved }
 
     /// Followed flights, the ones in the air first.
     public var followed: [Flight] { myFlights.live + myFlights.upcoming }
@@ -80,8 +88,11 @@ public final class HomeModel {
 
     /// Starts following the session, then loads both lists and live updates. Call once, when the home
     /// appears.
+    /// The home may first appear after a sign-in it did not see (Sign In was on screen): the stores are
+    /// rebuilt then for the account signed in now.
     public func start() async {
-        session.start()
+        session.startIfNeeded()
+        if storesOwner != owner { rebuildStores() }
         await load()
     }
 
@@ -97,9 +108,14 @@ public final class HomeModel {
     /// before publishing it, so the rebuilt stores never read the previous account's.
     public func userChanged() {
         shell.reset()
+        rebuildStores()
+        Task { await load() }
+    }
+
+    private func rebuildStores() {
+        storesOwner = owner
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
-        Task { await load() }
     }
 
     // MARK: Screenshot runs

@@ -2,27 +2,28 @@ import AuthenticationServices
 import SwiftUI
 
 /// First screen without a session: the name, one line on what the app does, Sign in with Apple,
-/// and an email link. The Apple and email flows are wired in Task 9.
+/// and an email link. Apple sign-in signs into `session` with a nonce; the email link comes back through
+/// the app's URL handler (`SessionStore.handle(url:)`).
 public struct SignInView: View {
     var session: SessionStore
-    var onApple: ((Result<ASAuthorization, any Error>) -> Void)?
     var onEmail: ((String) async -> Bool)?
 
     private enum EmailState: Equatable { case idle, sending, sent(String), failed }
 
     @State private var email = ""
     @State private var emailState: EmailState = .idle
+    /// The nonce of the Apple request in flight: its hash goes in the request, the raw value to Supabase.
+    @State private var nonce: AppleNonce?
+    @State private var appleFailed = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.airportStaticControls) private var staticControls
     @ScaledMetric(relativeTo: .body) private var logo = 68
 
     /// - Parameters:
-    ///   - onApple: the Apple authorization result (Task 9 turns it into a session).
     ///   - onEmail: sends a sign-in link to the (trimmed) address and returns whether it went out. The
     ///     button is disabled while it runs, and nil disables the email path.
-    public init(session: SessionStore, onApple: ((Result<ASAuthorization, any Error>) -> Void)? = nil,
-                onEmail: ((String) async -> Bool)? = nil) {
-        self.session = session; self.onApple = onApple; self.onEmail = onEmail
+    public init(session: SessionStore, onEmail: ((String) async -> Bool)? = nil) {
+        self.session = session; self.onEmail = onEmail
     }
 
     private var trimmed: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -84,6 +85,12 @@ public struct SignInView: View {
                 ErrorBanner(error: error)
             }
             appleButton
+            if appleFailed {
+                Text("Sign in with Apple didn't finish. Try again.")
+                    .scaledFont(13)
+                    .foregroundStyle(Theme.veryLate)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Text("or")
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
@@ -188,6 +195,24 @@ public struct SignInView: View {
         }
     }
 
+    /// Hands Apple's identity token and the raw nonce to the session. Cancelling is not a failure.
+    private func completeApple(_ result: Result<ASAuthorization, any Error>) {
+        let raw = nonce?.raw
+        nonce = nil
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let data = credential.identityToken, let token = String(data: data, encoding: .utf8), let raw else {
+                appleFailed = true
+                return
+            }
+            appleFailed = false
+            Task { await session.signInWithApple(idToken: token, nonce: raw) }
+        case .failure(let error):
+            appleFailed = (error as? ASAuthorizationError)?.code != .canceled
+        }
+    }
+
     @ViewBuilder private var appleButton: some View {
         if staticControls {
             // ImageRenderer cannot draw the system button; snapshots get a plain stand-in.
@@ -200,9 +225,12 @@ public struct SignInView: View {
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(scheme == .dark ? Color.white : Color.black))
         } else {
             SignInWithAppleButton(.signIn) { request in
+                let fresh = AppleNonce.random()
+                nonce = fresh
                 request.requestedScopes = [.email]
+                request.nonce = fresh.hashed
             } onCompletion: { result in
-                onApple?(result)
+                completeApple(result)
             }
             .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
             .frame(minHeight: 50)

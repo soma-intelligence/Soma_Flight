@@ -14,8 +14,8 @@ struct RootTabView: View {
     @State private var screenHeight: CGFloat = 874
     @StoredUnits private var units: Units
 
-    init(env: AppEnvironment) {
-        _home = State(initialValue: HomeModel(env: env))
+    init(home: HomeModel) {
+        _home = State(initialValue: home)
     }
 
     private var env: AppEnvironment { home.env }

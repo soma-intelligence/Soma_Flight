@@ -3,26 +3,36 @@ import SwiftUI
 
 @main
 struct SomaFlightApp: App {
-    @State private var env: AppEnvironment?
+    @State private var home: HomeModel?
     @State private var failure: String?
+    /// A sign-in link opened before the home was built, handed over once it is.
+    @State private var pendingURL: URL?
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if let env {
-                    RootTabView(env: env)
+                if let home {
+                    SignInGate(home: home) { RootTabView(home: home) }
                 } else {
                     LaunchPlaceholder(failure: failure)
                 }
             }
+            .onOpenURL { url in
+                if let home { Task { await home.session.handle(url: url) } } else { pendingURL = url }
+            }
             .task {
-                guard env == nil else { return }
+                guard home == nil else { return }
                 do {
                     // Built off the main thread: the SwiftData cache opens its store on creation.
                     // `-useFakes` on the command line runs on the seeded fakes with an in-memory cache.
-                    env = try await AppEnvironment.forLaunch()
+                    let built = HomeModel(env: try await AppEnvironment.forLaunch())
+                    home = built
+                    if let url = pendingURL {
+                        pendingURL = nil
+                        await built.session.handle(url: url)
+                    }
                 } catch {
-                    failure = LaunchPlaceholder.storageFailure
+                    failure = LaunchPlaceholder.failure(for: error)
                 }
             }
         }

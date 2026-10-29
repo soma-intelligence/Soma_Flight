@@ -5,3 +5,4 @@ core/target/
 *.xcodeproj
 xcuserdata/
 .build/
+Config.local.xcconfig

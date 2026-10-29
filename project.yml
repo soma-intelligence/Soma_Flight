@@ -15,7 +15,16 @@ targets:
   SomaFlight-iOS:
     type: application
     platform: iOS
-    sources: [Apps/iOS]
+    sources:
+      - path: Apps/iOS
+        excludes: [Info.plist, "*.xcconfig", "*.entitlements"]
+    configFiles:
+      Debug: Apps/iOS/Config.xcconfig
+      Release: Apps/iOS/Config.xcconfig
+    entitlements:
+      path: Apps/iOS/SomaFlight.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     dependencies:
       - package: FlightKit
         product: FlightKit
@@ -24,6 +33,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        # Supabase URL and anon key (from Config.xcconfig) and the somaflight:// sign-in callback.
+        INFOPLIST_FILE: Apps/iOS/Info.plist
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
     scheme:
@@ -31,7 +42,12 @@ targets:
   SomaFlight-macOS:
     type: application
     platform: macOS
-    sources: [Apps/macOS]
+    sources:
+      - path: Apps/macOS
+        excludes: [Info.plist, "*.xcconfig", "*.entitlements"]
+    configFiles:
+      Debug: Apps/macOS/Config.xcconfig
+      Release: Apps/macOS/Config.xcconfig
     dependencies:
       - package: FlightKit
         product: FlightKit
@@ -40,8 +56,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        # Supabase URL and anon key (from Config.xcconfig) and the somaflight:// sign-in callback.
+        INFOPLIST_FILE: Apps/macOS/Info.plist
         ENABLE_APP_SANDBOX: YES
         ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
+      configs:
+        # Sign in with Apple needs a provisioning profile, which a Mac build signed to run locally has not:
+        # Debug keeps the sandbox and network only (email sign-in works), Release carries the capability.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Apps/macOS/SomaFlight-Debug.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Apps/macOS/SomaFlight.entitlements
     scheme:
       testTargets: []
   SomaFlightWidgets:

@@ -1,0 +1,213 @@
+import Foundation
+import Supabase
+import Synchronization
+
+/// Flights from the backend: `flight-lookup` and `airport-board` for search, `follow-flight` to follow,
+/// the `flights`, `flight_events` and `user_flights` tables to read, Realtime on `flights` for updates.
+///
+/// Board rows and real flights carry different ids. A board row's `id` is a UUID v5 of its
+/// `provider_id` (boards are not stored in `flights`), while `follow-flight` needs a `flights.id`. This
+/// service is where the two meet: every board row it hands out is remembered, and `follow(_:notify:)`
+/// on one of those ids first resolves the `flights` row with the same `provider_id` (the table, else a
+/// `flight-lookup` of the row's ident and day) and follows that row. See `resolve(_:)`.
+public final class SupabaseFlightService: FlightService {
+    private let backend: SupabaseBackend
+    private let airport: @Sendable (String) -> Airport?
+    private let timeZone: @Sendable () -> TimeZone
+    /// Board rows handed out by airport searches, by their v5 id.
+    private let boardRows = Mutex<[UUID: Flight]>([:])
+    /// Board row id to the `flights.id` it resolved to.
+    private let resolved = Mutex<[UUID: UUID]>([:])
+
+    /// - Parameters:
+    ///   - airport: the bundled directory (ICAO or IATA), for an origin's time zone.
+    ///   - timeZone: the calendar search days are picked in.
+    public init(backend: SupabaseBackend, airport: @escaping @Sendable (String) -> Airport?,
+                timeZone: @escaping @Sendable () -> TimeZone = { .current }) {
+        self.backend = backend; self.airport = airport; self.timeZone = timeZone
+    }
+
+    private struct FlightsAnswer: Decodable { var flights: [Flight] }
+
+    static func decodeLookup(_ data: Data) throws -> [Flight] {
+        try FlightJSON.decoder.decode(FlightsAnswer.self, from: data).flights
+    }
+
+    // MARK: Search
+
+    public func lookup(_ query: FlightQuery) async throws(APIError) -> [Flight] {
+        if case .airport(let code) = query { return try await airportFlights(code) }
+        guard let body = SupabaseBackend.lookupBody(for: query, timeZone: timeZone()) else { throw .notFound }
+        let found = try await backend.call("flight-lookup", body: body, decode: Self.decodeLookup)
+        guard !found.isEmpty else { throw .notFound }
+        return found
+    }
+
+    /// An airport's flights today: its departures and arrivals boards, merged.
+    private func airportFlights(_ code: String) async throws(APIError) -> [Flight] {
+        let boards = SupabaseAirportService(backend: backend, airport: airport)
+        async let dep = Self.capture { () async throws(APIError) in try await boards.board(code, .departures) }
+        async let arr = Self.capture { () async throws(APIError) in try await boards.board(code, .arrivals) }
+        let results = await [dep, arr]
+        var rows: [UUID: Flight] = [:]
+        var firstError: APIError?
+        for r in results {
+            switch r {
+            case .success(let b): for f in b.flights { rows[f.id] = f }
+            case .failure(let e): firstError = firstError ?? e
+            }
+        }
+        if rows.isEmpty, let firstError { throw firstError }
+        guard !rows.isEmpty else { throw .notFound }
+        boardRows.withLock { $0.merge(rows) { $1 } }
+        return rows.values.sorted { ($0.scheduledOut ?? .distantFuture, $0.id.uuidString) < ($1.scheduledOut ?? .distantFuture, $1.id.uuidString) }
+    }
+
+    private static func capture<T: Sendable>(_ body: @Sendable () async throws(APIError) -> T) async -> Result<T, APIError> {
+        do { return .success(try await body()) } catch { return .failure(error) }
+    }
+
+    // MARK: Board row to flights row
+
+    /// The `flights.id` to use for `id`: itself unless it is a board row's v5 id, which resolves to the
+    /// `flights` row with the same `provider_id`.
+    func resolve(_ id: Flight.ID) async throws(APIError) -> Flight.ID {
+        if let known = resolved.withLock({ $0[id] }) { return known }
+        guard let row = boardRows.withLock({ $0[id] }) else { return id }
+        let real = try await flightsRow(for: row)
+        resolved.withLock { $0[id] = real.id }
+        return real.id
+    }
+
+    /// The table first (someone may have looked it up already, free); else `flight-lookup` of the row's
+    /// ident on its origin's local day, which stores it, keeping the result with the same `provider_id`.
+    private func flightsRow(for row: Flight) async throws(APIError) -> Flight {
+        let pid = row.providerId
+        let data = try await backend.rows { $0.from("flights").select().eq("provider_id", value: pid).limit(1) }
+        if let stored = try decodeFlights(data).first { return stored }
+        guard let out = row.scheduledOut else { throw .notFound }
+        let tz = airport(row.originIcao)?.timeZone ?? .gmt
+        let body = SupabaseBackend.json(["ident": row.ident, "date": SupabaseBackend.day(out, in: tz)])
+        let found = try await backend.call("flight-lookup", body: body, decode: Self.decodeLookup)
+        guard let match = found.first(where: { $0.providerId == pid }) else { throw .notFound }
+        return match
+    }
+
+    // MARK: Following
+
+    /// `user_flights` rows with their flight (RLS keeps them to the signed-in user).
+    private struct FollowRow: Decodable { var flights: Flight? }
+
+    public func followed() async throws(APIError) -> [Flight] {
+        let data = try await backend.rows { $0.from("user_flights").select("created_at, flights(*)").order("created_at") }
+        do {
+            return try FlightJSON.decoder.decode([FollowRow].self, from: data).compactMap(\.flights)
+        } catch { throw SupabaseBackend.map(error) }
+    }
+
+    public func follow(_ id: Flight.ID, notify: Bool) async throws(APIError) {
+        let real = try await resolve(id)
+        try await backend.call("follow-flight", body: SupabaseBackend.json(["flightId": real.uuidString.lowercased(), "notify": notify]))
+    }
+
+    public func unfollow(_ id: Flight.ID) async throws(APIError) {
+        let real = try await resolve(id)
+        try await backend.call("follow-flight", method: .delete, body: SupabaseBackend.json(["flightId": real.uuidString.lowercased()]))
+    }
+
+    // MARK: One flight
+
+    public func flight(_ id: Flight.ID) async throws(APIError) -> Flight {
+        let real = try await resolve(id)
+        let data = try await backend.rows { $0.from("flights").select().eq("id", value: real.uuidString.lowercased()).limit(1) }
+        guard let f = try decodeFlights(data).first else { throw .notFound }
+        return f
+    }
+
+    public func events(_ id: Flight.ID) async throws(APIError) -> [FlightEvent] {
+        let real = try await resolve(id)
+        let data = try await backend.rows {
+            $0.from("flight_events").select().eq("flight_id", value: real.uuidString.lowercased()).order("received_at")
+        }
+        do { return try FlightJSON.decoder.decode([FlightEvent].self, from: data) } catch { throw SupabaseBackend.map(error) }
+    }
+
+    private func decodeFlights(_ data: Data) throws(APIError) -> [Flight] {
+        do { return try FlightJSON.decoder.decode([Flight].self, from: data) } catch { throw SupabaseBackend.map(error) }
+    }
+
+    func flights(_ ids: [Flight.ID]) async throws(APIError) -> [Flight] {
+        let values = ids.map { $0.uuidString.lowercased() }
+        let data = try await backend.rows { $0.from("flights").select().in("id", values: values) }
+        return try decodeFlights(data)
+    }
+
+    // MARK: Live updates
+
+    /// Waits before subscribing again after a channel closes or fails to join.
+    static let resubscribeDelays: [Duration] = [.seconds(1), .seconds(2), .seconds(5), .seconds(15), .seconds(30)]
+
+    /// `postgres_changes` UPDATEs on `flights` filtered by `id=in.(...)`. Each time the channel joins
+    /// (the first time, and again after a dropped connection) the flights are read once, so a change
+    /// made while the socket was down is not lost. A channel that closes is replaced by a new one.
+    /// Ending the stream (the consumer stops iterating) removes the channel.
+    public func updates(for ids: [Flight.ID]) -> AsyncStream<Flight> {
+        let ids = Array(Set(ids))
+        let (stream, continuation) = AsyncStream<Flight>.makeStream(bufferingPolicy: .bufferingNewest(64))
+        guard !ids.isEmpty else { continuation.finish(); return stream }
+        let task = Task { [backend] in
+            await Self.run(ids: ids, backend: backend, refetch: { () async throws(APIError) in try await self.flights(ids) }, yield: { continuation.yield($0) })
+            continuation.finish()
+        }
+        continuation.onTermination = { _ in task.cancel() }
+        return stream
+    }
+
+    private static func run(ids: [Flight.ID], backend: SupabaseBackend,
+                            refetch: @escaping @Sendable () async throws(APIError) -> [Flight],
+                            yield: @escaping @Sendable (Flight) -> Void) async {
+        let client = backend.client
+        var failures = 0
+        while !Task.isCancelled {
+            let channel = client.channel("flights-\(UUID().uuidString.lowercased())")
+            let changes = channel.postgresChange(UpdateAction.self, schema: "public", table: "flights",
+                                                 filter: .in("id", values: ids.map { $0.uuidString.lowercased() }))
+            do {
+                try await channel.subscribeWithError()
+                failures = 0
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        for await change in changes {
+                            do { yield(try change.decodeRecord(as: Flight.self, decoder: FlightJSON.decoder)) } catch {
+                                SupabaseBackend.log.error("flights change not decoded: \(String(describing: error), privacy: .public)")
+                            }
+                        }
+                    }
+                    group.addTask {
+                        // Every join, the first and each rejoin after a reconnect, reads the flights once.
+                        // The loop ends when the channel closes for good.
+                        for await status in channel.statusChange {
+                            switch status {
+                            case .subscribed:
+                                if let fresh = try? await refetch() { for f in fresh { yield(f) } }
+                            case .unsubscribed:
+                                return
+                            case .subscribing, .unsubscribing:
+                                break
+                            }
+                        }
+                    }
+                    await group.next()
+                    group.cancelAll()
+                }
+            } catch {
+                failures += 1
+                SupabaseBackend.log.error("flights channel did not join: \(String(describing: error), privacy: .public)")
+            }
+            await client.removeChannel(channel)
+            guard !Task.isCancelled else { return }
+            let delay = resubscribeDelays[min(failures, resubscribeDelays.count - 1)]
+            try? await Task.sleep(for: delay)
+        }
+    }
+}
