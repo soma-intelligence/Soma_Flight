@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import SwiftUI
+import CoreGraphics
 import FlightCore
 @testable import FlightKit
 
@@ -46,16 +48,17 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
                          favourite: SeatTally(seat: "20D", flights: 2))
         let cls = AircraftStatsCopy.classDonut(some)
         #expect(!cls.isHidden)
-        #expect(cls.centreTitle == "Top class" && cls.centreValue == "Economy")
+        #expect(cls.centerTitle == "Top class" && cls.centerValue == "Economy")
         #expect(cls.slices.map(\.percent) == [96, 0, 4, 0])
         let seat = AircraftStatsCopy.seatDonut(some)
-        #expect(seat.centreTitle == "Top seat" && seat.centreValue == "20D")
+        #expect(seat.centerTitle == "Top seat" && seat.centerValue == "20D")
         #expect(seat.slices.map(\.label) == ["Aisle", "Middle", "Window"])
         #expect(seat.slices.map(\.percent) == [69, 17, 14])
         let reason = AircraftStatsCopy.reasonDonut(some)
-        #expect(reason.centreTitle == "Top reason" && reason.centreValue == "Personal")
+        #expect(reason.centerTitle == "Top reason" && reason.centerValue == "Personal")
         #expect(reason.slices.map(\.percent) == [62, 38])
-        #expect(AircraftStatsCopy.favouriteSeat(some)?.value == "20D (2 times)")
+        #expect(AircraftStatsCopy.favoriteSeat(some)?.title == "Favorite seat")
+        #expect(AircraftStatsCopy.favoriteSeat(some)?.value == "20D (2 times)")
 
         // Only reasons known: the class and seat donuts still hide.
         let reasonsOnly = stats(reasons: ReasonCounts(personal: 1, business: 0))
@@ -69,16 +72,26 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
         #expect(noFacts.aircraft.totalTypes > 0)
         #expect(!AircraftStatsCopy.showsAges(noFacts.aircraft))
         #expect(noFacts.aircraft.decades.isEmpty)
-        #expect(noFacts.tailAgeMonths.isEmpty)
+        #expect(await noFacts.leadTailAge() == nil)
 
         let withFacts = PassportStore(history: FakeHistoryService(), facts: FakeAircraftFactsService(),
                                       asOf: Date(timeIntervalSince1970: 1_793_000_000))
         await withFacts.load()
         #expect(AircraftStatsCopy.showsAges(withFacts.aircraft))
         #expect(!AircraftStatsCopy.decadeLabels(withFacts.aircraft.decades).isEmpty)
-        // The top tail's age comes from the core run on its own flights.
-        let top = withFacts.aircraft.tails[0]
-        #expect(withFacts.tailAgeMonths[top.registration] != nil)
+        // The lead tail's age comes from the core run on its own flights.
+        #expect(await withFacts.leadTailAge() != nil)
+    }
+
+    /// The store matches tails the way the core keys them, so a messy registration still finds its age.
+    @Test func registrationKeyMatchesTheCore() {
+        let messy = FlightKit.PastFlight(date: Date(timeIntervalSince1970: 1_767_268_800), ident: "AF84",
+                                         originIcao: "LFPG", destinationIcao: "KSFO", aircraftType: "B77W",
+                                         registration: "  f-gsqi ", distanceKm: 8_950).coreFlight
+        let s = FlightCore.computeAircraftStats(flights: [messy], year: nil, types: [], facts: [], asOf: 0)
+        #expect(s.tails.first?.registration == PassportStore.registrationKey("  f-gsqi "))
+        #expect(PassportStore.registrationKey("   ") == nil)
+        #expect(PassportStore.registrationKey(nil) == nil)
     }
 
     @Test func headerCopy() {
@@ -92,13 +105,44 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
     }
 
     @Test func tailCountryFromRegistration() {
-        #expect(AircraftStatsCopy.registrationCountry("F-GSQI") == "FR")
-        #expect(AircraftStatsCopy.registrationCountry("N370DN") == "US")
-        #expect(AircraftStatsCopy.registrationCountry("G-ZBKD") == "GB")
-        #expect(AircraftStatsCopy.registrationCountry("PH-BKL") == "NL")
-        #expect(AircraftStatsCopy.registrationCountry("B-HNR") == "HK")
-        #expect(AircraftStatsCopy.registrationCountry("B-1234") == "CN")
-        #expect(AircraftStatsCopy.registrationCountry("JA873J") == "JP")
-        #expect(AircraftStatsCopy.registrationCountry("ZZ-TOP") == nil)
+        let cases: [(String, String?)] = [
+            ("N370DN", "US"), ("G-ZBKD", "GB"), ("F-GSQI", "FR"), ("D-AIXA", "DE"), ("C-FIVQ", "CA"),
+            ("VH-OQA", "AU"), ("JA873J", "JP"), ("HL7630", "KR"), ("9V-SMF", "SG"), ("A6-EDA", "AE"),
+            ("HB-JNA", "CH"), ("EI-DEI", "IE"), ("PH-BKL", "NL"), ("OO-SSA", "BE"), ("EC-MXV", "ES"),
+            ("I-ADLZ", "IT"), ("LN-RKF", "NO"), ("SE-DOY", "SE"), ("OY-KBO", "DK"), ("OH-LWA", "FI"),
+            ("B-HNR", "HK"), ("B-KPA", "HK"), ("B-LRA", "HK"), ("B-MAC", "MO"),
+            ("B-18901", "TW"), ("B-16701", "TW"), ("B-0001", "TW"), ("B-1234", "CN"), ("B-30AB", "CN"),
+            ("VP-BJA", "BM"), ("VP-CAB", "KY"), ("ES-ACB", "EE"), ("ZZ-TOP", nil), ("", nil),
+        ]
+        for (reg, iso) in cases {
+            #expect(AircraftStatsCopy.registrationCountry(reg) == iso, "\(reg)")
+        }
+    }
+
+    @Test func typesTotalSingular() {
+        #expect(AircraftStatsCopy.typesTotal(12) == ("12", " total aircraft"))
+        #expect(AircraftStatsCopy.typesTotal(1) == ("1", " aircraft"))
+    }
+
+    /// The share image is dark even when the screen around the Share button is light.
+    @MainActor @Test func shareImageIsDarkOnALightScreen() throws {
+        let page = SectionShareButton<Text>.sharePage(title: "Aircraft types", units: Units(), reference: .bundled()) {
+            Text("12 total aircraft")
+        }
+        .environment(\.colorScheme, .light)
+        let renderer = ImageRenderer(content: page)
+        renderer.scale = 1
+        let image = try #require(renderer.cgImage)
+        let pixel = try #require(Self.pixel(image, x: 4, y: image.height - 4))
+        #expect(pixel.r < 60 && pixel.g < 60 && pixel.b < 60, "background \(pixel)")
+    }
+
+    private static func pixel(_ image: CGImage, x: Int, y: Int) -> (r: Int, g: Int, b: Int)? {
+        var data = [UInt8](repeating: 0, count: 4)
+        guard let ctx = CGContext(data: &data, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
+        return (Int(data[0]), Int(data[1]), Int(data[2]))
     }
 }

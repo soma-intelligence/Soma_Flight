@@ -198,6 +198,8 @@ struct RankedBars: View {
     /// What the rows are ("airports"), for VoiceOver.
     var noun: String
     @Binding var showMore: Bool
+    /// The bars' fill: violet on the Passport, blue on the Aircraft Stats page.
+    var tint: Color = Theme.passportAccent
     @ScaledMetric(relativeTo: .body) private var codeRow: CGFloat = 26
     @ScaledMetric(relativeTo: .body) private var markRow: CGFloat = 35
     @Environment(\.reference) private var reference
@@ -239,7 +241,7 @@ struct RankedBars: View {
                     .fixedSize()
                     .frame(height: codeRow, alignment: .center)
                     .accessibilityLabel("\(code), \(item.caption)")
-                BarRow(fraction: fraction, caption: item.caption, height: codeRow * Self.codeBar)
+                BarRow(fraction: fraction, caption: item.caption, height: codeRow * Self.codeBar, tint: tint)
                     .offset(y: codeRow * Self.codeDrop)
                     .frame(height: codeRow)
                     .accessibilityHidden(true)
@@ -250,7 +252,7 @@ struct RankedBars: View {
                     .frame(height: markRow)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(reference.airline(key)?.name ?? key), \(item.caption)")
-                BarRow(fraction: fraction, caption: item.caption, height: markRow * Self.markBar)
+                BarRow(fraction: fraction, caption: item.caption, height: markRow * Self.markBar, tint: tint)
                     .accessibilityHidden(true)
             }
         }
@@ -263,11 +265,12 @@ private struct BarRow: View {
     var fraction: Double
     var caption: String
     var height: CGFloat
+    var tint: Color
 
     var body: some View {
         BarRowLayout(fraction: fraction, minBar: height * 0.6) {
             RoundedRectangle(cornerRadius: height * 0.24, style: .continuous)
-                .fill(Theme.passportAccent)
+                .fill(tint)
                 .frame(height: height)
             Text(caption)
                 .scaledFont(17)
@@ -335,13 +338,27 @@ struct ShowMoreButton: View {
     }
 }
 
-/// "Flights" and "Distance" pills over a ranked list.
-struct MetricToggle: View {
-    @Binding var metric: PassportLists.Metric
+/// What a ranked list can be ranked by: its pill reads `rawValue`.
+protocol RankMetric: RawRepresentable, CaseIterable, Identifiable, Hashable where RawValue == String {}
+extension PassportLists.Metric: RankMetric {}
+
+/// "Flights" and "Distance" (or any `RankMetric`'s) pills over a ranked list; scrolls sideways when the
+/// pills do not fit (large Dynamic Type).
+struct MetricToggle<Metric: RankMetric>: View where Metric.AllCases: RandomAccessCollection {
+    @Binding var metric: Metric
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            pills
+            ScrollView(.horizontal, showsIndicators: false) { pills }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Rank by")
+    }
+
+    private var pills: some View {
         HStack(spacing: 4) {
-            ForEach(PassportLists.Metric.allCases) { m in
+            ForEach(Metric.allCases) { m in
                 Button { metric = m } label: {
                     Text(m.rawValue)
                         .scaledFont(16, weight: .medium)
@@ -355,8 +372,7 @@ struct MetricToggle: View {
                 .accessibilityAddTraits(m == metric ? .isSelected : [])
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Rank by")
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
@@ -370,7 +386,7 @@ private struct TotalLine: View {
 }
 
 /// Lists start open on screenshot runs (`-passportShowMore YES`).
-private enum ScreenshotRun {
+enum ScreenshotRun {
     static let startsOpen: Bool = {
         #if DEBUG
         UserDefaults.standard.bool(forKey: "passportShowMore")
@@ -382,7 +398,7 @@ private enum ScreenshotRun {
 
 /// A section's "Show more" for `year`, over the set of years the section was opened for, so another
 /// year starts closed.
-private func openBinding(_ opened: Binding<Set<Int>>, year: Int?) -> Binding<Bool> {
+func openBinding(_ opened: Binding<Set<Int>>, year: Int?) -> Binding<Bool> {
     let key = PassportLists.yearKey(year)
     let flip = ScreenshotRun.startsOpen
     return Binding(

@@ -116,7 +116,7 @@ public struct AcknowledgementsView: View {
                 row(entry, last: i == Self.entries.count - 1)
             }
             Hairline().scaledPadding(.horizontal, 16)
-            CapsHeader("circle-flags licence")
+            CapsHeader("circle-flags license")
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.top, 34)
                 .scaledPadding(.bottom, 8)
@@ -138,7 +138,7 @@ public struct AcknowledgementsView: View {
                 logoCredit(credit)
                 Hairline().scaledPadding(.horizontal, 16)
             }
-            CapsHeader("Third-party licences")
+            CapsHeader("Third-party licenses")
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.top, 34)
                 .scaledPadding(.bottom, 8)

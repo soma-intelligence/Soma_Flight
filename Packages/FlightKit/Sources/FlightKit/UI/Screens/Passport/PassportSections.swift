@@ -40,6 +40,13 @@ struct SectionShareButton<Content: View>: View {
     }
 
     private var page: some View {
+        Self.sharePage(title: title, units: units, reference: reference, content: content)
+    }
+
+    /// The shared image: title, the section and the app's name at phone width, always dark whatever the
+    /// screen's own scheme (the scheme is set inside the rendered content, so it holds off screen too).
+    static func sharePage(title: String, units: Units, reference: ReferenceData,
+                          content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
             content()

@@ -62,31 +62,31 @@ enum AircraftStatsCopy {
 
     // MARK: Types
 
-    enum TypeMetric: String, CaseIterable, Identifiable {
+    enum TypeMetric: String, CaseIterable, Identifiable, RankMetric {
         case flights = "Flights", time = "Time", distance = "Distance"
         var id: String { rawValue }
     }
 
-    struct TypeBar: Identifiable, Equatable {
-        var id: String
-        var value: UInt64
-        var caption: String
-    }
-
-    /// The core's type list for the metric, as bars labelled with the ICAO designator.
-    static func typeBars(_ s: AircraftStats, metric: TypeMetric, units: DistanceUnit) -> [TypeBar] {
+    /// The core's type list for the metric, as ranked bars labelled with the ICAO designator.
+    static func typeBars(_ s: AircraftStats, metric: TypeMetric, units: DistanceUnit) -> [RankedBar] {
         switch metric {
         case .flights:
-            s.typesByFlights.map { TypeBar(id: $0.icaoType, value: UInt64($0.flights), caption: PassportFacts.count($0.flights)) }
+            s.typesByFlights.map { RankedBar(id: $0.icaoType, label: .code($0.icaoType), value: Int($0.flights),
+                                             caption: PassportFacts.count($0.flights)) }
         case .time:
             s.typesByMinutes.map { t in
-                TypeBar(id: t.icaoType, value: t.minutes,
-                        caption: PassportFacts.hoursMinutes(t.minutes).map { "\($0.number)\($0.unit)" }.joined(separator: " "))
+                RankedBar(id: t.icaoType, label: .code(t.icaoType), value: Int(t.minutes),
+                          caption: PassportFacts.hoursMinutes(t.minutes).map { "\($0.number)\($0.unit)" }.joined(separator: " "))
             }
         case .distance:
-            s.typesByDistance.map { TypeBar(id: $0.icaoType, value: $0.distanceKm,
-                                            caption: TravelFacts.distance(Int($0.distanceKm), units)) }
+            s.typesByDistance.map { RankedBar(id: $0.icaoType, label: .code($0.icaoType), value: Int($0.distanceKm),
+                                              caption: TravelFacts.distance(Int($0.distanceKm), units)) }
         }
+    }
+
+    /// "12 total aircraft", "1 aircraft".
+    static func typesTotal(_ n: UInt32) -> (number: String, unit: String) {
+        (PassportFacts.count(n), n == 1 ? " aircraft" : " total aircraft")
     }
 
     // MARK: Donuts
@@ -100,8 +100,8 @@ enum AircraftStatsCopy {
     }
 
     struct Donut: Equatable {
-        var centreTitle: String
-        var centreValue: String
+        var centerTitle: String
+        var centerValue: String
         var slices: [Slice]
         /// Nothing to draw: every count is 0.
         var isHidden: Bool { slices.allSatisfy { $0.count == 0 } }
@@ -113,14 +113,15 @@ enum AircraftStatsCopy {
     static let first = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
     static let green = Color(red: 0x54 / 255, green: 0xB4 / 255, blue: 0x71 / 255)
     static let orange = Color(red: 0xEA / 255, green: 0x99 / 255, blue: 0x3A / 255)
-    static let blue = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
+    /// The page's blue: type and age bars, First, Window and Business slices.
+    static let blue = first
 
     private static func donut(_ title: String, _ rows: [(String, UInt32, Color)], value: String? = nil) -> Donut {
         let total = rows.reduce(0) { $0 + $1.1 }
         let slices = rows.map { Slice(label: $0.0, count: $0.1, percent: percent($0.1, of: total), color: $0.2) }
         // The first of the largest, in the legend's order.
         let top = slices.reduce(nil as Slice?) { best, s in s.count > (best?.count ?? 0) ? s : best }
-        return Donut(centreTitle: title, centreValue: value ?? top?.label ?? "", slices: slices)
+        return Donut(centerTitle: title, centerValue: value ?? top?.label ?? "", slices: slices)
     }
 
     static func classDonut(_ s: AircraftStats) -> Donut {
@@ -129,7 +130,7 @@ enum AircraftStatsCopy {
                                    ("Business", c.business, business), ("First", c.first, first)])
     }
 
-    /// Centred on the favourite seat ("20D") when there is one, else the top position.
+    /// Centered on the favorite seat ("20D") when there is one, else the top position.
     static func seatDonut(_ s: AircraftStats) -> Donut {
         let p = s.seatPositions
         return donut("Top seat", [("Aisle", p.aisle, green), ("Middle", p.middle, orange), ("Window", p.window, blue)],
@@ -140,9 +141,9 @@ enum AircraftStatsCopy {
         donut("Top reason", [("Personal", s.reasons.personal, green), ("Business", s.reasons.business, blue)])
     }
 
-    /// "Favourite seat 20D (2 times)".
-    static func favouriteSeat(_ s: AircraftStats) -> (title: String, value: String)? {
-        s.favouriteSeat.map { ("Favourite seat", "\($0.seat) (\($0.flights) \($0.flights == 1 ? "time" : "times"))") }
+    /// "Favorite seat", "20D (2 times)".
+    static func favoriteSeat(_ s: AircraftStats) -> (title: String, value: String)? {
+        s.favouriteSeat.map { ("Favorite seat", "\($0.seat) (\($0.flights) \($0.flights == 1 ? "time" : "times"))") }
     }
 
     // MARK: Tails
@@ -165,11 +166,16 @@ enum AircraftStatsCopy {
         guard !r.isEmpty else { return nil }
         if let dash = r.firstIndex(of: "-") {
             let mark = String(r[..<dash])
-            if mark == "B", let next = r[r.index(after: dash)...].first {
+            let rest = r[r.index(after: dash)...]
+            if mark == "B", let next = rest.first {
                 if "HKL".contains(next) { return "HK" }
                 if next == "M" { return "MO" }
+                // Taiwan: five digits (B-18901) or a leading 0 (B-0001); China: four characters (B-1234, B-30AB).
+                if next == "0" || (rest.count == 5 && rest.allSatisfy(\.isNumber)) { return "TW" }
                 return "CN"
             }
+            // Two marks share VP / VQ: the letter after the dash picks the territory.
+            if let next = rest.first, let territory = territories[mark + "-" + String(next)] { return territory }
             return marks[mark]
         }
         // Marks written without a dash.
@@ -189,7 +195,14 @@ enum AircraftStatsCopy {
         "RA": "RU", "UP": "KZ", "4K": "AZ", "4L": "GE", "EK": "AM", "4R": "LK", "S2": "BD", "EP": "IR", "JY": "JO",
         "OD": "LB", "7T": "DZ", "TS": "TN", "9G": "GH", "6V": "SN", "TU": "CI", "5H": "TZ", "3B": "MU", "8Q": "MV",
         "6Y": "JM", "C6": "BS", "8P": "BB", "9Y": "TT", "HI": "DO", "HC": "EC", "CX": "UY", "ZP": "PY", "CP": "BO",
-        "9N": "NP", "B": "CN",
+        "9N": "NP", "M": "IM", "ES": "EE", "YL": "LV", "LY": "LT", "OM": "SK", "ER": "MD", "EW": "BY", "Z3": "MK",
+        "E7": "BA", "ZA": "AL", "4O": "ME", "5R": "MG", "UK": "UZ", "XU": "KH", "ST": "SD",
+    ]
+
+    /// Overseas territories under the UK's VP / VQ / VR marks.
+    private static let territories: [String: String] = [
+        "VP-B": "BM", "VQ-B": "BM", "VP-C": "KY", "VR-C": "KY", "VP-L": "VG", "VP-A": "AI", "VP-M": "MS",
+        "VQ-T": "TC", "VP-F": "FK",
     ]
 }
 
@@ -463,43 +476,74 @@ struct CabinPanel: View {
         .scaledPadding(.vertical, 22)
     }
 
-    private var classBar: some View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .subheadline) private var cellMinimum: CGFloat = 58
+    @ScaledMetric(relativeTo: .subheadline) private var cellHeight: CGFloat = 24
+    @ScaledMetric(relativeTo: .subheadline) private var labelHeight: CGFloat = 24
+
+    /// One segment per class, wider the more it was flown; at accessibility sizes a row per class instead.
+    @ViewBuilder private var classBar: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(classes, id: \.0) { name, count in
+                    HStack {
+                        Text(name).scaledFont(14)
+                        Spacer(minLength: 8)
+                        Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
+                    }
+                    .scaledPadding(.horizontal, 7)
+                    .frame(minHeight: cellHeight)
+                    .background(Rectangle().fill(.white.opacity(0.18)))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .scaledPadding(.horizontal, 20)
+        } else {
+            segments
+        }
+    }
+
+    private var segments: some View {
         let total = max(classes.reduce(0) { $0 + $1.1 }, 1)
         return GeometryReader { geo in
-            let minimum: CGFloat = 58, gap: CGFloat = 3
-            let spare = max(geo.size.width - minimum * 4 - gap * 3, 0)
+            let gap: CGFloat = 3
+            let spare = max(geo.size.width - cellMinimum * 4 - gap * 3, 0)
             HStack(alignment: .bottom, spacing: gap) {
                 ForEach(classes, id: \.0) { name, count in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(name).scaledFont(14).lineLimit(1).fixedSize()
+                        Text(name).scaledFont(14).lineLimit(1).minimumScaleFactor(0.7)
                         HStack {
                             Spacer(minLength: 0)
                             Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
                                 .foregroundStyle(Blueprint.bottom)
                         }
                         .scaledPadding(.horizontal, 7)
-                        .frame(height: 24)
+                        .frame(height: cellHeight)
                         .background(Rectangle().fill(.white.opacity(0.62)))
                     }
-                    .frame(width: minimum + spare * CGFloat(count) / CGFloat(total))
+                    .frame(width: cellMinimum + spare * CGFloat(count) / CGFloat(total))
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(name), \(count)")
                 }
             }
         }
-        .frame(height: 48)
+        .frame(height: labelHeight + 6 + cellHeight)
         .scaledPadding(.horizontal, 20)
     }
 }
 
-/// The cabin seen from above with the favourite seat and the aisle, middle and window counts.
+/// The cabin seen from above with the favorite seat and the aisle, middle and window counts.
 struct CabinPlan: View {
     var stats: AircraftStats
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let p = stats.seatPositions
-        HStack(spacing: 0) {
-            if let fav = AircraftStatsCopy.favouriteSeat(stats) {
+        // At accessibility sizes the seats go under the favorite seat.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
+            : AnyLayout(HStackLayout(spacing: 0))
+        layout {
+            if let fav = AircraftStatsCopy.favoriteSeat(stats) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(fav.title).scaledFont(15, weight: .semibold)
                     Text(fav.value).scaledFont(16)
@@ -526,7 +570,7 @@ struct CabinPlan: View {
         VStack(spacing: 3) {
             Text(PassportFacts.count(count)).scaledFont(16).monospacedDigit()
             Image(systemName: "carseat.right.fill").scaledFont(18)
-            Text(name).scaledFont(9, weight: .medium).opacity(0.8)
+            Text(name).scaledFont(11, weight: .medium).opacity(0.85).lineLimit(1).fixedSize()
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(count)")

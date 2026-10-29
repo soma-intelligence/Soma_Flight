@@ -9,6 +9,8 @@ import FlightCore
 struct AircraftStatsView: View {
     @Bindable var store: PassportStore
     var onClose: () -> Void
+    /// The frequented tail's age, asked of the store when the figures change.
+    @State private var leadAge: UInt32?
 
     /// The light blue page (behind the year chips).
     static let page = Color(red: 0xC9 / 255, green: 0xD4 / 255, blue: 0xF6 / 255)
@@ -26,6 +28,7 @@ struct AircraftStatsView: View {
         } content: {
             sections.environment(\.colorScheme, .dark)
         }
+        .task(id: store.revision) { leadAge = await store.leadTailAge() }
     }
 
     @ViewBuilder private var hero: some View {
@@ -46,7 +49,7 @@ struct AircraftStatsView: View {
                     VStack(spacing: 0) {
                         if let tail = s.tails.first {
                             Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                            FrequentedTailPanel(tail: tail, ageMonths: store.tailAgeMonths[tail.registration])
+                            FrequentedTailPanel(tail: tail, ageMonths: leadAge)
                         }
                         if CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
                             Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
@@ -62,38 +65,11 @@ struct AircraftStatsView: View {
     @ViewBuilder private var sections: some View {
         let s = store.aircraft
         if s.totalTypes > 0 {
-            AircraftTypesSection(stats: s)
+            AircraftTypesSection(stats: s, year: store.year)
             ClassSeatSection(stats: s)
-            FrequentTailsSection(tails: s.tails, ages: store.tailAgeMonths)
+            FrequentTailsSection(tails: s.tails, year: store.year)
             if AircraftStatsCopy.showsAges(s) { AircraftAgeSection(stats: s) }
         }
-    }
-}
-
-/// Starts lists open on screenshot runs (`-passportShowMore YES`).
-private var startsOpen: Bool {
-    #if DEBUG
-    UserDefaults.standard.bool(forKey: "passportShowMore")
-    #else
-    false
-    #endif
-}
-
-private let barBlue = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
-
-/// "Show more" in the link colour, "Show less" once open.
-private struct MoreToggle: View {
-    @Binding var expanded: Bool
-
-    var body: some View {
-        Button { withAnimation(.snappy) { expanded.toggle() } } label: {
-            Text(expanded ? "Show less" : "Show more")
-                .scaledFont(17, weight: .medium)
-                .foregroundStyle(Theme.accent)
-                .frame(minHeight: 34)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -101,83 +77,26 @@ private struct MoreToggle: View {
 
 struct AircraftTypesSection: View {
     var stats: AircraftStats
+    var year: Int?
     @State private var metric: AircraftStatsCopy.TypeMetric = .flights
-    @State private var expanded = startsOpen
+    @State private var opened: Set<Int> = []
     @Environment(\.units) private var units
-    static let limit = 8
 
     var body: some View {
-        let bars = AircraftStatsCopy.typeBars(stats, metric: metric, units: units.distance)
-        let shown = expanded ? bars : Array(bars.prefix(Self.limit))
         PassportSection(title: "Aircraft types") {
             VStack(alignment: .leading, spacing: 0) {
-                UnitNumber(parts: [(PassportFacts.count(stats.totalTypes), stats.totalTypes == 1 ? " total aircraft" : " total aircraft")],
-                           size: 46, unitSize: 34)
+                UnitNumber(parts: [AircraftStatsCopy.typesTotal(stats.totalTypes)], size: 46, unitSize: 34)
                 Text("Counted by ICAO type, sub-types apart")
                     .scaledFont(16)
                     .foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.top, 2)
-                picker.scaledPadding(.top, 16).scaledPadding(.bottom, 12)
-                TypeBars(bars: shown, top: bars.map(\.value).max() ?? 1)
-                if bars.count > Self.limit { MoreToggle(expanded: $expanded).scaledPadding(.top, 8) }
+                MetricToggle(metric: $metric).scaledPadding(.top, 16).scaledPadding(.bottom, 12)
+                RankedBars(items: AircraftStatsCopy.typeBars(stats, metric: metric, units: units.distance),
+                           noun: "aircraft types", showMore: openBinding($opened, year: year),
+                           tint: AircraftStatsCopy.blue)
             }
-        }
-    }
-
-    private var picker: some View {
-        HStack(spacing: 4) {
-            ForEach(AircraftStatsCopy.TypeMetric.allCases) { m in
-                Button { metric = m } label: {
-                    Text(m.rawValue)
-                        .scaledFont(16, weight: .medium)
-                        .foregroundStyle(m == metric ? Theme.primary : Theme.secondary)
-                        .scaledPadding(.horizontal, 17)
-                        .frame(minHeight: 42)
-                        .background(Capsule().fill(m == metric ? Theme.pill : .clear))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(m == metric ? .isSelected : [])
-            }
-        }
-    }
-}
-
-/// Blue bars, one per type: the designator, then its bar sized against the largest, the figure after it.
-private struct TypeBars: View {
-    var bars: [AircraftStatsCopy.TypeBar]
-    var top: UInt64
-    @ScaledMetric(relativeTo: .body) private var row: CGFloat = 38
-
-    var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 0) {
-            ForEach(bars) { bar in
-                GridRow {
-                    Text(bar.id)
-                        .scaledFont(17, weight: .semibold)
-                        .foregroundStyle(Theme.primary)
-                        .fixedSize()
-                    GeometryReader { geo in
-                        let reserve = CGFloat(bar.caption.count) * 10 + 14
-                        let fraction = Double(bar.value) / Double(max(top, 1))
-                        let width = max(row * 0.4, (geo.size.width - reserve) * fraction)
-                        HStack(spacing: 10) {
-                            RoundedRectangle(cornerRadius: row * 0.16, style: .continuous)
-                                .fill(barBlue)
-                                .frame(width: width, height: row * 0.62)
-                            Text(bar.caption)
-                                .scaledFont(17)
-                                .monospacedDigit()
-                                .foregroundStyle(Theme.secondary)
-                                .fixedSize()
-                        }
-                        .frame(height: geo.size.height)
-                    }
-                    .frame(height: row)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(bar.id), \(bar.caption)")
-            }
+            .environment(\.colorScheme, .dark)
         }
     }
 }
@@ -186,6 +105,9 @@ private struct TypeBars: View {
 
 struct ClassSeatSection: View {
     var stats: AircraftStats
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .title) private var bigSide: CGFloat = 290
+    @ScaledMetric(relativeTo: .title) private var smallSide: CGFloat = 160
 
     var body: some View {
         let donuts = [AircraftStatsCopy.classDonut(stats), AircraftStatsCopy.seatDonut(stats),
@@ -196,29 +118,37 @@ struct ClassSeatSection: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(shown, id: \.offset) { i, donut in
                         if i != shown.first?.offset { Rectangle().fill(Theme.separator).frame(height: 1) }
-                        if i == 0 { bigDonut(donut) } else { sideDonut(donut) }
+                        Group {
+                            if i == 0 { bigDonut(donut) } else { sideDonut(donut) }
+                        }
+                        .accessibilityElement(children: .contain)
                     }
                 }
+                .environment(\.colorScheme, .dark)
             }
         }
     }
 
-    /// The class donut, wide and centred, its legend under it.
+    /// The class donut, wide and centered, its legend under it.
     private func bigDonut(_ d: AircraftStatsCopy.Donut) -> some View {
-        VStack(spacing: 16) {
+        let side = min(bigSide, 330)
+        return VStack(spacing: 16) {
             DonutChart(donut: d, valueSize: 34)
-                .frame(width: 290, height: 290)
+                .frame(width: side, height: side)
                 .frame(maxWidth: .infinity)
             DonutLegend(slices: d.slices)
         }
         .scaledPadding(.vertical, 14)
     }
 
-    /// A smaller donut at the left, its legend at the right.
+    /// A smaller donut at the left, its legend at the right; the legend goes under it at accessibility sizes.
     private func sideDonut(_ d: AircraftStatsCopy.Donut) -> some View {
-        HStack(alignment: .center, spacing: 22) {
+        let side = min(smallSide, 240)
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 22))
+        return layout {
             DonutChart(donut: d, valueSize: 24, inner: 0.7)
-                .frame(width: 160, height: 160)
+                .frame(width: side, height: side)
             DonutLegend(slices: d.slices)
         }
         .scaledPadding(.vertical, 22)
@@ -238,8 +168,8 @@ private struct DonutChart: View {
         .chartLegend(.hidden)
         .overlay {
             VStack(spacing: 2) {
-                Text(donut.centreTitle).scaledFont(13).foregroundStyle(Theme.secondary)
-                Text(donut.centreValue)
+                Text(donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
+                Text(donut.centerValue)
                     .scaledFont(valueSize, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -248,19 +178,22 @@ private struct DonutChart: View {
             .scaledPadding(.horizontal, 24)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(donut.centreTitle), \(donut.centreValue)")
+        .accessibilityLabel("\(donut.centerTitle), \(donut.centerValue)")
     }
 }
 
 private struct DonutLegend: View {
     var slices: [AircraftStatsCopy.Slice]
+    @ScaledMetric(relativeTo: .body) private var swatch: CGFloat = 22
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
             ForEach(slices) { s in
                 GridRow {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous).fill(s.color).frame(width: 22, height: 22)
-                    Text(s.label).scaledFont(18).foregroundStyle(Theme.primary).lineLimit(1).minimumScaleFactor(0.8)
+                    RoundedRectangle(cornerRadius: swatch * 0.23, style: .continuous).fill(s.color)
+                        .frame(width: swatch, height: swatch)
+                    Text(s.label).scaledFont(18).foregroundStyle(Theme.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(PassportFacts.count(s.count)).scaledFont(18).monospacedDigit().foregroundStyle(Theme.primary)
                         .gridColumnAlignment(.trailing)
@@ -278,21 +211,29 @@ private struct DonutLegend: View {
 
 struct FrequentTailsSection: View {
     var tails: [TailTally]
-    var ages: [String: UInt32]
-    @State private var expanded = startsOpen
+    var year: Int?
+    @State private var opened: Set<Int> = []
     @Environment(\.reference) private var reference
+    /// Rows shown before "Show more", the lead tail included.
     static let limit = 4
 
     var body: some View {
         if let first = tails.first {
-            let rest = Array(tails.dropFirst())
-            let shown = expanded ? rest : Array(rest.prefix(Self.limit - 1))
             PassportSection(title: "Most frequent tails") {
-                VStack(alignment: .leading, spacing: 0) {
-                    lead(first)
-                    ForEach(shown, id: \.registration) { row($0) }
-                    if rest.count > Self.limit - 1 { MoreToggle(expanded: $expanded).scaledPadding(.top, 8) }
-                }
+                list(first: first, showMore: openBinding($opened, year: year))
+                    .environment(\.colorScheme, .dark)
+            }
+        }
+    }
+
+    private func list(first: TailTally, showMore: Binding<Bool>) -> some View {
+        let rest = Array(tails.dropFirst())
+        let shown = PassportLists.visible(rest, limit: Self.limit - 1, expanded: showMore.wrappedValue)
+        return VStack(alignment: .leading, spacing: 0) {
+            lead(first)
+            ForEach(shown, id: \.registration) { row($0) }
+            if PassportLists.showsToggle(count: rest.count, limit: Self.limit - 1, expanded: showMore.wrappedValue) {
+                ShowMoreButton(expanded: showMore, noun: "tails", limit: Self.limit).scaledPadding(.top, 8)
             }
         }
     }
@@ -346,6 +287,8 @@ struct FrequentTailsSection: View {
 
 struct AircraftAgeSection: View {
     var stats: AircraftStats
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .body) private var chartHeight: CGFloat = 230
 
     var body: some View {
         PassportSection(title: "Aircraft age") {
@@ -355,13 +298,17 @@ struct AircraftAgeSection: View {
                     UnitNumber(parts: [(words.first ?? "", " " + (words.last ?? ""))], size: 58, unitSize: 40)
                     Text("median age").scaledFont(18).foregroundStyle(Theme.secondary)
                 }
-                chart.frame(height: 230).scaledPadding(.top, 20)
-                HStack(alignment: .top, spacing: 12) {
+                chart.frame(height: chartHeight).scaledPadding(.top, 20)
+                // Side by side; one under the other at accessibility sizes.
+                let cards = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                cards {
                     if let newest = stats.newest { AgedCard(title: "Newest aircraft", aircraft: newest) }
                     if let oldest = stats.oldest { AgedCard(title: "Oldest aircraft", aircraft: oldest) }
                 }
                 .scaledPadding(.top, 24)
             }
+            .environment(\.colorScheme, .dark)
         }
     }
 
@@ -369,7 +316,7 @@ struct AircraftAgeSection: View {
         let labels = AircraftStatsCopy.decadeLabels(stats.decades)
         return Chart(Array(zip(labels, stats.decades)), id: \.0) { label, d in
             BarMark(x: .value("Decade", label), y: .value("Aircraft", d.aircraft), width: .ratio(0.25))
-                .foregroundStyle(barBlue)
+                .foregroundStyle(AircraftStatsCopy.blue)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .chartYAxis {
@@ -379,7 +326,7 @@ struct AircraftAgeSection: View {
             }
         }
         .chartXAxis {
-            AxisMarks { _ in AxisValueLabel().foregroundStyle(Theme.primary).font(.system(size: 14)) }
+            AxisMarks { _ in AxisValueLabel().foregroundStyle(Theme.primary).font(.subheadline) }
         }
         .accessibilityLabel("Aircraft by delivery decade")
         .accessibilityValue(zip(labels, stats.decades).map { "\($0) \($1.aircraft)" }.joined(separator: ", "))
@@ -398,8 +345,7 @@ private struct AgedCard: View {
             Text(AircraftStatsCopy.ageOld(months: aircraft.ageMonths))
                 .scaledFont(22, weight: .medium)
                 .foregroundStyle(Theme.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .fixedSize(horizontal: false, vertical: true)
             Text(AircraftStatsCopy.deliveryDay(aircraft.deliveredAt)).scaledFont(13).foregroundStyle(Theme.secondary)
             AircraftImage(type: aircraft.icaoType.flatMap { reference.type($0) }, airline: nil, height: 34)
                 .frame(maxWidth: .infinity)

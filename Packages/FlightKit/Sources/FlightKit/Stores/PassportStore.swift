@@ -23,11 +23,6 @@ public final class PassportStore {
     public private(set) var detail: PassportDetail = .empty
     /// The aircraft figures for the chosen year (core `computeAircraftStats`).
     public private(set) var aircraft: AircraftStats = .empty
-    /// Age in whole months of the most flown tails (`aircraft.tails`, first `agedTailLimit`), keyed by
-    /// registration, from the core run on each tail's flights alone. A tail without a delivery date is absent.
-    public private(set) var tailAgeMonths: [String: UInt32] = [:]
-    /// How many of the top tails get an age.
-    static let agedTailLimit = 8
     /// Goes up every time the figures are recomputed; what a rendered copy (the share image) keys on.
     public private(set) var revision = 0
 
@@ -147,17 +142,28 @@ public final class PassportStore {
         recompute()
     }
 
-    /// Each top tail's age, read back from the core's `newest` over that tail's flights only.
-    private func tailAges(year y: Int32?) -> [String: UInt32] {
-        guard !facts.isEmpty else { return [:] }
-        let coreFacts = facts.map(\.coreFact), at = Int64(asOf.timeIntervalSince1970)
-        var ages: [String: UInt32] = [:]
-        for tail in aircraft.tails.prefix(Self.agedTailLimit) {
-            let own = core.filter { $0.registration?.trimmingCharacters(in: .whitespaces).uppercased() == tail.registration }
-            let one = FlightCore.computeAircraftStats(flights: own, year: y, types: [], facts: coreFacts, asOf: at)
-            if let aged = one.newest { ages[tail.registration] = aged.ageMonths }
-        }
-        return ages
+    /// The lead tail's age in whole months (`aircraft.tails.first`), nil without its delivery date. The core
+    /// gives no age per tail, so it runs on that tail's flights alone and its `newest` is the age. Asked for
+    /// by the Aircraft Stats page only, and run off the main actor.
+    public func leadTailAge() async -> UInt32? {
+        guard let reg = aircraft.tails.first?.registration, !facts.isEmpty else { return nil }
+        return await Self.age(of: reg, flights: core, facts: facts.map(\.coreFact), year: year.map(Int32.init),
+                              asOf: Int64(asOf.timeIntervalSince1970))
+    }
+
+    @concurrent nonisolated private static func age(of reg: String, flights: [FlightCore.PastFlight],
+                                                    facts: [FlightCore.AircraftFact], year: Int32?,
+                                                    asOf: Int64) async -> UInt32? {
+        let own = flights.filter { registrationKey($0.registration) == reg }
+        let known = facts.filter { registrationKey($0.registration) == reg }
+        guard !own.isEmpty, !known.isEmpty else { return nil }
+        return FlightCore.computeAircraftStats(flights: own, year: year, types: [], facts: known, asOf: asOf).newest?.ageMonths
+    }
+
+    /// A registration as the core keys its tails (aircraft.rs `code`): trimmed, upper case, nil when empty.
+    nonisolated static func registrationKey(_ s: String?) -> String? {
+        guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t.uppercased()
     }
 
     private func recompute() {
@@ -166,7 +172,6 @@ public final class PassportStore {
         detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)
         aircraft = FlightCore.computeAircraftStats(flights: core, year: y, types: types, facts: facts.map(\.coreFact),
                                                    asOf: Int64(asOf.timeIntervalSince1970))
-        tailAgeMonths = tailAges(year: y)
         revision += 1
     }
 }
