@@ -58,8 +58,10 @@ struct RootSidebarView: View {
                 await home.start()
                 #if DEBUG
                 home.applyLaunchArguments()
+                await home.applyPushLaunchArguments()
                 #endif
             }
+            .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
             .environment(\.units, units)
     }
 
@@ -103,7 +105,7 @@ struct RootSidebarView: View {
         @Bindable var home = home
         Group {
             if showSearch {
-                SearchView(store: search, onFollowed: { _ in Task { await home.myFlights.load() } }, lookup: env.lookup,
+                SearchView(store: search, onFollowed: { _ in Task { await home.didFollow() } }, lookup: env.lookup,
                            followedIDs: Set(home.followed.map(\.id)))
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {

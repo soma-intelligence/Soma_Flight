@@ -25,6 +25,9 @@ targets:
       path: Apps/iOS/SomaFlight.entitlements
       properties:
         com.apple.developer.applesignin: [Default]
+        # Push Notifications. The signing profile decides the environment on a device build; Release
+        # archives for production.
+        aps-environment: $(APS_ENVIRONMENT)
     dependencies:
       - package: FlightKit
         product: FlightKit
@@ -40,7 +43,10 @@ targets:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
       configs:
         Debug:
+          APS_ENVIRONMENT: development
           INFOPLIST_FILE: Apps/iOS/Info-Debug.plist
+        Release:
+          APS_ENVIRONMENT: production
     scheme:
       testTargets: []
   SomaFlight-macOS:
@@ -66,8 +72,9 @@ targets:
         ENABLE_APP_SANDBOX: YES
         ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
       configs:
-        # Sign in with Apple needs a provisioning profile, which a Mac build signed to run locally has not:
-        # Debug keeps the sandbox and network only (email sign-in works), Release carries the capability.
+        # Sign in with Apple and Push Notifications (com.apple.developer.aps-environment) need a provisioning
+        # profile, which a Mac build signed to run locally has not: Debug keeps the sandbox and network only
+        # (email sign-in works, no remote pushes), Release carries both capabilities.
         Debug:
           CODE_SIGN_ENTITLEMENTS: Apps/macOS/SomaFlight-Debug.entitlements
           INFOPLIST_FILE: Apps/macOS/Info-Debug.plist

@@ -26,6 +26,9 @@ public final class HomeModel {
     public var tab: HomeTab = .flights
     /// The account the two stores were built for.
     @ObservationIgnored private var storesOwner: UUID?
+    /// Notification permission and token registration; nil until the shell calls `attachPush`.
+    @ObservationIgnored public private(set) var push: PushCoordinator?
+    @ObservationIgnored private var pushInbox: PushInbox?
 
     public init(env: AppEnvironment) {
         self.env = env
@@ -94,6 +97,8 @@ public final class HomeModel {
         session.startIfNeeded()
         if storesOwner != owner { rebuildStores() }
         await load()
+        await push?.refresh()
+        await processInbox()
     }
 
     /// Loads both lists for the current owner and starts My Flights' live updates.
@@ -109,7 +114,10 @@ public final class HomeModel {
     public func userChanged() {
         shell.reset()
         rebuildStores()
-        Task { await load() }
+        Task {
+            await load()
+            await processInbox()
+        }
     }
 
     private func rebuildStores() {
@@ -118,7 +126,65 @@ public final class HomeModel {
         passport = env.makePassportStore(owner: owner)
     }
 
+    // MARK: Notifications
+
+    /// Wires the shell's notification plumbing: the app delegate's inbox and the call that asks the OS for
+    /// a device token. Call once, before `start()`.
+    public func attachPush(inbox: PushInbox, authorizer: any NotificationAuthorizer = SystemNotificationAuthorizer(),
+                           registerForRemote: @escaping @MainActor () -> Void) {
+        pushInbox = inbox
+        push = PushCoordinator(push: env.push, authorizer: authorizer, registerForRemote: registerForRemote)
+    }
+
+    /// Changes whenever the app delegate leaves something in the inbox; the shells watch it.
+    public var pushSerial: Int { pushInbox?.serial ?? 0 }
+
+    /// Nothing can be opened or registered before the account the backend needs is signed in.
+    private var canHandlePush: Bool { !env.requiresSignIn || owner != nil }
+
+    /// A follow went through: reload My Flights, then (the first time) ask for notifications.
+    public func didFollow() async {
+        await myFlights.load()
+        await push?.didFollow()
+    }
+
+    /// Acts on what the app delegate left in the inbox: registers the device token, opens the flight a
+    /// tapped notification names, and refreshes the one a foreground notification names. Items wait
+    /// while nobody is signed in. Call after `start()` and whenever the inbox's `serial` changes.
+    public func processInbox() async {
+        guard let inbox = pushInbox, let push, canHandlePush else { return }
+        push.accountChanged(owner: owner)
+        if let token = inbox.deviceToken { await push.register(token: token) }
+        if inbox.takeForegroundFlight() != nil { await myFlights.load() }
+        if let id = inbox.takePendingFlight() { await open(flightID: id) }
+    }
+
+    /// Opens a flight's detail. One that is not in My Flights is fetched by id first, so a notification
+    /// for a flight this device has not loaded yet still opens. False when it cannot be fetched.
+    @discardableResult
+    public func open(flightID id: Flight.ID) async -> Bool {
+        if let f = followed.first(where: { $0.id == id }) {
+            open(flight: f)
+            return true
+        }
+        guard let f = try? await env.flights.flight(id) else { return false }
+        open(flight: f)
+        return true
+    }
+
     // MARK: Screenshot runs
+
+    #if DEBUG
+    /// Debug launch arguments for the notification flow: `-pushFlight <uuid>` runs the handler a tap on a
+    /// notification carrying `{"flightId": <uuid>}` runs, `-requestPushPermission YES` runs what the first
+    /// follow runs. (A JSON argument does not survive UserDefaults' plist parsing of launch arguments.)
+    public func applyPushLaunchArguments(_ args: UserDefaults = .standard) async {
+        if args.bool(forKey: "requestPushPermission") { await push?.didFollow() }
+        if let id = args.string(forKey: "pushFlight"), pushInbox?.receiveTap(["flightId": id]) == true {
+            await processInbox()
+        }
+    }
+    #endif
 
     /// Opens a screen without taps, for screenshot runs: `-tab passport`, `-open flight` (the first one
     /// in the air) or `-open airport:KAUS`, and on iOS `-detent large` or `-detent small`. Call after the

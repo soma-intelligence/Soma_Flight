@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct SomaFlightApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var home: HomeModel?
     @State private var failure: String?
     /// A sign-in link opened before the home was built, handed over once it is.
@@ -26,6 +27,7 @@ struct SomaFlightApp: App {
                     // Built off the main thread: the SwiftData cache opens its store on creation.
                     // `-useFakes` on the command line runs on the seeded fakes with an in-memory cache.
                     let built = HomeModel(env: try await AppEnvironment.forLaunch())
+                    built.attachPush(inbox: appDelegate.inbox) { UIApplication.shared.registerForRemoteNotifications() }
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil

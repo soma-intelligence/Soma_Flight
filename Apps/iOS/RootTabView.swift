@@ -49,8 +49,10 @@ struct RootTabView: View {
                 await home.start()
                 #if DEBUG
                 home.applyLaunchArguments()
+                await home.applyPushLaunchArguments()
                 #endif
             }
+            .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
             .environment(\.units, units)
     }
 
@@ -72,7 +74,7 @@ struct RootTabView: View {
         .presentationCornerRadius(Theme.sheetRadius)
         .interactiveDismissDisabled()
         .sheet(isPresented: $showSearch) {
-            SearchSheet(env: env, followedIDs: Set(home.followed.map(\.id)), onFollowed: { _ in Task { await home.myFlights.load() } })
+            SearchSheet(env: env, followedIDs: Set(home.followed.map(\.id)), onFollowed: { _ in Task { await home.didFollow() } })
                 .environment(\.units, units)
         }
         .sheet(isPresented: $showSettings) {
