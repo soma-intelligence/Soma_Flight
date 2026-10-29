@@ -493,7 +493,7 @@ wtest(
       true,
     ], [10, true]];
     let n = 0;
-    for (const [min, expectEvent] of steps) {
+    for (const [min] of steps) {
       await send(min, 5000 + n++);
       assertEquals(
         (await eventsOf(id)).length,

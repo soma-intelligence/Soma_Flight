@@ -2,14 +2,10 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { type AeroApi, toFlightRows } from "../_shared/aeroapi.ts";
 import type { AeroFlight } from "../_shared/aeroapi_types.ts";
-import {
-  requireUser,
-  serviceClient,
-  type TokenVerifier,
-} from "../_shared/auth.ts";
+import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { resolveAirport } from "../_shared/airports.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
-import { checkRate, productionAeroApi } from "../_shared/limits.ts";
+import { checkRate } from "../_shared/limits.ts";
 
 export const ROUTE_CACHE_MINUTES = 10;
 export const LOOKUP_MAX_PER_HOUR = 30;

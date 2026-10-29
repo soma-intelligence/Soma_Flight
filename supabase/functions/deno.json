@@ -1,0 +1,8 @@
+{
+  "lint": {
+    "exclude": ["_shared/flightcore/pkg"],
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  }
+}

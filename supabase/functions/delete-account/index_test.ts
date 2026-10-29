@@ -6,7 +6,6 @@ import {
   test,
   testDb,
   trackFlightId,
-  userClient,
 } from "../_shared/test_util.ts";
 import { ensureAlert } from "../_shared/follow.ts";
 import { handler } from "./handler.ts";
@@ -148,7 +147,7 @@ test(
   db,
   "sole follower deletion drops the alert; shared flight keeps alert",
   async () => {
-    const [a, b, c] = [
+    const [a, b, _c] = [
       await makeUser(db),
       await makeUser(db),
       await makeUser(db),

@@ -63,3 +63,31 @@ export function productionAeroApi(db: SupabaseClient): AeroApi {
   if (!key) throw new Error("missing env AEROAPI_KEY");
   return new AeroApi(key, fetch, usageCounter(db));
 }
+
+/**
+ * AeroApi built on first use, so a function starts and serves its non-AeroAPI paths with no
+ * AEROAPI_KEY. Calling an AeroAPI method without the key throws provider_unavailable (503).
+ */
+export function lazyAeroApi(db: SupabaseClient): AeroApi {
+  let client: AeroApi | undefined;
+  return new Proxy({} as AeroApi, {
+    get(_target, prop) {
+      // Not a method call (await, inspection): never build the client for these.
+      if (typeof prop === "symbol" || prop === "then") return undefined;
+      if (!client) {
+        try {
+          client = productionAeroApi(db);
+        } catch (e) {
+          console.error("AeroAPI client unavailable", (e as Error).message);
+          throw new ApiError(
+            "provider_unavailable",
+            503,
+            "AeroAPI is not configured",
+          );
+        }
+      }
+      const v = Reflect.get(client, prop);
+      return typeof v === "function" ? v.bind(client) : v;
+    },
+  });
+}

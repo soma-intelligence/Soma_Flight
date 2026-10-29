@@ -169,3 +169,31 @@ export const fakeVerifier = {
     },
   },
 };
+
+/**
+ * Loads a function's index.ts the way the edge runtime does, with no AEROAPI_KEY and Deno.serve
+ * captured, and returns the request handler it registered. Proves the function starts without the key.
+ */
+export async function loadIndexHandler(
+  indexUrl: string,
+): Promise<(req: Request) => Response | Promise<Response>> {
+  const { url, key } = await localEnv();
+  Deno.env.set("SUPABASE_URL", url);
+  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", key);
+  Deno.env.delete("AEROAPI_KEY");
+  const realServe = Deno.serve;
+  let captured: ((req: Request) => Response | Promise<Response>) | undefined;
+  // deno-lint-ignore no-explicit-any
+  (Deno as any).serve = (h: (req: Request) => Response | Promise<Response>) => {
+    captured = h;
+    return { finished: Promise.resolve(), shutdown: () => Promise.resolve() };
+  };
+  try {
+    await import(indexUrl);
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (Deno as any).serve = realServe;
+  }
+  if (!captured) throw new Error(`${indexUrl} did not call Deno.serve`);
+  return captured;
+}
