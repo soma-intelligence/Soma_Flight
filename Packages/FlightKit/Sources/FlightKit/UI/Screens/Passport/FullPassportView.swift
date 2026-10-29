@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The full Passport, opened from the passport card: a violet top bar and year chips, then the header
 /// panel (ticker, route map, flags, the passport card and its machine readable strip) and, on the dark
-/// page, the Flights, Flight distance and Flight time sections. The rankings, countries and regions
-/// (plan Task 21) go after them in `sections`.
+/// page, the Flights, Flight distance and Flight time sections, then the top airports, airlines and
+/// routes, and the countries with the regions grid.
 struct FullPassportView: View {
     @Bindable var store: PassportStore
     var lookup: (String) -> Airport?
@@ -59,6 +59,10 @@ struct FullPassportView: View {
             PassportFlightsSection(detail: detail)
             PassportDistanceSection(detail: detail, lookup: lookup)
             PassportTimeSection(detail: detail, lookup: lookup)
+            PassportAirportsSection(detail: detail, lookup: lookup)
+            PassportAirlinesSection(detail: detail)
+            PassportRoutesSection(detail: detail, lookup: lookup)
+            PassportCountriesSection(detail: detail)
         }
     }
 }

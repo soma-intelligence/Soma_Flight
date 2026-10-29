@@ -332,12 +332,17 @@ struct RouteText: View {
 struct AirlineBadge: View {
     var code: String
     var key: String
+    /// A fixed diameter (already scaled by the caller); nil keeps the 34 pt Dynamic Type size.
+    var diameter: CGFloat? = nil
     @ScaledMetric(relativeTo: .body) private var size = 34
     @Environment(\.reference) private var reference
 
     var body: some View {
-        Text(code)
-            .scaledFont(12, weight: .bold)
+        let size = diameter ?? size
+        Group {
+            if let diameter { Text(code).font(.system(size: diameter * 12 / 34, weight: .bold)) }
+            else { Text(code).scaledFont(12, weight: .bold) }
+        }
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(TravelFacts.badgeTint(code: code, key: key, reference: reference)))

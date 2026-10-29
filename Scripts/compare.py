@@ -86,6 +86,13 @@ V2_REFS = {
     "passport-full-3": ["43"],
     "passport-full-4": ["41"],
     "passport-full-sparse": ["42"],
+    # Rankings, countries and regions: top airports and airlines (39), the rest of the airlines and the
+    # routes (40), the routes' end, countries and the regions grid (37); 8 is the same with every list
+    # opened by "Show more" (`-passportShowMore YES`).
+    "passport-full-5": ["39"],
+    "passport-full-6": ["40"],
+    "passport-full-7": ["37"],
+    "passport-full-8": ["37"],
 }
 
 
