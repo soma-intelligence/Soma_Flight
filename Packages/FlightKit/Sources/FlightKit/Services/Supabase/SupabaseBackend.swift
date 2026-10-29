@@ -14,23 +14,34 @@ public struct SupabaseConfig: Sendable, Equatable {
     public enum Failure: Error, Equatable {
         /// `SupabaseURL` or `SupabaseAnonKey` is missing from Info.plist, empty, or not a URL.
         case missing(String)
+        /// A plain http URL to a host that is not this machine.
+        case insecure(String)
     }
 
-    /// Reads `SupabaseURL` and `SupabaseAnonKey` from Info.plist. Each app's `Config.xcconfig` fills them
-    /// (`SUPABASE_URL`, `SUPABASE_ANON_KEY`), and a gitignored `Config.local.xcconfig` overrides them.
+    /// Reads `SupabaseURL` and `SupabaseAnonKey` from Info.plist. Debug builds get the local stack from
+    /// `Config.Debug.xcconfig`; Release builds have none and need `Config.local.xcconfig` (gitignored), so
+    /// a Release build without it fails here and the app says it has no server.
     public static func fromBundle(_ bundle: Bundle = .main) throws(Failure) -> SupabaseConfig {
-        func value(_ key: String) throws(Failure) -> String {
-            guard let v = (bundle.object(forInfoDictionaryKey: key) as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty, !v.hasPrefix("$(") else {
+        try from(url: bundle.object(forInfoDictionaryKey: "SupabaseURL") as? String,
+                 anonKey: bundle.object(forInfoDictionaryKey: "SupabaseAnonKey") as? String)
+    }
+
+    /// Validates raw values: both present (an unexpanded `$(...)` counts as missing), an https URL, or
+    /// http only to this machine (the local stack).
+    static func from(url rawURL: String?, anonKey rawKey: String?) throws(Failure) -> SupabaseConfig {
+        func value(_ v: String?, _ key: String) throws(Failure) -> String {
+            guard let v = v?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty, !v.hasPrefix("$(") else {
                 throw .missing(key)
             }
             return v
         }
-        let raw = try value("SupabaseURL")
-        guard let url = URL(string: raw), url.scheme == "http" || url.scheme == "https", url.host() != nil else {
+        let raw = try value(rawURL, "SupabaseURL")
+        guard let url = URL(string: raw), let scheme = url.scheme?.lowercased(), let host = url.host()?.lowercased(),
+              scheme == "http" || scheme == "https" else {
             throw .missing("SupabaseURL")
         }
-        return SupabaseConfig(url: url, anonKey: try value("SupabaseAnonKey"))
+        if scheme == "http", !["127.0.0.1", "localhost", "::1", "[::1]"].contains(host) { throw .insecure(raw) }
+        return SupabaseConfig(url: url, anonKey: try value(rawKey, "SupabaseAnonKey"))
     }
 }
 

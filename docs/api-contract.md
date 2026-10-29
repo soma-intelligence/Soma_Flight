@@ -50,7 +50,9 @@ Rules the app can rely on:
 
 - **Board `Flight.id`** is a UUID v5 of `provider_id` (the AeroAPI `fa_flight_id`) under the namespace
   `7b3e1c4a-5d2f-4e8b-9a61-0c3f5d7e9b21`. It is stable across refreshes. It is not `flights.id`: boards are
-  not stored in `flights`. Use `provider_id` to link to a followed flight.
+  not stored in `flights`. Use `provider_id` to link to a followed flight. The app does this in
+  `SupabaseFlightService.resolve(_:)`: the `flights` table by `provider_id` first, else one `flight-lookup`
+  of the row's ident (counts against the lookup limit; the mapping is kept in memory only).
 - Board rows have no position. `origin_icao` and `destination_icao` are never null: the viewed airport fills
   its own side when the provider omits it, and a row with an unknown other side is dropped.
 - **Stats** count only flights scheduled at or before the moment the stats were computed. Flights that have not left
@@ -473,3 +475,18 @@ The example files below are generated from the handler by `airport-board/index_t
   }
 }
 ```
+
+## App configuration and sign in
+
+- Debug builds use `Apps/<platform>/Config.Debug.xcconfig`: the local stack (`http://127.0.0.1:58321`), its
+  public demo anon key, and an Info.plist that allows local networking. Release builds use
+  `Config.Release.xcconfig`, which is empty: the URL and anon key must come from a gitignored
+  `Config.local.xcconfig` next to it, otherwise the app refuses to start ("no server configured"). A plain
+  http URL is only accepted for this machine. Never put the service role key in any of these files.
+- Sign in with Apple needs a provisioning profile. The Mac Debug build signs to run locally and leaves the
+  capability out (`SomaFlight-Debug.entitlements`), so only email sign-in works there; a Mac Release or iOS
+  device build needs the team and a profile with Sign in with Apple, and fails to sign without one.
+- The email link returns as `somaflight://auth-callback?code=...` (PKCE). The app ignores any other form,
+  including a fragment carrying tokens. The local stack lists the callback in `additional_redirect_urls`.
+- Sign-out deletes this device's `push_tokens` rows (clients keep delete on their own rows) before the
+  session ends.

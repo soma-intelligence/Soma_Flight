@@ -147,20 +147,56 @@ public final class SupabaseFlightService: FlightService {
     /// Waits before subscribing again after a channel closes or fails to join.
     static let resubscribeDelays: [Duration] = [.seconds(1), .seconds(2), .seconds(5), .seconds(15), .seconds(30)]
 
-    /// `postgres_changes` UPDATEs on `flights` filtered by `id=in.(...)`. Each time the channel joins
-    /// (the first time, and again after a dropped connection) the flights are read once, so a change
-    /// made while the socket was down is not lost. A channel that closes is replaced by a new one.
-    /// Ending the stream (the consumer stops iterating) removes the channel.
+    /// Realtime accepts at most 100 values in an `in` filter (a longer one fails to join, forever).
+    static let maxIdsPerChannel = 100
+
+    /// The ids split into channel-sized groups, in order.
+    static func channelGroups(_ ids: [Flight.ID], size: Int = maxIdsPerChannel) -> [[Flight.ID]] {
+        stride(from: 0, to: ids.count, by: size).map { Array(ids[$0..<min($0 + size, ids.count)]) }
+    }
+
+    /// `postgres_changes` UPDATEs on `flights` filtered by `id=in.(...)`, one channel per 100 ids, all
+    /// merged into one stream. Each time a channel joins (the first time, and again after a dropped
+    /// connection) its flights are read once, so a change made while the socket was down is not lost. A
+    /// channel that closes is replaced by a new one. Ending the stream (the consumer stops iterating)
+    /// removes the channels.
     public func updates(for ids: [Flight.ID]) -> AsyncStream<Flight> {
-        let ids = Array(Set(ids))
+        let groups = Self.channelGroups(Array(Set(ids)).sorted { $0.uuidString < $1.uuidString })
         let (stream, continuation) = AsyncStream<Flight>.makeStream(bufferingPolicy: .bufferingNewest(64))
-        guard !ids.isEmpty else { continuation.finish(); return stream }
+        guard !groups.isEmpty else { continuation.finish(); return stream }
         let task = Task { [backend] in
-            await Self.run(ids: ids, backend: backend, refetch: { () async throws(APIError) in try await self.flights(ids) }, yield: { continuation.yield($0) })
+            await withTaskGroup(of: Void.self) { tasks in
+                for group in groups {
+                    tasks.addTask {
+                        await Self.run(ids: group, backend: backend,
+                                       refetch: { () async throws(APIError) in try await self.flights(group) },
+                                       yield: { continuation.yield($0) })
+                    }
+                }
+            }
             continuation.finish()
         }
         continuation.onTermination = { _ in task.cancel() }
         return stream
+    }
+
+    /// Waits between tries of the read that follows a join.
+    static let refetchDelays: [Duration] = [.seconds(2), .seconds(5), .seconds(15)]
+
+    /// The read after a join, tried again a few times: it covers what changed while the channel was down.
+    private static func refetchOnJoin(_ refetch: @Sendable () async throws(APIError) -> [Flight],
+                                      yield: @Sendable (Flight) -> Void) async {
+        for attempt in 0...refetchDelays.count {
+            if Task.isCancelled { return }
+            do {
+                for f in try await refetch() { yield(f) }
+                return
+            } catch {
+                SupabaseBackend.log.error("flights read after join failed (try \(attempt + 1)): \(String(describing: error), privacy: .public)")
+                guard attempt < refetchDelays.count else { return }
+                try? await Task.sleep(for: refetchDelays[attempt])
+            }
+        }
     }
 
     private static func run(ids: [Flight.ID], backend: SupabaseBackend,
@@ -189,7 +225,7 @@ public final class SupabaseFlightService: FlightService {
                         for await status in channel.statusChange {
                             switch status {
                             case .subscribed:
-                                if let fresh = try? await refetch() { for f in fresh { yield(f) } }
+                                await refetchOnJoin(refetch, yield: yield)
                             case .unsubscribed:
                                 return
                             case .subscribing, .unsubscribing:

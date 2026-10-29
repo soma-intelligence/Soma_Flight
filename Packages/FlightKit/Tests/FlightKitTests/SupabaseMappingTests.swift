@@ -88,6 +88,7 @@ import Testing
         #expect(AppleNonce(raw: "abc").hashed == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
         let n = AppleNonce.random()
         #expect(n.raw.count == 32)
+        #expect(n.raw.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "." })
         #expect(n != AppleNonce.random())
     }
 
@@ -142,6 +143,86 @@ import Testing
 
     @Test func configNeedsBothInfoPlistKeys() {
         #expect(throws: SupabaseConfig.Failure.missing("SupabaseURL")) { try SupabaseConfig.fromBundle(.main) }
+    }
+
+    /// Release ships empty values unless Config.local.xcconfig sets them: the app must refuse to start.
+    @Test func releaseConfigFailsClosed() throws {
+        #expect(throws: SupabaseConfig.Failure.missing("SupabaseURL")) { try SupabaseConfig.from(url: "", anonKey: "") }
+        #expect(throws: SupabaseConfig.Failure.missing("SupabaseURL")) {
+            try SupabaseConfig.from(url: "$(SUPABASE_URL)", anonKey: "k")
+        }
+        #expect(throws: SupabaseConfig.Failure.missing("SupabaseAnonKey")) {
+            try SupabaseConfig.from(url: "https://abc.supabase.co", anonKey: " ")
+        }
+        #expect(throws: SupabaseConfig.Failure.insecure("http://abc.supabase.co")) {
+            try SupabaseConfig.from(url: "http://abc.supabase.co", anonKey: "k")
+        }
+        #expect(try SupabaseConfig.from(url: "http://127.0.0.1:58321", anonKey: "k").url.port == 58321)
+        #expect(try SupabaseConfig.from(url: "https://abc.supabase.co", anonKey: "k").anonKey == "k")
+    }
+
+    @MainActor @Test func aMissingConfigSaysSoAtLaunch() {
+        #expect(LaunchPlaceholder.failure(for: SupabaseConfig.Failure.missing("SupabaseURL")) == LaunchPlaceholder.configFailure)
+        #expect(LaunchPlaceholder.failure(for: SupabaseConfig.Failure.insecure("http://x")) == LaunchPlaceholder.configFailure)
+    }
+
+    // MARK: Auth callback
+
+    @Test(arguments: ["somaflight://auth-callback?code=abc", "SomaFlight://auth-callback?code=abc",
+                      "somaflight://auth-callback/?code=abc&state=x"])
+    func acceptsPKCECallbacks(_ raw: String) {
+        #expect(SupabaseAuthService.isPKCECallback(URL(string: raw)!))
+    }
+
+    @Test(arguments: [
+        "somaflight://auth-callback#access_token=a&refresh_token=b",
+        "somaflight://auth-callback?code=abc#access_token=a&refresh_token=b",
+        "somaflight://auth-callback?code=",
+        "somaflight://auth-callback?error=access_denied",
+        "somaflight://auth-callback",
+        "somaflight://other?code=abc",
+        "somaflight://auth-callback/extra?code=abc",
+        "https://auth-callback?code=abc",
+    ])
+    func rejectsEverythingElse(_ raw: String) {
+        #expect(!SupabaseAuthService.isPKCECallback(URL(string: raw)!))
+    }
+
+    /// A rejected URL never reaches the auth client: no network, no error, no session.
+    @Test func ignoredCallbacksDoNothing() async throws {
+        let auth = SupabaseAuthService(backend: unreachable())
+        try await auth.handleOpenURL(URL(string: "somaflight://auth-callback#access_token=a&refresh_token=b")!)
+    }
+
+    // MARK: Realtime groups
+
+    @Test func realtimeIdsSplitIntoChannelsOf100() {
+        let ids = (0..<201).map { _ in UUID() }
+        let groups = SupabaseFlightService.channelGroups(ids)
+        #expect(groups.map(\.count) == [100, 100, 1])
+        #expect(groups.flatMap { $0 } == ids)
+        #expect(SupabaseFlightService.channelGroups(Array(ids.prefix(100))).count == 1)
+        #expect(SupabaseFlightService.channelGroups(Array(ids.prefix(101))).map(\.count) == [100, 1])
+        #expect(SupabaseFlightService.channelGroups([]).isEmpty)
+    }
+
+    // MARK: Push tokens
+
+    @Test func pushRemembersTokensUntilTheyAreRemoved() async {
+        let push = SupabasePushService(backend: unreachable(), defaults: nil)
+        await push.unregisterDevice() // nothing registered: no call
+        push.remember("0aff")
+        push.remember("0aff")
+        push.remember("10")
+        #expect(push.registered == ["0aff", "10"])
+        await push.unregisterDevice() // the backend is unreachable: the list is kept for next time
+        #expect(push.registered == ["0aff", "10"])
+        push.forgetDevice()
+        #expect(push.registered.isEmpty)
+    }
+
+    private func unreachable() -> SupabaseBackend {
+        SupabaseBackend(config: SupabaseConfig(url: URL(string: "http://127.0.0.1:9")!, anonKey: "k"), authStorage: MemoryAuthStorage())
     }
 }
 

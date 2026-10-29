@@ -46,10 +46,12 @@ public struct AppEnvironment: Sendable {
                                 authStorage: (any AuthLocalStorage)? = nil) -> AppEnvironment {
         let backend = SupabaseBackend(config: config, authStorage: authStorage)
         let lookup = directory.lookup
+        let push = SupabasePushService(backend: backend, defaults: recents == .memory ? nil : .standard)
         return AppEnvironment(flights: SupabaseFlightService(backend: backend, airport: lookup),
                               airports: SupabaseAirportService(backend: backend, airport: lookup),
-                              auth: SupabaseAuthService(backend: backend), history: SupabaseHistoryService(backend: backend),
-                              push: SupabasePushService(backend: backend), cache: cache, directory: directory,
+                              auth: SupabaseAuthService(backend: backend, push: push),
+                              history: SupabaseHistoryService(backend: backend),
+                              push: push, cache: cache, directory: directory,
                               recents: recents, requiresSignIn: true)
     }
 

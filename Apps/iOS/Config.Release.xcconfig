@@ -1,0 +1,9 @@
+// Release builds have no default backend: SUPABASE_URL and SUPABASE_ANON_KEY must come from
+// Config.local.xcconfig next to this file (git ignores it). Left empty, the app refuses to start and
+// says it has no server configured (SupabaseConfig.fromBundle). Release also refuses a plain http URL
+// and does not allow local networking.
+// Anon key only, never the service role key. Write the URL's slashes as `/$()/`.
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+
+#include? "Config.local.xcconfig"

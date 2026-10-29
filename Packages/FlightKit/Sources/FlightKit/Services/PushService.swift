@@ -7,4 +7,10 @@ public enum PushTokenKind: String, Sendable, Hashable {
 
 public protocol PushService: Sendable {
     func register(deviceToken: Data, kind: PushTokenKind, flightId: Flight.ID?) async throws(APIError)
+    /// Removes the tokens this device registered for the signed-in account (sign-out).
+    func unregisterDevice() async
+}
+
+public extension PushService {
+    func unregisterDevice() async {}
 }

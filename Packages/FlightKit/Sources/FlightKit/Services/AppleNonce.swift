@@ -9,15 +9,15 @@ public struct AppleNonce: Sendable, Equatable {
 
     public init(raw: String) { self.raw = raw }
 
-    /// 32 random characters from `[0-9A-Za-z-._]`.
+    /// 32 random characters from `[0-9A-Za-z-.]`: 64 symbols, so each byte's low 6 bits pick one without bias.
     public static func random(length: Int = 32) -> AppleNonce {
-        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._")
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.")
         var bytes = [UInt8](repeating: 0, count: length)
         if SecRandomCopyBytes(kSecRandomDefault, length, &bytes) != errSecSuccess {
             var rng = SystemRandomNumberGenerator()
             bytes = bytes.map { _ in UInt8.random(in: .min ... .max, using: &rng) }
         }
-        return AppleNonce(raw: String(bytes.map { charset[Int($0) % charset.count] }))
+        return AppleNonce(raw: String(bytes.map { charset[Int($0 & 63)] }))
     }
 
     /// Lowercase hex SHA256 of `raw`: what `ASAuthorizationAppleIDRequest.nonce` carries.

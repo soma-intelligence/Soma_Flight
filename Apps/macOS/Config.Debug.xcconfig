@@ -1,6 +1,6 @@
-// Backend the app talks to. Defaults: the LOCAL Supabase stack (`npx supabase start`, API on 58321).
+// Debug builds talk to the LOCAL Supabase stack (`npx supabase start`, API on 58321) by default.
 // The anon key below is the public demo key every local stack prints in `npx supabase status`.
-// Real (cloud) values go in Config.local.xcconfig next to this file (git ignores it), setting the same two keys.
+// Cloud values go in Config.local.xcconfig next to this file (git ignores it), setting the same two keys.
 // Never put the service role key here: it ships inside the app.
 //
 // xcconfig reads `//` as a comment, so the URL's slashes are written `/$()/`.
