@@ -1,13 +1,12 @@
 // POST /aeroapi-webhook?secret=<WEBHOOK_SECRET>: FlightAware AeroAPI alert deliveries.
 //
 // Flow: secret check (constant time, fails closed), size cap, raw body into webhook_inbox, then
-// match the delivery to a followed flights row by fa_flight_id, update flights, insert one
-// flight_events row keyed on sha256(raw body), record the delivery cost, call push-sender.
+// one SQL transaction (process_alert, migration 0004) that matches the delivery to a followed
+// flight by fa_flight_id, decides everything against the locked flights row, writes flights and
+// flight_events, records the delivery cost and marks the inbox row. Then push-sender per new event.
 // Anything the provider cannot fix by retrying (bad JSON, unknown shape) answers 200 and keeps the
 // inbox row with an error. Database failures answer 500 so the provider retries.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { toFlightRow } from "../_shared/aeroapi.ts";
-import type { AeroFlight } from "../_shared/aeroapi.ts";
 import { json } from "../_shared/errors.ts";
 
 export const MAX_BODY_BYTES = 256 * 1024;
@@ -45,29 +44,10 @@ export function pushViaFunction(db: SupabaseClient): Deps["push"] {
   };
 }
 
-/** Event codes that always map to one kind. */
-const FIXED_KIND: Record<string, EventKind> = {
-  departure: "departure",
-  arrival: "arrival",
-  cancelled: "cancel",
-  diverted: "diversion",
-};
-/**
- * Event codes that only refresh the flight. They produce an event when a gate/terminal/baggage
- * value or an estimated time actually changed, and nothing otherwise (out, off, on, in would
- * otherwise duplicate the departure and arrival pushes).
- */
-const DIFF_CODES = new Set([
-  "change",
-  "filed",
-  "minutes_out",
-  "out",
-  "off",
-  "on",
-  "in",
-]);
+/** A delay event fires from this many minutes, then whenever it moves this far from the last one. */
+export const DELAY_STEP_MIN = 15;
 
-const TIME_COLS = [
+const TIME_KEYS = [
   "scheduled_out",
   "scheduled_in",
   "estimated_out",
@@ -77,22 +57,20 @@ const TIME_COLS = [
   "actual_on",
   "actual_in",
 ] as const;
-/** payload key -> flights column. */
-const PLACE_COLS: [string, string][] = [
+/** payload key -> process_alert field name. */
+const TEXT_KEYS: [string, string][] = [
   ["gate_origin", "gate_origin"],
   ["gate_destination", "gate_destination"],
   ["terminal_origin", "terminal_origin"],
   ["terminal_destination", "terminal_destination"],
   ["baggage_claim", "baggage_belt"],
+  ["aircraft_type", "aircraft_type"],
+  ["registration", "registration"],
+  ["origin_icao", "origin_icao"],
+  ["origin_iata", "origin_iata"],
+  ["destination_icao", "destination_icao"],
+  ["destination_iata", "destination_iata"],
 ];
-const PLAIN_COLS = [
-  "aircraft_type",
-  "registration",
-  "origin_icao",
-  "origin_iata",
-  "destination_icao",
-  "destination_iata",
-] as const;
 
 type Row = Record<string, unknown>;
 
@@ -182,136 +160,47 @@ function str(v: unknown, max = 500): string | null {
   return typeof v === "string" ? v.slice(0, max) : null;
 }
 
-interface Plan {
-  update: Row;
-  changes: Record<string, { from: unknown; to: unknown }>;
-  placeChanged: boolean;
-  /** Set when this delivery moves the flight to canceled or diverted. */
-  statusTo: "canceled" | "diverted" | null;
-  /** Current delay in minutes against schedule (worst of out and in), null when unknown. */
-  delay: number | null;
+/** The delivery's flight fields in the shape process_alert takes. Invalid values are left out. */
+function normalise(f: Row): Row {
+  const out: Row = {};
+  for (const k of TIME_KEYS) {
+    if (typeof f[k] === "string" && instant(f[k]) !== null) out[k] = f[k];
+  }
+  for (const [from, to] of TEXT_KEYS) {
+    if (typeof f[from] === "string" && f[from] !== "") {
+      out[to] = (f[from] as string).slice(0, 100);
+    }
+  }
+  out.cancelled = f.cancelled === true;
+  out.diverted = f.diverted === true;
+  return out;
 }
 
-/** A delay event fires from this many minutes, then whenever it moves this far from the last one. */
-export const DELAY_STEP_MIN = 15;
-
-const RANK: Record<string, number> = {
-  unknown: -1,
-  scheduled: 0,
-  departed: 1,
-  en_route: 2,
-  landed: 3,
-  arrived: 4,
-};
-const ACTUAL_OF: Record<string, (typeof TIME_COLS)[number]> = {
-  estimated_out: "actual_out",
-  estimated_in: "actual_in",
-};
-
-/**
- * What the delivery changes on the stored flight. Deliveries carry no timestamp, so ordering cannot
- * be proven; damage from a stale one is limited instead: null never wipes, an actual time is set
- * once, an estimate is ignored once its actual exists, status never goes backwards and canceled
- * and diverted are sticky.
- */
-function plan(alert: Alert, stored: Row, now: Date): Plan {
-  const f = alert.flight;
-  const update: Row = {};
-  const changes: Plan["changes"] = {};
-  let placeChanged = false;
-
-  const note = (col: string, to: unknown) => {
-    update[col] = to;
-    changes[col] = { from: stored[col] ?? null, to };
-  };
-  const have = (col: string) => update[col] ?? stored[col] ?? null;
-
-  for (const col of TIME_COLS) {
-    const to = f[col];
-    if (typeof to !== "string" || instant(to) === null) continue;
-    if (col.startsWith("actual") && stored[col] != null) continue;
-    if (instant(to) === instant(stored[col])) continue;
-    note(col, to);
+/** True when a decoded string or key holds a NUL, which jsonb cannot store. */
+function hasNul(v: unknown): boolean {
+  if (typeof v === "string") return v.includes("\u0000");
+  if (Array.isArray(v)) return v.some(hasNul);
+  if (v && typeof v === "object") {
+    return Object.entries(v).some(([k, x]) => hasNul(k) || hasNul(x));
   }
-  // An estimate for a leg that already has its actual time is stale.
-  for (const [est, act] of Object.entries(ACTUAL_OF)) {
-    if (have(act) != null && est in update) {
-      delete update[est];
-      delete changes[est];
-    }
-  }
-  for (const [key, col] of PLACE_COLS) {
-    const to = f[key];
-    if (typeof to === "string" && to !== "" && to !== stored[col]) {
-      note(col, to);
-      placeChanged = true;
-    }
-  }
-  for (const col of PLAIN_COLS) {
-    const to = f[col];
-    if (typeof to === "string" && to !== "" && to !== stored[col]) {
-      note(col, to);
-    }
-  }
-
-  const sticky = stored.status === "canceled" || stored.status === "diverted" ||
-    stored.status === "arrived";
-  let statusTo: Plan["statusTo"] = null;
-  if (!sticky) {
-    if (alert.event_code === "cancelled" || f.cancelled === true) {
-      statusTo = "canceled";
-    } else if (alert.event_code === "diverted" || f.diverted === true) {
-      statusTo = "diverted";
-    }
-  }
-  if (statusTo) {
-    note("status", statusTo);
-  } else if (!sticky) {
-    const probe = toFlightRow({
-      fa_flight_id: f.fa_flight_id,
-      ident: str(f.ident) ?? "",
-      cancelled: false,
-      diverted: false,
-      actual_out: have("actual_out"),
-      actual_off: have("actual_off"),
-      actual_on: have("actual_on"),
-      actual_in: have("actual_in"),
-      status: "",
-    } as unknown as AeroFlight, now);
-    if ((RANK[probe.status] ?? -1) > (RANK[stored.status as string] ?? -1)) {
-      note("status", probe.status);
-    }
-  }
-
-  const minutes = (sched: string, est: string, act: string) => {
-    const s = instant(have(sched));
-    const e = instant(have(act)) ?? instant(have(est));
-    return s === null || e === null ? null : Math.round((e - s) / 60000);
-  };
-  const dOut = minutes("scheduled_out", "estimated_out", "actual_out");
-  const dIn = minutes("scheduled_in", "estimated_in", "actual_in");
-  const known = [dOut, dIn].filter((d): d is number => d !== null);
-  const delay = known.length ? Math.max(...known) : null;
-
-  if (Object.keys(update).length > 0) update.updated_at = now.toISOString();
-  return { update, changes, placeChanged, statusTo, delay };
+  return false;
 }
 
-function delayDue(delay: number | null, last: unknown): boolean {
-  if (delay === null) return false;
-  if (typeof last !== "number") return delay >= DELAY_STEP_MIN;
-  return Math.abs(delay - last) >= DELAY_STEP_MIN;
+interface Outcome {
+  duplicate: boolean;
+  flight_id: string | null;
+  events: { id: string; kind: EventKind }[];
 }
 
-function kindFor(alert: Alert, p: Plan, stored: Row): EventKind | null {
-  const fixed = FIXED_KIND[alert.event_code];
-  if (fixed) return fixed;
-  if (p.statusTo === "canceled") return "cancel";
-  if (p.statusTo === "diverted") return "diversion";
-  if (!DIFF_CODES.has(alert.event_code)) return null;
-  if (p.placeChanged) return "gate_change";
-  if (delayDue(p.delay, stored.notified_delay_min)) return "delay";
-  return null;
+function asOutcome(v: unknown): Outcome | null {
+  const o = v as Outcome | null;
+  if (!o || typeof o !== "object" || typeof o.duplicate !== "boolean") {
+    return null;
+  }
+  if (!Array.isArray(o.events)) return null;
+  if (o.events.some((e) => typeof e?.id !== "string")) return null;
+  if (o.events.length > 0 && typeof o.flight_id !== "string") return null;
+  return o;
 }
 
 async function mark(
@@ -368,7 +257,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       parsed = JSON.parse(text);
       if (parsed === null || typeof parsed !== "object") {
         malformed = "malformed body: not a JSON object";
-      } else if (JSON.stringify(parsed).includes("\\u0000")) {
+      } else if (hasNul(parsed)) {
         malformed = "malformed body: contains NUL";
       }
     } catch {
@@ -398,81 +287,39 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       return json({ ok: true, ignored: "invalid_shape" });
     }
 
-    const flightRes = await db.from("flights").select("*").eq(
-      "provider_id",
-      alert.flight.fa_flight_id,
-    ).maybeSingle();
-    if (flightRes.error) {
-      throw new Step(`flight read failed: ${flightRes.error.message}`);
-    }
-    const stored = flightRes.data as Row | null;
-    let followed = false;
-    if (stored) {
-      const c = await db.from("user_flights").select("user_id", {
-        count: "exact",
-        head: true,
-      }).eq("flight_id", stored.id as string);
-      if (c.error) throw new Step(`follower read failed: ${c.error.message}`);
-      followed = (c.count ?? 0) > 0;
-    }
-
-    let flightId: string | null = null;
-    let kind: EventKind | null = null;
-    let payload: Row = {};
-    let update: Row = {};
-    let noteText: string | null = null;
-    if (!stored || !followed) {
-      noteText = "no followed flight for this fa_flight_id";
-    } else {
-      flightId = stored.id as string;
-      const p = plan(alert, stored, now);
-      kind = kindFor(alert, p, stored);
-      update = { ...p.update };
-      delete update.updated_at;
-      if (kind === "delay") update.notified_delay_min = p.delay;
-      payload = {
-        event_code: alert.event_code,
-        alert_id: alert.alert_id,
-        short_description: str(alert.short_description),
-        summary: str(alert.summary),
-        changes: p.changes,
-        ...(kind === "delay"
-          ? {
-            delay_minutes: p.delay,
-            previous_delay_minutes: stored.notified_delay_min ?? null,
-          }
-          : {}),
-      };
-      if (!kind) noteText = `${alert.event_code} produced no event`;
-    }
-
-    // One transaction: duplicate check, event, flight update, cost, inbox mark.
+    const flight = alert.flight;
     const res = await db.rpc("process_alert", {
       p_inbox: inboxId,
       p_hash: eventId,
-      p_flight: flightId,
-      p_kind: kind,
-      p_payload: payload,
-      p_update: update,
-      p_note: noteText,
+      p_fa_flight_id: flight.fa_flight_id,
+      p_event_code: alert.event_code,
+      p_alert_id: alert.alert_id,
+      p_texts: {
+        short_description: str(alert.short_description),
+        summary: str(alert.summary),
+      },
+      p_fields: normalise(flight),
       p_day: now.toISOString().slice(0, 10),
       p_cost: ALERT_DELIVERY_COST,
+      p_delay_step: DELAY_STEP_MIN,
     });
     if (res.error) throw new Step(`process_alert failed: ${res.error.message}`);
-    const out = res.data as { duplicate: boolean; event_id: string | null };
+    const out = asOutcome(res.data);
+    if (!out) throw new Step("process_alert returned an unexpected result");
     if (out.duplicate) return json({ ok: true, duplicate: true });
-    if (!out.event_id || !flightId) return json({ ok: true, event: null });
 
     // After the commit, so a crash before this point is reprocessed by the provider's retry.
-    try {
-      await deps.push(flightId, out.event_id);
-    } catch (e) {
-      console.error(
-        `push failed for event ${out.event_id}`,
-        e instanceof Error ? e.message : "unknown",
-      );
+    for (const ev of out.events) {
+      try {
+        await deps.push(out.flight_id as string, ev.id);
+      } catch (e) {
+        console.error(
+          `push failed for event ${ev.id}`,
+          e instanceof Error ? e.message : "unknown",
+        );
+      }
     }
-    return json({ ok: true, event: out.event_id, kind });
+    return json({ ok: true, events: out.events });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown error";
     console.error("aeroapi-webhook failed:", msg);

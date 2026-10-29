@@ -672,3 +672,178 @@ wtest(
     assertEquals((await handler(post(body, "other"), rotating)).status, 401);
   },
 );
+
+wtest(
+  "two different bodies at once on one flight give a single delay event",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    const body = (est: string, alertId: number) =>
+      post(delivery(gateFixture, providerId, {
+        gate_origin: null,
+        terminal_origin: null,
+        estimated_out: est,
+      }, { alert_id: alertId }));
+    const res = await Promise.all([
+      handler(body("2026-11-03T23:00:00Z", 1), deps(p)),
+      handler(body("2026-11-03T23:02:00Z", 2), deps(p)),
+    ]);
+    assertEquals(res.map((r) => r.status), [200, 200]);
+    assertEquals((await eventsOf(id)).map((e) => e.kind), ["delay"]);
+    assertEquals(p.calls.length, 1);
+  },
+);
+
+wtest(
+  "a burst of different bodies on one flight keeps actuals, sticky cancel and a consistent delay chain",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    const mk = (
+      code: string,
+      alertId: number,
+      flight: Record<string, unknown>,
+    ) =>
+      post(delivery(gateFixture, providerId, {
+        gate_origin: null,
+        terminal_origin: null,
+        ...flight,
+      }, { event_code: code, alert_id: alertId }));
+    const res = await Promise.all([
+      handler(
+        mk("change", 1, { estimated_out: "2026-11-03T23:00:00Z" }),
+        deps(p),
+      ),
+      handler(
+        mk("change", 2, { estimated_out: "2026-11-03T23:02:00Z" }),
+        deps(p),
+      ),
+      handler(mk("out", 3, { actual_out: "2026-11-03T22:41:00Z" }), deps(p)),
+      handler(mk("out", 4, { actual_out: "2026-11-03T22:50:00Z" }), deps(p)),
+      handler(mk("cancelled", 5, { cancelled: true }), deps(p)),
+      handler(
+        mk("departure", 6, {
+          actual_out: "2026-11-03T22:41:00Z",
+          actual_off: "2026-11-03T22:58:00Z",
+        }),
+        deps(p),
+      ),
+    ]);
+    assertEquals(res.map((r) => r.status), [200, 200, 200, 200, 200, 200]);
+    const row = await db.from("flights").select("status, actual_out").eq(
+      "id",
+      id,
+    ).single();
+    assertEquals(row.data?.status, "canceled");
+    const first = row.data?.actual_out;
+    assert(
+      [Date.parse("2026-11-03T22:41:00Z"), Date.parse("2026-11-03T22:50:00Z")]
+        .includes(Date.parse(first)),
+    );
+    // A later body never moves the actual.
+    await handler(
+      mk("out", 7, { actual_out: "2026-11-03T23:30:00Z" }),
+      deps(p),
+    );
+    const again = await db.from("flights").select("actual_out").eq("id", id)
+      .single();
+    assertEquals(again.data?.actual_out, first);
+    const events = await eventsOf(id);
+    assertEquals(events.filter((e) => e.kind === "cancel").length, 1);
+    // Each delay event starts from the previous one's value: the chain was serialised.
+    const delays = events.filter((e) => e.kind === "delay").sort((a, b) =>
+      a.received_at < b.received_at ? -1 : 1
+    );
+    let last: number | null = null;
+    for (const d of delays) {
+      assertEquals(d.payload.previous_delay_minutes, last);
+      last = d.payload.delay_minutes;
+    }
+    assertEquals(p.calls.length, events.length);
+  },
+);
+
+wtest(
+  "gate change and a qualifying delay in one body give two events and two pushes",
+  async () => {
+    const p = fakePush();
+    const { id, providerId } = await followedFlight();
+    const res = await handler(
+      post(
+        delivery(gateFixture, providerId, {
+          gate_origin: "K50",
+          estimated_out: "2026-11-03T23:10:00Z",
+        }),
+      ),
+      deps(p),
+    );
+    assertEquals(res.status, 200);
+    const events = await eventsOf(id);
+    assertEquals(events.map((e) => e.kind).sort(), ["delay", "gate_change"]);
+    const delay = events.find((e) => e.kind === "delay")!;
+    assert(delay.provider_event_id.endsWith(":delay"));
+    assertEquals(delay.payload.delay_minutes, 40);
+    assertEquals(
+      p.calls.map((c) => c[1]).sort(),
+      events.map((e) => e.id).sort(),
+    );
+    const row = await db.from("flights").select("notified_delay_min").eq(
+      "id",
+      id,
+    ).single();
+    assertEquals(row.data?.notified_delay_min, 40);
+  },
+);
+
+wtest(
+  "repeated cancelled, departure and arrival with new alert ids emit nothing new",
+  async () => {
+    const p = fakePush();
+    const a = await followedFlight();
+    for (let i = 1; i <= 3; i++) {
+      await handler(
+        post(
+          delivery(gateFixture, a.providerId, { cancelled: true }, {
+            event_code: "cancelled",
+            alert_id: i,
+          }),
+        ),
+        deps(p),
+      );
+    }
+    assertEquals((await eventsOf(a.id)).map((e) => e.kind), ["cancel"]);
+    assertEquals(p.calls.length, 1);
+
+    const b = await followedFlight();
+    for (let i = 1; i <= 3; i++) {
+      await handler(
+        post(delivery(departureFixture, b.providerId, {}, { alert_id: i })),
+        deps(p),
+      );
+      await handler(
+        post(
+          delivery(departureFixture, b.providerId, {
+            actual_on: "2026-11-04T08:55:00Z",
+            actual_in: "2026-11-04T09:05:00Z",
+          }, { event_code: "arrival", alert_id: 10 + i }),
+        ),
+        deps(p),
+      );
+    }
+    assertEquals((await eventsOf(b.id)).map((e) => e.kind).sort(), [
+      "arrival",
+      "departure",
+    ]);
+  },
+);
+
+wtest("a literal backslash-u0000 in a text field is not a NUL", async () => {
+  const p = fakePush();
+  const { id, providerId } = await followedFlight();
+  const res = await handler(
+    post(delivery(gateFixture, providerId, { gate_origin: "A\\u0000B" })),
+    deps(p),
+  );
+  assertEquals(res.status, 200);
+  assertEquals((await eventsOf(id)).length, 1);
+});
