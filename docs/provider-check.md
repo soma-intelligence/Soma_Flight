@@ -109,3 +109,17 @@ Conditions for the owner:
 1. Someone reads the full terms of service before the commercial key is bought (attribution and caching limits). If they bar consumer redistribution or require a Premium contract, switch to Cirium.
 2. Accept changing two spec rules: lazy board refresh instead of the 5 minute cron, and a short cache on route searches (see the controller ruling).
 3. Task 3 (provider calls) may start once the owner confirms AeroAPI. Tasks that do not hit the provider continue meanwhile.
+
+## 6. Endpoint cost notes added with the AeroAPI client (2026-10-29)
+
+The AeroAPI OpenAPI file (4.17.1) publishes no prices, so these come from the pricing page figures in section 2 or are marked unverified.
+
+| Endpoint used by the client | Price per result set | Status |
+|---|---|---|
+| `/flights/{ident}` | $0.005 | official pricing page |
+| `/flights/{id}/position` | $0.010 | official pricing page (section 2) |
+| `/airports/{id}/flights/departures`, `/arrivals`, `/scheduled_departures`, `/scheduled_arrivals` | $0.005 each | official pricing page |
+| `/airports/{id}/flights/to/{dest_id}` (route search) | $0.020 assumed | UNVERIFIED: not listed on the pricing page; the combined board price is used as a stand-in. Confirm before purchase. |
+| `/alerts`, `/alerts/{id}` | $0.000 | official pricing page |
+
+`/flights/search` is no longer used (it returns only airborne flights).

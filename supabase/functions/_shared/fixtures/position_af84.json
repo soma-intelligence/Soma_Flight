@@ -1,0 +1,58 @@
+{
+  "ident": "AFR84",
+  "ident_icao": "AFR84",
+  "ident_iata": "AF84",
+  "fa_flight_id": "AFR84-1793600000-schedule-1234p",
+  "origin": {
+    "code": "LFPG",
+    "code_icao": "LFPG",
+    "code_iata": "CDG",
+    "code_lid": null,
+    "timezone": "Europe/Paris",
+    "name": "Charles de Gaulle",
+    "city": "Paris",
+    "airport_info_url": "/airports/LFPG"
+  },
+  "destination": {
+    "code": "KSFO",
+    "code_icao": "KSFO",
+    "code_iata": "SFO",
+    "code_lid": null,
+    "timezone": "America/Los_Angeles",
+    "name": "San Francisco Intl",
+    "city": "San Francisco",
+    "airport_info_url": "/airports/KSFO"
+  },
+  "waypoints": [],
+  "first_position_time": "2026-11-03T12:38:40Z",
+  "last_position": {
+    "fa_flight_id": "AFR84-1793600000-schedule-1234p",
+    "altitude": 380,
+    "altitude_change": "-",
+    "groundspeed": 512,
+    "heading": 312,
+    "latitude": 57.48,
+    "longitude": -21.35,
+    "timestamp": "2026-11-03T16:42:10Z",
+    "update_type": "A"
+  },
+  "bounding_box": [
+    58.1,
+    -21.9,
+    48.9,
+    2.5
+  ],
+  "ident_prefix": null,
+  "aircraft_type": "B77W",
+  "actual_off": "2026-11-03T12:38:00Z",
+  "actual_on": null,
+  "foresight_predictions_available": false,
+  "predicted_out": null,
+  "predicted_off": null,
+  "predicted_on": null,
+  "predicted_in": null,
+  "predicted_out_source": null,
+  "predicted_off_source": null,
+  "predicted_on_source": null,
+  "predicted_in_source": null
+}

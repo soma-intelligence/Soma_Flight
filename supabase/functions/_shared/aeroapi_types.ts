@@ -13,20 +13,36 @@ export interface AeroAirportRef {
 
 export interface AeroPosition {
   fa_flight_id?: string | null;
-  altitude: number | null; // hundreds of feet
-  altitude_change?: string | null;
-  groundspeed: number | null; // knots
-  heading: number | null;
+  altitude: number; // hundreds of feet
+  altitude_change?: "C" | "D" | "-";
+  groundspeed: number; // knots
+  heading: number | null; // 0-360
   latitude: number;
   longitude: number;
   timestamp: string; // ISO 8601
   update_type?: string | null;
 }
 
+/** Response of GET /flights/{id}/position (InFlightStatus, subset). Only this endpoint carries last_position among the ones we use. */
+export interface AeroInFlightStatus {
+  ident: string;
+  ident_icao: string | null;
+  ident_iata: string | null;
+  fa_flight_id: string;
+  last_position: AeroPosition | null;
+}
+
+/** One item of GET /airports/{id}/flights/to/{dest_id}: a possibly multi-leg itinerary. */
+export interface AeroFullFlight {
+  segments: AeroFlight[];
+}
+
 export interface AeroFlight {
   ident: string;
   ident_icao: string | null;
   ident_iata: string | null;
+  actual_runway_off?: string | null;
+  actual_runway_on?: string | null;
   fa_flight_id: string;
   operator: string | null;
   operator_icao?: string | null;
@@ -74,10 +90,9 @@ export interface AeroFlight {
   terminal_origin: string | null;
   terminal_destination: string | null;
   type?: string | null;
-  last_position?: AeroPosition | null;
 }
 
-/** Row for the `flights` table upsert (conflict target: provider_id). */
+/** Row for the `flights` table upsert (conflict target: provider_id). Position columns are left out on purpose so an upsert never wipes them. */
 export interface FlightRow {
   provider_id: string;
   ident: string;
@@ -101,12 +116,24 @@ export interface FlightRow {
   baggage_belt: string | null;
   aircraft_type: string | null;
   registration: string | null;
-  status: "scheduled" | "departed" | "en_route" | "landed" | "arrived" | "canceled" | "diverted" | "unknown";
-  position_lat: number | null;
-  position_lon: number | null;
+  status:
+    | "scheduled"
+    | "departed"
+    | "en_route"
+    | "landed"
+    | "arrived"
+    | "canceled"
+    | "diverted"
+    | "unknown";
+  updated_at: string;
+}
+
+/** Position columns of `flights`, written only from /flights/{id}/position or webhook events. */
+export interface PositionRow {
+  position_lat: number;
+  position_lon: number;
   position_altitude_ft: number | null;
   position_ground_speed_kt: number | null;
   position_heading: number | null;
-  position_at: string | null;
-  updated_at: string;
+  position_at: string;
 }
