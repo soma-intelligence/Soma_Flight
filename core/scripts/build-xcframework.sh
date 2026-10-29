@@ -13,6 +13,11 @@ LIB=libflightcore_ffi.a
 TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin x86_64-apple-darwin)
 export IPHONEOS_DEPLOYMENT_TARGET=26.0
 export MACOSX_DEPLOYMENT_TARGET=26.0
+# Reproducible archives: zero ar member dates, and no absolute local paths
+# (registry sources, this checkout) in panic locations or symbols.
+export ZERO_AR_DATE=1
+CARGO_HOME_DIR="${CARGO_HOME:-$HOME/.cargo}"
+export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$CARGO_HOME_DIR/registry/src=/cargo/registry/src --remap-path-prefix=$CORE=/flightcore"
 
 for t in "${TARGETS[@]}"; do
   cargo build --locked --release -p flightcore-ffi --lib --target "$t"

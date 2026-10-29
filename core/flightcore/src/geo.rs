@@ -8,6 +8,10 @@ pub struct Coord {
 
 const EARTH_RADIUS_KM: f64 = 6371.0088;
 
+/// Largest segment count the bindings accept (WASM rejects more, FFI clamps),
+/// to bound memory.
+pub const MAX_SEGMENTS: u32 = 100_000;
+
 /// Haversine distance on a sphere of radius 6371.0088 km.
 pub fn distance_km(a: Coord, b: Coord) -> f64 {
     let (p1, p2) = (a.lat.to_radians(), b.lat.to_radians());

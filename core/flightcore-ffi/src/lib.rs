@@ -27,11 +27,8 @@ impl From<Coord> for geo::Coord {
 }
 
 impl From<geo::Coord> for Coord {
-    fn from(c: geo::Coord) -> Self {
-        Self {
-            lat: c.lat,
-            lon: c.lon,
-        }
+    fn from(geo::Coord { lat, lon }: geo::Coord) -> Self {
+        Self { lat, lon }
     }
 }
 
@@ -41,11 +38,13 @@ pub fn distance_km(a: Coord, b: Coord) -> f64 {
     geo::distance_km(a.into(), b.into())
 }
 
-/// `segments + 1` points along the great circle from `a` to `b` (0 clamps to
-/// 1), longitudes unwrapped so neighbours differ by under 180 degrees.
+/// `segments + 1` points along the great circle from `a` to `b`, longitudes
+/// unwrapped so neighbours differ by under 180 degrees. `segments` is clamped
+/// to `1..=geo::MAX_SEGMENTS` (100,000) to bound memory; the WASM binding
+/// rejects values above the cap instead.
 #[uniffi::export]
 pub fn great_circle(a: Coord, b: Coord, segments: u32) -> Vec<Coord> {
-    geo::great_circle(a.into(), b.into(), segments)
+    geo::great_circle(a.into(), b.into(), segments.min(geo::MAX_SEGMENTS))
         .into_iter()
         .map(Coord::from)
         .collect()
@@ -93,6 +92,7 @@ pub struct BoardFlight {
 
 impl From<BoardFlight> for delay::BoardFlight {
     fn from(r: BoardFlight) -> Self {
+        // Struct literal: a new core field fails to compile here.
         Self {
             ident: r.ident,
             operator: r.operator,
@@ -116,14 +116,23 @@ pub struct HourBucket {
 }
 
 impl From<delay::HourBucket> for HourBucket {
-    fn from(b: delay::HourBucket) -> Self {
+    fn from(
+        delay::HourBucket {
+            hour,
+            on_time,
+            late15,
+            late45,
+            canceled,
+            diverted,
+        }: delay::HourBucket,
+    ) -> Self {
         Self {
-            hour: b.hour,
-            on_time: b.on_time,
-            late15: b.late15,
-            late45: b.late45,
-            canceled: b.canceled,
-            diverted: b.diverted,
+            hour,
+            on_time,
+            late15,
+            late45,
+            canceled,
+            diverted,
         }
     }
 }
@@ -136,11 +145,17 @@ pub struct RouteStat {
 }
 
 impl From<delay::RouteStat> for RouteStat {
-    fn from(r: delay::RouteStat) -> Self {
+    fn from(
+        delay::RouteStat {
+            icao,
+            delayed,
+            canceled,
+        }: delay::RouteStat,
+    ) -> Self {
         Self {
-            icao: r.icao,
-            delayed: r.delayed,
-            canceled: r.canceled,
+            icao,
+            delayed,
+            canceled,
         }
     }
 }
@@ -153,11 +168,17 @@ pub struct AirlineStat {
 }
 
 impl From<delay::AirlineStat> for AirlineStat {
-    fn from(a: delay::AirlineStat) -> Self {
+    fn from(
+        delay::AirlineStat {
+            operator,
+            delayed,
+            canceled,
+        }: delay::AirlineStat,
+    ) -> Self {
         Self {
-            operator: a.operator,
-            delayed: a.delayed,
-            canceled: a.canceled,
+            operator,
+            delayed,
+            canceled,
         }
     }
 }
@@ -193,17 +214,29 @@ pub struct DelayStats {
 }
 
 impl From<delay::DelayStats> for DelayStats {
-    fn from(s: delay::DelayStats) -> Self {
+    fn from(
+        delay::DelayStats {
+            total,
+            on_time,
+            delayed15,
+            canceled,
+            avg_delay_minutes,
+            per_hour,
+            worst_routes,
+            worst_airlines,
+            severity,
+        }: delay::DelayStats,
+    ) -> Self {
         Self {
-            total: s.total,
-            on_time: s.on_time,
-            delayed15: s.delayed15,
-            canceled: s.canceled,
-            avg_delay_minutes: s.avg_delay_minutes,
-            per_hour: s.per_hour.into_iter().map(Into::into).collect(),
-            worst_routes: s.worst_routes.into_iter().map(Into::into).collect(),
-            worst_airlines: s.worst_airlines.into_iter().map(Into::into).collect(),
-            severity: s.severity.into(),
+            total,
+            on_time,
+            delayed15,
+            canceled,
+            avg_delay_minutes,
+            per_hour: per_hour.into_iter().map(Into::into).collect(),
+            worst_routes: worst_routes.into_iter().map(Into::into).collect(),
+            worst_airlines: worst_airlines.into_iter().map(Into::into).collect(),
+            severity: severity.into(),
         }
     }
 }
@@ -279,6 +312,7 @@ pub struct PastFlight {
 
 impl From<PastFlight> for passport::PastFlight {
     fn from(f: PastFlight) -> Self {
+        // Struct literal: a new core field fails to compile here.
         Self {
             departed_at: f.departed_at,
             tz: f.tz,
@@ -302,10 +336,15 @@ pub struct AircraftCount {
 }
 
 impl From<passport::AircraftCount> for AircraftCount {
-    fn from(a: passport::AircraftCount) -> Self {
+    fn from(
+        passport::AircraftCount {
+            aircraft_type,
+            count,
+        }: passport::AircraftCount,
+    ) -> Self {
         Self {
-            aircraft_type: a.aircraft_type,
-            count: a.count,
+            aircraft_type,
+            count,
         }
     }
 }
@@ -332,19 +371,31 @@ pub struct PassportStats {
 }
 
 impl From<passport::PassportStats> for PassportStats {
-    fn from(p: passport::PassportStats) -> Self {
+    fn from(
+        passport::PassportStats {
+            flights,
+            long_haul,
+            distance_km,
+            flight_minutes,
+            airports,
+            airlines,
+            delay_lost_minutes,
+            avg_delay_minutes,
+            most_flown_aircraft,
+            routes,
+        }: passport::PassportStats,
+    ) -> Self {
         Self {
-            flights: p.flights,
-            long_haul: p.long_haul,
-            distance_km: p.distance_km,
-            flight_minutes: p.flight_minutes,
-            airports: p.airports,
-            airlines: p.airlines,
-            delay_lost_minutes: p.delay_lost_minutes,
-            avg_delay_minutes: p.avg_delay_minutes,
-            most_flown_aircraft: p.most_flown_aircraft.map(Into::into),
-            routes: p
-                .routes
+            flights,
+            long_haul,
+            distance_km,
+            flight_minutes,
+            airports,
+            airlines,
+            delay_lost_minutes,
+            avg_delay_minutes,
+            most_flown_aircraft: most_flown_aircraft.map(Into::into),
+            routes: routes
                 .into_iter()
                 .map(|(origin, destination)| RoutePair {
                     origin,
@@ -409,5 +460,19 @@ mod tests {
         assert_eq!(great_circle(a, b, 0).len(), 2);
         assert_eq!(flight_category(None, f64::NAN), FlightCategory::Lifr);
         assert_eq!(compute_stats(vec![]).severity, Severity::Normal);
+    }
+
+    #[test]
+    fn great_circle_segments_are_capped() {
+        let a = Coord { lat: 0.0, lon: 0.0 };
+        let b = Coord {
+            lat: 10.0,
+            lon: 10.0,
+        };
+        let cap = geo::MAX_SEGMENTS as usize;
+        assert_eq!(great_circle(a, b, u32::MAX).len(), cap + 1);
+        assert_eq!(great_circle(a, b, geo::MAX_SEGMENTS + 1).len(), cap + 1);
+        assert_eq!(great_circle(a, b, geo::MAX_SEGMENTS).len(), cap + 1);
+        assert_eq!(great_circle(a, b, 0).len(), 2);
     }
 }

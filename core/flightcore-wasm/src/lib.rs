@@ -2,14 +2,11 @@
 //! Malformed input yields `{"error":"..."}`, never a panic.
 
 use flightcore::delay::{BoardFlight, compute_stats};
-use flightcore::geo::{Coord, distance_km, great_circle};
+use flightcore::geo::{Coord, MAX_SEGMENTS, distance_km, great_circle};
 use flightcore::passport::{PastFlight, compute_passport};
 use flightcore::weather::flight_category;
 use serde::{Serialize, de::DeserializeOwned};
 use wasm_bindgen::prelude::*;
-
-/// Largest accepted segment count, to bound memory.
-const MAX_SEGMENTS: u32 = 100_000;
 
 fn error_json(msg: &str) -> String {
     serde_json::json!({ "error": msg }).to_string()

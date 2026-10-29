@@ -94,6 +94,10 @@ private func json(_ v: Any) -> String {
         for s in (c["samples"] as? [[String: Any]]) ?? [] {
             let i = try #require(s["index"] as? Int)
             let tol = try #require(double(s["tolerance"]))
+            guard p.indices.contains(i) else {
+                Issue.record("\(n): sample index \(i) out of range 0..<\(p.count)")
+                continue
+            }
             let q = p[i]
             #expect(abs(q.lat - (double(s["lat"]) ?? .nan)) <= tol, "\(n)[\(i)] lat \(q.lat)")
             #expect(abs(q.lon - (double(s["lon"]) ?? .nan)) <= tol, "\(n)[\(i)] lon \(q.lon)")
@@ -273,6 +277,13 @@ private func passportJSON(_ p: PassportStats) -> [String: Any] {
         let expected = try #require(c["expected"] as? [String: Any])
         #expect(jsonEqual(got, expected), "\(n): \(json(got)) vs \(json(expected))")
     }
+}
+
+@Test func greatCircleSegmentsAreCapped() {
+    let a = Coord(lat: 0, lon: 0)
+    let b = Coord(lat: 10, lon: 10)
+    #expect(greatCircle(a: a, b: b, segments: .max).count == 100_001)
+    #expect(greatCircle(a: a, b: b, segments: 100_000).count == 100_001)
 }
 
 @Test func unknownTimezoneAndEmptyInput() {

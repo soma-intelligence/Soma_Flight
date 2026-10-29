@@ -1949,8 +1949,10 @@ public func flightCategory(ceilingFt: Int32?, visibilitySm: Double) -> FlightCat
 })
 }
 /**
- * `segments + 1` points along the great circle from `a` to `b` (0 clamps to
- * 1), longitudes unwrapped so neighbours differ by under 180 degrees.
+ * `segments + 1` points along the great circle from `a` to `b`, longitudes
+ * unwrapped so neighbours differ by under 180 degrees. `segments` is clamped
+ * to `1..=geo::MAX_SEGMENTS` (100,000) to bound memory; the WASM binding
+ * rejects values above the cap instead.
  */
 public func greatCircle(a: Coord, b: Coord, segments: UInt32) -> [Coord]  {
     return try!  FfiConverterSequenceTypeCoord.lift(try! rustCall() {
@@ -1990,7 +1992,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_flightcore_ffi_checksum_func_flight_category() != 40149) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_flightcore_ffi_checksum_func_great_circle() != 25612) {
+    if (uniffi_flightcore_ffi_checksum_func_great_circle() != 35599) {
         return InitializationResult.apiChecksumMismatch
     }
 
