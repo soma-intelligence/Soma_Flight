@@ -701,6 +701,60 @@ public func FfiConverterTypeAirlineStat_lower(_ value: AirlineStat) -> RustBuffe
 }
 
 
+public struct AirportVisits: Equatable, Hashable {
+    public var icao: String
+    public var visits: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(icao: String, visits: UInt32) {
+        self.icao = icao
+        self.visits = visits
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AirportVisits: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAirportVisits: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AirportVisits {
+        return
+            try AirportVisits(
+                icao: FfiConverterString.read(from: &buf), 
+                visits: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AirportVisits, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.icao, into: &buf)
+        FfiConverterUInt32.write(value.visits, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAirportVisits_lift(_ buf: RustBuffer) throws -> AirportVisits {
+    return try FfiConverterTypeAirportVisits.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAirportVisits_lower(_ value: AirportVisits) -> RustBuffer {
+    return FfiConverterTypeAirportVisits.lower(value)
+}
+
+
 public struct BoardFlight: Equatable, Hashable {
     public var ident: String
     public var `operator`: String?
@@ -829,6 +883,114 @@ public func FfiConverterTypeCoord_lower(_ value: Coord) -> RustBuffer {
 }
 
 
+public struct CountryCount: Equatable, Hashable {
+    public var iso2: String
+    public var flights: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(iso2: String, flights: UInt32) {
+        self.iso2 = iso2
+        self.flights = flights
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CountryCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCountryCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CountryCount {
+        return
+            try CountryCount(
+                iso2: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CountryCount, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.iso2, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCountryCount_lift(_ buf: RustBuffer) throws -> CountryCount {
+    return try FfiConverterTypeCountryCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCountryCount_lower(_ value: CountryCount) -> RustBuffer {
+    return FfiConverterTypeCountryCount.lower(value)
+}
+
+
+public struct CountryInfo: Equatable, Hashable {
+    public var iso2: String
+    public var region: Region
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(iso2: String, region: Region) {
+        self.iso2 = iso2
+        self.region = region
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CountryInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCountryInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CountryInfo {
+        return
+            try CountryInfo(
+                iso2: FfiConverterString.read(from: &buf), 
+                region: FfiConverterTypeRegion.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CountryInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.iso2, into: &buf)
+        FfiConverterTypeRegion.write(value.region, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCountryInfo_lift(_ buf: RustBuffer) throws -> CountryInfo {
+    return try FfiConverterTypeCountryInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCountryInfo_lower(_ value: CountryInfo) -> RustBuffer {
+    return FfiConverterTypeCountryInfo.lower(value)
+}
+
+
 public struct DelayStats: Equatable, Hashable {
     public var total: UInt32
     public var onTime: UInt32
@@ -911,6 +1073,80 @@ public func FfiConverterTypeDelayStats_lower(_ value: DelayStats) -> RustBuffer 
 }
 
 
+public struct FlightRef: Equatable, Hashable {
+    public var ident: String
+    public var originIcao: String
+    public var destinationIcao: String
+    public var departedAt: Int64
+    public var distanceKm: UInt32
+    public var blockMinutes: UInt32?
+    public var airline: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ident: String, originIcao: String, destinationIcao: String, departedAt: Int64, distanceKm: UInt32, blockMinutes: UInt32?, airline: String?) {
+        self.ident = ident
+        self.originIcao = originIcao
+        self.destinationIcao = destinationIcao
+        self.departedAt = departedAt
+        self.distanceKm = distanceKm
+        self.blockMinutes = blockMinutes
+        self.airline = airline
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FlightRef: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlightRef: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlightRef {
+        return
+            try FlightRef(
+                ident: FfiConverterString.read(from: &buf), 
+                originIcao: FfiConverterString.read(from: &buf), 
+                destinationIcao: FfiConverterString.read(from: &buf), 
+                departedAt: FfiConverterInt64.read(from: &buf), 
+                distanceKm: FfiConverterUInt32.read(from: &buf), 
+                blockMinutes: FfiConverterOptionUInt32.read(from: &buf), 
+                airline: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FlightRef, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ident, into: &buf)
+        FfiConverterString.write(value.originIcao, into: &buf)
+        FfiConverterString.write(value.destinationIcao, into: &buf)
+        FfiConverterInt64.write(value.departedAt, into: &buf)
+        FfiConverterUInt32.write(value.distanceKm, into: &buf)
+        FfiConverterOptionUInt32.write(value.blockMinutes, into: &buf)
+        FfiConverterOptionString.write(value.airline, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlightRef_lift(_ buf: RustBuffer) throws -> FlightRef {
+    return try FfiConverterTypeFlightRef.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlightRef_lower(_ value: FlightRef) -> RustBuffer {
+    return FfiConverterTypeFlightRef.lower(value)
+}
+
+
 public struct HourBucket: Equatable, Hashable {
     public var hour: Int64
     public var onTime: UInt32
@@ -978,6 +1214,167 @@ public func FfiConverterTypeHourBucket_lift(_ buf: RustBuffer) throws -> HourBuc
 #endif
 public func FfiConverterTypeHourBucket_lower(_ value: HourBucket) -> RustBuffer {
     return FfiConverterTypeHourBucket.lower(value)
+}
+
+
+/**
+ * `per_month` holds 12 counts (January first) and `per_weekday` 7 (Monday first).
+ */
+public struct PassportDetail: Equatable, Hashable {
+    public var flights: UInt32
+    public var domestic: UInt32
+    public var international: UInt32
+    public var longHaul: UInt32
+    public var perYear: [YearCount]
+    public var perMonth: [UInt32]
+    public var perWeekday: [UInt32]
+    public var distanceKm: UInt64
+    public var avgDistanceKm: UInt32
+    public var earthRatio: Double
+    public var moonRatio: Double
+    public var sunRatio: Double
+    public var shortestByDistance: FlightRef?
+    public var longestByDistance: FlightRef?
+    public var shortestByTime: FlightRef?
+    public var longestByTime: FlightRef?
+    public var flightMinutes: UInt64
+    public var avgFlightMinutes: UInt64
+    public var airMinutes: UInt64
+    public var taxiMinutes: UInt64
+    public var airports: [AirportVisits]
+    public var airlinesByFlights: [Tally]
+    public var airlinesByDistance: [Tally]
+    public var routesByFlights: [Tally]
+    public var routesByDistance: [Tally]
+    public var countries: [CountryCount]
+    public var unknownCountryFlights: UInt32
+    public var regions: [RegionCount]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(flights: UInt32, domestic: UInt32, international: UInt32, longHaul: UInt32, perYear: [YearCount], perMonth: [UInt32], perWeekday: [UInt32], distanceKm: UInt64, avgDistanceKm: UInt32, earthRatio: Double, moonRatio: Double, sunRatio: Double, shortestByDistance: FlightRef?, longestByDistance: FlightRef?, shortestByTime: FlightRef?, longestByTime: FlightRef?, flightMinutes: UInt64, avgFlightMinutes: UInt64, airMinutes: UInt64, taxiMinutes: UInt64, airports: [AirportVisits], airlinesByFlights: [Tally], airlinesByDistance: [Tally], routesByFlights: [Tally], routesByDistance: [Tally], countries: [CountryCount], unknownCountryFlights: UInt32, regions: [RegionCount]) {
+        self.flights = flights
+        self.domestic = domestic
+        self.international = international
+        self.longHaul = longHaul
+        self.perYear = perYear
+        self.perMonth = perMonth
+        self.perWeekday = perWeekday
+        self.distanceKm = distanceKm
+        self.avgDistanceKm = avgDistanceKm
+        self.earthRatio = earthRatio
+        self.moonRatio = moonRatio
+        self.sunRatio = sunRatio
+        self.shortestByDistance = shortestByDistance
+        self.longestByDistance = longestByDistance
+        self.shortestByTime = shortestByTime
+        self.longestByTime = longestByTime
+        self.flightMinutes = flightMinutes
+        self.avgFlightMinutes = avgFlightMinutes
+        self.airMinutes = airMinutes
+        self.taxiMinutes = taxiMinutes
+        self.airports = airports
+        self.airlinesByFlights = airlinesByFlights
+        self.airlinesByDistance = airlinesByDistance
+        self.routesByFlights = routesByFlights
+        self.routesByDistance = routesByDistance
+        self.countries = countries
+        self.unknownCountryFlights = unknownCountryFlights
+        self.regions = regions
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PassportDetail: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePassportDetail: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PassportDetail {
+        return
+            try PassportDetail(
+                flights: FfiConverterUInt32.read(from: &buf), 
+                domestic: FfiConverterUInt32.read(from: &buf), 
+                international: FfiConverterUInt32.read(from: &buf), 
+                longHaul: FfiConverterUInt32.read(from: &buf), 
+                perYear: FfiConverterSequenceTypeYearCount.read(from: &buf), 
+                perMonth: FfiConverterSequenceUInt32.read(from: &buf), 
+                perWeekday: FfiConverterSequenceUInt32.read(from: &buf), 
+                distanceKm: FfiConverterUInt64.read(from: &buf), 
+                avgDistanceKm: FfiConverterUInt32.read(from: &buf), 
+                earthRatio: FfiConverterDouble.read(from: &buf), 
+                moonRatio: FfiConverterDouble.read(from: &buf), 
+                sunRatio: FfiConverterDouble.read(from: &buf), 
+                shortestByDistance: FfiConverterOptionTypeFlightRef.read(from: &buf), 
+                longestByDistance: FfiConverterOptionTypeFlightRef.read(from: &buf), 
+                shortestByTime: FfiConverterOptionTypeFlightRef.read(from: &buf), 
+                longestByTime: FfiConverterOptionTypeFlightRef.read(from: &buf), 
+                flightMinutes: FfiConverterUInt64.read(from: &buf), 
+                avgFlightMinutes: FfiConverterUInt64.read(from: &buf), 
+                airMinutes: FfiConverterUInt64.read(from: &buf), 
+                taxiMinutes: FfiConverterUInt64.read(from: &buf), 
+                airports: FfiConverterSequenceTypeAirportVisits.read(from: &buf), 
+                airlinesByFlights: FfiConverterSequenceTypeTally.read(from: &buf), 
+                airlinesByDistance: FfiConverterSequenceTypeTally.read(from: &buf), 
+                routesByFlights: FfiConverterSequenceTypeTally.read(from: &buf), 
+                routesByDistance: FfiConverterSequenceTypeTally.read(from: &buf), 
+                countries: FfiConverterSequenceTypeCountryCount.read(from: &buf), 
+                unknownCountryFlights: FfiConverterUInt32.read(from: &buf), 
+                regions: FfiConverterSequenceTypeRegionCount.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PassportDetail, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.flights, into: &buf)
+        FfiConverterUInt32.write(value.domestic, into: &buf)
+        FfiConverterUInt32.write(value.international, into: &buf)
+        FfiConverterUInt32.write(value.longHaul, into: &buf)
+        FfiConverterSequenceTypeYearCount.write(value.perYear, into: &buf)
+        FfiConverterSequenceUInt32.write(value.perMonth, into: &buf)
+        FfiConverterSequenceUInt32.write(value.perWeekday, into: &buf)
+        FfiConverterUInt64.write(value.distanceKm, into: &buf)
+        FfiConverterUInt32.write(value.avgDistanceKm, into: &buf)
+        FfiConverterDouble.write(value.earthRatio, into: &buf)
+        FfiConverterDouble.write(value.moonRatio, into: &buf)
+        FfiConverterDouble.write(value.sunRatio, into: &buf)
+        FfiConverterOptionTypeFlightRef.write(value.shortestByDistance, into: &buf)
+        FfiConverterOptionTypeFlightRef.write(value.longestByDistance, into: &buf)
+        FfiConverterOptionTypeFlightRef.write(value.shortestByTime, into: &buf)
+        FfiConverterOptionTypeFlightRef.write(value.longestByTime, into: &buf)
+        FfiConverterUInt64.write(value.flightMinutes, into: &buf)
+        FfiConverterUInt64.write(value.avgFlightMinutes, into: &buf)
+        FfiConverterUInt64.write(value.airMinutes, into: &buf)
+        FfiConverterUInt64.write(value.taxiMinutes, into: &buf)
+        FfiConverterSequenceTypeAirportVisits.write(value.airports, into: &buf)
+        FfiConverterSequenceTypeTally.write(value.airlinesByFlights, into: &buf)
+        FfiConverterSequenceTypeTally.write(value.airlinesByDistance, into: &buf)
+        FfiConverterSequenceTypeTally.write(value.routesByFlights, into: &buf)
+        FfiConverterSequenceTypeTally.write(value.routesByDistance, into: &buf)
+        FfiConverterSequenceTypeCountryCount.write(value.countries, into: &buf)
+        FfiConverterUInt32.write(value.unknownCountryFlights, into: &buf)
+        FfiConverterSequenceTypeRegionCount.write(value.regions, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePassportDetail_lift(_ buf: RustBuffer) throws -> PassportDetail {
+    return try FfiConverterTypePassportDetail.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePassportDetail_lower(_ value: PassportDetail) -> RustBuffer {
+    return FfiConverterTypePassportDetail.lower(value)
 }
 
 
@@ -1079,10 +1476,17 @@ public struct PastFlight: Equatable, Hashable {
     public var blockMinutes: UInt32?
     public var delayMinutes: UInt32
     public var status: PastFlightStatus
+    public var originCountry: String?
+    public var destinationCountry: String?
+    public var airMinutes: UInt32?
+    public var registration: String?
+    public var seatClass: SeatClass?
+    public var seat: String?
+    public var reason: TripReason?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(departedAt: Int64, tz: String, ident: String, originIcao: String, destinationIcao: String, airline: String?, aircraftType: String?, distanceKm: UInt32, blockMinutes: UInt32?, delayMinutes: UInt32, status: PastFlightStatus) {
+    public init(departedAt: Int64, tz: String, ident: String, originIcao: String, destinationIcao: String, airline: String?, aircraftType: String?, distanceKm: UInt32, blockMinutes: UInt32?, delayMinutes: UInt32, status: PastFlightStatus, originCountry: String? = nil, destinationCountry: String? = nil, airMinutes: UInt32? = nil, registration: String? = nil, seatClass: SeatClass? = nil, seat: String? = nil, reason: TripReason? = nil) {
         self.departedAt = departedAt
         self.tz = tz
         self.ident = ident
@@ -1094,6 +1498,13 @@ public struct PastFlight: Equatable, Hashable {
         self.blockMinutes = blockMinutes
         self.delayMinutes = delayMinutes
         self.status = status
+        self.originCountry = originCountry
+        self.destinationCountry = destinationCountry
+        self.airMinutes = airMinutes
+        self.registration = registration
+        self.seatClass = seatClass
+        self.seat = seat
+        self.reason = reason
     }
 
     
@@ -1122,7 +1533,14 @@ public struct FfiConverterTypePastFlight: FfiConverterRustBuffer {
                 distanceKm: FfiConverterUInt32.read(from: &buf), 
                 blockMinutes: FfiConverterOptionUInt32.read(from: &buf), 
                 delayMinutes: FfiConverterUInt32.read(from: &buf), 
-                status: FfiConverterTypePastFlightStatus.read(from: &buf)
+                status: FfiConverterTypePastFlightStatus.read(from: &buf), 
+                originCountry: FfiConverterOptionString.read(from: &buf), 
+                destinationCountry: FfiConverterOptionString.read(from: &buf), 
+                airMinutes: FfiConverterOptionUInt32.read(from: &buf), 
+                registration: FfiConverterOptionString.read(from: &buf), 
+                seatClass: FfiConverterOptionTypeSeatClass.read(from: &buf), 
+                seat: FfiConverterOptionString.read(from: &buf), 
+                reason: FfiConverterOptionTypeTripReason.read(from: &buf)
         )
     }
 
@@ -1138,6 +1556,13 @@ public struct FfiConverterTypePastFlight: FfiConverterRustBuffer {
         FfiConverterOptionUInt32.write(value.blockMinutes, into: &buf)
         FfiConverterUInt32.write(value.delayMinutes, into: &buf)
         FfiConverterTypePastFlightStatus.write(value.status, into: &buf)
+        FfiConverterOptionString.write(value.originCountry, into: &buf)
+        FfiConverterOptionString.write(value.destinationCountry, into: &buf)
+        FfiConverterOptionUInt32.write(value.airMinutes, into: &buf)
+        FfiConverterOptionString.write(value.registration, into: &buf)
+        FfiConverterOptionTypeSeatClass.write(value.seatClass, into: &buf)
+        FfiConverterOptionString.write(value.seat, into: &buf)
+        FfiConverterOptionTypeTripReason.write(value.reason, into: &buf)
     }
 }
 
@@ -1154,6 +1579,64 @@ public func FfiConverterTypePastFlight_lift(_ buf: RustBuffer) throws -> PastFli
 #endif
 public func FfiConverterTypePastFlight_lower(_ value: PastFlight) -> RustBuffer {
     return FfiConverterTypePastFlight.lower(value)
+}
+
+
+public struct RegionCount: Equatable, Hashable {
+    public var region: Region
+    public var visited: UInt32
+    public var total: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(region: Region, visited: UInt32, total: UInt32) {
+        self.region = region
+        self.visited = visited
+        self.total = total
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RegionCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRegionCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RegionCount {
+        return
+            try RegionCount(
+                region: FfiConverterTypeRegion.read(from: &buf), 
+                visited: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RegionCount, into buf: inout [UInt8]) {
+        FfiConverterTypeRegion.write(value.region, into: &buf)
+        FfiConverterUInt32.write(value.visited, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRegionCount_lift(_ buf: RustBuffer) throws -> RegionCount {
+    return try FfiConverterTypeRegionCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRegionCount_lower(_ value: RegionCount) -> RustBuffer {
+    return FfiConverterTypeRegionCount.lower(value)
 }
 
 
@@ -1269,6 +1752,118 @@ public func FfiConverterTypeRouteStat_lift(_ buf: RustBuffer) throws -> RouteSta
 #endif
 public func FfiConverterTypeRouteStat_lower(_ value: RouteStat) -> RustBuffer {
     return FfiConverterTypeRouteStat.lower(value)
+}
+
+
+public struct Tally: Equatable, Hashable {
+    public var key: String
+    public var flights: UInt32
+    public var distanceKm: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(key: String, flights: UInt32, distanceKm: UInt64) {
+        self.key = key
+        self.flights = flights
+        self.distanceKm = distanceKm
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Tally: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTally: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Tally {
+        return
+            try Tally(
+                key: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf), 
+                distanceKm: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Tally, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+        FfiConverterUInt64.write(value.distanceKm, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTally_lift(_ buf: RustBuffer) throws -> Tally {
+    return try FfiConverterTypeTally.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTally_lower(_ value: Tally) -> RustBuffer {
+    return FfiConverterTypeTally.lower(value)
+}
+
+
+public struct YearCount: Equatable, Hashable {
+    public var year: Int32
+    public var flights: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(year: Int32, flights: UInt32) {
+        self.year = year
+        self.flights = flights
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension YearCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeYearCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> YearCount {
+        return
+            try YearCount(
+                year: FfiConverterInt32.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: YearCount, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.year, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeYearCount_lift(_ buf: RustBuffer) throws -> YearCount {
+    return try FfiConverterTypeYearCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeYearCount_lower(_ value: YearCount) -> RustBuffer {
+    return FfiConverterTypeYearCount.lower(value)
 }
 
 
@@ -1534,6 +2129,201 @@ public func FfiConverterTypePastFlightStatus_lower(_ value: PastFlightStatus) ->
 
 
 
+public enum Region: Equatable, Hashable {
+    
+    case europe
+    case northAmerica
+    case centralAmerica
+    case caribbean
+    case southAmerica
+    case africa
+    case middleEast
+    case asia
+    case oceania
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension Region: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRegion: FfiConverterRustBuffer {
+    typealias SwiftType = Region
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Region {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .europe
+        
+        case 2: return .northAmerica
+        
+        case 3: return .centralAmerica
+        
+        case 4: return .caribbean
+        
+        case 5: return .southAmerica
+        
+        case 6: return .africa
+        
+        case 7: return .middleEast
+        
+        case 8: return .asia
+        
+        case 9: return .oceania
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Region, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .europe:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .northAmerica:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .centralAmerica:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .caribbean:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .southAmerica:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .africa:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .middleEast:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .asia:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .oceania:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRegion_lift(_ buf: RustBuffer) throws -> Region {
+    return try FfiConverterTypeRegion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRegion_lower(_ value: Region) -> RustBuffer {
+    return FfiConverterTypeRegion.lower(value)
+}
+
+
+
+
+public enum SeatClass: Equatable, Hashable {
+    
+    case economy
+    case premiumEconomy
+    case business
+    case first
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SeatClass: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeatClass: FfiConverterRustBuffer {
+    typealias SwiftType = SeatClass
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeatClass {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .economy
+        
+        case 2: return .premiumEconomy
+        
+        case 3: return .business
+        
+        case 4: return .first
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SeatClass, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .economy:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .premiumEconomy:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .business:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .first:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatClass_lift(_ buf: RustBuffer) throws -> SeatClass {
+    return try FfiConverterTypeSeatClass.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatClass_lower(_ value: SeatClass) -> RustBuffer {
+    return FfiConverterTypeSeatClass.lower(value)
+}
+
+
+
+
 public enum Severity: Equatable, Hashable {
     
     case normal
@@ -1602,6 +2392,72 @@ public func FfiConverterTypeSeverity_lift(_ buf: RustBuffer) throws -> Severity 
 #endif
 public func FfiConverterTypeSeverity_lower(_ value: Severity) -> RustBuffer {
     return FfiConverterTypeSeverity.lower(value)
+}
+
+
+
+
+public enum TripReason: Equatable, Hashable {
+    
+    case personal
+    case business
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension TripReason: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTripReason: FfiConverterRustBuffer {
+    typealias SwiftType = TripReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TripReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .personal
+        
+        case 2: return .business
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TripReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .personal:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .business:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTripReason_lift(_ buf: RustBuffer) throws -> TripReason {
+    return try FfiConverterTypeTripReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTripReason_lower(_ value: TripReason) -> RustBuffer {
+    return FfiConverterTypeTripReason.lower(value)
 }
 
 
@@ -1728,6 +2584,103 @@ fileprivate struct FfiConverterOptionTypeAircraftCount: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeFlightRef: FfiConverterRustBuffer {
+    typealias SwiftType = FlightRef?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFlightRef.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFlightRef.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSeatClass: FfiConverterRustBuffer {
+    typealias SwiftType = SeatClass?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSeatClass.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSeatClass.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeTripReason: FfiConverterRustBuffer {
+    typealias SwiftType = TripReason?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTripReason.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTripReason.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = [UInt32]
+
+    public static func write(_ value: [UInt32], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterUInt32.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt32] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [UInt32]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterUInt32.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeAirlineStat: FfiConverterRustBuffer {
     typealias SwiftType = [AirlineStat]
 
@@ -1745,6 +2698,31 @@ fileprivate struct FfiConverterSequenceTypeAirlineStat: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeAirlineStat.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAirportVisits: FfiConverterRustBuffer {
+    typealias SwiftType = [AirportVisits]
+
+    public static func write(_ value: [AirportVisits], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAirportVisits.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AirportVisits] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AirportVisits]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAirportVisits.read(from: &buf))
         }
         return seq
     }
@@ -1803,6 +2781,56 @@ fileprivate struct FfiConverterSequenceTypeCoord: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCountryCount: FfiConverterRustBuffer {
+    typealias SwiftType = [CountryCount]
+
+    public static func write(_ value: [CountryCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCountryCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CountryCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CountryCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCountryCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCountryInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [CountryInfo]
+
+    public static func write(_ value: [CountryInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCountryInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CountryInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CountryInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCountryInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHourBucket: FfiConverterRustBuffer {
     typealias SwiftType = [HourBucket]
 
@@ -1845,6 +2873,31 @@ fileprivate struct FfiConverterSequenceTypePastFlight: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePastFlight.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRegionCount: FfiConverterRustBuffer {
+    typealias SwiftType = [RegionCount]
+
+    public static func write(_ value: [RegionCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRegionCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RegionCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RegionCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRegionCount.read(from: &buf))
         }
         return seq
     }
@@ -1899,6 +2952,56 @@ fileprivate struct FfiConverterSequenceTypeRouteStat: FfiConverterRustBuffer {
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTally: FfiConverterRustBuffer {
+    typealias SwiftType = [Tally]
+
+    public static func write(_ value: [Tally], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTally.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Tally] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Tally]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTally.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeYearCount: FfiConverterRustBuffer {
+    typealias SwiftType = [YearCount]
+
+    public static func write(_ value: [YearCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeYearCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [YearCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [YearCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeYearCount.read(from: &buf))
+        }
+        return seq
+    }
+}
 /**
  * Passport totals over completed and diverted flights, optionally limited to
  * one local departure year.
@@ -1909,6 +3012,21 @@ public func computePassport(flights: [PastFlight], year: Int32?) -> PassportStat
     uniffi_flightcore_ffi_fn_func_compute_passport(
         FfiConverterSequenceTypePastFlight.lower(flights),
         FfiConverterOptionInt32.lower(year),uniffiCallStatus
+    )
+})
+}
+/**
+ * Full Passport statistics over completed and diverted flights, optionally
+ * limited to one local departure year (`per_year` always covers all time).
+ * `countries` is the reference list behind the region totals.
+ */
+public func computePassportDetail(flights: [PastFlight], year: Int32?, countries: [CountryInfo]) -> PassportDetail  {
+    return try!  FfiConverterTypePassportDetail_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_compute_passport_detail(
+        FfiConverterSequenceTypePastFlight.lower(flights),
+        FfiConverterOptionInt32.lower(year),
+        FfiConverterSequenceTypeCountryInfo.lower(countries),uniffiCallStatus
     )
 })
 }
@@ -1981,6 +3099,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_flightcore_ffi_checksum_func_compute_passport() != 26670) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_compute_passport_detail() != 53379) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_flightcore_ffi_checksum_func_compute_stats() != 34295) {

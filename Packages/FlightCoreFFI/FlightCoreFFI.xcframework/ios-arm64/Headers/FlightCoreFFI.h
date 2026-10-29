@@ -248,6 +248,11 @@ typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureRes
 RustBuffer uniffi_flightcore_ffi_fn_func_compute_passport(RustBuffer flights, RustBuffer year, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_PASSPORT_DETAIL
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_PASSPORT_DETAIL
+RustBuffer uniffi_flightcore_ffi_fn_func_compute_passport_detail(RustBuffer flights, RustBuffer year, RustBuffer countries, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_STATS
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_STATS
 RustBuffer uniffi_flightcore_ffi_fn_func_compute_stats(RustBuffer rows, RustCallStatus *_Nonnull out_status
@@ -531,6 +536,12 @@ void ffi_flightcore_ffi_rust_future_complete_void(uint64_t handle, RustCallStatu
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT
 uint16_t uniffi_flightcore_ffi_checksum_func_compute_passport(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT_DETAIL
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT_DETAIL
+uint16_t uniffi_flightcore_ffi_checksum_func_compute_passport_detail(void
     
 );
 #endif

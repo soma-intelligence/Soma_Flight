@@ -4,4 +4,5 @@
 pub mod delay;
 pub mod geo;
 pub mod passport;
+pub mod passport_detail;
 pub mod weather;

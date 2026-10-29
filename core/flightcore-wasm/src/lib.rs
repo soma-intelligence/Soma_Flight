@@ -4,6 +4,7 @@
 use flightcore::delay::{BoardFlight, compute_stats};
 use flightcore::geo::{Coord, MAX_SEGMENTS, distance_km, great_circle};
 use flightcore::passport::{PastFlight, compute_passport};
+use flightcore::passport_detail::{CountryInfo, compute_passport_detail};
 use flightcore::weather::flight_category;
 use serde::{Serialize, de::DeserializeOwned};
 use wasm_bindgen::prelude::*;
@@ -60,4 +61,17 @@ pub fn flight_category_js(ceiling_ft: Option<i32>, visibility_sm: f64) -> String
 #[wasm_bindgen(js_name = computePassport)]
 pub fn compute_passport_js(flights_json: &str, year: Option<i32>) -> String {
     finish(parse::<Vec<PastFlight>>("flights", flights_json).map(|f| compute_passport(&f, year)))
+}
+
+#[wasm_bindgen(js_name = computePassportDetail)]
+pub fn compute_passport_detail_js(
+    flights_json: &str,
+    year: Option<i32>,
+    countries_json: &str,
+) -> String {
+    finish((|| {
+        let flights: Vec<PastFlight> = parse("flights", flights_json)?;
+        let countries: Vec<CountryInfo> = parse("countries", countries_json)?;
+        Ok(compute_passport_detail(&flights, year, &countries))
+    })())
 }

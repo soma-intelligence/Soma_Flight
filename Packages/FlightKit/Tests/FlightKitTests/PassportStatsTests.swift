@@ -51,4 +51,18 @@ private func fixture() -> [PastFlight] {
         #expect(s.flights == 0 && s.distanceKm == 0 && s.flightTime == .zero)
         #expect(s.mostFlownAircraft == nil)
     }
+    @Test func coreFlightCarriesDetailFields() {
+        let f = PastFlight(date: iso("2025-03-01T18:00:00Z"), ident: "AF83", originIcao: "KSFO", destinationIcao: "LFPG",
+                           airline: "AFR", registration: "F-HTYA", seat: "7A", distanceKm: 8970, blockMinutes: 640,
+                           seatClass: .premiumEconomy, reason: .business, originCountry: "US",
+                           destinationCountry: "FR", airMinutes: 615)
+        let c = f.coreFlight
+        #expect(c.originCountry == "US" && c.destinationCountry == "FR")
+        #expect(c.airMinutes == 615 && c.registration == "F-HTYA" && c.seat == "7A")
+        #expect(c.seatClass == .premiumEconomy && c.reason == .business)
+        var bare = f
+        bare.originCountry = nil; bare.airMinutes = -5; bare.seatClass = nil; bare.reason = nil
+        #expect(bare.coreFlight.originCountry == nil && bare.coreFlight.airMinutes == 0)
+        #expect(bare.coreFlight.seatClass == nil && bare.coreFlight.reason == nil)
+    }
 }

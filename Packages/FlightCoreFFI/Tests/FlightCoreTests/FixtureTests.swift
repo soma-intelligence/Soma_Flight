@@ -231,7 +231,32 @@ private func pastStatus(_ s: String) throws -> PastFlightStatus {
     }
 }
 
-private enum FixtureError: Error { case unknownStatus(String) }
+private enum FixtureError: Error {
+    case unknownStatus(String)
+    case unknownSeatClass(String)
+    case unknownReason(String)
+    case unknownRegion(String)
+}
+
+private func seatClass(_ v: Any?) throws -> SeatClass? {
+    guard let s = string(v) else { return nil }
+    switch s {
+    case "economy": return .economy
+    case "premium_economy": return .premiumEconomy
+    case "business": return .business
+    case "first": return .first
+    default: throw FixtureError.unknownSeatClass(s)
+    }
+}
+
+private func tripReason(_ v: Any?) throws -> TripReason? {
+    guard let s = string(v) else { return nil }
+    switch s {
+    case "personal": return .personal
+    case "business": return .business
+    default: throw FixtureError.unknownReason(s)
+    }
+}
 
 private func pastFlight(_ v: [String: Any]) throws -> PastFlight {
     PastFlight(
@@ -245,7 +270,14 @@ private func pastFlight(_ v: [String: Any]) throws -> PastFlight {
         distanceKm: try #require(uint32(v["distance_km"])),
         blockMinutes: uint32(v["block_minutes"]),
         delayMinutes: try #require(uint32(v["delay_minutes"])),
-        status: try pastStatus(try #require(string(v["status"])))
+        status: try pastStatus(try #require(string(v["status"]))),
+        originCountry: string(v["origin_country"]),
+        destinationCountry: string(v["destination_country"]),
+        airMinutes: uint32(v["air_minutes"]),
+        registration: string(v["registration"]),
+        seatClass: try seatClass(v["seat_class"]),
+        seat: string(v["seat"]),
+        reason: try tripReason(v["reason"])
     )
 }
 
@@ -275,6 +307,97 @@ private func passportJSON(_ p: PassportStats) -> [String: Any] {
         let flights = try #require(c["flights"] as? [[String: Any]]).map(pastFlight)
         let got = passportJSON(computePassport(flights: flights, year: int32(c["year"])))
         let expected = try #require(c["expected"] as? [String: Any])
+        #expect(jsonEqual(got, expected), "\(n): \(json(got)) vs \(json(expected))")
+    }
+}
+
+// MARK: - Passport detail
+
+private let regionNames: [(Region, String)] = [
+    (.europe, "europe"), (.northAmerica, "north_america"), (.centralAmerica, "central_america"),
+    (.caribbean, "caribbean"), (.southAmerica, "south_america"), (.africa, "africa"),
+    (.middleEast, "middle_east"), (.asia, "asia"), (.oceania, "oceania"),
+]
+
+private func region(_ s: String) throws -> Region {
+    guard let r = regionNames.first(where: { $0.1 == s })?.0 else { throw FixtureError.unknownRegion(s) }
+    return r
+}
+
+private func regionName(_ r: Region) -> String {
+    regionNames.first { $0.0 == r }?.1 ?? "?"
+}
+
+private func countryInfo(_ v: [String: Any]) throws -> CountryInfo {
+    CountryInfo(iso2: try #require(string(v["iso2"])), region: try region(try #require(string(v["region"]))))
+}
+
+private func refJSON(_ r: FlightRef?) -> Any {
+    guard let r else { return NSNull() }
+    return [
+        "ident": r.ident, "originIcao": r.originIcao, "destinationIcao": r.destinationIcao,
+        "departedAt": r.departedAt, "distanceKm": r.distanceKm,
+        "blockMinutes": r.blockMinutes.map { $0 as Any } ?? NSNull(),
+        "airline": r.airline.map { $0 as Any } ?? NSNull(),
+    ] as [String: Any]
+}
+
+private func talliesJSON(_ t: [Tally]) -> [[String: Any]] {
+    t.map { ["key": $0.key, "flights": $0.flights, "distanceKm": $0.distanceKm] }
+}
+
+/// Same shape as the core crate's serde output (camelCase keys, snake_case regions).
+private func detailJSON(_ d: PassportDetail) -> [String: Any] {
+    [
+        "flights": d.flights, "domestic": d.domestic, "international": d.international, "longHaul": d.longHaul,
+        "perYear": d.perYear.map { ["year": $0.year, "flights": $0.flights] as [String: Any] },
+        "perMonth": d.perMonth, "perWeekday": d.perWeekday,
+        "distanceKm": d.distanceKm, "avgDistanceKm": d.avgDistanceKm,
+        "earthRatio": d.earthRatio, "moonRatio": d.moonRatio, "sunRatio": d.sunRatio,
+        "shortestByDistance": refJSON(d.shortestByDistance), "longestByDistance": refJSON(d.longestByDistance),
+        "shortestByTime": refJSON(d.shortestByTime), "longestByTime": refJSON(d.longestByTime),
+        "flightMinutes": d.flightMinutes, "avgFlightMinutes": d.avgFlightMinutes,
+        "airMinutes": d.airMinutes, "taxiMinutes": d.taxiMinutes,
+        "airports": d.airports.map { ["icao": $0.icao, "visits": $0.visits] as [String: Any] },
+        "airlinesByFlights": talliesJSON(d.airlinesByFlights),
+        "airlinesByDistance": talliesJSON(d.airlinesByDistance),
+        "routesByFlights": talliesJSON(d.routesByFlights),
+        "routesByDistance": talliesJSON(d.routesByDistance),
+        "countries": d.countries.map { ["iso2": $0.iso2, "flights": $0.flights] as [String: Any] },
+        "unknownCountryFlights": d.unknownCountryFlights,
+        "regions": d.regions.map {
+            ["region": regionName($0.region), "visited": $0.visited, "total": $0.total] as [String: Any]
+        },
+    ]
+}
+
+@Test func passportDetailCases() throws {
+    let f = try fixture("passport_detail")
+    let rules = try #require((f["meta"] as? [String: Any])?["rules"] as? [String: Any])
+    #expect(int64(rules["earth_km"]) == 40_075)
+    #expect(int64(rules["moon_km"]) == 384_400)
+    #expect(int64(rules["sun_km"]) == 4_375_250)
+    #expect(int64(rules["connection_seconds_lt"]) == 28_800)
+    let all = try cases(f)
+    let names = all.compactMap { string($0["name"]) }
+    for required in ["empty", "single_flight", "sparse"] {
+        #expect(names.contains(required), "missing case \(required)")
+    }
+    for c in all {
+        let n = string(c["name"]) ?? "?"
+        let flights = try #require(c["flights"] as? [[String: Any]]).map(pastFlight)
+        let countries = try #require(c["countries"] as? [[String: Any]]).map(countryInfo)
+        var got = detailJSON(computePassportDetail(flights: flights, year: int32(c["year"]), countries: countries))
+        var expected = try #require(c["expected"] as? [String: Any])
+        // Foundation's JSON reader can land a long double one ulp away (Rust and Deno compare exactly),
+        // so the three ratios are compared within a relative 1e-12, the rest exactly.
+        for key in ["earthRatio", "moonRatio", "sunRatio"] {
+            let g = try #require(double(got[key]))
+            let e = try #require(double(expected[key]))
+            #expect(abs(g - e) <= 1e-12 * max(1, abs(e)), "\(n): \(key) \(g) vs \(e)")
+            got[key] = 0
+            expected[key] = 0
+        }
         #expect(jsonEqual(got, expected), "\(n): \(json(got)) vs \(json(expected))")
     }
 }

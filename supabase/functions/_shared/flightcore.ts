@@ -69,6 +69,10 @@ export type FlightCategory = "VFR" | "MVFR" | "IFR" | "LIFR";
 
 export type PastFlightStatus = "completed" | "canceled" | "diverted";
 
+export type SeatClass = "economy" | "premium_economy" | "business" | "first";
+
+export type TripReason = "personal" | "business";
+
 /** A member's past flight. Input keys are snake_case. */
 export interface PastFlight {
   /** Unix seconds. */
@@ -84,6 +88,15 @@ export interface PastFlight {
   block_minutes: number | null;
   delay_minutes: number;
   status: PastFlightStatus;
+  /** ISO 3166-1 alpha-2; null, empty or absent when unknown. */
+  origin_country?: string | null;
+  destination_country?: string | null;
+  /** Wheels up to wheels down. */
+  air_minutes?: number | null;
+  registration?: string | null;
+  seat_class?: SeatClass | null;
+  seat?: string | null;
+  reason?: TripReason | null;
 }
 
 export interface AircraftCount {
@@ -102,6 +115,96 @@ export interface PassportStats {
   avgDelayMinutes: number;
   mostFlownAircraft: AircraftCount | null;
   routes: [string, string][];
+}
+
+export type Region =
+  | "europe"
+  | "north_america"
+  | "central_america"
+  | "caribbean"
+  | "south_america"
+  | "africa"
+  | "middle_east"
+  | "asia"
+  | "oceania";
+
+/** One reference country. Input keys are snake_case. */
+export interface CountryInfo {
+  iso2: string;
+  region: Region;
+}
+
+export interface YearCount {
+  year: number;
+  flights: number;
+}
+
+export interface FlightRef {
+  ident: string;
+  originIcao: string;
+  destinationIcao: string;
+  /** Unix seconds. */
+  departedAt: number;
+  distanceKm: number;
+  blockMinutes: number | null;
+  airline: string | null;
+}
+
+export interface AirportVisits {
+  icao: string;
+  visits: number;
+}
+
+export interface Tally {
+  key: string;
+  flights: number;
+  distanceKm: number;
+}
+
+export interface CountryCount {
+  iso2: string;
+  flights: number;
+}
+
+export interface RegionCount {
+  region: Region;
+  visited: number;
+  total: number;
+}
+
+export interface PassportDetail {
+  flights: number;
+  domestic: number;
+  international: number;
+  longHaul: number;
+  /** All-time history, ascending, whatever the year filter. */
+  perYear: YearCount[];
+  /** 12 counts, January first, local departure time. */
+  perMonth: number[];
+  /** 7 counts, Monday first, local departure time. */
+  perWeekday: number[];
+  distanceKm: number;
+  avgDistanceKm: number;
+  earthRatio: number;
+  moonRatio: number;
+  sunRatio: number;
+  shortestByDistance: FlightRef | null;
+  longestByDistance: FlightRef | null;
+  shortestByTime: FlightRef | null;
+  longestByTime: FlightRef | null;
+  flightMinutes: number;
+  avgFlightMinutes: number;
+  airMinutes: number;
+  taxiMinutes: number;
+  airports: AirportVisits[];
+  airlinesByFlights: Tally[];
+  airlinesByDistance: Tally[];
+  routesByFlights: Tally[];
+  routesByDistance: Tally[];
+  countries: CountryCount[];
+  unknownCountryFlights: number;
+  /** All nine regions, in declaration order. */
+  regions: RegionCount[];
 }
 
 const MAX_SEGMENTS = 100_000;
@@ -183,5 +286,22 @@ export function computePassport(
   }
   return unwrap<PassportStats>(
     wasm.computePassport(stringify(flights, "flights"), year),
+  );
+}
+
+export function computePassportDetail(
+  flights: PastFlight[],
+  year: number | undefined,
+  countries: CountryInfo[],
+): PassportDetail {
+  if (year !== undefined && !isI32(year)) {
+    throw new Error(`invalid year: ${year} (i32 integer)`);
+  }
+  return unwrap<PassportDetail>(
+    wasm.computePassportDetail(
+      stringify(flights, "flights"),
+      year,
+      stringify(countries, "countries"),
+    ),
   );
 }

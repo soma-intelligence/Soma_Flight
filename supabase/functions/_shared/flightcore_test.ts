@@ -2,6 +2,7 @@
 // same semantics as core/flightcore/tests/fixtures.rs.
 import {
   computePassport,
+  computePassportDetail,
   computeStats,
   distanceKm,
   flightCategory,
@@ -142,6 +143,32 @@ Deno.test("passport fixture: cases", () => {
   }
 });
 
+Deno.test("passport detail fixture: cases", () => {
+  const f = fixture("passport_detail");
+  const r = f.meta.rules;
+  assert(r.earth_km === 40_075 && r.moon_km === 384_400, "earth, moon");
+  assert(
+    r.sun_km === 4_375_250 && r.connection_seconds_lt === 28_800,
+    "sun, gap",
+  );
+  // deno-lint-ignore no-explicit-any
+  const names = f.cases.map((c: any) => c.name);
+  for (const n of ["empty", "single_flight", "sparse"]) {
+    assert(names.includes(n), `missing case ${n}`);
+  }
+  for (const c of f.cases) {
+    const got = computePassportDetail(
+      c.flights,
+      c.year ?? undefined,
+      c.countries,
+    );
+    assert(
+      deepEqual(got, c.expected),
+      `${c.name}: ${JSON.stringify(got)} vs ${JSON.stringify(c.expected)}`,
+    );
+  }
+});
+
 function throwsMessage(fn: () => unknown): string {
   try {
     fn();
@@ -173,6 +200,15 @@ Deno.test("malformed input throws Error with a specific message, never aborts", 
   expectError(() => computePassport(bad("nope")), "invalid flights");
   expectError(() => computePassport([], 2 ** 31), "invalid year");
   expectError(() => computePassport([], 2023.5), "invalid year");
+  expectError(
+    () => computePassportDetail(bad("nope"), undefined, []),
+    "invalid flights",
+  );
+  expectError(
+    () => computePassportDetail([], undefined, bad([{ iso2: "FR" }])),
+    "invalid countries",
+  );
+  expectError(() => computePassportDetail([], 2 ** 31, []), "invalid year");
   expectError(() => flightCategory(2 ** 31, 10), "invalid ceilingFt");
   expectError(() => flightCategory(1.5, 10), "invalid ceilingFt");
   expectError(() => flightCategory(null, NaN), "invalid visibilitySm");

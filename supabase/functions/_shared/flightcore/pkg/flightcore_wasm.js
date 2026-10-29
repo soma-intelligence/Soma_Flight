@@ -21,6 +21,29 @@ export function computePassport(flights_json, year) {
 }
 
 /**
+ * @param {string} flights_json
+ * @param {number | null | undefined} year
+ * @param {string} countries_json
+ * @returns {string}
+ */
+export function computePassportDetail(flights_json, year, countries_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(flights_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(countries_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.computePassportDetail(ptr0, len0, isLikeNone(year) ? Number.MAX_SAFE_INTEGER : (year) >> 0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * @param {string} rows_json
  * @returns {string}
  */

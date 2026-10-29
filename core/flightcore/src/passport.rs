@@ -1,12 +1,12 @@
 //! Passport statistics over a member's past flights. Pure: no clock, no I/O.
 
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// Flights of at least this distance are long haul.
-const LONG_HAUL_KM: u32 = 4000;
+pub(crate) const LONG_HAUL_KM: u32 = 4000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -14,6 +14,22 @@ pub enum PastFlightStatus {
     Completed,
     Canceled,
     Diverted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SeatClass {
+    Economy,
+    PremiumEconomy,
+    Business,
+    First,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TripReason {
+    Personal,
+    Business,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +47,22 @@ pub struct PastFlight {
     pub block_minutes: Option<u32>,
     pub delay_minutes: u32,
     pub status: PastFlightStatus,
+    /// ISO 3166-1 alpha-2 of the origin airport; null or empty when unknown.
+    #[serde(default)]
+    pub origin_country: Option<String>,
+    #[serde(default)]
+    pub destination_country: Option<String>,
+    /// Wheels up to wheels down.
+    #[serde(default)]
+    pub air_minutes: Option<u32>,
+    #[serde(default)]
+    pub registration: Option<String>,
+    #[serde(default)]
+    pub seat_class: Option<SeatClass>,
+    #[serde(default)]
+    pub seat: Option<String>,
+    #[serde(default)]
+    pub reason: Option<TripReason>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,13 +87,18 @@ pub struct PassportStats {
     pub routes: Vec<(String, String)>,
 }
 
-/// Local calendar year of the departure, in the flight's own zone (UTC when unknown).
-fn local_year(f: &PastFlight) -> Option<i32> {
+/// Local wall-clock time of the departure, in the flight's own zone (UTC when unknown).
+pub(crate) fn local_departure(f: &PastFlight) -> Option<NaiveDateTime> {
     let utc = DateTime::<Utc>::from_timestamp(f.departed_at, 0)?;
     Some(match f.tz.parse::<Tz>() {
-        Ok(tz) => utc.with_timezone(&tz).year(),
-        Err(_) => utc.year(),
+        Ok(tz) => utc.with_timezone(&tz).naive_local(),
+        Err(_) => utc.naive_utc(),
     })
+}
+
+/// Local calendar year of the departure, in the flight's own zone (UTC when unknown).
+pub(crate) fn local_year(f: &PastFlight) -> Option<i32> {
+    local_departure(f).map(|t| t.year())
 }
 
 pub fn compute_passport(flights: &[PastFlight], year: Option<i32>) -> PassportStats {

@@ -20,6 +20,13 @@ fn f(
         block_minutes: Some(60),
         delay_minutes: 0,
         status,
+        origin_country: None,
+        destination_country: None,
+        air_minutes: None,
+        registration: None,
+        seat_class: None,
+        seat: None,
+        reason: None,
     }
 }
 

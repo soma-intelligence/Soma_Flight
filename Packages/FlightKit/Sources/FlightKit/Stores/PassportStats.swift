@@ -51,12 +51,29 @@ extension PastFlight {
         case .canceled: .canceled
         case .diverted: .diverted
         }
+        let seatClass: FlightCore.SeatClass? = self.seatClass.map {
+            switch $0 {
+            case .economy: .economy
+            case .premiumEconomy: .premiumEconomy
+            case .business: .business
+            case .first: .first
+            }
+        }
+        let reason: FlightCore.TripReason? = self.reason.map {
+            switch $0 {
+            case .personal: .personal
+            case .business: .business
+            }
+        }
         return FlightCore.PastFlight(
             departedAt: Int64(date.timeIntervalSince1970), tz: originTz ?? "UTC", ident: ident,
             originIcao: originIcao, destinationIcao: destinationIcao, airline: airline,
             aircraftType: aircraftType, distanceKm: UInt32(max(0, distanceKm)),
             blockMinutes: blockMinutes.map { UInt32(max(0, $0)) },
-            delayMinutes: UInt32(max(0, delayMinutes)), status: status)
+            delayMinutes: UInt32(max(0, delayMinutes)), status: status,
+            originCountry: originCountry, destinationCountry: destinationCountry,
+            airMinutes: airMinutes.map { UInt32(max(0, $0)) }, registration: registration,
+            seatClass: seatClass, seat: seat, reason: reason)
     }
 
     /// Local departure year in the origin's zone, matching the core's bucketing.

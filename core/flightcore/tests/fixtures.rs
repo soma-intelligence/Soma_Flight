@@ -1,6 +1,7 @@
 use flightcore::delay::{BoardFlight, DelayStats, compute_stats};
 use flightcore::geo::{Coord, distance_km, great_circle};
 use flightcore::passport::{PastFlight, compute_passport};
+use flightcore::passport_detail::{CountryInfo, compute_passport_detail};
 use flightcore::weather::{FlightCategory, flight_category};
 use serde::Deserialize;
 
@@ -234,6 +235,41 @@ fn passport_fixture_cases() {
     assert!(f.cases.len() >= 20);
     for c in f.cases {
         let got = serde_json::to_value(compute_passport(&c.flights, c.year)).unwrap();
+        assert_eq!(got, c.expected, "{}", c.name);
+    }
+}
+
+#[derive(Deserialize)]
+struct DetailCase {
+    name: String,
+    year: Option<i32>,
+    countries: Vec<CountryInfo>,
+    flights: Vec<PastFlight>,
+    expected: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct DetailFile {
+    meta: serde_json::Value,
+    cases: Vec<DetailCase>,
+}
+
+#[test]
+fn passport_detail_fixture_cases() {
+    let f: DetailFile =
+        serde_json::from_str(include_str!("../../fixtures/passport_detail.json")).unwrap();
+    let rules = &f.meta["rules"];
+    assert_eq!(rules["earth_km"], 40_075);
+    assert_eq!(rules["moon_km"], 384_400);
+    assert_eq!(rules["sun_km"], 4_375_250);
+    assert_eq!(rules["connection_seconds_lt"], 28_800);
+    let names: Vec<&str> = f.cases.iter().map(|c| c.name.as_str()).collect();
+    for required in ["empty", "single_flight", "sparse"] {
+        assert!(names.contains(&required), "missing case {required}");
+    }
+    for c in &f.cases {
+        let got = serde_json::to_value(compute_passport_detail(&c.flights, c.year, &c.countries))
+            .unwrap();
         assert_eq!(got, c.expected, "{}", c.name);
     }
 }

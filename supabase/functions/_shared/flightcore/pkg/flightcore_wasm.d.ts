@@ -3,6 +3,8 @@
 
 export function computePassport(flights_json: string, year?: number | null): string;
 
+export function computePassportDetail(flights_json: string, year: number | null | undefined, countries_json: string): string;
+
 export function computeStats(rows_json: string): string;
 
 /**
