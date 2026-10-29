@@ -13,7 +13,12 @@
   "block_minutes": 154,
   "delay_minutes": 47,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 129
  },
  {
   "id": "c6b2bb9c-e811-5d12-a484-5f64eef85326",
@@ -29,7 +34,12 @@
   "block_minutes": 724,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "Europe/Paris"
+  "origin_tz": "Europe/Paris",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "FR",
+  "destination_country": "US",
+  "air_minutes": 699
  },
  {
   "id": "26166df8-9ff9-5ac3-bf98-24fbde1a7202",
@@ -44,7 +54,9 @@
   "distance_km": 8970,
   "block_minutes": 640,
   "delay_minutes": 12,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "US",
+  "destination_country": "FR"
  },
  {
   "id": "3f8a03cd-7373-530f-8bea-fc21d5f9c887",
@@ -60,7 +72,12 @@
   "block_minutes": 119,
   "delay_minutes": 9,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "premium_economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 94
  },
  {
   "id": "ae5bb4ae-af71-5322-beef-3910dc5dbc90",
@@ -76,7 +93,12 @@
   "block_minutes": 119,
   "delay_minutes": 64,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 94
  },
  {
   "id": "0b3a0b53-5096-54ae-ba6c-dac9f01a8d96",
@@ -91,7 +113,9 @@
   "distance_km": 2400,
   "block_minutes": 235,
   "delay_minutes": 0,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "US",
+  "destination_country": "US"
  },
  {
   "id": "23d3b721-ff82-5bf2-87d0-614bc30c982b",
@@ -107,7 +131,12 @@
   "block_minutes": 354,
   "delay_minutes": 31,
   "status": "completed",
-  "origin_tz": "America/New_York"
+  "origin_tz": "America/New_York",
+  "seat_class": "business",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 329
  },
  {
   "id": "038f1479-0692-5a00-bd59-374568d2010e",
@@ -123,7 +152,12 @@
   "block_minutes": 354,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 329
  },
  {
   "id": "c6b59ccd-5e68-56ed-bbf2-feb953ba901b",
@@ -138,7 +172,9 @@
   "distance_km": 1280,
   "block_minutes": 125,
   "delay_minutes": 38,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "US",
+  "destination_country": "US"
  },
  {
   "id": "69077c5d-3804-5bad-8d99-48277ceaa4f9",
@@ -154,7 +190,12 @@
   "block_minutes": 724,
   "delay_minutes": 22,
   "status": "completed",
-  "origin_tz": "Europe/Paris"
+  "origin_tz": "Europe/Paris",
+  "seat_class": "first",
+  "reason": "business",
+  "origin_country": "FR",
+  "destination_country": "US",
+  "air_minutes": 699
  },
  {
   "id": "3f326c5c-9399-514c-8546-19429c507e79",
@@ -170,7 +211,12 @@
   "block_minutes": 724,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "FR",
+  "air_minutes": 699
  },
  {
   "id": "3af44e08-3d10-5169-8c3c-10216e16712e",
@@ -185,7 +231,9 @@
   "distance_km": 8620,
   "block_minutes": 640,
   "delay_minutes": 5,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "GB",
+  "destination_country": "US"
  },
  {
   "id": "5a8dce18-bb44-57bd-92df-4606ae56059b",
@@ -201,7 +249,12 @@
   "block_minutes": 86,
   "delay_minutes": 18,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 61
  },
  {
   "id": "dcde6cc4-73fc-5811-838c-b3f0c5b9bebe",
@@ -217,7 +270,12 @@
   "block_minutes": 299,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 274
  },
  {
   "id": "41a23489-8128-5f15-bed1-b6b9583c6b56",
@@ -232,7 +290,9 @@
   "distance_km": 543,
   "block_minutes": 80,
   "delay_minutes": 0,
-  "status": "canceled"
+  "status": "canceled",
+  "origin_country": "US",
+  "destination_country": "US"
  },
  {
   "id": "54710abf-5357-5510-aecd-4848a6d6962c",
@@ -248,7 +308,12 @@
   "block_minutes": 59,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Chicago"
+  "origin_tz": "America/Chicago",
+  "seat_class": "premium_economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 34
  },
  {
   "id": "965c57ef-8f18-51d3-9c19-60c2edc42c5f",
@@ -264,7 +329,12 @@
   "block_minutes": 221,
   "delay_minutes": 52,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 196
  },
  {
   "id": "ae25aaaa-c67e-5eea-a755-ee9818e5a2bd",
@@ -280,7 +350,12 @@
   "block_minutes": 698,
   "delay_minutes": 14,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "business",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "GB",
+  "air_minutes": 673
  },
  {
   "id": "11e8110b-5e29-57c5-89f1-e498a02f1c66",
@@ -296,7 +371,12 @@
   "block_minutes": 698,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "Europe/London"
+  "origin_tz": "Europe/London",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "GB",
+  "destination_country": "US",
+  "air_minutes": 673
  },
  {
   "id": "de332bbc-079e-5906-9177-06677d91c29c",
@@ -312,7 +392,12 @@
   "block_minutes": 724,
   "delay_minutes": 26,
   "status": "completed",
-  "origin_tz": "Europe/Paris"
+  "origin_tz": "Europe/Paris",
+  "seat_class": "first",
+  "reason": "personal",
+  "origin_country": "FR",
+  "destination_country": "US",
+  "air_minutes": 699
  },
  {
   "id": "54f31849-ba6b-55f3-97d3-7b8a465cf743",
@@ -328,7 +413,12 @@
   "block_minutes": 724,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "FR",
+  "air_minutes": 699
  },
  {
   "id": "11e3a91c-1134-5172-bc6d-9f615fc81c84",
@@ -343,7 +433,9 @@
   "distance_km": 1090,
   "block_minutes": 125,
   "delay_minutes": 21,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "US",
+  "destination_country": "US"
  },
  {
   "id": "4153ba6a-9601-526f-81a0-f3cf3b378d0b",
@@ -359,7 +451,12 @@
   "block_minutes": 221,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Chicago"
+  "origin_tz": "America/Chicago",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 196
  },
  {
   "id": "4c842e8f-1d45-5e4b-8e1f-9316ee366a6f",
@@ -375,7 +472,12 @@
   "block_minutes": 221,
   "delay_minutes": 95,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 196
  },
  {
   "id": "11489e62-5efa-56a8-9f94-4b6347e8eaf6",
@@ -391,7 +493,12 @@
   "block_minutes": 672,
   "delay_minutes": 11,
   "status": "completed",
-  "origin_tz": "Asia/Tokyo"
+  "origin_tz": "Asia/Tokyo",
+  "seat_class": "premium_economy",
+  "reason": "business",
+  "origin_country": "JP",
+  "destination_country": "US",
+  "air_minutes": 647
  },
  {
   "id": "85a89dc7-c985-53bb-a78d-14aef281b830",
@@ -406,7 +513,9 @@
   "distance_km": 8250,
   "block_minutes": 665,
   "delay_minutes": 0,
-  "status": "completed"
+  "status": "completed",
+  "origin_country": "US",
+  "destination_country": "JP"
  },
  {
   "id": "e515c54c-5f40-5b48-905b-0aa39db4e905",
@@ -422,7 +531,12 @@
   "block_minutes": 77,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 52
  },
  {
   "id": "dee77cf4-1072-515a-95d7-50ab5bc415ee",
@@ -438,7 +552,12 @@
   "block_minutes": 109,
   "delay_minutes": 33,
   "status": "completed",
-  "origin_tz": "America/New_York"
+  "origin_tz": "America/New_York",
+  "seat_class": "business",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 84
  },
  {
   "id": "dc664742-5b31-54e7-b111-9f8051f20e21",
@@ -454,7 +573,12 @@
   "block_minutes": 299,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 274
  },
  {
   "id": "2f0582eb-72d9-5a1b-8587-d52d2ec0e6c7",
@@ -469,7 +593,9 @@
   "distance_km": 300,
   "block_minutes": 70,
   "delay_minutes": -3,
-  "status": "diverted"
+  "status": "diverted",
+  "origin_country": "US",
+  "destination_country": "US"
  },
  {
   "id": "e2f837cd-ea43-5fec-bb64-e833fa65bf6a",
@@ -485,7 +611,12 @@
   "block_minutes": 314,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Toronto"
+  "origin_tz": "America/Toronto",
+  "seat_class": "first",
+  "reason": "personal",
+  "origin_country": "CA",
+  "destination_country": "US",
+  "air_minutes": 289
  },
  {
   "id": "5638703e-7c24-57d9-a5a8-5742bd3dbdc8",
@@ -501,7 +632,12 @@
   "block_minutes": 314,
   "delay_minutes": 40,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "CA",
+  "air_minutes": 289
  },
  {
   "id": "08218b20-1d55-5901-a797-dbc39f8f809b",
@@ -517,7 +653,12 @@
   "block_minutes": 268,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Mexico_City"
+  "origin_tz": "America/Mexico_City",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "MX",
+  "destination_country": "US",
+  "air_minutes": 243
  },
  {
   "id": "ceee5258-71bd-5c2a-b5c6-865203892146",
@@ -533,7 +674,12 @@
   "block_minutes": 268,
   "delay_minutes": 7,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "MX",
+  "air_minutes": 243
  },
  {
   "id": "4f29927f-6d4e-5029-9659-0f02b89ee66d",
@@ -549,7 +695,12 @@
   "block_minutes": 58,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/New_York"
+  "origin_tz": "America/New_York",
+  "seat_class": "premium_economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 33
  },
  {
   "id": "33cbdc58-274b-5fac-87dd-a5f0255c9416",
@@ -565,7 +716,12 @@
   "block_minutes": 354,
   "delay_minutes": 58,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 329
  },
  {
   "id": "200cc9d4-5d1f-523c-9a2a-cc4f4563fd47",
@@ -581,7 +737,12 @@
   "block_minutes": 263,
   "delay_minutes": 0,
   "status": "canceled",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "business",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 238
  },
  {
   "id": "bb7cb030-67e5-5df8-8a56-1580f62e2d60",
@@ -597,7 +758,12 @@
   "block_minutes": 724,
   "delay_minutes": 19,
   "status": "completed",
-  "origin_tz": "Europe/Paris"
+  "origin_tz": "Europe/Paris",
+  "seat_class": "first",
+  "reason": "business",
+  "origin_country": "FR",
+  "destination_country": "US",
+  "air_minutes": 699
  },
  {
   "id": "de244df4-5df5-57ad-8c15-2ea75094b1ee",
@@ -613,7 +779,12 @@
   "block_minutes": 724,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "FR",
+  "air_minutes": 699
  },
  {
   "id": "aae65d9e-a56a-50a6-8eba-8e22887edf76",
@@ -629,7 +800,12 @@
   "block_minutes": 103,
   "delay_minutes": 12,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 78
  },
  {
   "id": "b5995e73-e5cc-5416-aca2-8d1657a0ea2e",
@@ -645,7 +821,12 @@
   "block_minutes": 103,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Los_Angeles"
+  "origin_tz": "America/Los_Angeles",
+  "seat_class": "economy",
+  "reason": "personal",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 78
  },
  {
   "id": "247bcdeb-ac6e-50cb-a61c-be932a45d744",
@@ -661,6 +842,11 @@
   "block_minutes": 221,
   "delay_minutes": 0,
   "status": "completed",
-  "origin_tz": "America/Chicago"
+  "origin_tz": "America/Chicago",
+  "seat_class": "economy",
+  "reason": "business",
+  "origin_country": "US",
+  "destination_country": "US",
+  "air_minutes": 196
  }
 ]

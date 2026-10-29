@@ -11,6 +11,8 @@ public struct AppEnvironment: Sendable {
     public var push: any PushService
     public var cache: CacheStore
     public var directory: AirportDirectory
+    /// Airlines, aircraft types and countries.
+    public var reference: ReferenceData
     /// Where recent searches persist.
     public var recents: RecentsStorage
     /// True when nothing works without an account (the backend): the shells show Sign In until there
@@ -19,11 +21,11 @@ public struct AppEnvironment: Sendable {
 
     public init(flights: any FlightService, airports: any AirportService, auth: any AuthService,
                 history: any HistoryService, push: any PushService, cache: CacheStore,
-                directory: AirportDirectory = .bundled(), recents: RecentsStorage = .memory,
-                requiresSignIn: Bool = false) {
+                directory: AirportDirectory = .bundled(), reference: ReferenceData = .bundled(),
+                recents: RecentsStorage = .memory, requiresSignIn: Bool = false) {
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.push = push; self.cache = cache
-        self.directory = directory; self.recents = recents; self.requiresSignIn = requiresSignIn
+        self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
     /// Seeded fakes over an in-memory cache. `now` is the clock the seed is shifted to.

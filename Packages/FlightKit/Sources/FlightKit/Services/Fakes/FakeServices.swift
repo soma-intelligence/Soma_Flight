@@ -100,6 +100,7 @@ public actor FakeFlightService: FlightService {
     private var pool: [Flight.ID: Flight] = [:]
     private var followedIDs: [Flight.ID] = []
     private var notify: [Flight.ID: Bool] = [:]
+    private var details: [Flight.ID: FollowDetails] = [:]
     private let airports: [Airport]
     private let hub = UpdateHub()
 
@@ -166,6 +167,18 @@ public actor FakeFlightService: FlightService {
         try check()
         followedIDs.removeAll { $0 == id }
         notify[id] = nil
+        details[id] = nil
+    }
+
+    public func followDetails(_ id: Flight.ID) async throws(APIError) -> FollowDetails? {
+        try check()
+        return followedIDs.contains(id) ? details[id] ?? .empty : nil
+    }
+
+    public func saveFollowDetails(_ id: Flight.ID, _ new: FollowDetails) async throws(APIError) {
+        try check()
+        guard followedIDs.contains(id) else { throw .notFound }
+        details[id] = new
     }
 
     /// Ids `refreshPosition` was asked for, in order.

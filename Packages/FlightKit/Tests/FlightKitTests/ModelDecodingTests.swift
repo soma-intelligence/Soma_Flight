@@ -83,4 +83,41 @@ private func fixture(_ name: String) throws -> Data {
         #expect(f.progress(at: t0.addingTimeInterval(9000)) == 1)
         #expect(abs(f.progress(at: t0.addingTimeInterval(3600)) - 0.5) < 0.001)
     }
+
+    @Test func decodesPastFlightWithoutNewKeys() throws {
+        let json = """
+        {"id":"6f1b6a52-3a3f-4c3b-9b6e-1d2b3c4d5e6f","date":"2026-10-02T18:00:00.000Z","ident":"UA1882",
+         "origin_icao":"KSFO","destination_icao":"KDEN","airline":null,"aircraft_type":null,"registration":null,
+         "seat":null,"distance_km":1500,"block_minutes":null,"delay_minutes":0,"status":"completed"}
+        """
+        let f = try FlightJSON.decoder.decode(PastFlight.self, from: Data(json.utf8))
+        #expect(f.seatClass == nil && f.reason == nil && f.bookingCode == nil && f.notes == nil)
+        #expect(f.originCountry == nil && f.destinationCountry == nil && f.airMinutes == nil)
+    }
+
+    @Test func decodesPastFlightWithNewKeys() throws {
+        let json = """
+        {"id":"6f1b6a52-3a3f-4c3b-9b6e-1d2b3c4d5e6f","date":"2026-10-02T18:00:00+00:00","ident":"UA1882",
+         "origin_icao":"KSFO","destination_icao":"KDEN","distance_km":1500,"delay_minutes":0,"status":"completed",
+         "seat_class":"premium_economy","reason":"business","booking_code":"ABC123","notes":"x",
+         "origin_country":"US","destination_country":"US","air_minutes":120}
+        """
+        let f = try FlightJSON.decoder.decode(PastFlight.self, from: Data(json.utf8))
+        #expect(f.seatClass == .premiumEconomy && f.reason == .business && f.bookingCode == "ABC123")
+        #expect(f.originCountry == "US" && f.airMinutes == 120)
+    }
+
+    @Test func decodesFlightOffOn() throws {
+        let base = try FlightJSON.decoder.decode(Flight.self, from: fixture("flight_sparse"))
+        #expect(base.scheduledOff == nil && base.estimatedOn == nil)
+        var f = base
+        f.scheduledOff = Date(timeIntervalSince1970: 1_792_770_600)
+        f.estimatedOn = Date(timeIntervalSince1970: 1_792_790_000)
+        let back = try FlightJSON.decoder.decode(Flight.self, from: FlightJSON.encoder.encode(f))
+        let wire = #"{"scheduled_off":"2026-10-23T15:42:00.123456+00:00","estimated_on":"2026-10-23 16:42:00+00"}"#
+        let partial = try FlightJSON.decoder.decode([String: Date].self, from: Data(wire.utf8))
+        #expect(partial.count == 2)
+        #expect(back.scheduledOff == f.scheduledOff && back.estimatedOn == f.estimatedOn)
+        #expect(back.scheduledOn == nil && back.estimatedOff == nil)
+    }
 }

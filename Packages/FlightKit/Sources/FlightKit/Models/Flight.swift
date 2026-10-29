@@ -13,6 +13,11 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
     public var scheduledIn: Date?
     public var estimatedOut: Date?
     public var estimatedIn: Date?
+    /// Runway times: scheduled and estimated take-off (`off`) and landing (`on`).
+    public var scheduledOff: Date?
+    public var scheduledOn: Date?
+    public var estimatedOff: Date?
+    public var estimatedOn: Date?
     public var actualOut: Date?
     public var actualOff: Date?
     public var actualOn: Date?
@@ -32,6 +37,7 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
         id: UUID = UUID(), providerId: String, ident: String, operator: String? = nil,
         originIcao: String, originIata: String? = nil, destinationIcao: String, destinationIata: String? = nil,
         scheduledOut: Date? = nil, scheduledIn: Date? = nil, estimatedOut: Date? = nil, estimatedIn: Date? = nil,
+        scheduledOff: Date? = nil, scheduledOn: Date? = nil, estimatedOff: Date? = nil, estimatedOn: Date? = nil,
         actualOut: Date? = nil, actualOff: Date? = nil, actualOn: Date? = nil, actualIn: Date? = nil,
         gateOrigin: String? = nil, gateDestination: String? = nil,
         terminalOrigin: String? = nil, terminalDestination: String? = nil, baggageBelt: String? = nil,
@@ -43,6 +49,8 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
         self.destinationIcao = destinationIcao; self.destinationIata = destinationIata
         self.scheduledOut = scheduledOut; self.scheduledIn = scheduledIn
         self.estimatedOut = estimatedOut; self.estimatedIn = estimatedIn
+        self.scheduledOff = scheduledOff; self.scheduledOn = scheduledOn
+        self.estimatedOff = estimatedOff; self.estimatedOn = estimatedOn
         self.actualOut = actualOut; self.actualOff = actualOff; self.actualOn = actualOn; self.actualIn = actualIn
         self.gateOrigin = gateOrigin; self.gateDestination = gateDestination
         self.terminalOrigin = terminalOrigin; self.terminalDestination = terminalDestination
@@ -55,6 +63,7 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
         case id, providerId, ident, `operator`
         case originIcao, originIata, destinationIcao, destinationIata
         case scheduledOut, scheduledIn, estimatedOut, estimatedIn
+        case scheduledOff, scheduledOn, estimatedOff, estimatedOn
         case actualOut, actualOff, actualOn, actualIn
         case gateOrigin, gateDestination, terminalOrigin, terminalDestination, baggageBelt
         case aircraftType, registration, status
@@ -76,6 +85,10 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
         scheduledIn = try c.decodeIfPresent(Date.self, forKey: .scheduledIn)
         estimatedOut = try c.decodeIfPresent(Date.self, forKey: .estimatedOut)
         estimatedIn = try c.decodeIfPresent(Date.self, forKey: .estimatedIn)
+        scheduledOff = try c.decodeIfPresent(Date.self, forKey: .scheduledOff)
+        scheduledOn = try c.decodeIfPresent(Date.self, forKey: .scheduledOn)
+        estimatedOff = try c.decodeIfPresent(Date.self, forKey: .estimatedOff)
+        estimatedOn = try c.decodeIfPresent(Date.self, forKey: .estimatedOn)
         actualOut = try c.decodeIfPresent(Date.self, forKey: .actualOut)
         actualOff = try c.decodeIfPresent(Date.self, forKey: .actualOff)
         actualOn = try c.decodeIfPresent(Date.self, forKey: .actualOn)
@@ -117,6 +130,10 @@ public struct Flight: Codable, Sendable, Hashable, Identifiable {
         try c.encodeIfPresent(scheduledIn, forKey: .scheduledIn)
         try c.encodeIfPresent(estimatedOut, forKey: .estimatedOut)
         try c.encodeIfPresent(estimatedIn, forKey: .estimatedIn)
+        try c.encodeIfPresent(scheduledOff, forKey: .scheduledOff)
+        try c.encodeIfPresent(scheduledOn, forKey: .scheduledOn)
+        try c.encodeIfPresent(estimatedOff, forKey: .estimatedOff)
+        try c.encodeIfPresent(estimatedOn, forKey: .estimatedOn)
         try c.encodeIfPresent(actualOut, forKey: .actualOut)
         try c.encodeIfPresent(actualOff, forKey: .actualOff)
         try c.encodeIfPresent(actualOn, forKey: .actualOn)

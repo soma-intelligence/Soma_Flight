@@ -6,18 +6,8 @@ import SwiftUI
 enum TravelFacts {
     // MARK: Aircraft
 
-    /// Marketing name for common ICAO type designators; the designator itself otherwise.
-    static func aircraftName(_ type: String) -> String { aircraftNames[type] ?? type }
-
-    private static let aircraftNames: [String: String] = [
-        "A20N": "Airbus A320neo", "A21N": "Airbus A321neo", "A220": "Airbus A220", "BCS3": "Airbus A220-300",
-        "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321", "A332": "Airbus A330-200",
-        "A333": "Airbus A330-300", "A339": "Airbus A330-900", "A359": "Airbus A350-900", "A35K": "Airbus A350-1000",
-        "A388": "Airbus A380", "B737": "Boeing 737-700", "B738": "Boeing 737-800", "B739": "Boeing 737-900",
-        "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B752": "Boeing 757-200", "B763": "Boeing 767-300",
-        "B772": "Boeing 777-200", "B77W": "Boeing 777-300ER", "B788": "Boeing 787-8", "B789": "Boeing 787-9",
-        "B78X": "Boeing 787-10", "E175": "Embraer 175", "E190": "Embraer 190", "CRJ9": "Bombardier CRJ900",
-    ]
+    /// Marketing name for an ICAO type designator from the reference list; the designator itself otherwise.
+    static func aircraftName(_ type: String) -> String { ReferenceData.bundled().type(type)?.name ?? type }
 
     // MARK: Airlines
 

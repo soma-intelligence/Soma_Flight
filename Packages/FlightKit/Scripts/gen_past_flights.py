@@ -5,7 +5,9 @@ few years of history to group and total, like a real traveller's log.
 The first eight flights are the original hand-written seed and stay as they are (tests pin them
 by year). The rest is a fixed list of routes and dates, so the output is deterministic.
 Distance is the great circle between the seed airports; block time is distance at 780 km/h
-plus 35 minutes of taxi.
+plus 35 minutes of taxi; air time is block time minus 25 minutes. Seat class, reason, seat and the two
+airport countries are derived from the row index, so they are deterministic too. Original rows only get
+their countries.
 
 Usage: python3 Packages/FlightKit/Scripts/gen_past_flights.py Packages/FlightKit/Sources/FlightKit/Resources/Fakes
 """
@@ -60,6 +62,9 @@ REGISTRATION = {"A359": "F-HTYM", "B39M": "N47280", "B739": "N37522", "A321": "N
                 "A220": "N3044J", "E175": "N625QX"}
 
 
+SEAT_CLASSES = ["economy", "economy", "premium_economy", "economy", "business", "economy", "first", "economy"]
+
+
 def great_circle_km(a, b) -> int:
     lat1, lon1, lat2, lon2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
     h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
@@ -73,7 +78,12 @@ def main() -> None:
     # The hand-written originals are the ones without origin_tz.
     original = [f for f in json.loads(path.read_text()) if "origin_tz" not in f]
     assert len(original) == ORIGINAL, len(original)
-    out = list(original)
+    out = []
+    for f in original:
+        f = dict(f)
+        f["origin_country"] = airports[f["origin_icao"]]["country"]
+        f["destination_country"] = airports[f["destination_icao"]]["country"]
+        out.append(f)
     for i, (day, ident, o, d, airline, ac, delay, status) in enumerate(EXTRA):
         km = great_circle_km(airports[o], airports[d])
         out.append({
@@ -91,6 +101,11 @@ def main() -> None:
             "delay_minutes": delay,
             "status": status,
             "origin_tz": airports[o]["tz"],
+            "seat_class": SEAT_CLASSES[i % len(SEAT_CLASSES)],
+            "reason": "business" if i % 3 == 0 else "personal",
+            "origin_country": airports[o]["country"],
+            "destination_country": airports[d]["country"],
+            "air_minutes": round(km / 780 * 60) + 35 - 25,
         })
     out.sort(key=lambda f: f["date"], reverse=True)
     path.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n")

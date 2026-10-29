@@ -20,17 +20,30 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var status: PastFlightStatus
     /// IANA zone of the origin airport. The core buckets years by local departure date; nil falls back to UTC.
     public var originTz: String?
+    public var seatClass: SeatClass?
+    public var reason: TripReason?
+    public var bookingCode: String?
+    public var notes: String?
+    /// ISO 3166-1 alpha-2 of the two airports; nil when the airport is unknown.
+    public var originCountry: String?
+    public var destinationCountry: String?
+    /// Wheels up to wheels down; nil when the times are not known.
+    public var airMinutes: Int?
 
     public init(
         id: UUID = UUID(), date: Date, ident: String, originIcao: String, destinationIcao: String,
         airline: String? = nil, aircraftType: String? = nil, registration: String? = nil, seat: String? = nil,
         distanceKm: Int, blockMinutes: Int? = nil, delayMinutes: Int = 0, status: PastFlightStatus = .completed,
-        originTz: String? = nil
+        originTz: String? = nil, seatClass: SeatClass? = nil, reason: TripReason? = nil,
+        bookingCode: String? = nil, notes: String? = nil, originCountry: String? = nil,
+        destinationCountry: String? = nil, airMinutes: Int? = nil
     ) {
         self.id = id; self.date = date; self.ident = ident
         self.originIcao = originIcao; self.destinationIcao = destinationIcao
         self.airline = airline; self.aircraftType = aircraftType; self.registration = registration; self.seat = seat
         self.distanceKm = distanceKm; self.blockMinutes = blockMinutes
         self.delayMinutes = delayMinutes; self.status = status; self.originTz = originTz
+        self.seatClass = seatClass; self.reason = reason; self.bookingCode = bookingCode; self.notes = notes
+        self.originCountry = originCountry; self.destinationCountry = destinationCountry; self.airMinutes = airMinutes
     }
 }
