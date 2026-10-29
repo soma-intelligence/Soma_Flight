@@ -68,6 +68,20 @@ Deno.test("rejects unknown region", () => {
   assertThrows(() => buildReference(input({ countries: "FR,France,antarctica\n" })), Error, "unknown region antarctica");
 });
 
+Deno.test("rejects names with @ or longer than 40 characters", () => {
+  assertThrows(() => buildReference(input({ countries: "FR,France@en,europe\n" })), Error, "must not contain @");
+  assertThrows(
+    () => buildReference(input({ countries: `FR,${"x".repeat(41)},europe\n` })),
+    Error,
+    "longer than 40",
+  );
+  assertThrows(
+    () => buildReference(input({ airlines: "UAL,UA,United@en,UNITED,,US,#0033A0,,,,,\n" })),
+    Error,
+    "must not contain @",
+  );
+});
+
 Deno.test("rejects IATA not 2 characters, bad icao and unknown alliance", () => {
   assertThrows(
     () => buildReference(input({ airlines: "UAL,UAL,United Airlines,UNITED,star_alliance,US,#0033A0,,,,,\n" })),

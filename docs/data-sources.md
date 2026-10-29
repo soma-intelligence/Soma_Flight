@@ -27,12 +27,22 @@ No dataset here is share-alike.
 - Not on Wikidata, so entered by hand from public knowledge (codes and website only): `KAL` Korean Air,
   `ARG` Aerolineas Argentinas. `NKS` Spirit Airlines is dissolved on Wikidata (2026-05-02) and is kept because
   it appears in the fake data and in past flights.
+- Historical rows kept on purpose: `NKS` (see above) and `ASQ` ExpressJet (ceased operating in 2020), which can
+  still appear in older flight data. `TWB` is T'way Air, rebranded Trinity Airways; its callsign `SONOROUS`
+  comes from Wikidata and is unverified.
 - Alliance: our assignment of full members of Star Alliance, oneworld and SkyTeam, checked against the current
   membership statements (P114 without an end time) on Wikidata. We differ from Wikidata on purpose for regional
   affiliates (left empty), Copa (Star Alliance only), Vueling and Eurowings (not members) and Aeroflot (SkyTeam
   membership suspended since 2022).
-- Colours: `color_primary` is a seed colour set from the airline's brand as we know it, not read from a
-  file. Rows start with `colors_source = 'seed'`; Task 8 replaces them from the provider's brand colours.
+  Rechecked 2026-10-29 for Hawaiian, Asiana and ITA. Hawaiian (`HAL`): the oneworld members page
+  (https://www.oneworld.com/members, fetched that day) lists Alaska but not Hawaiian, so the row has no
+  alliance; Wikidata and some press say otherwise. Asiana (`AAR`): still Star Alliance today; trade press
+  (ch-aviation, Milesopedia, Oct 2026) reports it leaves on 2026-12-16 at 23:59 KST ahead of the Korean Air
+  merger, so the row is `star_alliance` for now and must be emptied or moved after that date. ITA Airways
+  (`ITY`): Star Alliance full member since 2026-04-01 (trade press: LoyaltyLobby, One Mile at a Time). The
+  alliance sites themselves answered 403 to our fetch, so these two are not primary-source checks.
+- Colours: `color_primary` is a seed colour typed from memory of the airline's brand. No airline site was
+  read for colours. Rows start with `colors_source = 'seed'`; Task 8 replaces them from the provider's brand colours.
   `UAL`, `AFR` and `RYR` are written with `colors_source = 'locked'` (livery seed of Task 12).
 - Phone: left empty for every airline, no reliable machine readable source on the airlines' own sites.
 - X and Facebook handles: read from links on the airline's own homepage on 2026-10-29, kept only when the
@@ -44,12 +54,14 @@ No dataset here is share-alike.
 - Source: our own list of ICAO type designators (ICAO Doc 8643 designators are public identifiers), with our
   own family grouping and marketing names. It covers `TravelFacts.aircraftNames` and the types in the fakes.
 - Licence: ours.
+- `A220` is not an ICAO designator (`BCS1` and `BCS3` are). It stays because the fake data and
+  `TravelFacts.aircraftNames` use it.
 
 ## Country regions
 
 - File: `supabase/seed/country_regions.csv` (250 rows): the 249 ISO 3166-1 alpha-2 codes plus `XK` (Kosovo).
 - Country names: Wikidata labels (CC0, ISO 3166-1 alpha-2 codes by property P297, retrieved 2026-10-29),
-  shortened by hand for common usage.
+  language tags stripped and shortened by hand to common English names (China, South Korea, Russia, Vietnam, Türkiye, ...). The generator rejects names containing `@` or longer than 40 characters.
 - Regions: our assignment from the UN M49 geoscheme subregions (https://unstats.un.org/unsd/methodology/m49/),
   which is public information. Middle East = Western Asia plus Egypt. Central America = M49 Central America
   including Mexico. M49 has no region for Antarctica, which we place in `oceania` (the gateways are

@@ -92,13 +92,20 @@ function json(rows: Record<string, string>[], keys: string[]): string {
   return `[\n${lines.join(",\n")}\n]\n`;
 }
 
+/** Names reach the app as they are: no Wikidata language tag, no formal long forms. */
+function checkName(key: string, name: string) {
+  if (name === "") throw new Error(`${key}: name is required`);
+  if (name.includes("@")) throw new Error(`${key}: name must not contain @ (${name})`);
+  if (name.length > 40) throw new Error(`${key}: name is longer than 40 characters (${name})`);
+}
+
 export function buildReference(input: ReferenceInput): ReferenceOutput {
   const airlines = table(input.airlines, AIRLINE_COLUMNS, "airlines.csv");
   unique(airlines, "icao");
   for (const r of airlines) {
     if (!/^[A-Z]{3}$/.test(r.icao)) throw new Error(`bad icao ${r.icao}`);
     if (r.iata !== "" && r.iata.length !== 2) throw new Error(`${r.icao}: IATA must be 2 characters, got ${r.iata}`);
-    if (r.name === "") throw new Error(`${r.icao}: name is required`);
+    checkName(r.icao, r.name);
     if (!/^#[0-9A-Fa-f]{6}$/.test(r.color_primary)) throw new Error(`${r.icao}: bad colour ${r.color_primary}`);
     if (r.color_secondary !== "" && !/^#[0-9A-Fa-f]{6}$/.test(r.color_secondary)) {
       throw new Error(`${r.icao}: bad colour ${r.color_secondary}`);
@@ -113,14 +120,15 @@ export function buildReference(input: ReferenceInput): ReferenceOutput {
   for (const r of types) {
     if (!/^[A-Z0-9]{2,4}$/.test(r.icao_type)) throw new Error(`bad icao_type ${r.icao_type}`);
     if (!(FAMILIES as readonly string[]).includes(r.family)) throw new Error(`${r.icao_type}: unknown family ${r.family}`);
-    if (r.manufacturer === "" || r.name === "") throw new Error(`${r.icao_type}: manufacturer and name are required`);
+    if (r.manufacturer === "") throw new Error(`${r.icao_type}: manufacturer is required`);
+    checkName(r.icao_type, r.name);
   }
   const countries = table(input.countries, ["iso2", "name", "region"], "country_regions.csv");
   unique(countries, "iso2");
   for (const r of countries) {
     if (!/^[A-Z]{2}$/.test(r.iso2)) throw new Error(`bad iso2 ${r.iso2}`);
     if (!(REGIONS as readonly string[]).includes(r.region)) throw new Error(`${r.iso2}: unknown region ${r.region}`);
-    if (r.name === "") throw new Error(`${r.iso2}: name is required`);
+    checkName(r.iso2, r.name);
   }
 
   airlines.sort(byKey("icao"));

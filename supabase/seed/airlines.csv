@@ -62,8 +62,8 @@ FLG,9E,Endeavor Air,FLAGSHIP,,US,#00205B,,,https://www.endeavorair.com,endeavora
 GFA,GF,Gulf Air,GULF AIR,,BH,#B8860B,,,https://www.gulfair.com,gulfair,gulfair
 GIA,GA,Garuda Indonesia,INDONESIA,skyteam,ID,#0073B9,,,https://www.garuda-indonesia.com,,
 GJS,G7,GoJet Airlines,LINDBERGH,,US,#22348E,,,https://www.gojetairlines.com,GoJet_Airlines,gojet
-GLO,G3,GOL Linhas Aéreas,GOL,,BR,#FF7020,,,https://www.voegol.com.br,,
-HAL,HA,Hawaiian Airlines,HAWAIIAN,oneworld,US,#5B2C83,,,https://www.hawaiianairlines.com,HawaiianAir,HawaiianAirlines
+GLO,G3,GOL Linhas Aéreas,GOL TRANSPORTE,,BR,#FF7020,,,https://www.voegol.com.br,,
+HAL,HA,Hawaiian Airlines,HAWAIIAN,,US,#5B2C83,,,https://www.hawaiianairlines.com,HawaiianAir,HawaiianAirlines
 HKE,UO,HK Express,HONGKONG SHUTTLE,,HK,#8A2BE2,,,https://www.hkexpress.com,,HKExpress
 HVN,VN,Vietnam Airlines,VIETNAM AIRLINES,skyteam,VN,#00457C,,,https://www.vietnamairlines.com,,
 IBE,IB,Iberia,IBERIA,oneworld,ES,#D7192D,,,https://www.iberia.com,,
@@ -72,12 +72,12 @@ IGO,6E,IndiGo,IFLY,,IN,#1B2F8F,,,https://www.goindigo.in,,
 ITY,AZ,ITA Airways,ITARROW,star_alliance,IT,#003D7E,,,https://www.ita-airways.com,,
 JAL,JL,Japan Airlines,JAPAN AIR,oneworld,JP,#D7002D,,,https://www.jal.co.jp,,
 JBU,B6,JetBlue Airways,JETBLUE,,US,#0033A0,,,https://www.jetblue.com,jetblue,JetBlue
-JIA,US,PSA Airlines,BLUE STREAK,,US,#0A4D8C,,,https://www.psaairlines.com,,
+JIA,OH,PSA Airlines,BLUE STREAK,,US,#0A4D8C,,,https://www.psaairlines.com,,
 JJA,7C,Jeju Air,JEJU AIR,,KR,#FF5000,,,https://www.jejuair.net,,
 JST,JQ,Jetstar Airways,JETSTAR,,AU,#FF5100,,,https://www.jetstar.com,,
 KAC,KU,Kuwait Airways,KUWAITI,,KW,#00659C,,,https://www.kuwaitairways.com,KuwaitAirways,KuwaitAirways
 KAL,KE,Korean Air,KOREANAIR,skyteam,KR,#00256C,,,https://www.koreanair.com,,
-KLC,WA,KLM Cityhopper,KLM,,NL,#00A1DE,,,https://www.klmcityhopper.nl,,
+KLC,WA,KLM Cityhopper,CITY,,NL,#00A1DE,,,https://www.klmcityhopper.nl,,
 KLM,KL,KLM Royal Dutch Airlines,KLM,skyteam,NL,#00A1DE,,,https://www.klm.com,,
 KQA,KQ,Kenya Airways,KENYA,skyteam,KE,#C8102E,,,https://www.kenya-airways.com,KenyaAirways,officialkenyaairways
 KZR,KC,Air Astana,ASTANALINE,,KZ,#00A9E0,,,https://www.airastana.com,,
@@ -88,7 +88,7 @@ LOT,LO,LOT Polish Airlines,POLLOT,star_alliance,PL,#11397E,,,https://www.lot.com
 MAS,MH,Malaysia Airlines,MALAYSIAN,oneworld,MY,#E31937,,,https://www.malaysiaairlines.com,MAS,malaysiaairlines
 MEA,ME,Middle East Airlines,CEDAR JET,skyteam,LB,#007A33,,,https://www.mea.com.lb,,
 MSR,MS,EgyptAir,EGYPTAIR,star_alliance,EG,#003D7E,,,https://www.egyptair.com,,
-MXY,MX,Breeze Airways,,,US,#00BCD4,,,https://www.flybreeze.com,,
+MXY,MX,Breeze Airways,MOXY,,US,#00BCD4,,,https://www.flybreeze.com,,
 NKS,NK,Spirit Airlines,SPIRIT WINGS,,US,#FFEC00,,,https://www.spirit.com,,
 NOZ,DY,Norwegian Air Shuttle,REDNOSE,,NO,#D81939,,,https://www.norwegian.no,,
 OMA,WY,Oman Air,OMAN AIR,oneworld,OM,#00A19B,,,https://www.omanair.com,,
@@ -119,7 +119,7 @@ TAR,TU,Tunisair,TUNAIR,,TN,#C8102E,,,https://www.tunisair.com,,
 TGW,TR,Scoot,SCOOTER,,SG,#FFD500,,,https://www.flyscoot.com,,
 THA,TG,Thai Airways,THAI,star_alliance,TH,#6A1B9A,,,https://www.thaiairways.com,,
 THY,TK,Turkish Airlines,TURKISH,star_alliance,TR,#C70A0C,,,https://www.turkishairlines.com,,
-TOM,BY,TUI Airways,TUI AIR,,GB,#009FE3,,,https://www.tui.co.uk,,
+TOM,BY,TUI Airways,TOMJET,,GB,#009FE3,,,https://www.tui.co.uk,,
 TRA,HV,Transavia,TRANSAVIA,,NL,#00B140,,,https://www.transavia.com,,
 TSC,TS,Air Transat,AIR TRANSAT,,CA,#00AEEF,,,https://www.airtransat.com,airtransat,AirTransatCanada
 TVF,TO,Transavia France,FRANCE SOLEIL,,FR,#00B140,,,https://www.transavia.com,,
@@ -127,7 +127,7 @@ TWB,TW,Trinity Airways,SONOROUS,,KR,#E5004E,,,https://www.trinityairways.com,,
 UAE,EK,Emirates,EMIRATES,,AE,#D71921,,,https://www.emirates.com,Emirates,
 UAL,UA,United Airlines,UNITED,star_alliance,US,#0033A0,,,https://www.united.com,,
 UCA,C5,CommuteAir,COMMUTAIR,,US,#0072CE,,,https://www.commuteair.com,flycommuteair,commuteair
-UZB,HY,Uzbekistan Airways,UZBEKISTAN,,UZ,#0048A3,,,https://www.uzairways.com,,uzairways.official
+UZB,HY,Uzbekistan Airways,UZBEK,,UZ,#0048A3,,,https://www.uzairways.com,,uzairways.official
 VIR,VS,Virgin Atlantic,VIRGIN,skyteam,GB,#E10A0A,,,https://www.virginatlantic.com,virginatlantic,virginatlantic
 VIV,VB,Viva Aerobus,VIVA,,MX,#00A651,,,https://www.vivaaerobus.com,,
 VJC,VJ,VietJet Air,VIETJET,,VN,#ED1C24,,,https://www.vietjetair.com,,
