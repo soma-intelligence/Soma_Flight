@@ -23,6 +23,11 @@ public final class PassportStore {
     public private(set) var detail: PassportDetail = .empty
     /// The aircraft figures for the chosen year (core `computeAircraftStats`).
     public private(set) var aircraft: AircraftStats = .empty
+    /// Age in whole months of the most flown tails (`aircraft.tails`, first `agedTailLimit`), keyed by
+    /// registration, from the core run on each tail's flights alone. A tail without a delivery date is absent.
+    public private(set) var tailAgeMonths: [String: UInt32] = [:]
+    /// How many of the top tails get an age.
+    static let agedTailLimit = 8
     /// Goes up every time the figures are recomputed; what a rendered copy (the share image) keys on.
     public private(set) var revision = 0
 
@@ -142,12 +147,26 @@ public final class PassportStore {
         recompute()
     }
 
+    /// Each top tail's age, read back from the core's `newest` over that tail's flights only.
+    private func tailAges(year y: Int32?) -> [String: UInt32] {
+        guard !facts.isEmpty else { return [:] }
+        let coreFacts = facts.map(\.coreFact), at = Int64(asOf.timeIntervalSince1970)
+        var ages: [String: UInt32] = [:]
+        for tail in aircraft.tails.prefix(Self.agedTailLimit) {
+            let own = core.filter { $0.registration?.trimmingCharacters(in: .whitespaces).uppercased() == tail.registration }
+            let one = FlightCore.computeAircraftStats(flights: own, year: y, types: [], facts: coreFacts, asOf: at)
+            if let aged = one.newest { ages[tail.registration] = aged.ageMonths }
+        }
+        return ages
+    }
+
     private func recompute() {
         let y = year.map(Int32.init)
         stats = PassportStats.compute(core: core, year: year)
         detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)
         aircraft = FlightCore.computeAircraftStats(flights: core, year: y, types: types, facts: facts.map(\.coreFact),
                                                    asOf: Int64(asOf.timeIntervalSince1970))
+        tailAgeMonths = tailAges(year: y)
         revision += 1
     }
 }

@@ -93,6 +93,15 @@ V2_REFS = {
     "passport-full-6": ["40"],
     "passport-full-7": ["37"],
     "passport-full-8": ["37"],
+    # Aircraft Stats, top to bottom: totals, most flown and the blueprint panels (51), cabin and types (50),
+    # types and the class donut (49), seat and reason donuts and the tails (48), tails and age (47), age and
+    # the newest and oldest cards (46). The sparse run (one flight) sits beside the header it shrinks.
+    "aircraft-stats-1": ["51"],
+    "aircraft-stats-2": ["50"],
+    "aircraft-stats-3": ["49"],
+    "aircraft-stats-4": ["48"],
+    "aircraft-stats-5": ["47", "46"],
+    "aircraft-stats-sparse": ["51"],
 }
 
 

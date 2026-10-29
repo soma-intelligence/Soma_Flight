@@ -1,0 +1,534 @@
+import SwiftUI
+import FlightCore
+
+/// Wording and picks for the Aircraft Stats page over the core's `AircraftStats`. Nothing here counts:
+/// it chooses the core's rows, labels them and formats them.
+enum AircraftStatsCopy {
+    /// "7 months" under a year, else "29 years"; singular for one.
+    static func ageCopy(months: UInt32) -> String {
+        if months < 12 { return months == 1 ? "1 month" : "\(months) months" }
+        let years = months / 12
+        return years == 1 ? "1 year" : "\(years) years"
+    }
+
+    /// "7 months old".
+    static func ageOld(months: UInt32) -> String { ageCopy(months: months) + " old" }
+
+    /// "1990s" for each of the core's decades, in its order.
+    static func decadeLabels(_ decades: [DecadeCount]) -> [String] { decades.map { "\($0.decade)s" } }
+
+    /// Ages need delivery dates: the core gives no median without facts, and every age section hides.
+    static func showsAges(_ s: AircraftStats) -> Bool { s.medianAgeMonths != nil && s.newest != nil }
+
+    /// `part` of `whole` in whole percent, half up; 0 when `whole` is 0.
+    static func percent(_ part: UInt32, of whole: UInt32) -> Int {
+        guard whole > 0 else { return 0 }
+        return Int((200 * UInt64(part) + UInt64(whole)) / (2 * UInt64(whole)))
+    }
+
+    /// "8 flights · 90 hours" (hours rounded half up).
+    static func flightsAndHours(_ t: TypeTally) -> String {
+        let hours = (t.minutes + 30) / 60
+        return "\(PassportFacts.count(t.flights)) \(t.flights == 1 ? "flight" : "flights") · "
+            + "\(PassportFacts.count(hours)) \(hours == 1 ? "hour" : "hours")"
+    }
+
+    /// "2 flights".
+    static func flights(_ n: UInt32) -> String { "\(PassportFacts.count(n)) \(n == 1 ? "flight" : "flights")" }
+
+    /// "56% Boeing" from the core's top manufacturer share.
+    static func makerChip(_ s: AircraftStats) -> String? {
+        s.manufacturers.first.map { "\($0.percent)% \($0.key)" }
+    }
+
+    /// The type's name from the reference list, else its ICAO designator.
+    static func typeName(_ icao: String?, reference: ReferenceData) -> String? {
+        guard let icao else { return nil }
+        return reference.type(icao)?.name ?? icao
+    }
+
+    /// Delivery day as "6/9/2022" (UTC, the day the fact stores).
+    static func deliveryDay(_ seconds: Int64) -> String {
+        Date(timeIntervalSince1970: TimeInterval(seconds))
+            .formatted(Date.FormatStyle(date: .numeric, time: .omitted, timeZone: .gmt).locale(Locale(identifier: "en_US")))
+    }
+
+    /// Delivery year, "2022".
+    static func deliveryYear(_ seconds: Int64) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .gmt
+        return String(cal.component(.year, from: Date(timeIntervalSince1970: TimeInterval(seconds))))
+    }
+
+    // MARK: Types
+
+    enum TypeMetric: String, CaseIterable, Identifiable {
+        case flights = "Flights", time = "Time", distance = "Distance"
+        var id: String { rawValue }
+    }
+
+    struct TypeBar: Identifiable, Equatable {
+        var id: String
+        var value: UInt64
+        var caption: String
+    }
+
+    /// The core's type list for the metric, as bars labelled with the ICAO designator.
+    static func typeBars(_ s: AircraftStats, metric: TypeMetric, units: DistanceUnit) -> [TypeBar] {
+        switch metric {
+        case .flights:
+            s.typesByFlights.map { TypeBar(id: $0.icaoType, value: UInt64($0.flights), caption: PassportFacts.count($0.flights)) }
+        case .time:
+            s.typesByMinutes.map { t in
+                TypeBar(id: t.icaoType, value: t.minutes,
+                        caption: PassportFacts.hoursMinutes(t.minutes).map { "\($0.number)\($0.unit)" }.joined(separator: " "))
+            }
+        case .distance:
+            s.typesByDistance.map { TypeBar(id: $0.icaoType, value: $0.distanceKm,
+                                            caption: TravelFacts.distance(Int($0.distanceKm), units)) }
+        }
+    }
+
+    // MARK: Donuts
+
+    struct Slice: Identifiable, Equatable {
+        var id: String { label }
+        var label: String
+        var count: UInt32
+        var percent: Int
+        var color: Color
+    }
+
+    struct Donut: Equatable {
+        var centreTitle: String
+        var centreValue: String
+        var slices: [Slice]
+        /// Nothing to draw: every count is 0.
+        var isHidden: Bool { slices.allSatisfy { $0.count == 0 } }
+    }
+
+    static let economy = Color(red: 0xBB / 255, green: 0xDB / 255, blue: 0xFA / 255)
+    static let premium = Color(red: 0x99 / 255, green: 0xD5 / 255, blue: 0xF6 / 255)
+    static let business = Color(red: 0x47 / 255, green: 0xA2 / 255, blue: 0xE8 / 255)
+    static let first = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
+    static let green = Color(red: 0x54 / 255, green: 0xB4 / 255, blue: 0x71 / 255)
+    static let orange = Color(red: 0xEA / 255, green: 0x99 / 255, blue: 0x3A / 255)
+    static let blue = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
+
+    private static func donut(_ title: String, _ rows: [(String, UInt32, Color)], value: String? = nil) -> Donut {
+        let total = rows.reduce(0) { $0 + $1.1 }
+        let slices = rows.map { Slice(label: $0.0, count: $0.1, percent: percent($0.1, of: total), color: $0.2) }
+        // The first of the largest, in the legend's order.
+        let top = slices.reduce(nil as Slice?) { best, s in s.count > (best?.count ?? 0) ? s : best }
+        return Donut(centreTitle: title, centreValue: value ?? top?.label ?? "", slices: slices)
+    }
+
+    static func classDonut(_ s: AircraftStats) -> Donut {
+        let c = s.seatClasses
+        return donut("Top class", [("Economy", c.economy, economy), ("Premium Economy", c.premiumEconomy, premium),
+                                   ("Business", c.business, business), ("First", c.first, first)])
+    }
+
+    /// Centred on the favourite seat ("20D") when there is one, else the top position.
+    static func seatDonut(_ s: AircraftStats) -> Donut {
+        let p = s.seatPositions
+        return donut("Top seat", [("Aisle", p.aisle, green), ("Middle", p.middle, orange), ("Window", p.window, blue)],
+                     value: s.favouriteSeat?.seat)
+    }
+
+    static func reasonDonut(_ s: AircraftStats) -> Donut {
+        donut("Top reason", [("Personal", s.reasons.personal, green), ("Business", s.reasons.business, blue)])
+    }
+
+    /// "Favourite seat 20D (2 times)".
+    static func favouriteSeat(_ s: AircraftStats) -> (title: String, value: String)? {
+        s.favouriteSeat.map { ("Favourite seat", "\($0.seat) (\($0.flights) \($0.flights == 1 ? "time" : "times"))") }
+    }
+
+    // MARK: Tails
+
+    /// "AF · B77W · Rambouillet": the airline's IATA code, the type and the airframe's name when known.
+    static func tailLine(_ t: TailTally, reference: ReferenceData) -> String {
+        let airline = t.airline.map { reference.airline($0)?.iata ?? $0 }
+        return [airline, t.icaoType, t.name].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// The registering country from the registration's nationality mark (ICAO Annex 7), else the airline's
+    /// country.
+    static func tailCountry(_ t: TailTally, reference: ReferenceData) -> String? {
+        registrationCountry(t.registration) ?? t.airline.flatMap { reference.airline($0)?.country }
+    }
+
+    /// ISO 3166 code for a registration's nationality mark: "F-GSQI" FR, "N370DN" US, "B-HNR" HK.
+    static func registrationCountry(_ registration: String) -> String? {
+        let r = registration.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !r.isEmpty else { return nil }
+        if let dash = r.firstIndex(of: "-") {
+            let mark = String(r[..<dash])
+            if mark == "B", let next = r[r.index(after: dash)...].first {
+                if "HKL".contains(next) { return "HK" }
+                if next == "M" { return "MO" }
+                return "CN"
+            }
+            return marks[mark]
+        }
+        // Marks written without a dash.
+        for mark in ["JA", "HL", "N"] where r.hasPrefix(mark) { return marks[mark] }
+        return nil
+    }
+
+    private static let marks: [String: String] = [
+        "N": "US", "C": "CA", "F": "FR", "G": "GB", "D": "DE", "I": "IT", "EC": "ES", "EI": "IE", "PH": "NL",
+        "OO": "BE", "HB": "CH", "OE": "AT", "SE": "SE", "LN": "NO", "OY": "DK", "OH": "FI", "SP": "PL", "OK": "CZ",
+        "HA": "HU", "YR": "RO", "LZ": "BG", "SX": "GR", "TC": "TR", "CS": "PT", "LX": "LU", "TF": "IS", "9H": "MT",
+        "5B": "CY", "4X": "IL", "A6": "AE", "A7": "QA", "A9C": "BH", "HZ": "SA", "9K": "KW", "A4O": "OM", "SU": "EG",
+        "CN": "MA", "ZS": "ZA", "5Y": "KE", "ET": "ET", "5N": "NG", "VT": "IN", "AP": "PK", "9V": "SG", "9M": "MY",
+        "HS": "TH", "PK": "ID", "RP": "PH", "VN": "VN", "JA": "JP", "HL": "KR", "VH": "AU", "ZK": "NZ", "XA": "MX",
+        "XB": "MX", "XC": "MX", "PP": "BR", "PR": "BR", "PS": "BR", "PT": "BR", "PU": "BR", "LV": "AR", "CC": "CL",
+        "HK": "CO", "OB": "PE", "YV": "VE", "HP": "PA", "TI": "CR", "YU": "RS", "9A": "HR", "S5": "SI", "UR": "UA",
+        "RA": "RU", "UP": "KZ", "4K": "AZ", "4L": "GE", "EK": "AM", "4R": "LK", "S2": "BD", "EP": "IR", "JY": "JO",
+        "OD": "LB", "7T": "DZ", "TS": "TN", "9G": "GH", "6V": "SN", "TU": "CI", "5H": "TZ", "3B": "MU", "8Q": "MV",
+        "6Y": "JM", "C6": "BS", "8P": "BB", "9Y": "TT", "HI": "DO", "HC": "EC", "CX": "UY", "ZP": "PY", "CP": "BO",
+        "9N": "NP", "B": "CN",
+    ]
+}
+
+// MARK: - Blueprint
+
+/// The blueprint's colours: a mid blue page, white line art and a fine grid.
+enum Blueprint {
+    static let top = Color(red: 0x5C / 255, green: 0x93 / 255, blue: 0xE4 / 255)
+    static let bottom = Color(red: 0x33 / 255, green: 0x6E / 255, blue: 0xD2 / 255)
+    static let ink = Color.white
+    static let navy = Color(red: 0x17 / 255, green: 0x2F / 255, blue: 0x5E / 255)
+    /// The page above the panels, light blue at the top.
+    static let sky = Color(red: 0xCF / 255, green: 0xE0 / 255, blue: 0xF8 / 255)
+}
+
+/// Blue paper with a fine and a coarse grid.
+struct BlueprintPaper: View {
+    var body: some View {
+        LinearGradient(colors: [Blueprint.top, Blueprint.bottom], startPoint: .top, endPoint: .bottom)
+            .overlay {
+                Canvas { ctx, size in
+                    for (step, alpha) in [(CGFloat(11), 0.07), (CGFloat(55), 0.13)] {
+                        var p = Path()
+                        var x: CGFloat = 0
+                        while x <= size.width { p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: size.height)); x += step }
+                        var y: CGFloat = 0
+                        while y <= size.height { p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: size.width, y: y)); y += step }
+                        ctx.stroke(p, with: .color(.white.opacity(alpha)), lineWidth: 0.5)
+                    }
+                }
+            }
+    }
+}
+
+/// Simple line art standing in for the blueprint drawings (plan Task 13 replaces this view): the rear of a
+/// fuselage with its fin and a door panel carrying the registration, or a cabin outline seen from above.
+struct BlueprintPlaceholder: View {
+    enum Kind: Equatable {
+        case tail(String)
+        case cabin
+    }
+
+    var kind: Kind
+    var ink: Color = Blueprint.ink
+
+    var body: some View {
+        switch kind {
+        case .tail(let registration): tail(registration)
+        case .cabin: cabin
+        }
+    }
+
+    /// Rear fuselage, nose off to the left, the fin rising at the right; 360 by 200 box.
+    private func tail(_ registration: String) -> some View {
+        Canvas { ctx, size in
+            let sx = size.width / 360, sy = size.height / 200
+            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
+            var hull = Path()
+            hull.move(to: p(0, 112)); hull.addLine(to: p(250, 104))
+            hull.addCurve(to: p(352, 120), control1: p(300, 102), control2: p(352, 108))
+            hull.addCurve(to: p(250, 150), control1: p(340, 134), control2: p(300, 146))
+            hull.addCurve(to: p(0, 196), control1: p(170, 160), control2: p(60, 186))
+            var fin = Path()
+            fin.move(to: p(150, 106)); fin.addLine(to: p(262, 0))
+            fin.move(to: p(250, 104)); fin.addLine(to: p(300, 0))
+            fin.move(to: p(272, 104)); fin.addLine(to: p(282, 46))
+            var tailplane = Path()
+            tailplane.move(to: p(232, 128)); tailplane.addLine(to: p(330, 122)); tailplane.addLine(to: p(336, 126))
+            tailplane.addLine(to: p(240, 140))
+            var panel = Path(roundedRect: CGRect(x: 90 * sx, y: 112 * sy, width: 70 * sx, height: 70 * sy), cornerRadius: 3)
+            panel.move(to: p(160, 150)); panel.addLine(to: p(345, 150))
+            var door = Path(roundedRect: CGRect(x: 44 * sx, y: 118 * sy, width: 26 * sx, height: 54 * sy), cornerRadius: 6)
+            door.addRect(CGRect(x: 50 * sx, y: 126 * sy, width: 14 * sx, height: 10 * sy))
+            for (path, alpha) in [(hull, 0.85), (fin, 0.6), (tailplane, 0.6), (panel, 0.7), (door, 0.6)] {
+                ctx.stroke(path, with: .color(ink.opacity(alpha)), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
+            }
+            for i in 0..<4 {
+                ctx.stroke(Path(roundedRect: CGRect(x: CGFloat(4 + i * 9) * sx, y: 138 * sy, width: 5 * sx, height: 7 * sy),
+                                cornerRadius: 1.5), with: .color(ink.opacity(0.55)), lineWidth: 0.8)
+            }
+            ctx.draw(Text(registration).font(.system(size: max(9, 12 * sy), weight: .medium)).foregroundStyle(ink.opacity(0.9)),
+                     at: p(125, 140))
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The cabin from above, open at the left, nose at the right, window rows top and bottom; 360 by 110.
+    private var cabin: some View {
+        Canvas { ctx, size in
+            let sx = size.width / 360, sy = size.height / 110
+            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
+            var hull = Path()
+            hull.move(to: p(0, 4)); hull.addLine(to: p(290, 4))
+            hull.addCurve(to: p(358, 55), control1: p(330, 4), control2: p(358, 30))
+            hull.addCurve(to: p(290, 106), control1: p(358, 80), control2: p(330, 106))
+            hull.addLine(to: p(0, 106))
+            var nose = Path()
+            nose.move(to: p(292, 12)); nose.addCurve(to: p(292, 98), control1: p(324, 30), control2: p(324, 80))
+            nose.move(to: p(300, 14)); nose.addCurve(to: p(300, 96), control1: p(332, 34), control2: p(332, 76))
+            ctx.stroke(hull, with: .color(ink.opacity(0.85)), lineWidth: 1)
+            ctx.stroke(nose, with: .color(ink.opacity(0.6)), lineWidth: 1)
+            for row in [CGFloat(10), 96] {
+                for i in 0..<26 where i % 9 != 8 {
+                    let x = CGFloat(10 + i * 10)
+                    ctx.stroke(Path(roundedRect: CGRect(x: x * sx, y: row * sy, width: 5 * sx, height: 4 * sy), cornerRadius: 1),
+                               with: .color(ink.opacity(0.5)), lineWidth: 0.7)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The tail drawing beside the frequented tail.
+struct BlueprintTail: View {
+    var registration: String
+    var ink: Color = Blueprint.ink
+
+    var body: some View { BlueprintPlaceholder(kind: .tail(registration), ink: ink) }
+}
+
+// MARK: - Header panel
+
+/// Totals (aircraft, newest, oldest with their chips) and the most flown type over a light blue fade.
+struct AircraftTotalsPanel: View {
+    var stats: AircraftStats
+    var mostFlownType: AircraftType?
+    var mostFlownAirline: Airline?
+    @Environment(\.reference) private var reference
+    @ScaledMetric(relativeTo: .title) private var valueHeight: CGFloat = 36
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            totals
+            if let most = stats.mostFlown { mostFlown(most) }
+        }
+        .foregroundStyle(Blueprint.navy)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var totals: some View {
+        let ages = AircraftStatsCopy.showsAges(stats)
+        return HStack(alignment: .top, spacing: 8) {
+            column("Total aircraft", value: PassportFacts.count(stats.totalTypes), sub: nil,
+                   chip: AircraftStatsCopy.makerChip(stats), big: true)
+            if ages, let newest = stats.newest, let oldest = stats.oldest {
+                column("Newest aircraft", value: AircraftStatsCopy.ageCopy(months: newest.ageMonths),
+                       sub: AircraftStatsCopy.deliveryYear(newest.deliveredAt),
+                       chip: AircraftStatsCopy.typeName(newest.icaoType, reference: reference), big: false)
+                column("Oldest aircraft", value: AircraftStatsCopy.ageCopy(months: oldest.ageMonths),
+                       sub: AircraftStatsCopy.deliveryYear(oldest.deliveredAt),
+                       chip: AircraftStatsCopy.typeName(oldest.icaoType, reference: reference), big: false)
+            }
+        }
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.top, 14)
+    }
+
+    private func column(_ title: String, value: String, sub: String?, chip: String?, big: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).scaledFont(15, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
+            // One value height in every column, so the chips line up.
+            Text(value).scaledFont(big ? 30 : 21, weight: .regular).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .frame(minHeight: valueHeight, alignment: .bottomLeading)
+            Text(sub ?? " ").scaledFont(13).opacity(sub == nil ? 0 : 0.75)
+            if let chip {
+                Text(chip)
+                    .scaledFont(12, weight: .medium, design: .monospaced)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .opacity(0.7)
+                    .scaledPadding(.horizontal, 8)
+                    .scaledPadding(.vertical, 4)
+                    .background(Capsule().fill(.white.opacity(0.45)))
+                    .scaledPadding(.top, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func mostFlown(_ most: TypeTally) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Most flown aircraft").scaledFont(16, weight: .semibold)
+            Text(mostFlownType?.name ?? most.icaoType)
+                .scaledFont(40, weight: .regular)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(AircraftStatsCopy.flightsAndHours(most))
+                .scaledFont(16)
+                .foregroundStyle(Color(red: 0x2F / 255, green: 0x5C / 255, blue: 0xA8 / 255))
+            AircraftImage(type: mostFlownType, airline: mostFlownAirline, height: 70)
+                .frame(maxWidth: .infinity)
+                .scaledPadding(.top, 8)
+        }
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.top, 30)
+        .scaledPadding(.bottom, 16)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Frequented tail
+
+/// The tail drawing at the left, the most flown registration at the right with its flag, airline, name,
+/// type and age.
+struct FrequentedTailPanel: View {
+    var tail: TailTally
+    var ageMonths: UInt32?
+    @Environment(\.reference) private var reference
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 0) {
+            BlueprintTail(registration: tail.registration)
+                .aspectRatio(1.8, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Frequented tail").scaledFont(15, weight: .semibold)
+                Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30)
+                HStack(spacing: 10) {
+                    CountryFlag(code: AircraftStatsCopy.tailCountry(tail, reference: reference), size: 22)
+                    if let airline = tail.airline { AirlineMark(airline: airline, size: 24) }
+                }
+                .scaledPadding(.top, 8)
+                Text(tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)
+                if let name = tail.name { Text(name).scaledFont(15).opacity(0.85) }
+                Text(detailLine).scaledFont(13).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(Blueprint.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .scaledPadding(.trailing, 16)
+            .accessibilityElement(children: .combine)
+        }
+        .scaledPadding(.vertical, 22)
+    }
+
+    private var detailLine: String {
+        [AircraftStatsCopy.typeName(tail.icaoType, reference: reference), ageMonths.map(AircraftStatsCopy.ageOld)]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+// MARK: - Cabin
+
+/// Seat class counts as a segmented bar, then the cabin outline with the favourite seat and a seat for
+/// each position with its count.
+struct CabinPanel: View {
+    var stats: AircraftStats
+
+    private var classes: [(String, UInt32)] {
+        let c = stats.seatClasses
+        return [("Eco", c.economy), ("Eco+", c.premiumEconomy), ("Business", c.business), ("First", c.first)]
+    }
+
+    static func hasClasses(_ s: AircraftStats) -> Bool {
+        let c = s.seatClasses
+        return c.economy + c.premiumEconomy + c.business + c.first > 0
+    }
+
+    static func hasSeats(_ s: AircraftStats) -> Bool {
+        let p = s.seatPositions
+        return s.favouriteSeat != nil || p.aisle + p.middle + p.window > 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if Self.hasClasses(stats) { classBar }
+            if Self.hasSeats(stats) { CabinPlan(stats: stats) }
+        }
+        .foregroundStyle(Blueprint.ink)
+        .scaledPadding(.vertical, 22)
+    }
+
+    private var classBar: some View {
+        let total = max(classes.reduce(0) { $0 + $1.1 }, 1)
+        return GeometryReader { geo in
+            let minimum: CGFloat = 58, gap: CGFloat = 3
+            let spare = max(geo.size.width - minimum * 4 - gap * 3, 0)
+            HStack(alignment: .bottom, spacing: gap) {
+                ForEach(classes, id: \.0) { name, count in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(name).scaledFont(14).lineLimit(1).fixedSize()
+                        HStack {
+                            Spacer(minLength: 0)
+                            Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
+                                .foregroundStyle(Blueprint.bottom)
+                        }
+                        .scaledPadding(.horizontal, 7)
+                        .frame(height: 24)
+                        .background(Rectangle().fill(.white.opacity(0.62)))
+                    }
+                    .frame(width: minimum + spare * CGFloat(count) / CGFloat(total))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(name), \(count)")
+                }
+            }
+        }
+        .frame(height: 48)
+        .scaledPadding(.horizontal, 20)
+    }
+}
+
+/// The cabin seen from above with the favourite seat and the aisle, middle and window counts.
+struct CabinPlan: View {
+    var stats: AircraftStats
+
+    var body: some View {
+        let p = stats.seatPositions
+        HStack(spacing: 0) {
+            if let fav = AircraftStatsCopy.favouriteSeat(stats) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(fav.title).scaledFont(15, weight: .semibold)
+                    Text(fav.value).scaledFont(16)
+                }
+                .accessibilityElement(children: .combine)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer()
+            }
+            HStack(spacing: 14) {
+                seat("Aisle", p.aisle)
+                seat("Middle", p.middle)
+                seat("Window", p.window)
+            }
+            Spacer(minLength: 0).frame(maxWidth: .infinity)
+        }
+        .scaledPadding(.horizontal, 40)
+        .scaledPadding(.vertical, 22)
+        .background(BlueprintPlaceholder(kind: .cabin))
+        .frame(maxWidth: .infinity)
+    }
+
+    private func seat(_ name: String, _ count: UInt32) -> some View {
+        VStack(spacing: 3) {
+            Text(PassportFacts.count(count)).scaledFont(16).monospacedDigit()
+            Image(systemName: "carseat.right.fill").scaledFont(18)
+            Text(name).scaledFont(9, weight: .medium).opacity(0.8)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name), \(count)")
+    }
+}
