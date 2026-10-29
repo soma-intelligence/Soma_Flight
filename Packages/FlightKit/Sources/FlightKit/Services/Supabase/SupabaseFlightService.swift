@@ -148,7 +148,7 @@ public final class SupabaseFlightService: FlightService {
     }
 
     /// The five writable columns; every one is sent, null included, so a cleared field clears the column.
-    private struct DetailsPatch: Encodable, Sendable {
+    struct DetailsPatch: Encodable, Sendable {
         var details: FollowDetails
         private enum CodingKeys: String, CodingKey { case seatClass = "seat_class", seat, reason, bookingCode = "booking_code", notes }
         func encode(to encoder: any Encoder) throws {
@@ -179,9 +179,11 @@ public final class SupabaseFlightService: FlightService {
     public func saveFollowDetails(_ id: Flight.ID, _ details: FollowDetails) async throws(APIError) {
         let real = try await resolve(id)
         let patch = DetailsPatch(details: details)
-        try await backend.write {
-            try $0.from("user_flights").update(patch).eq("flight_id", value: real.uuidString.lowercased())
+        let data = try await backend.write {
+            try $0.from("user_flights").update(patch).eq("flight_id", value: real.uuidString.lowercased()).select("flight_id")
         }
+        // An update that matches no row (not followed, or not the user's) succeeds silently; report it.
+        guard let rows = try? JSONSerialization.jsonObject(with: data) as? [Any], !rows.isEmpty else { throw .notFound }
     }
 
     // MARK: One flight

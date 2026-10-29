@@ -15,7 +15,8 @@ public struct ReferenceData: Sendable {
     public init(airlines: [Airline], types: [AircraftType], countries: [Country]) {
         self.airlines = airlines; self.types = types; self.countries = countries
         var codes: [String: Airline] = [:]
-        // ICAO first so a code that is one airline's ICAO and another's IATA reads as the ICAO.
+        // A code shared by two airlines resolves to the first in file order; the tests assert the bundled
+        // list has no such code. ICAO first so a code that is one airline's ICAO and another's IATA reads as the ICAO.
         for a in airlines { codes[a.id.uppercased()] = a }
         for a in airlines { if let i = a.iata?.uppercased(), codes[i] == nil { codes[i] = a } }
         airlineByCode = codes
@@ -73,12 +74,12 @@ public struct ReferenceData: Sendable {
 
     /// An aircraft type by ICAO designator, any case.
     public func type(_ icao: String) -> AircraftType? {
-        typeByCode[icao.trimmingCharacters(in: .whitespaces).uppercased()]
+        typeByCode[icao.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()]
     }
 
     /// A country by ISO 3166-1 alpha-2 code, any case.
     public func country(_ iso2: String) -> Country? {
-        countryByCode[iso2.trimmingCharacters(in: .whitespaces).uppercased()]
+        countryByCode[iso2.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()]
     }
 }
 

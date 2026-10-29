@@ -101,8 +101,8 @@ public final class SupabaseBackend: Sendable {
     }
 
     /// `rows` for a query that can fail while it is built (an `update` encodes its values).
-    func write(_ query: @Sendable (SupabaseClient) throws -> PostgrestBuilder) async throws(APIError) {
-        do { _ = try await query(client).execute() } catch { throw Self.map(error) }
+    func write(_ query: @Sendable (SupabaseClient) throws -> PostgrestBuilder) async throws(APIError) -> Data {
+        do { return try await query(client).execute().data } catch { throw Self.map(error) }
     }
 
     // MARK: Error mapping

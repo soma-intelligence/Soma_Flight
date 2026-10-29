@@ -25,6 +25,25 @@ import Testing
         #expect(FollowDetails.normalizedNotes(String(repeating: "a", count: 2000)) != nil)
     }
 
+    @Test func notesCountUnicodeScalars() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        #expect(FollowDetails.normalizedNotes(String(repeating: family, count: 401)) == nil)
+        #expect(FollowDetails.normalizedNotes(String(repeating: family, count: 400)) != nil)
+        #expect(FollowDetails.normalizedNotes(String(repeating: "\u{1F600}", count: 2000)) != nil)
+    }
+
+    @Test func patchSendsAllFiveKeys() throws {
+        let full = try JSONEncoder().encode(SupabaseFlightService.DetailsPatch(
+            details: FollowDetails(seatClass: .premiumEconomy, seat: "12A", reason: .business, bookingCode: "ABC123", notes: "n")))
+        let a = try #require(try JSONSerialization.jsonObject(with: full) as? [String: Any])
+        #expect(Set(a.keys) == ["seat_class", "seat", "reason", "booking_code", "notes"])
+        #expect(a["seat_class"] as? String == "premium_economy" && a["booking_code"] as? String == "ABC123")
+        let empty = try JSONEncoder().encode(SupabaseFlightService.DetailsPatch(details: .empty))
+        let b = try #require(try JSONSerialization.jsonObject(with: empty) as? [String: Any])
+        #expect(Set(b.keys) == ["seat_class", "seat", "reason", "booking_code", "notes"])
+        #expect(b.values.allSatisfy { $0 is NSNull })
+    }
+
     @Test func titles() {
         #expect(SeatClass.allCases.map(\.title) == ["Economy", "Premium Economy", "Business", "First"])
         #expect(TripReason.allCases.map(\.title) == ["Personal", "Business"])

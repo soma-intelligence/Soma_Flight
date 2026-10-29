@@ -43,14 +43,4 @@ public struct Country: Codable, Sendable, Hashable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey { case id = "iso2", name, region }
-
-    public init(from decoder: any Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id).uppercased()
-        region = try c.decode(WorldRegion.self, forKey: .region)
-        // The list tags names with their language ("Andorra@en"); the tag is not part of the name.
-        var n = try c.decode(String.self, forKey: .name)
-        if let m = n.wholeMatch(of: /(.*)@[A-Za-z-]{2,8}/) { n = String(m.1) }
-        name = n
-    }
 }

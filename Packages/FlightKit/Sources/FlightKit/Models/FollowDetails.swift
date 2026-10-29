@@ -57,11 +57,12 @@ public struct FollowDetails: Codable, Sendable, Hashable {
         normalized(s, pattern: /[A-Z0-9]{5,8}/)
     }
 
-    /// Trimmed notes, nil when empty or longer than 2000 characters.
+    /// Trimmed notes, nil when empty or longer than 2000 characters. Characters are Unicode scalars, as
+    /// Postgres `char_length` counts them (a family emoji is 5 scalars, not 1).
     public static func normalizedNotes(_ s: String) -> String?? {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return .some(nil) }
-        return t.count <= maxNotes ? .some(t) : nil
+        return t.unicodeScalars.count <= maxNotes ? .some(t) : nil
     }
 
     private static func normalized(_ s: String, pattern: Regex<Substring>) -> String?? {

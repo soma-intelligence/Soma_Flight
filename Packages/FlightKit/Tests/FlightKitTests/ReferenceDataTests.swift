@@ -31,6 +31,32 @@ import Testing
         for f in past { #expect(ref.airline(ident: f.ident) != nil, "\(f.ident)") }
     }
 
+    @Test func nameSearchIgnoresCaseAndAccents() {
+        #expect(ref.airline("united airlines")?.id == "UAL")
+        #expect(ref.airline("UNITED")?.id == "UAL")
+        #expect(ref.airline("aeromexico")?.id == "AMX")
+        #expect(ref.airline("  delta ")?.id == "DAL")
+        #expect(ref.airline(ident: "ua990")?.id == "UAL")
+        #expect(ref.type(" b38m\n")?.family == .b737max)
+        #expect(ref.country("\nus ")?.id == "US")
+    }
+
+    @Test func bundledCodesAreUnique() {
+        let iata = ref.airlines.compactMap { $0.iata?.uppercased() }
+        #expect(Set(iata).count == iata.count)
+        let icao = Set(ref.airlines.map { $0.id.uppercased() })
+        #expect(icao.count == ref.airlines.count)
+        #expect(iata.allSatisfy { !icao.contains($0) })
+        var seen = Set<String>()
+        for a in ref.airlines {
+            for trimmed in [false, true] {
+                var k = a.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+                if trimmed { for t in [" air lines", " airlines", " airways", " airline"] where k.hasSuffix(t) { k.removeLast(t.count); break } }
+                if !trimmed { #expect(seen.insert(k).inserted, "\(a.name)") }
+            }
+        }
+    }
+
     @Test func gridOrderHasNine() {
         #expect(WorldRegion.gridOrder.count == 9)
         #expect(Set(WorldRegion.gridOrder) == Set(WorldRegion.allCases))

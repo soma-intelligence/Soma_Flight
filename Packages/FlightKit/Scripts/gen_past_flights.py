@@ -105,7 +105,7 @@ def main() -> None:
             "reason": "business" if i % 3 == 0 else "personal",
             "origin_country": airports[o]["country"],
             "destination_country": airports[d]["country"],
-            "air_minutes": round(km / 780 * 60) + 35 - 25,
+            "air_minutes": round(km / 780 * 60) + 35 - 25 if status == "completed" else None,
         })
     out.sort(key=lambda f: f["date"], reverse=True)
     path.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n")
