@@ -1,5 +1,6 @@
 use flightcore::delay::{BoardFlight, DelayStats, compute_stats};
 use flightcore::geo::{Coord, distance_km, great_circle};
+use flightcore::passport::{PastFlight, compute_passport};
 use flightcore::weather::{FlightCategory, flight_category};
 use serde::Deserialize;
 
@@ -210,5 +211,29 @@ fn category_fixture_cases() {
             "{}",
             c.name
         );
+    }
+}
+
+#[derive(Deserialize)]
+struct PassportCase {
+    name: String,
+    year: Option<i32>,
+    flights: Vec<PastFlight>,
+    expected: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct PassportFile {
+    cases: Vec<PassportCase>,
+}
+
+#[test]
+fn passport_fixture_cases() {
+    let f: PassportFile =
+        serde_json::from_str(include_str!("../../fixtures/passport.json")).unwrap();
+    assert!(f.cases.len() >= 20);
+    for c in f.cases {
+        let got = serde_json::to_value(compute_passport(&c.flights, c.year)).unwrap();
+        assert_eq!(got, c.expected, "{}", c.name);
     }
 }
