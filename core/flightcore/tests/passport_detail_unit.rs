@@ -154,3 +154,48 @@ fn old_passport_input_still_parses() {
     let v: Vec<PastFlight> = serde_json::from_str(json).unwrap();
     assert!(v[0].origin_country.is_none() && v[0].seat_class.is_none());
 }
+
+#[test]
+fn chain_of_connections_counts_each_stop_once() {
+    // Four legs, each under 8 h on the ground: only the first origin and the destinations count.
+    let v = visits(&[
+        f(T0, "AAAA", "BBBB", Some(60)),
+        f(T0 + 3 * 3600, "BBBB", "CCCC", Some(60)),
+        f(T0 + 6 * 3600, "CCCC", "DDDD", Some(60)),
+        f(T0 + 9 * 3600, "DDDD", "EEEE", Some(60)),
+    ]);
+    assert_eq!(v.iter().map(|(_, n)| n).sum::<u32>(), 5);
+    assert!(v.iter().all(|(_, n)| *n == 1));
+}
+
+#[test]
+fn country_codes_ignore_case_and_reference_duplicates() {
+    let mut a = f(T0, "LFPG", "LFMN", None);
+    a.origin_country = Some("fr".into());
+    a.destination_country = Some(" FR ".into());
+    let mut b = f(T0 + 86_400, "LFMN", "KJFK", None);
+    b.origin_country = Some("FR".into());
+    b.destination_country = Some("   ".into());
+    let refs = [
+        CountryInfo {
+            iso2: "FR".into(),
+            region: Region::Europe,
+        },
+        CountryInfo {
+            iso2: "fr".into(),
+            region: Region::Asia,
+        },
+    ];
+    let d = compute_passport_detail(&[a, b], None, &refs);
+    assert_eq!(
+        (d.domestic, d.international, d.unknown_country_flights),
+        (1, 0, 1)
+    );
+    assert_eq!(d.countries.len(), 1);
+    assert_eq!(
+        (d.countries[0].iso2.as_str(), d.countries[0].flights),
+        ("FR", 2)
+    );
+    assert_eq!((d.regions[0].visited, d.regions[0].total), (1, 1));
+    assert_eq!(d.regions[7].total, 0);
+}

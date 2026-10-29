@@ -402,6 +402,108 @@ private func detailJSON(_ d: PassportDetail) -> [String: Any] {
     }
 }
 
+// MARK: - Aircraft
+
+private func orNull(_ v: Any?) -> Any { v ?? NSNull() }
+
+private func typeInfo(_ v: [String: Any]) throws -> TypeInfo {
+    TypeInfo(icaoType: try #require(string(v["icao_type"])), family: try #require(string(v["family"])),
+             manufacturer: try #require(string(v["manufacturer"])))
+}
+
+private func aircraftFact(_ v: [String: Any]) throws -> AircraftFact {
+    AircraftFact(registration: try #require(string(v["registration"])), deliveredAt: int64(v["delivered_at"]),
+                 name: string(v["name"]))
+}
+
+private func positionName(_ p: SeatPosition?) -> Any {
+    switch p {
+    case .window: "window"
+    case .middle: "middle"
+    case .aisle: "aisle"
+    case nil: NSNull()
+    }
+}
+
+private func typeTallyJSON(_ t: TypeTally) -> [String: Any] {
+    ["icaoType": t.icaoType, "flights": t.flights, "minutes": t.minutes, "distanceKm": t.distanceKm]
+}
+
+private func agedJSON(_ a: AgedAircraft?) -> Any {
+    guard let a else { return NSNull() }
+    return [
+        "registration": a.registration, "icaoType": orNull(a.icaoType),
+        "deliveredAt": a.deliveredAt, "ageMonths": a.ageMonths,
+    ] as [String: Any]
+}
+
+/// Same shape as the core crate's serde output (camelCase keys).
+private func aircraftJSON(_ s: AircraftStats) -> [String: Any] {
+    [
+        "totalTypes": s.totalTypes,
+        "manufacturers": s.manufacturers.map {
+            ["key": $0.key, "flights": $0.flights, "percent": $0.percent] as [String: Any]
+        },
+        "typesByFlights": s.typesByFlights.map(typeTallyJSON),
+        "typesByMinutes": s.typesByMinutes.map(typeTallyJSON),
+        "typesByDistance": s.typesByDistance.map(typeTallyJSON),
+        "mostFlown": s.mostFlown.map(typeTallyJSON) ?? NSNull(),
+        "tails": s.tails.map {
+            [
+                "registration": $0.registration, "flights": $0.flights, "icaoType": orNull($0.icaoType),
+                "airline": orNull($0.airline), "name": orNull($0.name),
+            ] as [String: Any]
+        },
+        "seatClasses": [
+            "economy": s.seatClasses.economy, "premiumEconomy": s.seatClasses.premiumEconomy,
+            "business": s.seatClasses.business, "first": s.seatClasses.first,
+        ],
+        "seatPositions": [
+            "window": s.seatPositions.window, "middle": s.seatPositions.middle, "aisle": s.seatPositions.aisle,
+        ],
+        "favouriteSeat": s.favouriteSeat.map { ["seat": $0.seat, "flights": $0.flights] as [String: Any] }
+            ?? NSNull(),
+        "reasons": ["personal": s.reasons.personal, "business": s.reasons.business],
+        "decades": s.decades.map { ["decade": $0.decade, "aircraft": $0.aircraft] as [String: Any] },
+        "medianAgeMonths": orNull(s.medianAgeMonths),
+        "newest": agedJSON(s.newest),
+        "oldest": agedJSON(s.oldest),
+    ]
+}
+
+@Test func aircraftSeatPositions() throws {
+    let all = try cases(try fixture("aircraft"), "seat_position")
+    #expect(all.count > 100)
+    for c in all {
+        let seat = try #require(string(c["seat"]))
+        let family = try #require(string(c["family"]))
+        let got = positionName(seatPosition(seat: seat, family: family))
+        #expect(jsonEqual(got, c["expected"] ?? NSNull()), "\(seat) \(family): \(got)")
+    }
+}
+
+@Test func aircraftCases() throws {
+    let all = try cases(try fixture("aircraft"))
+    let names = all.compactMap { string($0["name"]) }
+    for required in [
+        "empty", "single_flight", "sparse", "single_aircraft", "seat_positions_every_layout",
+        "unknown_family_seat", "decades_with_gap", "manufacturer_percent_rounding", "no_facts", "year_filter",
+    ] {
+        #expect(names.contains(required), "missing case \(required)")
+    }
+    for c in all {
+        let n = string(c["name"]) ?? "?"
+        let flights = try #require(c["flights"] as? [[String: Any]]).map(pastFlight)
+        let types = try #require(c["types"] as? [[String: Any]]).map(typeInfo)
+        let facts = try #require(c["facts"] as? [[String: Any]]).map(aircraftFact)
+        let got = aircraftJSON(computeAircraftStats(
+            flights: flights, year: int32(c["year"]), types: types, facts: facts,
+            asOf: try #require(int64(c["as_of"]))))
+        let expected = try #require(c["expected"] as? [String: Any])
+        #expect(jsonEqual(got, expected), "\(n): \(json(got)) vs \(json(expected))")
+    }
+}
+
 @Test func greatCircleSegmentsAreCapped() {
     let a = Coord(lat: 0, lon: 0)
     let b = Coord(lat: 10, lon: 10)

@@ -29,8 +29,9 @@
       "route_key": "ORIG-DEST ICAO, direction kept",
       "tally_by_flights_order": "flights desc, distance_km desc, key asc",
       "tally_by_distance_order": "distance_km desc, flights desc, key asc",
-      "countries": "each known country once per flight; sorted flights desc then iso2 asc",
-      "regions": "all nine in declaration order; total = reference countries in the region; visited = distinct visited countries in the region (countries absent from the reference count nowhere)"
+      "country_codes": "origin_country, destination_country and reference iso2 compare trimmed and upper case; empty is unknown",
+      "countries": "each known country once per flight (upper case); sorted flights desc then iso2 asc",
+      "regions": "all nine in declaration order; the reference is deduplicated by iso2 (first listing wins, empty codes dropped); total = reference countries in the region; visited = distinct visited countries in the region (countries absent from the reference count nowhere)"
     }
   },
   "cases": [
@@ -4486,6 +4487,686 @@
             "region": "oceania",
             "visited": 0,
             "total": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "connection_chain_overnight",
+      "year": null,
+      "countries": [
+        {
+          "iso2": "FR",
+          "region": "europe"
+        },
+        {
+          "iso2": "GB",
+          "region": "europe"
+        },
+        {
+          "iso2": "DE",
+          "region": "europe"
+        },
+        {
+          "iso2": "US",
+          "region": "north_america"
+        },
+        {
+          "iso2": "CA",
+          "region": "north_america"
+        },
+        {
+          "iso2": "CR",
+          "region": "central_america"
+        },
+        {
+          "iso2": "JM",
+          "region": "caribbean"
+        },
+        {
+          "iso2": "BR",
+          "region": "south_america"
+        },
+        {
+          "iso2": "ZA",
+          "region": "africa"
+        },
+        {
+          "iso2": "AE",
+          "region": "middle_east"
+        },
+        {
+          "iso2": "JP",
+          "region": "asia"
+        },
+        {
+          "iso2": "AU",
+          "region": "oceania"
+        }
+      ],
+      "flights": [
+        {
+          "departed_at": 1756695600,
+          "tz": "America/Vancouver",
+          "ident": "XX1",
+          "origin_icao": "CYVR",
+          "destination_icao": "KSEA",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 200,
+          "block_minutes": 60,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "CA",
+          "destination_country": "US",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1756708200,
+          "tz": "America/Los_Angeles",
+          "ident": "XX1",
+          "origin_icao": "KSEA",
+          "destination_icao": "KSFO",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 1090,
+          "block_minutes": 120,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "US",
+          "destination_country": "US",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1756718100,
+          "tz": "America/Los_Angeles",
+          "ident": "XX1",
+          "origin_icao": "KSFO",
+          "destination_icao": "KLAX",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 540,
+          "block_minutes": 80,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "US",
+          "destination_country": "US",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1756751640,
+          "tz": "America/Los_Angeles",
+          "ident": "XX1",
+          "origin_icao": "KLAX",
+          "destination_icao": "MMMX",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 2500,
+          "block_minutes": 240,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "US",
+          "destination_country": "MX",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1756922400,
+          "tz": "America/Mexico_City",
+          "ident": "XX1",
+          "origin_icao": "MMMX",
+          "destination_icao": "KLAX",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 2500,
+          "block_minutes": 240,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "MX",
+          "destination_country": "US",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        }
+      ],
+      "expected": {
+        "flights": 5,
+        "domestic": 2,
+        "international": 3,
+        "longHaul": 0,
+        "perYear": [
+          {
+            "year": 2025,
+            "flights": 5
+          }
+        ],
+        "perMonth": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          3,
+          0,
+          0,
+          0
+        ],
+        "perWeekday": [
+          2,
+          0,
+          1,
+          0,
+          0,
+          0,
+          2
+        ],
+        "distanceKm": 6830,
+        "avgDistanceKm": 1366,
+        "earthRatio": 0.1704304429195259,
+        "moonRatio": 0.017767950052029136,
+        "sunRatio": 0.0015610536540769098,
+        "shortestByDistance": {
+          "ident": "XX1",
+          "originIcao": "CYVR",
+          "destinationIcao": "KSEA",
+          "departedAt": 1756695600,
+          "distanceKm": 200,
+          "blockMinutes": 60,
+          "airline": "AAL"
+        },
+        "longestByDistance": {
+          "ident": "XX1",
+          "originIcao": "KLAX",
+          "destinationIcao": "MMMX",
+          "departedAt": 1756751640,
+          "distanceKm": 2500,
+          "blockMinutes": 240,
+          "airline": "AAL"
+        },
+        "shortestByTime": {
+          "ident": "XX1",
+          "originIcao": "CYVR",
+          "destinationIcao": "KSEA",
+          "departedAt": 1756695600,
+          "distanceKm": 200,
+          "blockMinutes": 60,
+          "airline": "AAL"
+        },
+        "longestByTime": {
+          "ident": "XX1",
+          "originIcao": "KLAX",
+          "destinationIcao": "MMMX",
+          "departedAt": 1756751640,
+          "distanceKm": 2500,
+          "blockMinutes": 240,
+          "airline": "AAL"
+        },
+        "flightMinutes": 740,
+        "avgFlightMinutes": 148,
+        "airMinutes": 0,
+        "taxiMinutes": 0,
+        "airports": [
+          {
+            "icao": "KLAX",
+            "visits": 2
+          },
+          {
+            "icao": "MMMX",
+            "visits": 2
+          },
+          {
+            "icao": "CYVR",
+            "visits": 1
+          },
+          {
+            "icao": "KSEA",
+            "visits": 1
+          },
+          {
+            "icao": "KSFO",
+            "visits": 1
+          }
+        ],
+        "airlinesByFlights": [
+          {
+            "key": "AAL",
+            "flights": 5,
+            "distanceKm": 6830
+          }
+        ],
+        "airlinesByDistance": [
+          {
+            "key": "AAL",
+            "flights": 5,
+            "distanceKm": 6830
+          }
+        ],
+        "routesByFlights": [
+          {
+            "key": "KLAX-MMMX",
+            "flights": 1,
+            "distanceKm": 2500
+          },
+          {
+            "key": "MMMX-KLAX",
+            "flights": 1,
+            "distanceKm": 2500
+          },
+          {
+            "key": "KSEA-KSFO",
+            "flights": 1,
+            "distanceKm": 1090
+          },
+          {
+            "key": "KSFO-KLAX",
+            "flights": 1,
+            "distanceKm": 540
+          },
+          {
+            "key": "CYVR-KSEA",
+            "flights": 1,
+            "distanceKm": 200
+          }
+        ],
+        "routesByDistance": [
+          {
+            "key": "KLAX-MMMX",
+            "flights": 1,
+            "distanceKm": 2500
+          },
+          {
+            "key": "MMMX-KLAX",
+            "flights": 1,
+            "distanceKm": 2500
+          },
+          {
+            "key": "KSEA-KSFO",
+            "flights": 1,
+            "distanceKm": 1090
+          },
+          {
+            "key": "KSFO-KLAX",
+            "flights": 1,
+            "distanceKm": 540
+          },
+          {
+            "key": "CYVR-KSEA",
+            "flights": 1,
+            "distanceKm": 200
+          }
+        ],
+        "countries": [
+          {
+            "iso2": "US",
+            "flights": 5
+          },
+          {
+            "iso2": "MX",
+            "flights": 2
+          },
+          {
+            "iso2": "CA",
+            "flights": 1
+          }
+        ],
+        "unknownCountryFlights": 0,
+        "regions": [
+          {
+            "region": "europe",
+            "visited": 0,
+            "total": 3
+          },
+          {
+            "region": "north_america",
+            "visited": 2,
+            "total": 2
+          },
+          {
+            "region": "central_america",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "caribbean",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "south_america",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "africa",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "middle_east",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "asia",
+            "visited": 0,
+            "total": 1
+          },
+          {
+            "region": "oceania",
+            "visited": 0,
+            "total": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "iso2_case_and_duplicate_reference",
+      "year": null,
+      "countries": [
+        {
+          "iso2": "FR",
+          "region": "europe"
+        },
+        {
+          "iso2": "fr",
+          "region": "asia"
+        },
+        {
+          "iso2": "us",
+          "region": "north_america"
+        },
+        {
+          "iso2": "GB",
+          "region": "europe"
+        },
+        {
+          "iso2": "",
+          "region": "oceania"
+        }
+      ],
+      "flights": [
+        {
+          "departed_at": 1759312800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFPG",
+          "destination_icao": "LFMN",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 690,
+          "block_minutes": 85,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "fr",
+          "destination_country": " FR ",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1759399200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "LFMN",
+          "destination_icao": "KJFK",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 6400,
+          "block_minutes": 540,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "FR",
+          "destination_country": "us",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        },
+        {
+          "departed_at": 1759485600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "KJFK",
+          "destination_icao": "KBOS",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 300,
+          "block_minutes": 70,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": "US",
+          "destination_country": "  ",
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": null
+        }
+      ],
+      "expected": {
+        "flights": 3,
+        "domestic": 1,
+        "international": 1,
+        "longHaul": 1,
+        "perYear": [
+          {
+            "year": 2025,
+            "flights": 3
+          }
+        ],
+        "perMonth": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        "perWeekday": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          0,
+          0
+        ],
+        "distanceKm": 7390,
+        "avgDistanceKm": 2463,
+        "earthRatio": 0.18440424204616343,
+        "moonRatio": 0.019224765868886575,
+        "sunRatio": 0.0016890463402091309,
+        "shortestByDistance": {
+          "ident": "XX1",
+          "originIcao": "KJFK",
+          "destinationIcao": "KBOS",
+          "departedAt": 1759485600,
+          "distanceKm": 300,
+          "blockMinutes": 70,
+          "airline": "AAL"
+        },
+        "longestByDistance": {
+          "ident": "XX1",
+          "originIcao": "LFMN",
+          "destinationIcao": "KJFK",
+          "departedAt": 1759399200,
+          "distanceKm": 6400,
+          "blockMinutes": 540,
+          "airline": "AAL"
+        },
+        "shortestByTime": {
+          "ident": "XX1",
+          "originIcao": "KJFK",
+          "destinationIcao": "KBOS",
+          "departedAt": 1759485600,
+          "distanceKm": 300,
+          "blockMinutes": 70,
+          "airline": "AAL"
+        },
+        "longestByTime": {
+          "ident": "XX1",
+          "originIcao": "LFMN",
+          "destinationIcao": "KJFK",
+          "departedAt": 1759399200,
+          "distanceKm": 6400,
+          "blockMinutes": 540,
+          "airline": "AAL"
+        },
+        "flightMinutes": 695,
+        "avgFlightMinutes": 232,
+        "airMinutes": 0,
+        "taxiMinutes": 0,
+        "airports": [
+          {
+            "icao": "KJFK",
+            "visits": 2
+          },
+          {
+            "icao": "LFMN",
+            "visits": 2
+          },
+          {
+            "icao": "KBOS",
+            "visits": 1
+          },
+          {
+            "icao": "LFPG",
+            "visits": 1
+          }
+        ],
+        "airlinesByFlights": [
+          {
+            "key": "AAL",
+            "flights": 3,
+            "distanceKm": 7390
+          }
+        ],
+        "airlinesByDistance": [
+          {
+            "key": "AAL",
+            "flights": 3,
+            "distanceKm": 7390
+          }
+        ],
+        "routesByFlights": [
+          {
+            "key": "LFMN-KJFK",
+            "flights": 1,
+            "distanceKm": 6400
+          },
+          {
+            "key": "LFPG-LFMN",
+            "flights": 1,
+            "distanceKm": 690
+          },
+          {
+            "key": "KJFK-KBOS",
+            "flights": 1,
+            "distanceKm": 300
+          }
+        ],
+        "routesByDistance": [
+          {
+            "key": "LFMN-KJFK",
+            "flights": 1,
+            "distanceKm": 6400
+          },
+          {
+            "key": "LFPG-LFMN",
+            "flights": 1,
+            "distanceKm": 690
+          },
+          {
+            "key": "KJFK-KBOS",
+            "flights": 1,
+            "distanceKm": 300
+          }
+        ],
+        "countries": [
+          {
+            "iso2": "FR",
+            "flights": 2
+          },
+          {
+            "iso2": "US",
+            "flights": 2
+          }
+        ],
+        "unknownCountryFlights": 1,
+        "regions": [
+          {
+            "region": "europe",
+            "visited": 1,
+            "total": 2
+          },
+          {
+            "region": "north_america",
+            "visited": 1,
+            "total": 1
+          },
+          {
+            "region": "central_america",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "caribbean",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "south_america",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "africa",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "middle_east",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "asia",
+            "visited": 0,
+            "total": 0
+          },
+          {
+            "region": "oceania",
+            "visited": 0,
+            "total": 0
           }
         ]
       }

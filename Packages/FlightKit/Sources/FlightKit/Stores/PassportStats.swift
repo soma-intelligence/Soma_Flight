@@ -83,3 +83,18 @@ extension PastFlight {
         return cal.component(.year, from: date)
     }
 }
+
+extension AircraftType {
+    /// The core's view of a reference type, behind aircraft stats (manufacturers, seat positions).
+    var coreTypeInfo: FlightCore.TypeInfo {
+        FlightCore.TypeInfo(icaoType: id, family: family.rawValue, manufacturer: manufacturer)
+    }
+}
+
+extension AircraftFamily {
+    /// Window, middle or aisle for a seat ("23A") in this family's economy cabin, from the core;
+    /// nil for `.other` and for letters the cabin does not have.
+    func seatPosition(_ seat: String) -> FlightCore.SeatPosition? {
+        FlightCore.seatPosition(seat: seat, family: rawValue)
+    }
+}

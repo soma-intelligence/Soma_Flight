@@ -589,6 +589,74 @@ fileprivate struct FfiConverterString: FfiConverter {
 }
 
 
+public struct AgedAircraft: Equatable, Hashable {
+    public var registration: String
+    public var icaoType: String?
+    /**
+     * Unix seconds.
+     */
+    public var deliveredAt: Int64
+    public var ageMonths: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(registration: String, icaoType: String?, 
+        /**
+         * Unix seconds.
+         */deliveredAt: Int64, ageMonths: UInt32) {
+        self.registration = registration
+        self.icaoType = icaoType
+        self.deliveredAt = deliveredAt
+        self.ageMonths = ageMonths
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AgedAircraft: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAgedAircraft: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AgedAircraft {
+        return
+            try AgedAircraft(
+                registration: FfiConverterString.read(from: &buf), 
+                icaoType: FfiConverterOptionString.read(from: &buf), 
+                deliveredAt: FfiConverterInt64.read(from: &buf), 
+                ageMonths: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AgedAircraft, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.registration, into: &buf)
+        FfiConverterOptionString.write(value.icaoType, into: &buf)
+        FfiConverterInt64.write(value.deliveredAt, into: &buf)
+        FfiConverterUInt32.write(value.ageMonths, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAgedAircraft_lift(_ buf: RustBuffer) throws -> AgedAircraft {
+    return try FfiConverterTypeAgedAircraft.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAgedAircraft_lower(_ value: AgedAircraft) -> RustBuffer {
+    return FfiConverterTypeAgedAircraft.lower(value)
+}
+
+
 public struct AircraftCount: Equatable, Hashable {
     public var aircraftType: String
     public var count: UInt32
@@ -640,6 +708,176 @@ public func FfiConverterTypeAircraftCount_lift(_ buf: RustBuffer) throws -> Airc
 #endif
 public func FfiConverterTypeAircraftCount_lower(_ value: AircraftCount) -> RustBuffer {
     return FfiConverterTypeAircraftCount.lower(value)
+}
+
+
+public struct AircraftFact: Equatable, Hashable {
+    public var registration: String
+    /**
+     * Unix seconds.
+     */
+    public var deliveredAt: Int64?
+    public var name: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(registration: String, 
+        /**
+         * Unix seconds.
+         */deliveredAt: Int64?, name: String?) {
+        self.registration = registration
+        self.deliveredAt = deliveredAt
+        self.name = name
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AircraftFact: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAircraftFact: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AircraftFact {
+        return
+            try AircraftFact(
+                registration: FfiConverterString.read(from: &buf), 
+                deliveredAt: FfiConverterOptionInt64.read(from: &buf), 
+                name: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AircraftFact, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.registration, into: &buf)
+        FfiConverterOptionInt64.write(value.deliveredAt, into: &buf)
+        FfiConverterOptionString.write(value.name, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAircraftFact_lift(_ buf: RustBuffer) throws -> AircraftFact {
+    return try FfiConverterTypeAircraftFact.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAircraftFact_lower(_ value: AircraftFact) -> RustBuffer {
+    return FfiConverterTypeAircraftFact.lower(value)
+}
+
+
+public struct AircraftStats: Equatable, Hashable {
+    public var totalTypes: UInt32
+    public var manufacturers: [Share]
+    public var typesByFlights: [TypeTally]
+    public var typesByMinutes: [TypeTally]
+    public var typesByDistance: [TypeTally]
+    public var mostFlown: TypeTally?
+    public var tails: [TailTally]
+    public var seatClasses: SeatClassCounts
+    public var seatPositions: PositionCounts
+    public var favouriteSeat: SeatTally?
+    public var reasons: ReasonCounts
+    public var decades: [DecadeCount]
+    public var medianAgeMonths: UInt32?
+    public var newest: AgedAircraft?
+    public var oldest: AgedAircraft?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(totalTypes: UInt32, manufacturers: [Share], typesByFlights: [TypeTally], typesByMinutes: [TypeTally], typesByDistance: [TypeTally], mostFlown: TypeTally?, tails: [TailTally], seatClasses: SeatClassCounts, seatPositions: PositionCounts, favouriteSeat: SeatTally?, reasons: ReasonCounts, decades: [DecadeCount], medianAgeMonths: UInt32?, newest: AgedAircraft?, oldest: AgedAircraft?) {
+        self.totalTypes = totalTypes
+        self.manufacturers = manufacturers
+        self.typesByFlights = typesByFlights
+        self.typesByMinutes = typesByMinutes
+        self.typesByDistance = typesByDistance
+        self.mostFlown = mostFlown
+        self.tails = tails
+        self.seatClasses = seatClasses
+        self.seatPositions = seatPositions
+        self.favouriteSeat = favouriteSeat
+        self.reasons = reasons
+        self.decades = decades
+        self.medianAgeMonths = medianAgeMonths
+        self.newest = newest
+        self.oldest = oldest
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AircraftStats: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAircraftStats: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AircraftStats {
+        return
+            try AircraftStats(
+                totalTypes: FfiConverterUInt32.read(from: &buf), 
+                manufacturers: FfiConverterSequenceTypeShare.read(from: &buf), 
+                typesByFlights: FfiConverterSequenceTypeTypeTally.read(from: &buf), 
+                typesByMinutes: FfiConverterSequenceTypeTypeTally.read(from: &buf), 
+                typesByDistance: FfiConverterSequenceTypeTypeTally.read(from: &buf), 
+                mostFlown: FfiConverterOptionTypeTypeTally.read(from: &buf), 
+                tails: FfiConverterSequenceTypeTailTally.read(from: &buf), 
+                seatClasses: FfiConverterTypeSeatClassCounts.read(from: &buf), 
+                seatPositions: FfiConverterTypePositionCounts.read(from: &buf), 
+                favouriteSeat: FfiConverterOptionTypeSeatTally.read(from: &buf), 
+                reasons: FfiConverterTypeReasonCounts.read(from: &buf), 
+                decades: FfiConverterSequenceTypeDecadeCount.read(from: &buf), 
+                medianAgeMonths: FfiConverterOptionUInt32.read(from: &buf), 
+                newest: FfiConverterOptionTypeAgedAircraft.read(from: &buf), 
+                oldest: FfiConverterOptionTypeAgedAircraft.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AircraftStats, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.totalTypes, into: &buf)
+        FfiConverterSequenceTypeShare.write(value.manufacturers, into: &buf)
+        FfiConverterSequenceTypeTypeTally.write(value.typesByFlights, into: &buf)
+        FfiConverterSequenceTypeTypeTally.write(value.typesByMinutes, into: &buf)
+        FfiConverterSequenceTypeTypeTally.write(value.typesByDistance, into: &buf)
+        FfiConverterOptionTypeTypeTally.write(value.mostFlown, into: &buf)
+        FfiConverterSequenceTypeTailTally.write(value.tails, into: &buf)
+        FfiConverterTypeSeatClassCounts.write(value.seatClasses, into: &buf)
+        FfiConverterTypePositionCounts.write(value.seatPositions, into: &buf)
+        FfiConverterOptionTypeSeatTally.write(value.favouriteSeat, into: &buf)
+        FfiConverterTypeReasonCounts.write(value.reasons, into: &buf)
+        FfiConverterSequenceTypeDecadeCount.write(value.decades, into: &buf)
+        FfiConverterOptionUInt32.write(value.medianAgeMonths, into: &buf)
+        FfiConverterOptionTypeAgedAircraft.write(value.newest, into: &buf)
+        FfiConverterOptionTypeAgedAircraft.write(value.oldest, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAircraftStats_lift(_ buf: RustBuffer) throws -> AircraftStats {
+    return try FfiConverterTypeAircraftStats.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAircraftStats_lower(_ value: AircraftStats) -> RustBuffer {
+    return FfiConverterTypeAircraftStats.lower(value)
 }
 
 
@@ -988,6 +1226,60 @@ public func FfiConverterTypeCountryInfo_lift(_ buf: RustBuffer) throws -> Countr
 #endif
 public func FfiConverterTypeCountryInfo_lower(_ value: CountryInfo) -> RustBuffer {
     return FfiConverterTypeCountryInfo.lower(value)
+}
+
+
+public struct DecadeCount: Equatable, Hashable {
+    public var decade: Int32
+    public var aircraft: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(decade: Int32, aircraft: UInt32) {
+        self.decade = decade
+        self.aircraft = aircraft
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DecadeCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDecadeCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DecadeCount {
+        return
+            try DecadeCount(
+                decade: FfiConverterInt32.read(from: &buf), 
+                aircraft: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DecadeCount, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.decade, into: &buf)
+        FfiConverterUInt32.write(value.aircraft, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecadeCount_lift(_ buf: RustBuffer) throws -> DecadeCount {
+    return try FfiConverterTypeDecadeCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecadeCount_lower(_ value: DecadeCount) -> RustBuffer {
+    return FfiConverterTypeDecadeCount.lower(value)
 }
 
 
@@ -1582,6 +1874,118 @@ public func FfiConverterTypePastFlight_lower(_ value: PastFlight) -> RustBuffer 
 }
 
 
+public struct PositionCounts: Equatable, Hashable {
+    public var window: UInt32
+    public var middle: UInt32
+    public var aisle: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(window: UInt32, middle: UInt32, aisle: UInt32) {
+        self.window = window
+        self.middle = middle
+        self.aisle = aisle
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PositionCounts: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePositionCounts: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PositionCounts {
+        return
+            try PositionCounts(
+                window: FfiConverterUInt32.read(from: &buf), 
+                middle: FfiConverterUInt32.read(from: &buf), 
+                aisle: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PositionCounts, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.window, into: &buf)
+        FfiConverterUInt32.write(value.middle, into: &buf)
+        FfiConverterUInt32.write(value.aisle, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePositionCounts_lift(_ buf: RustBuffer) throws -> PositionCounts {
+    return try FfiConverterTypePositionCounts.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePositionCounts_lower(_ value: PositionCounts) -> RustBuffer {
+    return FfiConverterTypePositionCounts.lower(value)
+}
+
+
+public struct ReasonCounts: Equatable, Hashable {
+    public var personal: UInt32
+    public var business: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(personal: UInt32, business: UInt32) {
+        self.personal = personal
+        self.business = business
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ReasonCounts: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReasonCounts: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReasonCounts {
+        return
+            try ReasonCounts(
+                personal: FfiConverterUInt32.read(from: &buf), 
+                business: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ReasonCounts, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.personal, into: &buf)
+        FfiConverterUInt32.write(value.business, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReasonCounts_lift(_ buf: RustBuffer) throws -> ReasonCounts {
+    return try FfiConverterTypeReasonCounts.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReasonCounts_lower(_ value: ReasonCounts) -> RustBuffer {
+    return FfiConverterTypeReasonCounts.lower(value)
+}
+
+
 public struct RegionCount: Equatable, Hashable {
     public var region: Region
     public var visited: UInt32
@@ -1755,6 +2159,246 @@ public func FfiConverterTypeRouteStat_lower(_ value: RouteStat) -> RustBuffer {
 }
 
 
+public struct SeatClassCounts: Equatable, Hashable {
+    public var economy: UInt32
+    public var premiumEconomy: UInt32
+    public var business: UInt32
+    public var first: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(economy: UInt32, premiumEconomy: UInt32, business: UInt32, first: UInt32) {
+        self.economy = economy
+        self.premiumEconomy = premiumEconomy
+        self.business = business
+        self.first = first
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SeatClassCounts: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeatClassCounts: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeatClassCounts {
+        return
+            try SeatClassCounts(
+                economy: FfiConverterUInt32.read(from: &buf), 
+                premiumEconomy: FfiConverterUInt32.read(from: &buf), 
+                business: FfiConverterUInt32.read(from: &buf), 
+                first: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SeatClassCounts, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.economy, into: &buf)
+        FfiConverterUInt32.write(value.premiumEconomy, into: &buf)
+        FfiConverterUInt32.write(value.business, into: &buf)
+        FfiConverterUInt32.write(value.first, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatClassCounts_lift(_ buf: RustBuffer) throws -> SeatClassCounts {
+    return try FfiConverterTypeSeatClassCounts.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatClassCounts_lower(_ value: SeatClassCounts) -> RustBuffer {
+    return FfiConverterTypeSeatClassCounts.lower(value)
+}
+
+
+public struct SeatTally: Equatable, Hashable {
+    public var seat: String
+    public var flights: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(seat: String, flights: UInt32) {
+        self.seat = seat
+        self.flights = flights
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SeatTally: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeatTally: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeatTally {
+        return
+            try SeatTally(
+                seat: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SeatTally, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.seat, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatTally_lift(_ buf: RustBuffer) throws -> SeatTally {
+    return try FfiConverterTypeSeatTally.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatTally_lower(_ value: SeatTally) -> RustBuffer {
+    return FfiConverterTypeSeatTally.lower(value)
+}
+
+
+public struct Share: Equatable, Hashable {
+    public var key: String
+    public var flights: UInt32
+    public var percent: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(key: String, flights: UInt32, percent: UInt32) {
+        self.key = key
+        self.flights = flights
+        self.percent = percent
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Share: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShare: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Share {
+        return
+            try Share(
+                key: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf), 
+                percent: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Share, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+        FfiConverterUInt32.write(value.percent, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShare_lift(_ buf: RustBuffer) throws -> Share {
+    return try FfiConverterTypeShare.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShare_lower(_ value: Share) -> RustBuffer {
+    return FfiConverterTypeShare.lower(value)
+}
+
+
+public struct TailTally: Equatable, Hashable {
+    public var registration: String
+    public var flights: UInt32
+    public var icaoType: String?
+    public var airline: String?
+    public var name: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(registration: String, flights: UInt32, icaoType: String?, airline: String?, name: String?) {
+        self.registration = registration
+        self.flights = flights
+        self.icaoType = icaoType
+        self.airline = airline
+        self.name = name
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TailTally: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTailTally: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TailTally {
+        return
+            try TailTally(
+                registration: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf), 
+                icaoType: FfiConverterOptionString.read(from: &buf), 
+                airline: FfiConverterOptionString.read(from: &buf), 
+                name: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TailTally, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.registration, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+        FfiConverterOptionString.write(value.icaoType, into: &buf)
+        FfiConverterOptionString.write(value.airline, into: &buf)
+        FfiConverterOptionString.write(value.name, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTailTally_lift(_ buf: RustBuffer) throws -> TailTally {
+    return try FfiConverterTypeTailTally.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTailTally_lower(_ value: TailTally) -> RustBuffer {
+    return FfiConverterTypeTailTally.lower(value)
+}
+
+
 public struct Tally: Equatable, Hashable {
     public var key: String
     public var flights: UInt32
@@ -1810,6 +2454,126 @@ public func FfiConverterTypeTally_lift(_ buf: RustBuffer) throws -> Tally {
 #endif
 public func FfiConverterTypeTally_lower(_ value: Tally) -> RustBuffer {
     return FfiConverterTypeTally.lower(value)
+}
+
+
+public struct TypeInfo: Equatable, Hashable {
+    public var icaoType: String
+    public var family: String
+    public var manufacturer: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(icaoType: String, family: String, manufacturer: String) {
+        self.icaoType = icaoType
+        self.family = family
+        self.manufacturer = manufacturer
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TypeInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTypeInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TypeInfo {
+        return
+            try TypeInfo(
+                icaoType: FfiConverterString.read(from: &buf), 
+                family: FfiConverterString.read(from: &buf), 
+                manufacturer: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TypeInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.icaoType, into: &buf)
+        FfiConverterString.write(value.family, into: &buf)
+        FfiConverterString.write(value.manufacturer, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypeInfo_lift(_ buf: RustBuffer) throws -> TypeInfo {
+    return try FfiConverterTypeTypeInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypeInfo_lower(_ value: TypeInfo) -> RustBuffer {
+    return FfiConverterTypeTypeInfo.lower(value)
+}
+
+
+public struct TypeTally: Equatable, Hashable {
+    public var icaoType: String
+    public var flights: UInt32
+    public var minutes: UInt64
+    public var distanceKm: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(icaoType: String, flights: UInt32, minutes: UInt64, distanceKm: UInt64) {
+        self.icaoType = icaoType
+        self.flights = flights
+        self.minutes = minutes
+        self.distanceKm = distanceKm
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TypeTally: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTypeTally: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TypeTally {
+        return
+            try TypeTally(
+                icaoType: FfiConverterString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf), 
+                minutes: FfiConverterUInt64.read(from: &buf), 
+                distanceKm: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TypeTally, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.icaoType, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+        FfiConverterUInt64.write(value.minutes, into: &buf)
+        FfiConverterUInt64.write(value.distanceKm, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypeTally_lift(_ buf: RustBuffer) throws -> TypeTally {
+    return try FfiConverterTypeTypeTally.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypeTally_lower(_ value: TypeTally) -> RustBuffer {
+    return FfiConverterTypeTypeTally.lower(value)
 }
 
 
@@ -2324,6 +3088,79 @@ public func FfiConverterTypeSeatClass_lower(_ value: SeatClass) -> RustBuffer {
 
 
 
+public enum SeatPosition: Equatable, Hashable {
+    
+    case window
+    case middle
+    case aisle
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SeatPosition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeatPosition: FfiConverterRustBuffer {
+    typealias SwiftType = SeatPosition
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeatPosition {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .window
+        
+        case 2: return .middle
+        
+        case 3: return .aisle
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SeatPosition, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .window:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .middle:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .aisle:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatPosition_lift(_ buf: RustBuffer) throws -> SeatPosition {
+    return try FfiConverterTypeSeatPosition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeatPosition_lower(_ value: SeatPosition) -> RustBuffer {
+    return FfiConverterTypeSeatPosition.lower(value)
+}
+
+
+
+
 public enum Severity: Equatable, Hashable {
     
     case normal
@@ -2560,6 +3397,30 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeAgedAircraft: FfiConverterRustBuffer {
+    typealias SwiftType = AgedAircraft?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAgedAircraft.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAgedAircraft.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeAircraftCount: FfiConverterRustBuffer {
     typealias SwiftType = AircraftCount?
 
@@ -2608,6 +3469,54 @@ fileprivate struct FfiConverterOptionTypeFlightRef: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSeatTally: FfiConverterRustBuffer {
+    typealias SwiftType = SeatTally?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSeatTally.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSeatTally.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeTypeTally: FfiConverterRustBuffer {
+    typealias SwiftType = TypeTally?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTypeTally.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTypeTally.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSeatClass: FfiConverterRustBuffer {
     typealias SwiftType = SeatClass?
 
@@ -2624,6 +3533,30 @@ fileprivate struct FfiConverterOptionTypeSeatClass: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeSeatClass.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSeatPosition: FfiConverterRustBuffer {
+    typealias SwiftType = SeatPosition?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSeatPosition.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSeatPosition.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -2673,6 +3606,31 @@ fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterUInt32.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAircraftFact: FfiConverterRustBuffer {
+    typealias SwiftType = [AircraftFact]
+
+    public static func write(_ value: [AircraftFact], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAircraftFact.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AircraftFact] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AircraftFact]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAircraftFact.read(from: &buf))
         }
         return seq
     }
@@ -2831,6 +3789,31 @@ fileprivate struct FfiConverterSequenceTypeCountryInfo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeDecadeCount: FfiConverterRustBuffer {
+    typealias SwiftType = [DecadeCount]
+
+    public static func write(_ value: [DecadeCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDecadeCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DecadeCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DecadeCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDecadeCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHourBucket: FfiConverterRustBuffer {
     typealias SwiftType = [HourBucket]
 
@@ -2956,6 +3939,56 @@ fileprivate struct FfiConverterSequenceTypeRouteStat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeShare: FfiConverterRustBuffer {
+    typealias SwiftType = [Share]
+
+    public static func write(_ value: [Share], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeShare.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Share] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Share]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeShare.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTailTally: FfiConverterRustBuffer {
+    typealias SwiftType = [TailTally]
+
+    public static func write(_ value: [TailTally], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTailTally.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TailTally] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TailTally]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTailTally.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTally: FfiConverterRustBuffer {
     typealias SwiftType = [Tally]
 
@@ -2973,6 +4006,56 @@ fileprivate struct FfiConverterSequenceTypeTally: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTally.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTypeInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [TypeInfo]
+
+    public static func write(_ value: [TypeInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTypeInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TypeInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TypeInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTypeInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTypeTally: FfiConverterRustBuffer {
+    typealias SwiftType = [TypeTally]
+
+    public static func write(_ value: [TypeTally], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTypeTally.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TypeTally] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TypeTally]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTypeTally.read(from: &buf))
         }
         return seq
     }
@@ -3001,6 +4084,24 @@ fileprivate struct FfiConverterSequenceTypeYearCount: FfiConverterRustBuffer {
         }
         return seq
     }
+}
+/**
+ * Aircraft statistics over completed and diverted flights, optionally limited
+ * to one local departure year. `types` is the reference behind manufacturers
+ * and seat positions, `facts` the delivery dates and names behind ages, and
+ * `as_of` (unix seconds) the instant ages are measured to.
+ */
+public func computeAircraftStats(flights: [PastFlight], year: Int32?, types: [TypeInfo], facts: [AircraftFact], asOf: Int64) -> AircraftStats  {
+    return try!  FfiConverterTypeAircraftStats_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_compute_aircraft_stats(
+        FfiConverterSequenceTypePastFlight.lower(flights),
+        FfiConverterOptionInt32.lower(year),
+        FfiConverterSequenceTypeTypeInfo.lower(types),
+        FfiConverterSequenceTypeAircraftFact.lower(facts),
+        FfiConverterInt64.lower(asOf),uniffiCallStatus
+    )
+})
 }
 /**
  * Passport totals over completed and diverted flights, optionally limited to
@@ -3082,6 +4183,19 @@ public func greatCircle(a: Coord, b: Coord, segments: UInt32) -> [Coord]  {
     )
 })
 }
+/**
+ * Window, middle or aisle for a seat ("23A") in the economy layout of an
+ * aircraft family ("a320", "b777", ...); nil for other families or letters.
+ */
+public func seatPosition(seat: String, family: String) -> SeatPosition?  {
+    return try!  FfiConverterOptionTypeSeatPosition.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_seat_position(
+        FfiConverterString.lower(seat),
+        FfiConverterString.lower(family),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -3097,6 +4211,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_flightcore_ffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_compute_aircraft_stats() != 53169) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_flightcore_ffi_checksum_func_compute_passport() != 26670) {
         return InitializationResult.apiChecksumMismatch
@@ -3114,6 +4231,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_flightcore_ffi_checksum_func_great_circle() != 35599) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_seat_position() != 50712) {
         return InitializationResult.apiChecksumMismatch
     }
 

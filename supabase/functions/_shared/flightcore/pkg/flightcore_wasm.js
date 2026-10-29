@@ -1,6 +1,34 @@
 /* @ts-self-types="./flightcore_wasm.d.ts" */
 
 /**
+ * `as_of` is unix seconds (a JS BigInt); ages are measured up to it.
+ * @param {string} flights_json
+ * @param {number | null | undefined} year
+ * @param {string} types_json
+ * @param {string} facts_json
+ * @param {bigint} as_of
+ * @returns {string}
+ */
+export function computeAircraftStats(flights_json, year, types_json, facts_json, as_of) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(flights_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(types_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(facts_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.computeAircraftStats(ptr0, len0, isLikeNone(year) ? Number.MAX_SAFE_INTEGER : (year) >> 0, ptr1, len1, ptr2, len2, as_of);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * @param {string} flights_json
  * @param {number | null} [year]
  * @returns {string}

@@ -1,6 +1,7 @@
 // Replays every case of core/fixtures/*.json through the WASM wrapper, with the
 // same semantics as core/flightcore/tests/fixtures.rs.
 import {
+  computeAircraftStats,
   computePassport,
   computePassportDetail,
   computeStats,
@@ -169,6 +170,41 @@ Deno.test("passport detail fixture: cases", () => {
   }
 });
 
+Deno.test("aircraft fixture: cases", () => {
+  const f = fixture("aircraft");
+  // deno-lint-ignore no-explicit-any
+  const names = f.cases.map((c: any) => c.name);
+  for (
+    const n of [
+      "empty",
+      "single_flight",
+      "sparse",
+      "single_aircraft",
+      "seat_positions_every_layout",
+      "unknown_family_seat",
+      "decades_with_gap",
+      "manufacturer_percent_rounding",
+      "no_facts",
+      "year_filter",
+    ]
+  ) {
+    assert(names.includes(n), `missing case ${n}`);
+  }
+  for (const c of f.cases) {
+    const got = computeAircraftStats(
+      c.flights,
+      c.year ?? undefined,
+      c.types,
+      c.facts,
+      c.as_of,
+    );
+    assert(
+      deepEqual(got, c.expected),
+      `${c.name}: ${JSON.stringify(got)} vs ${JSON.stringify(c.expected)}`,
+    );
+  }
+});
+
 function throwsMessage(fn: () => unknown): string {
   try {
     fn();
@@ -209,6 +245,26 @@ Deno.test("malformed input throws Error with a specific message, never aborts", 
     "invalid countries",
   );
   expectError(() => computePassportDetail([], 2 ** 31, []), "invalid year");
+  expectError(
+    () => computeAircraftStats(bad("nope"), undefined, [], [], 0),
+    "invalid flights",
+  );
+  expectError(
+    () => computeAircraftStats([], undefined, bad([{ family: 1 }]), [], 0),
+    "invalid types",
+  );
+  expectError(
+    () => computeAircraftStats([], undefined, [], bad([{}]), 0),
+    "invalid facts",
+  );
+  expectError(
+    () => computeAircraftStats([], undefined, [], [], 1.5),
+    "invalid asOf",
+  );
+  expectError(
+    () => computeAircraftStats([], 2 ** 31, [], [], 0),
+    "invalid year",
+  );
   expectError(() => flightCategory(2 ** 31, 10), "invalid ceilingFt");
   expectError(() => flightCategory(1.5, 10), "invalid ceilingFt");
   expectError(() => flightCategory(null, NaN), "invalid visibilitySm");

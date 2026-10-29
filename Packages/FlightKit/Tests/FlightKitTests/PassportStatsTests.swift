@@ -65,4 +65,18 @@ private func fixture() -> [PastFlight] {
         #expect(bare.coreFlight.originCountry == nil && bare.coreFlight.airMinutes == 0)
         #expect(bare.coreFlight.seatClass == nil && bare.coreFlight.reason == nil)
     }
+    @Test func coreTypeInfoCarriesFamilyCode() {
+        let t = AircraftType(id: "B38M", family: .b737max, manufacturer: "Boeing", name: "Boeing 737 MAX 8")
+        let c = t.coreTypeInfo
+        #expect(c.icaoType == "B38M" && c.family == "b737max" && c.manufacturer == "Boeing")
+    }
+    @Test func everyFamilyCodeIsKnownToTheCore() {
+        // Seat A is a window in every economy cabin the core knows; `.other` has none.
+        for family in AircraftFamily.allCases {
+            #expect((family.seatPosition("1A") == .window) == (family != .other), "\(family)")
+        }
+        #expect(AircraftFamily.a320.seatPosition("12B") == .middle)
+        #expect(AircraftFamily.b777.seatPosition("40G") == .aisle)
+        #expect(AircraftFamily.crj.seatPosition("3E") == nil)
+    }
 }

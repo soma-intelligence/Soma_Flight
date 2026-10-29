@@ -5,7 +5,7 @@
 //! Built into `Packages/FlightCoreFFI/FlightCoreFFI.xcframework` by
 //! `core/scripts/build-xcframework.sh`.
 
-use flightcore::{delay, geo, passport, passport_detail, weather};
+use flightcore::{aircraft, delay, geo, passport, passport_detail, weather};
 
 uniffi::setup_scaffolding!();
 
@@ -770,6 +770,334 @@ pub fn compute_passport_detail(
     passport_detail::compute_passport_detail(&flights, year, &countries).into()
 }
 
+// Aircraft stats
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct TypeInfo {
+    pub icao_type: String,
+    pub family: String,
+    pub manufacturer: String,
+}
+
+impl From<TypeInfo> for aircraft::TypeInfo {
+    fn from(t: TypeInfo) -> Self {
+        Self {
+            icao_type: t.icao_type,
+            family: t.family,
+            manufacturer: t.manufacturer,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AircraftFact {
+    pub registration: String,
+    /// Unix seconds.
+    pub delivered_at: Option<i64>,
+    pub name: Option<String>,
+}
+
+impl From<AircraftFact> for aircraft::AircraftFact {
+    fn from(x: AircraftFact) -> Self {
+        Self {
+            registration: x.registration,
+            delivered_at: x.delivered_at,
+            name: x.name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum SeatPosition {
+    Window,
+    Middle,
+    Aisle,
+}
+
+impl From<aircraft::SeatPosition> for SeatPosition {
+    fn from(p: aircraft::SeatPosition) -> Self {
+        match p {
+            aircraft::SeatPosition::Window => Self::Window,
+            aircraft::SeatPosition::Middle => Self::Middle,
+            aircraft::SeatPosition::Aisle => Self::Aisle,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct Share {
+    pub key: String,
+    pub flights: u32,
+    pub percent: u32,
+}
+
+impl From<aircraft::Share> for Share {
+    fn from(
+        aircraft::Share {
+            key,
+            flights,
+            percent,
+        }: aircraft::Share,
+    ) -> Self {
+        Self {
+            key,
+            flights,
+            percent,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct TypeTally {
+    pub icao_type: String,
+    pub flights: u32,
+    pub minutes: u64,
+    pub distance_km: u64,
+}
+
+impl From<aircraft::TypeTally> for TypeTally {
+    fn from(
+        aircraft::TypeTally {
+            icao_type,
+            flights,
+            minutes,
+            distance_km,
+        }: aircraft::TypeTally,
+    ) -> Self {
+        Self {
+            icao_type,
+            flights,
+            minutes,
+            distance_km,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct TailTally {
+    pub registration: String,
+    pub flights: u32,
+    pub icao_type: Option<String>,
+    pub airline: Option<String>,
+    pub name: Option<String>,
+}
+
+impl From<aircraft::TailTally> for TailTally {
+    fn from(
+        aircraft::TailTally {
+            registration,
+            flights,
+            icao_type,
+            airline,
+            name,
+        }: aircraft::TailTally,
+    ) -> Self {
+        Self {
+            registration,
+            flights,
+            icao_type,
+            airline,
+            name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct SeatClassCounts {
+    pub economy: u32,
+    pub premium_economy: u32,
+    pub business: u32,
+    pub first: u32,
+}
+
+impl From<aircraft::SeatClassCounts> for SeatClassCounts {
+    fn from(
+        aircraft::SeatClassCounts {
+            economy,
+            premium_economy,
+            business,
+            first,
+        }: aircraft::SeatClassCounts,
+    ) -> Self {
+        Self {
+            economy,
+            premium_economy,
+            business,
+            first,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct PositionCounts {
+    pub window: u32,
+    pub middle: u32,
+    pub aisle: u32,
+}
+
+impl From<aircraft::PositionCounts> for PositionCounts {
+    fn from(
+        aircraft::PositionCounts {
+            window,
+            middle,
+            aisle,
+        }: aircraft::PositionCounts,
+    ) -> Self {
+        Self {
+            window,
+            middle,
+            aisle,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct SeatTally {
+    pub seat: String,
+    pub flights: u32,
+}
+
+impl From<aircraft::SeatTally> for SeatTally {
+    fn from(aircraft::SeatTally { seat, flights }: aircraft::SeatTally) -> Self {
+        Self { seat, flights }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ReasonCounts {
+    pub personal: u32,
+    pub business: u32,
+}
+
+impl From<aircraft::ReasonCounts> for ReasonCounts {
+    fn from(aircraft::ReasonCounts { personal, business }: aircraft::ReasonCounts) -> Self {
+        Self { personal, business }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DecadeCount {
+    pub decade: i32,
+    pub aircraft: u32,
+}
+
+impl From<aircraft::DecadeCount> for DecadeCount {
+    fn from(aircraft::DecadeCount { decade, aircraft }: aircraft::DecadeCount) -> Self {
+        Self { decade, aircraft }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AgedAircraft {
+    pub registration: String,
+    pub icao_type: Option<String>,
+    /// Unix seconds.
+    pub delivered_at: i64,
+    pub age_months: u32,
+}
+
+impl From<aircraft::AgedAircraft> for AgedAircraft {
+    fn from(
+        aircraft::AgedAircraft {
+            registration,
+            icao_type,
+            delivered_at,
+            age_months,
+        }: aircraft::AgedAircraft,
+    ) -> Self {
+        Self {
+            registration,
+            icao_type,
+            delivered_at,
+            age_months,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AircraftStats {
+    pub total_types: u32,
+    pub manufacturers: Vec<Share>,
+    pub types_by_flights: Vec<TypeTally>,
+    pub types_by_minutes: Vec<TypeTally>,
+    pub types_by_distance: Vec<TypeTally>,
+    pub most_flown: Option<TypeTally>,
+    pub tails: Vec<TailTally>,
+    pub seat_classes: SeatClassCounts,
+    pub seat_positions: PositionCounts,
+    pub favourite_seat: Option<SeatTally>,
+    pub reasons: ReasonCounts,
+    pub decades: Vec<DecadeCount>,
+    pub median_age_months: Option<u32>,
+    pub newest: Option<AgedAircraft>,
+    pub oldest: Option<AgedAircraft>,
+}
+
+impl From<aircraft::AircraftStats> for AircraftStats {
+    fn from(s: aircraft::AircraftStats) -> Self {
+        // Exhaustive destructuring: a new core field fails to compile here.
+        let aircraft::AircraftStats {
+            total_types,
+            manufacturers,
+            types_by_flights,
+            types_by_minutes,
+            types_by_distance,
+            most_flown,
+            tails,
+            seat_classes,
+            seat_positions,
+            favourite_seat,
+            reasons,
+            decades,
+            median_age_months,
+            newest,
+            oldest,
+        } = s;
+        Self {
+            total_types,
+            manufacturers: mapped(manufacturers),
+            types_by_flights: mapped(types_by_flights),
+            types_by_minutes: mapped(types_by_minutes),
+            types_by_distance: mapped(types_by_distance),
+            most_flown: most_flown.map(Into::into),
+            tails: mapped(tails),
+            seat_classes: seat_classes.into(),
+            seat_positions: seat_positions.into(),
+            favourite_seat: favourite_seat.map(Into::into),
+            reasons: reasons.into(),
+            decades: mapped(decades),
+            median_age_months,
+            newest: newest.map(Into::into),
+            oldest: oldest.map(Into::into),
+        }
+    }
+}
+
+/// Aircraft statistics over completed and diverted flights, optionally limited
+/// to one local departure year. `types` is the reference behind manufacturers
+/// and seat positions, `facts` the delivery dates and names behind ages, and
+/// `as_of` (unix seconds) the instant ages are measured to.
+#[uniffi::export]
+pub fn compute_aircraft_stats(
+    flights: Vec<PastFlight>,
+    year: Option<i32>,
+    types: Vec<TypeInfo>,
+    facts: Vec<AircraftFact>,
+    as_of: i64,
+) -> AircraftStats {
+    let flights: Vec<passport::PastFlight> = mapped(flights);
+    let types: Vec<aircraft::TypeInfo> = mapped(types);
+    let facts: Vec<aircraft::AircraftFact> = mapped(facts);
+    aircraft::compute_aircraft_stats(&flights, year, &types, &facts, as_of).into()
+}
+
+/// Window, middle or aisle for a seat ("23A") in the economy layout of an
+/// aircraft family ("a320", "b777", ...); nil for other families or letters.
+#[uniffi::export]
+pub fn seat_position(seat: String, family: String) -> Option<SeatPosition> {
+    aircraft::seat_position(&seat, &family).map(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -829,6 +1157,12 @@ mod tests {
             (12, 7, 9)
         );
         assert_eq!(d.regions[1].region, Region::NorthAmerica);
+        let s = compute_aircraft_stats(vec![], None, vec![], vec![], 0);
+        assert!(s.most_flown.is_none() && s.median_age_months.is_none());
+        assert_eq!(
+            seat_position("12A".into(), "a320".into()),
+            Some(SeatPosition::Window)
+        );
     }
 
     #[test]

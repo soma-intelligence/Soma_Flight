@@ -243,6 +243,11 @@ typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureRes
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_AIRCRAFT_STATS
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_AIRCRAFT_STATS
+RustBuffer uniffi_flightcore_ffi_fn_func_compute_aircraft_stats(RustBuffer flights, RustBuffer year, RustBuffer types, RustBuffer facts, int64_t as_of, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_PASSPORT
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_COMPUTE_PASSPORT
 RustBuffer uniffi_flightcore_ffi_fn_func_compute_passport(RustBuffer flights, RustBuffer year, RustCallStatus *_Nonnull out_status
@@ -271,6 +276,11 @@ RustBuffer uniffi_flightcore_ffi_fn_func_flight_category(RustBuffer ceiling_ft, 
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_GREAT_CIRCLE
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_GREAT_CIRCLE
 RustBuffer uniffi_flightcore_ffi_fn_func_great_circle(RustBuffer a, RustBuffer b, uint32_t segments, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_SEAT_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_SEAT_POSITION
+RustBuffer uniffi_flightcore_ffi_fn_func_seat_position(RustBuffer seat, RustBuffer family, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_FLIGHTCORE_FFI_RUSTBUFFER_ALLOC
@@ -533,6 +543,12 @@ void ffi_flightcore_ffi_rust_future_free_void(uint64_t handle
 void ffi_flightcore_ffi_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_AIRCRAFT_STATS
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_AIRCRAFT_STATS
+uint16_t uniffi_flightcore_ffi_checksum_func_compute_aircraft_stats(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_COMPUTE_PASSPORT
 uint16_t uniffi_flightcore_ffi_checksum_func_compute_passport(void
@@ -566,6 +582,12 @@ uint16_t uniffi_flightcore_ffi_checksum_func_flight_category(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_GREAT_CIRCLE
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_GREAT_CIRCLE
 uint16_t uniffi_flightcore_ffi_checksum_func_great_circle(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_SEAT_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_SEAT_POSITION
+uint16_t uniffi_flightcore_ffi_checksum_func_seat_position(void
     
 );
 #endif

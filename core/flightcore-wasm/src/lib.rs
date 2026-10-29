@@ -1,6 +1,7 @@
 //! Deno/WASM binding over `flightcore`. JSON strings in, JSON strings out.
 //! Malformed input yields `{"error":"..."}`, never a panic.
 
+use flightcore::aircraft::{AircraftFact, TypeInfo, compute_aircraft_stats};
 use flightcore::delay::{BoardFlight, compute_stats};
 use flightcore::geo::{Coord, MAX_SEGMENTS, distance_km, great_circle};
 use flightcore::passport::{PastFlight, compute_passport};
@@ -73,5 +74,24 @@ pub fn compute_passport_detail_js(
         let flights: Vec<PastFlight> = parse("flights", flights_json)?;
         let countries: Vec<CountryInfo> = parse("countries", countries_json)?;
         Ok(compute_passport_detail(&flights, year, &countries))
+    })())
+}
+
+/// `as_of` is unix seconds (a JS BigInt); ages are measured up to it.
+#[wasm_bindgen(js_name = computeAircraftStats)]
+pub fn compute_aircraft_stats_js(
+    flights_json: &str,
+    year: Option<i32>,
+    types_json: &str,
+    facts_json: &str,
+    as_of: i64,
+) -> String {
+    finish((|| {
+        let flights: Vec<PastFlight> = parse("flights", flights_json)?;
+        let types: Vec<TypeInfo> = parse("types", types_json)?;
+        let facts: Vec<AircraftFact> = parse("facts", facts_json)?;
+        Ok(compute_aircraft_stats(
+            &flights, year, &types, &facts, as_of,
+        ))
     })())
 }

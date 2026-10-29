@@ -1,3 +1,6 @@
+use flightcore::aircraft::{
+    AircraftFact, SeatPosition, TypeInfo, compute_aircraft_stats, seat_position,
+};
 use flightcore::delay::{BoardFlight, DelayStats, compute_stats};
 use flightcore::geo::{Coord, distance_km, great_circle};
 use flightcore::passport::{PastFlight, compute_passport};
@@ -270,6 +273,76 @@ fn passport_detail_fixture_cases() {
     for c in &f.cases {
         let got = serde_json::to_value(compute_passport_detail(&c.flights, c.year, &c.countries))
             .unwrap();
+        assert_eq!(got, c.expected, "{}", c.name);
+    }
+}
+
+#[derive(Deserialize)]
+struct SeatCase {
+    seat: String,
+    family: String,
+    expected: Option<SeatPosition>,
+}
+
+#[derive(Deserialize)]
+struct AircraftCase {
+    name: String,
+    year: Option<i32>,
+    as_of: i64,
+    types: Vec<TypeInfo>,
+    facts: Vec<AircraftFact>,
+    flights: Vec<PastFlight>,
+    expected: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct AircraftFile {
+    seat_position: Vec<SeatCase>,
+    cases: Vec<AircraftCase>,
+}
+
+fn load_aircraft() -> AircraftFile {
+    serde_json::from_str(include_str!("../../fixtures/aircraft.json")).unwrap()
+}
+
+#[test]
+fn aircraft_fixture_seat_positions() {
+    let f = load_aircraft();
+    assert!(f.seat_position.len() > 100);
+    for c in f.seat_position {
+        assert_eq!(
+            seat_position(&c.seat, &c.family),
+            c.expected,
+            "{:?} {:?}",
+            c.seat,
+            c.family
+        );
+    }
+}
+
+#[test]
+fn aircraft_fixture_cases() {
+    let f = load_aircraft();
+    let names: Vec<&str> = f.cases.iter().map(|c| c.name.as_str()).collect();
+    for required in [
+        "empty",
+        "single_flight",
+        "sparse",
+        "single_aircraft",
+        "seat_positions_every_layout",
+        "unknown_family_seat",
+        "decades_with_gap",
+        "manufacturer_percent_rounding",
+        "no_facts",
+        "year_filter",
+    ] {
+        assert!(names.contains(&required), "missing case {required}");
+    }
+    for c in &f.cases {
+        let got = serde_json::to_value(compute_aircraft_stats(
+            &c.flights, c.year, &c.types, &c.facts, c.as_of,
+        ))
+        .unwrap();
         assert_eq!(got, c.expected, "{}", c.name);
     }
 }

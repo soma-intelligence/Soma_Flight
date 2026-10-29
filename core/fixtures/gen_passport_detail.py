@@ -42,7 +42,9 @@ def half_up(total, n):
 
 
 def known(c):
-    return c if c else None
+    """Country codes compare trimmed and upper case; empty is unknown."""
+    c = (c or "").strip().upper()
+    return c or None
 
 
 def ref(f):
@@ -132,10 +134,13 @@ def detail(flights, year, countries):
     country_rows = [{"iso2": k, "flights": v}
                     for k, v in sorted(per_country.items(), key=lambda kv: (-kv[1], kv[0]))]
 
-    region_of = {c["iso2"]: c["region"] for c in countries}
+    region_of = {}
+    for c in countries:  # first listing of a code wins
+        if known(c["iso2"]) and known(c["iso2"]) not in region_of:
+            region_of[known(c["iso2"])] = c["region"]
     regions = []
     for r in REGIONS:
-        total = sum(1 for c in countries if c["region"] == r)
+        total = list(region_of.values()).count(r)
         visited = sum(1 for c in per_country if region_of.get(c) == r)
         regions.append({"region": r, "visited": visited, "total": total})
 
@@ -287,6 +292,29 @@ case("ties_go_to_earliest",
       fl("2025-03-04T10:00", "DDDD", "EEEE", 200, ident="T4", block=40),
       fl("2025-03-02T10:00", "EEEE", "FFFF", 500, ident="T5", block=None)])
 
+case("connection_chain_overnight",
+     # Four legs, each under 8 h on the ground, the last two after local midnight in Los Angeles:
+     # KSEA, KSFO and KLAX are connections, so only the first origin and every destination count.
+     [fl("2025-09-01T03:00", "CYVR", "KSEA", 200, tz="America/Vancouver", block=60, oc="CA", dc="US"),
+      # Lands 04:00 UTC, departs 06:30 UTC (23:30 local on 31 August).
+      fl("2025-09-01T06:30", "KSEA", "KSFO", 1090, tz=LA, block=120, oc="US", dc="US"),
+      # Lands 08:30 UTC, departs 09:15 UTC (02:15 local on 1 September).
+      fl("2025-09-01T09:15", "KSFO", "KLAX", 540, tz=LA, block=80, oc="US", dc="US"),
+      # Lands 10:35 UTC, departs 18:34 UTC: 7 h 59 min.
+      fl("2025-09-01T18:34", "KLAX", "MMMX", 2500, tz=LA, block=240, oc="US", dc="MX"),
+      # Back the next day well over 8 h later: MMMX counts as a visit on both ends.
+      fl("2025-09-03T18:00", "MMMX", "KLAX", 2500, tz="America/Mexico_City", block=240, oc="MX", dc="US")])
+
+case("iso2_case_and_duplicate_reference",
+     # "fr", " FR " and "FR" are one country; the reference lists FR twice (the second time in the
+     # wrong region) and "us" in lower case: totals and visits count each code once, in its first region.
+     [fl("2025-10-01T10:00", "LFPG", "LFMN", 690, block=85, oc="fr", dc=" FR "),
+      fl("2025-10-02T10:00", "LFMN", "KJFK", 6400, block=540, oc="FR", dc="us"),
+      fl("2025-10-03T10:00", "KJFK", "KBOS", 300, block=70, oc="US", dc="  ")],
+     countries=[{"iso2": "FR", "region": "europe"}, {"iso2": "fr", "region": "asia"},
+                {"iso2": "us", "region": "north_america"}, {"iso2": "GB", "region": "europe"},
+                {"iso2": "", "region": "oceania"}])
+
 case("sparse",
      [fl("2025-08-01T10:00", "AAAA", "BBBB", 700, airline=None, ac=None, block=None),
       fl("2025-08-03T10:00", "BBBB", "AAAA", 700, airline=None, ac=None, block=None)],
@@ -322,8 +350,9 @@ meta = {
         "route_key": "ORIG-DEST ICAO, direction kept",
         "tally_by_flights_order": "flights desc, distance_km desc, key asc",
         "tally_by_distance_order": "distance_km desc, flights desc, key asc",
-        "countries": "each known country once per flight; sorted flights desc then iso2 asc",
-        "regions": "all nine in declaration order; total = reference countries in the region; visited = distinct visited countries in the region (countries absent from the reference count nowhere)",
+        "country_codes": "origin_country, destination_country and reference iso2 compare trimmed and upper case; empty is unknown",
+        "countries": "each known country once per flight (upper case); sorted flights desc then iso2 asc",
+        "regions": "all nine in declaration order; the reference is deduplicated by iso2 (first listing wins, empty codes dropped); total = reference countries in the region; visited = distinct visited countries in the region (countries absent from the reference count nowhere)",
     },
 }
 here = os.path.dirname(os.path.abspath(__file__))

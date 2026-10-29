@@ -154,8 +154,10 @@ fn avg(total: u64, n: u64) -> u64 {
     if n == 0 { 0 } else { (2 * total + n) / (2 * n) }
 }
 
-fn known(c: &Option<String>) -> Option<&str> {
-    c.as_deref().filter(|c| !c.is_empty())
+/// ISO 3166-1 alpha-2, trimmed and upper case; `None` when empty.
+fn known(c: Option<&str>) -> Option<String> {
+    let t = c?.trim();
+    (!t.is_empty()).then(|| t.to_uppercase())
 }
 
 /// First flight (in departure order) whose key beats every earlier one, so ties keep the earliest.
@@ -268,15 +270,18 @@ pub fn compute_passport_detail(
     let n = kept.len() as u64;
 
     let (mut domestic, mut international, mut unknown) = (0u32, 0u32, 0u32);
-    let mut per_country: BTreeMap<&str, u32> = BTreeMap::new();
+    let mut per_country: BTreeMap<String, u32> = BTreeMap::new();
     for f in &kept {
-        let (o, d) = (known(&f.origin_country), known(&f.destination_country));
-        match (o, d) {
+        let (o, d) = (
+            known(f.origin_country.as_deref()),
+            known(f.destination_country.as_deref()),
+        );
+        match (&o, &d) {
             (Some(o), Some(d)) if o == d => domestic += 1,
             (Some(_), Some(_)) => international += 1,
             _ => unknown += 1,
         }
-        let once: BTreeSet<&str> = o.into_iter().chain(d).collect();
+        let once: BTreeSet<String> = o.into_iter().chain(d).collect();
         for c in once {
             *per_country.entry(c).or_insert(0) += 1;
         }
@@ -311,17 +316,20 @@ pub fn compute_passport_detail(
     let mut country_rows: Vec<CountryCount> = per_country
         .iter()
         .map(|(c, n)| CountryCount {
-            iso2: c.to_string(),
+            iso2: c.clone(),
             flights: *n,
         })
         .collect();
     // BTreeMap order is iso2 ascending; a stable sort by count keeps it as the tie break.
     country_rows.sort_by_key(|c| Reverse(c.flights));
 
-    let region_of: HashMap<&str, Region> = countries
-        .iter()
-        .map(|c| (c.iso2.as_str(), c.region))
-        .collect();
+    // Reference codes compare like flight codes; a code listed twice keeps its first region.
+    let mut region_of: HashMap<String, Region> = HashMap::new();
+    for c in countries {
+        if let Some(k) = known(Some(&c.iso2)) {
+            region_of.entry(k).or_insert(c.region);
+        }
+    }
     let regions = Region::ALL
         .iter()
         .map(|&r| RegionCount {
@@ -330,7 +338,7 @@ pub fn compute_passport_detail(
                 .keys()
                 .filter(|c| region_of.get(*c) == Some(&r))
                 .count() as u32,
-            total: countries.iter().filter(|c| c.region == r).count() as u32,
+            total: region_of.values().filter(|&&v| v == r).count() as u32,
         })
         .collect();
 

@@ -207,6 +207,99 @@ export interface PassportDetail {
   regions: RegionCount[];
 }
 
+/** One reference aircraft type. Input keys are snake_case. */
+export interface TypeInfo {
+  icao_type: string;
+  /** Family code, "a320", "b777", ... */
+  family: string;
+  manufacturer: string;
+}
+
+/** What is known about one airframe. Input keys are snake_case. */
+export interface AircraftFact {
+  registration: string;
+  /** Unix seconds. */
+  delivered_at: number | null;
+  name: string | null;
+}
+
+export interface Share {
+  key: string;
+  flights: number;
+  /** Rounded half up. */
+  percent: number;
+}
+
+export interface TypeTally {
+  icaoType: string;
+  flights: number;
+  minutes: number;
+  distanceKm: number;
+}
+
+export interface TailTally {
+  registration: string;
+  flights: number;
+  icaoType: string | null;
+  airline: string | null;
+  name: string | null;
+}
+
+export interface SeatClassCounts {
+  economy: number;
+  premiumEconomy: number;
+  business: number;
+  first: number;
+}
+
+export interface PositionCounts {
+  window: number;
+  middle: number;
+  aisle: number;
+}
+
+export interface SeatTally {
+  seat: string;
+  flights: number;
+}
+
+export interface ReasonCounts {
+  personal: number;
+  business: number;
+}
+
+export interface DecadeCount {
+  decade: number;
+  aircraft: number;
+}
+
+export interface AgedAircraft {
+  registration: string;
+  icaoType: string | null;
+  /** Unix seconds. */
+  deliveredAt: number;
+  ageMonths: number;
+}
+
+export interface AircraftStats {
+  totalTypes: number;
+  manufacturers: Share[];
+  typesByFlights: TypeTally[];
+  typesByMinutes: TypeTally[];
+  typesByDistance: TypeTally[];
+  mostFlown: TypeTally | null;
+  tails: TailTally[];
+  seatClasses: SeatClassCounts;
+  seatPositions: PositionCounts;
+  favouriteSeat: SeatTally | null;
+  reasons: ReasonCounts;
+  /** Ascending, empty decades between the first and the last included. */
+  decades: DecadeCount[];
+  medianAgeMonths: number | null;
+  newest: AgedAircraft | null;
+  oldest: AgedAircraft | null;
+}
+
 const MAX_SEGMENTS = 100_000;
 const I32_MIN = -2_147_483_648;
 const I32_MAX = 2_147_483_647;
@@ -302,6 +395,31 @@ export function computePassportDetail(
       stringify(flights, "flights"),
       year,
       stringify(countries, "countries"),
+    ),
+  );
+}
+
+/** `asOf` is unix seconds; aircraft ages are measured up to it. */
+export function computeAircraftStats(
+  flights: PastFlight[],
+  year: number | undefined,
+  types: TypeInfo[],
+  facts: AircraftFact[],
+  asOf: number,
+): AircraftStats {
+  if (year !== undefined && !isI32(year)) {
+    throw new Error(`invalid year: ${year} (i32 integer)`);
+  }
+  if (!Number.isSafeInteger(asOf)) {
+    throw new Error(`invalid asOf: ${asOf} (integer unix seconds)`);
+  }
+  return unwrap<AircraftStats>(
+    wasm.computeAircraftStats(
+      stringify(flights, "flights"),
+      year,
+      stringify(types, "types"),
+      stringify(facts, "facts"),
+      BigInt(asOf),
     ),
   );
 }

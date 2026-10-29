@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const computeAircraftStats: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint) => [number, number];
 export const computePassport: (a: number, b: number, c: number) => [number, number];
 export const computePassportDetail: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const computeStats: (a: number, b: number) => [number, number];
