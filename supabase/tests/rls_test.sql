@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(24);
 
 -- users A and B (profile trigger fires on insert)
 insert into auth.users (id, instance_id, aud, role, email)
@@ -35,9 +35,48 @@ select throws_ok(
   $$select * from webhook_inbox$$,
   '42501', null, 'clients cannot read webhook_inbox');
 
+-- WITH CHECK: B cannot write rows for A, nor raise its own plan.
+select throws_ok(
+  $$insert into user_flights (user_id, flight_id)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111')$$,
+  '42501', null, 'B cannot follow a flight as A');
+select throws_ok(
+  $$insert into past_flights (user_id, date, ident)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', now(), 'X')$$,
+  '42501', null, 'B cannot add a past flight for A');
+insert into past_flights (user_id, date, ident)
+values ('bbbbbbbb-0000-0000-0000-000000000002', now(), 'B1');
+select throws_ok(
+  $$update past_flights set user_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$,
+  '42501', null, 'B cannot hand its past flights to A');
+select throws_ok(
+  $$update profiles set plan = 'pro' where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'$$,
+  '42501', null, 'B cannot change its plan');
+update profiles set display_name = 'Mallory' where user_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select display_name from profiles where user_id = 'bbbbbbbb-0000-0000-0000-000000000002'),
+  null::text, 'B update of A''s profile touches nothing');
+
 -- as A
 set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated"}';
 select is((select count(*) from user_flights), 1::bigint, 'A sees own user_flights');
+
+-- anon: no table in public is readable or writable, and reads fail outright.
+reset role;
+select is_empty(
+  $$select c.relname::text from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p')
+      and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert')
+        or has_table_privilege('anon', c.oid, 'update') or has_table_privilege('anon', c.oid, 'delete'))$$,
+  'anon has no privilege on any public table');
+set local role anon;
+set local request.jwt.claims = '{"role":"anon"}';
+select throws_ok($$select * from flights$$, '42501', null, 'anon cannot read flights');
+select throws_ok($$select * from past_flights$$, '42501', null, 'anon cannot read past_flights');
+select throws_ok($$select * from profiles$$, '42501', null, 'anon cannot read profiles');
+select throws_ok(
+  $$insert into user_flights (user_id, flight_id)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111')$$,
+  '42501', null, 'anon cannot follow');
 
 reset role;
 select is((select count(*) from profiles), 2::bigint, 'profile trigger created both profiles');

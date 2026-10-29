@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(49);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -78,10 +78,10 @@ select is((select count(*) from past_flights where flight_id = 'f2000000-0000-00
 select is((select count(*) from user_flights where flight_id = 'f2000000-0000-0000-0000-000000000002'),
   1::bigint, 'its follow stays');
 select results_eq(
-  $$select destination_icao, status::text, origin_tz from past_flights
+  $$select destination_icao, status::text, origin_tz, delay_minutes from past_flights
     where flight_id = 'f3000000-0000-0000-0000-000000000003'$$,
-  $$values ('KOAK'::text, 'diverted'::text, 'America/Los_Angeles'::text)$$,
-  'diverted flight: destination is where it landed, status diverted');
+  $$values ('KOAK'::text, 'diverted'::text, 'America/Los_Angeles'::text, 0)$$,
+  'diverted flight: destination is where it landed, status diverted, delay 0');
 select results_eq(
   $$select block_minutes, delay_minutes from past_flights where flight_id = 'f4000000-0000-0000-0000-000000000004'$$,
   $$values (100, 10)$$,
@@ -93,6 +93,89 @@ select results_eq(
   'canceled flight: status canceled, block null');
 select is((select count(*) from user_flights where user_id = 'a9a9a9a9-0000-0000-0000-000000000001'),
   1::bigint, 'only the recent follow is left');
+
+-- Edge cases. E1: IATA codes only. E2: unknown origin airport. E3: landed with actual_on only, 30
+-- minutes late. E4: actual_in before actual_out (bad data). E5: stuck en_route with actual_out
+-- (80 h, no update for 50 h). E6: stuck scheduled, never left. E7: stuck at 71 h (not yet).
+-- E8: stuck time but updated 10 h ago (not yet). E9: finished, follower's profile is deleted.
+insert into auth.users (id, instance_id, aud, role, email) values
+  ('c9c9c9c9-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'arch-c@test.local');
+update profiles set status = 'deleted' where user_id = 'c9c9c9c9-0000-0000-0000-000000000003';
+insert into flights (id, provider_id, ident, origin_icao, origin_iata, destination_icao, destination_iata,
+  status, scheduled_out, scheduled_in, actual_out, actual_on, actual_in, updated_at)
+values
+  ('e1000000-0000-0000-0000-000000000001', 'ARCH-E1', 'AFR1', null, 'CDG', null, 'SFO', 'arrived',
+   now() - interval '40 hours', now() - interval '29 hours', now() - interval '40 hours', null, now() - interval '29 hours', now()),
+  ('e2000000-0000-0000-0000-000000000002', 'ARCH-E2', 'XX2', 'ZZZZ', null, 'KSFO', null, 'arrived',
+   now() - interval '40 hours', now() - interval '29 hours', now() - interval '40 hours', null, now() - interval '29 hours', now()),
+  ('e3000000-0000-0000-0000-000000000003', 'ARCH-E3', 'XX3', 'KSFO', null, 'KLAX', null, 'landed',
+   now() - interval '40 hours', now() - interval '39 hours', now() - interval '40 hours', now() - interval '38 hours 30 minutes', null, now()),
+  ('e4000000-0000-0000-0000-000000000004', 'ARCH-E4', 'XX4', 'KSFO', null, 'KLAX', null, 'arrived',
+   now() - interval '40 hours', now() - interval '39 hours', now() - interval '38 hours', null, now() - interval '39 hours', now()),
+  ('e5000000-0000-0000-0000-000000000005', 'ARCH-E5', 'XX5', 'KSFO', null, 'KJFK', null, 'en_route',
+   now() - interval '86 hours', now() - interval '80 hours', now() - interval '86 hours', null, null, now() - interval '50 hours'),
+  ('e6000000-0000-0000-0000-000000000006', 'ARCH-E6', 'XX6', 'KSFO', null, 'KJFK', null, 'scheduled',
+   now() - interval '86 hours', now() - interval '80 hours', null, null, null, now() - interval '50 hours'),
+  ('e7000000-0000-0000-0000-000000000007', 'ARCH-E7', 'XX7', 'KSFO', null, 'KJFK', null, 'scheduled',
+   now() - interval '77 hours', now() - interval '71 hours', null, null, null, now() - interval '50 hours'),
+  ('e8000000-0000-0000-0000-000000000008', 'ARCH-E8', 'XX8', 'KSFO', null, 'KJFK', null, 'en_route',
+   now() - interval '86 hours', now() - interval '80 hours', now() - interval '86 hours', null, null, now() - interval '10 hours'),
+  ('e9000000-0000-0000-0000-000000000009', 'ARCH-E9', 'XX9', 'KSFO', null, 'KJFK', null, 'arrived',
+   now() - interval '40 hours', now() - interval '35 hours', now() - interval '40 hours', null, now() - interval '35 hours', now());
+insert into user_flights (user_id, flight_id)
+select 'b9b9b9b9-0000-0000-0000-000000000002', id from flights where provider_id like 'ARCH-E%' and provider_id <> 'ARCH-E9';
+insert into user_flights (user_id, flight_id)
+values ('c9c9c9c9-0000-0000-0000-000000000003', 'e9000000-0000-0000-0000-000000000009');
+insert into push_tokens (user_id, token, kind, flight_id) values
+  ('b9b9b9b9-0000-0000-0000-000000000002', 'arch-la-e6', 'live_activity', 'e6000000-0000-0000-0000-000000000006');
+
+select is(archive_landed_flights(), 5, 'E1 to E5 archived; E6 dropped without a row; E7, E8, E9 none');
+select results_eq(
+  $$select origin_icao, destination_icao, distance_km between 8900 and 9000, origin_tz from past_flights
+    where flight_id = 'e1000000-0000-0000-0000-000000000001'$$,
+  $$values ('LFPG'::text, 'KSFO'::text, true, 'Europe/Paris'::text)$$,
+  'IATA-only flight: airports matched on IATA for codes, distance and origin_tz');
+select results_eq(
+  $$select origin_icao, distance_km, origin_tz from past_flights where flight_id = 'e2000000-0000-0000-0000-000000000002'$$,
+  $$values ('ZZZZ'::text, 0, null::text)$$,
+  'unknown airport: distance 0, origin_tz null');
+select results_eq(
+  $$select block_minutes, delay_minutes from past_flights where flight_id = 'e3000000-0000-0000-0000-000000000003'$$,
+  $$values (null::int, 30)$$,
+  'landed without actual_in: no block, delay from actual_on');
+select is((select block_minutes from past_flights where flight_id = 'e4000000-0000-0000-0000-000000000004'),
+  null::int, 'actual_in before actual_out: block null');
+select results_eq(
+  $$select status::text, block_minutes, delay_minutes, distance_km > 0 from past_flights
+    where flight_id = 'e5000000-0000-0000-0000-000000000005'$$,
+  $$values ('completed'::text, null::int, 0, true)$$,
+  'stuck flight that left: completed, block null, delay 0');
+select is((select count(*) from past_flights where flight_id = 'e6000000-0000-0000-0000-000000000006'),
+  0::bigint, 'stuck flight never seen leaving: no row');
+select is((select count(*) from user_flights where flight_id = 'e6000000-0000-0000-0000-000000000006'),
+  0::bigint, 'stuck flight never seen leaving: follow removed');
+select is((select count(*) from push_tokens where token = 'arch-la-e6'), 0::bigint,
+  'stuck flight never seen leaving: Live Activity token removed');
+select is((select array_agg(flight_id::text order by flight_id) from user_flights
+  where user_id = 'b9b9b9b9-0000-0000-0000-000000000002'),
+  array['e7000000-0000-0000-0000-000000000007', 'e8000000-0000-0000-0000-000000000008'],
+  'stuck at 71 hours or updated recently: follows kept');
+select is((select count(*) from past_flights where user_id = 'c9c9c9c9-0000-0000-0000-000000000003'),
+  0::bigint, 'deleted profile: no past row');
+select is((select count(*) from user_flights where user_id = 'c9c9c9c9-0000-0000-0000-000000000003'),
+  0::bigint, 'deleted profile: follow removed');
+
+-- past_flights fields the app decodes as non-optional are not null with defaults.
+insert into past_flights (user_id, date) values ('a9a9a9a9-0000-0000-0000-000000000001', now());
+select results_eq(
+  $$select ident, origin_icao, destination_icao, distance_km, delay_minutes, status::text
+    from past_flights where user_id = 'a9a9a9a9-0000-0000-0000-000000000001' and flight_id is null$$,
+  $$values (''::text, ''::text, ''::text, 0, 0, 'completed'::text)$$,
+  'manual row gets defaults');
+select throws_ok(
+  $$insert into past_flights (user_id, date, distance_km) values ('a9a9a9a9-0000-0000-0000-000000000001', now(), null)$$,
+  '23502', null, 'distance_km cannot be null');
+select is(haversine_km(0, 0, 0, 180)::int, 20015, 'antipodal pair does not raise');
 
 -- Alert sweep candidates: an alert on a flight nobody follows; not one that is followed.
 update flights set alert_id = 900001 where id = 'f1000000-0000-0000-0000-000000000001';
@@ -117,7 +200,10 @@ insert into airport_snapshots (icao, kind, fetched_at, last_viewed_at) values
   ('KSFO', 'departures', now() - interval '8 days', now() - interval '1 day');
 insert into route_cache (origin_icao, destination_icao, date, fetched_at) values
   ('LFPG', 'KSFO', '2026-10-01', now() - interval '2 hours');
-select ok((prune_maintenance(5000) ->> 'rate_events')::int >= 1, 'prune reports its counts');
+insert into rate_events (user_id, endpoint, at)
+select 'a9a9a9a9-0000-0000-0000-000000000001', 'arch-loop', now() - interval '5 hours' from generate_series(1, 5);
+select ok((prune_maintenance(2) ->> 'rate_events')::int >= 6, 'prune loops batches until one comes back short');
+select ok((prune_maintenance(5000) ->> 'rate_events')::int >= 0, 'prune reports its counts');
 select is((select array_agg(endpoint order by endpoint) from rate_events
   where user_id = 'a9a9a9a9-0000-0000-0000-000000000001'), array['arch-new'], 'old rate events pruned');
 select is((select array_agg(body->>'t') from webhook_inbox where body->>'t' like 'arch-%'),
@@ -138,15 +224,24 @@ select ok(not has_function_privilege('anon', 'public.archive_landed_flights()', 
 select ok(not has_function_privilege('anon', 'public.handle_new_user()', 'execute')
   and not has_function_privilege('authenticated', 'public.handle_new_user()', 'execute'),
   'handle_new_user is not executable by clients');
-create function public.t9_default_probe() returns int language sql as 'select 1';
-select ok(not has_function_privilege('anon', 'public.t9_default_probe()', 'execute')
-  and not has_function_privilege('authenticated', 'public.t9_default_probe()', 'execute'),
-  'a new public function is not executable by anon or authenticated by default');
+-- Guard: no function in public may be executable by anon or authenticated (directly or through
+-- PUBLIC). Allow-list for deliberate client RPCs, empty today.
+select is_empty(
+  $$select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and (has_function_privilege('anon', p.oid, 'execute')
+           or has_function_privilege('authenticated', p.oid, 'execute'))
+      and p.oid::regprocedure::text <> all (array[]::text[])$$,
+  'no public function is executable by anon or authenticated');
 
 -- Cron jobs and the pg_net call through Vault (rolled back: nothing is sent).
 select bag_has('select jobname::text from cron.job',
-  $$values ('archive-landed-flights'), ('maintenance-alerts'), ('maintenance-prune'), ('usage-alert')$$,
-  'the four jobs are scheduled');
+  $$values ('archive-landed-flights'), ('maintenance-alerts'), ('maintenance-prune'), ('usage-alert'),
+    ('cron-history-prune')$$,
+  'the five jobs are scheduled');
+select is((select schedule from cron.job where jobname = 'usage-alert'), '0 8-11 * * *',
+  'usage-alert retries hourly until 11:00');
+-- Inside this transaction only: the rollback restores any real secrets of the same names.
 delete from vault.secrets where name in ('functions_base_url', 'service_role_key');
 select vault.create_secret('http://example.test/functions/v1/', 'functions_base_url');
 select vault.create_secret('test-service-key', 'service_role_key');

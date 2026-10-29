@@ -3,7 +3,8 @@
 //   an unfollow whose provider delete failed) go through releaseAlert, which deletes at the
 //   provider first and clears alert_id only on success. Bounded to ALERT_BATCH flights a run.
 // prune: prune_maintenance() deletes expired rate events, route cache, unviewed snapshots, old
-//   processed webhook rows and old events of unfollowed flights, each bounded to PRUNE_BATCH rows.
+//   processed webhook rows and old events of unfollowed flights, in batches of PRUNE_BATCH rows until
+//   a batch comes back short (at most 20 batches per table per run).
 // Answer: { ok, mode, checked, released, kept } or { ok, mode, pruned: { <table>: count } }.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { isServiceCaller } from "../_shared/auth.ts";

@@ -1,7 +1,8 @@
-// POST /usage-alert. Service role only: pg_cron calls it daily at 08:00 UTC through pg_net.
+// POST /usage-alert. Service role only: pg_cron calls it at 08:00 to 11:00 UTC through pg_net.
 // Sums yesterday's (UTC) usage_counters.estimated_cost. Above USAGE_ALERT_USD (default 25) it emails
-// OWNER_EMAIL once through Resend. The day is claimed in usage_alerts before sending, so parallel or
-// repeated runs send at most one email a day; a failed send releases the claim for the next run.
+// OWNER_EMAIL once through Resend. The day is claimed in usage_alerts before sending and marked
+// sent_at after, so parallel or repeated runs send at most one email a day. A failed send releases
+// the claim for the next hourly run; a claim left by a crash is taken over after 15 minutes.
 // The email carries the day, the totals and the per-endpoint breakdown, never a key or token.
 // Answer: { ok, day, total, threshold, sent, alreadySent? }.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
@@ -9,6 +10,8 @@ import { isServiceCaller } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 
 export const DEFAULT_THRESHOLD_USD = 25;
+/** A claim older than this with no sent_at is a crashed run, taken over by the next one. */
+export const CLAIM_STALE_MS = 15 * 60_000;
 export const RESEND_URL = "https://api.resend.com/emails";
 const DEFAULT_FROM = "Soma Flight <alerts@somalabs.me>";
 
@@ -61,7 +64,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       throw new ApiError("unauthorized", 401, "Service role only");
     }
     const { db } = deps;
-    const day = yesterdayUtc((deps.now ?? (() => new Date()))());
+    const nowDate = (deps.now ?? (() => new Date()))();
+    const day = yesterdayUtc(nowDate);
     const counters = await db.from("usage_counters")
       .select("endpoint, calls, estimated_cost").eq("day", day);
     if (counters.error) {
@@ -87,9 +91,27 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       );
     }
 
-    const claim = await db.from("usage_alerts").insert({ day, total });
+    // Claim the day. A row with sent_at set means sent; one with sent_at null is a send in
+    // progress, or a crash between claim and send once its claim is CLAIM_STALE_MS old.
+    const claimedAt = nowDate.toISOString();
+    const claim = await db.from("usage_alerts").insert({
+      day,
+      total,
+      claimed_at: claimedAt,
+    });
     if (claim.error) {
-      if (claim.error.code === "23505") {
+      if (claim.error.code !== "23505") {
+        throw new Error(`usage alert claim failed: ${claim.error.message}`);
+      }
+      const stale = new Date(nowDate.getTime() - CLAIM_STALE_MS).toISOString();
+      const retake = await db.from("usage_alerts")
+        .update({ total, claimed_at: claimedAt })
+        .eq("day", day).is("sent_at", null).lt("claimed_at", stale)
+        .select("day");
+      if (retake.error) {
+        throw new Error(`usage alert claim failed: ${retake.error.message}`);
+      }
+      if ((retake.data ?? []).length === 0) {
         return json({
           ok: true,
           day,
@@ -99,7 +121,6 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           alreadySent: true,
         });
       }
-      throw new Error(`usage alert claim failed: ${claim.error.message}`);
     }
 
     let sent = false;
@@ -125,13 +146,20 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       console.error("usage-alert: resend request failed", (e as Error).name);
     }
     if (!sent) {
-      const undo = await db.from("usage_alerts").delete().eq("day", day);
+      const undo = await db.from("usage_alerts").delete().eq("day", day)
+        .is("sent_at", null).eq("claimed_at", claimedAt);
       if (undo.error) {
         console.error(
           `usage-alert: claim release failed: ${undo.error.message}`,
         );
       }
       throw new ApiError("provider_unavailable", 503, "Email send failed");
+    }
+    const mark = await db.from("usage_alerts")
+      .update({ sent_at: new Date().toISOString() }).eq("day", day);
+    // The email went out; the Resend idempotency key covers a resend within 24 hours.
+    if (mark.error) {
+      console.error(`usage-alert: sent_at write failed: ${mark.error.message}`);
     }
     return json({ ok: true, day, total, threshold: limit, sent: true });
   } catch (e) {

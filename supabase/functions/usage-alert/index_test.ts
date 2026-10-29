@@ -230,3 +230,38 @@ utest("only yesterday (UTC) counts", async (day, now) => {
     await clear(today);
   }
 });
+
+utest("sent_at is recorded after a good send", async (day, now) => {
+  await spend(day, [["flights_ident", 400, 30]]);
+  assertEquals((await (await call(now, fakeResend())).json()).sent, true);
+  const row = await db.from("usage_alerts").select("sent_at").eq("day", day)
+    .single();
+  assert(row.data?.sent_at);
+});
+
+utest(
+  "a claim left by a crash is taken over after 15 minutes",
+  async (day, now) => {
+    await spend(day, [["flights_ident", 400, 30]]);
+    const resend = fakeResend();
+    const recent = new Date(now.getTime() - 5 * 60_000).toISOString();
+    const ins = await db.from("usage_alerts").insert({
+      day,
+      total: 30,
+      claimed_at: recent,
+    });
+    if (ins.error) throw ins.error;
+    const busy = await (await call(now, resend)).json();
+    assertEquals(busy.sent, false);
+    assertEquals(resend.sent.length, 0);
+
+    const old = new Date(now.getTime() - 20 * 60_000).toISOString();
+    await db.from("usage_alerts").update({ claimed_at: old }).eq("day", day);
+    const taken = await (await call(now, resend)).json();
+    assertEquals(taken.sent, true);
+    assertEquals(resend.sent.length, 1);
+    const again = await (await call(now, resend)).json();
+    assertEquals(again.alreadySent, true);
+    assertEquals(resend.sent.length, 1);
+  },
+);
