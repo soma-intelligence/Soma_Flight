@@ -1,7 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["flightcore"]
+members = ["flightcore", "flightcore-wasm"]
 
 [workspace.package]
 edition = "2024"
 rust-version = "1.99"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
