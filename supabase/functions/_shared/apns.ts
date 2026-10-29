@@ -40,6 +40,11 @@ export async function apnsJwt(
   return jwt;
 }
 
+/** Drops the cached provider token, after APNs refused it. */
+export function evictApnsJwt(teamId: string, keyId: string, p8: string): void {
+  jwtCache.delete(`${teamId}\n${keyId}\n${p8}`);
+}
+
 export interface SendOpts {
   pushType: "alert" | "liveactivity";
   /** Bundle id for alerts; `<bundle id>.push-type.liveactivity` for Live Activities. */
@@ -52,6 +57,8 @@ export interface SendOpts {
   /** Absolute UNIX seconds after which APNs drops an undelivered push. 0 means do not store. */
   expiration?: number;
   collapseId?: string;
+  /** Wait before the one retry on 429 or 503. Default 500 ms. */
+  retryDelayMs?: number;
 }
 
 export interface ApnsResult {
@@ -66,8 +73,20 @@ export function apnsHost(sandbox: boolean): string {
 
 const SEND_TIMEOUT_MS = 10_000;
 
-/** One push to one device token. Never throws: network failures come back as status 0. */
+/** One push to one device token, retried once after a pause on 429 or 503. Never throws. */
 export async function sendApns(
+  token: string,
+  payload: object,
+  opts: SendOpts,
+  fetchFn: typeof fetch = fetch,
+): Promise<ApnsResult> {
+  const first = await sendOnce(token, payload, opts, fetchFn);
+  if (first.status !== 429 && first.status !== 503) return first;
+  await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 500));
+  return sendOnce(token, payload, opts, fetchFn);
+}
+
+async function sendOnce(
   token: string,
   payload: object,
   opts: SendOpts,
@@ -113,10 +132,34 @@ export async function sendApns(
   }
 }
 
-/** True when APNs says the token is dead and the row should go. */
+/** True when APNs says the token is gone for good (410 or Unregistered). */
 export function isDeadToken(r: ApnsResult): boolean {
-  return r.status === 410 || r.reason === "BadDeviceToken" ||
-    r.reason === "Unregistered";
+  return r.status === 410 || r.reason === "Unregistered";
+}
+
+/** BadDeviceToken: a bad token, or every token when APNS_SANDBOX is wrong. Needs two strikes. */
+export function isBadDeviceToken(r: ApnsResult): boolean {
+  return r.reason === "BadDeviceToken";
+}
+
+/** The provider token itself was refused: nothing in this batch can succeed. */
+export function isProviderTokenRejected(r: ApnsResult): boolean {
+  return r.status === 403 &&
+    (r.reason === "ExpiredProviderToken" ||
+      r.reason === "InvalidProviderToken");
+}
+
+/** Constant-time string compare (hashes both, so length does not leak either). */
+export async function safeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const xa = new Uint8Array(x), ya = new Uint8Array(y);
+  let diff = 0;
+  for (let i = 0; i < xa.length; i++) diff |= xa[i] ^ ya[i];
+  return diff === 0;
 }
 
 /** Runs `fn` over `items`, at most `limit` at a time. A rejection never stops the others. */

@@ -1,5 +1,6 @@
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import {
+  decodeJwt,
   decodeProtectedHeader,
   exportPKCS8,
   generateKeyPair,
@@ -10,8 +11,11 @@ import {
   apnsHost,
   apnsJwt,
   delayMinutes,
+  evictApnsJwt,
+  isBadDeviceToken,
   isDeadToken,
   mapLimit,
+  safeEqual,
   sendApns,
 } from "./apns.ts";
 
@@ -157,7 +161,9 @@ Deno.test("sendApns reports reasons and survives network errors", async () => {
   };
   const r = await sendApns("ab", {}, o, gone);
   assertEquals(r, { ok: false, status: 400, reason: "BadDeviceToken" });
-  assert(isDeadToken(r));
+  assert(isBadDeviceToken(r));
+  assert(!isDeadToken(r)); // needs a second strike
+  assert(isDeadToken({ ok: false, status: 400, reason: "Unregistered" }));
   assert(isDeadToken({ ok: false, status: 410 }));
   assert(
     !isDeadToken({ ok: false, status: 403, reason: "InvalidProviderToken" }),
@@ -180,4 +186,55 @@ Deno.test("mapLimit caps concurrency and isolates failures", async () => {
   assertEquals(peak, 10);
   assertEquals(res.filter((r) => r.status === "rejected").length, 1);
   assertEquals(res.filter((r) => r.status === "fulfilled").length, 24);
+});
+
+Deno.test("sendApns retries once on 429 and 503 only", async () => {
+  const o = {
+    pushType: "alert" as const,
+    topic: "t",
+    sandbox: false,
+    jwt: "j",
+    retryDelayMs: 0,
+  };
+  for (const code of [429, 503]) {
+    let n = 0;
+    const f = (() =>
+      Promise.resolve(
+        ++n === 1
+          ? Response.json({ reason: "ServiceUnavailable" }, { status: code })
+          : new Response(null, { status: 200 }),
+      )) as unknown as typeof fetch;
+    assertEquals((await sendApns("ab", {}, o, f)).ok, true);
+    assertEquals(n, 2);
+  }
+  let n = 0;
+  const always = (() => {
+    n++;
+    return Promise.resolve(
+      Response.json({ reason: "InternalServerError" }, { status: 500 }),
+    );
+  }) as unknown as typeof fetch;
+  assertEquals((await sendApns("ab", {}, o, always)).status, 500);
+  assertEquals(n, 1);
+  n = 0;
+  const down = (() => {
+    n++;
+    return Promise.resolve(Response.json({}, { status: 503 }));
+  }) as unknown as typeof fetch;
+  assertEquals((await sendApns("ab", {}, o, down)).status, 503);
+  assertEquals(n, 2);
+});
+
+Deno.test("evictApnsJwt forces a new provider token", async () => {
+  const iat = (jwt: string) => decodeJwt(jwt).iat;
+  const a = await apnsJwt("TE", "KE", P8, 3_000_000);
+  assertEquals(iat(await apnsJwt("TE", "KE", P8, 3_000_600)), iat(a));
+  evictApnsJwt("TE", "KE", P8);
+  assertEquals(iat(await apnsJwt("TE", "KE", P8, 3_000_600)), 3_000_600);
+});
+
+Deno.test("safeEqual compares strings", async () => {
+  assert(await safeEqual("abc", "abc"));
+  assert(!(await safeEqual("abc", "abd")));
+  assert(!(await safeEqual("abc", "abcd")));
 });

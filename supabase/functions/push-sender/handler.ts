@@ -6,13 +6,25 @@ import {
   alertCopy,
   apnsJwt,
   type ApnsResult,
+  evictApnsJwt,
   type FlightEventKind,
+  isBadDeviceToken,
   isDeadToken,
+  isProviderTokenRejected,
   mapLimit,
+  safeEqual,
   sendApns,
 } from "../_shared/apns.ts";
 
 export const SEND_CONCURRENCY = 10;
+/** Live Activity pushes at priority 10 are budgeted by Apple; routine updates go at 5. */
+const IMMEDIATE_KINDS = new Set([
+  "gate_change",
+  "departure",
+  "arrival",
+  "cancel",
+  "diversion",
+]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 1000;
 
@@ -30,6 +42,8 @@ export interface Deps {
   config: () => ApnsConfig | undefined;
   fetchFn?: typeof fetch;
   now?: () => Date;
+  /** The project's service role key, compared with the bearer token. Defaults to the env. */
+  serviceKey?: () => string | undefined;
 }
 
 export function configFromEnv(): ApnsConfig | undefined {
@@ -49,20 +63,27 @@ export function configFromEnv(): ApnsConfig | undefined {
   };
 }
 
-/** The `role` claim of a bearer JWT, unverified: the gateway already checked the signature. */
-function callerRole(req: Request): string | null {
-  const m = /^Bearer\s+([\w-]+)\.([\w-]+)\.([\w-]*)$/i.exec(
+/**
+ * Two layers. The bearer token must equal SUPABASE_SERVICE_ROLE_KEY (constant time), and when it
+ * is a JWT its `role` claim must be service_role. The gateway's verify_jwt is a third.
+ */
+async function isServiceCaller(req: Request, deps: Deps): Promise<boolean> {
+  const key =
+    (deps.serviceKey ?? (() => Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")))();
+  const bearer = /^Bearer\s+(\S+)$/i.exec(
     req.headers.get("authorization") ?? "",
-  );
-  if (!m) return null;
+  )?.[1];
+  if (!key || !bearer || !(await safeEqual(bearer, key))) return false;
+  const parts = bearer.split(".");
+  if (parts.length !== 3) return true; // opaque secret key (sb_secret_...), no claims to read
   try {
-    const b64 = m[2].replace(/-/g, "+").replace(/_/g, "/");
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const claims = JSON.parse(
       atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, "=")),
     );
-    return typeof claims?.role === "string" ? claims.role : null;
+    return claims?.role === "service_role";
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -94,23 +115,32 @@ async function pagedUsers(
   }
 }
 
+interface TokenRow {
+  token: string;
+  updated_at: string;
+  bad_count: number;
+}
+
 async function tokensFor(
   db: SupabaseClient,
   kind: "alert" | "live_activity",
   users: Set<string>,
   flightId?: string,
-): Promise<string[]> {
+): Promise<TokenRow[]> {
   const ids = [...users];
-  const tokens: string[] = [];
+  const tokens: TokenRow[] = [];
   for (let i = 0; i < ids.length; i += 200) {
-    let q = db.from("push_tokens").select("token").eq("kind", kind)
+    let q = db.from("push_tokens").select("token, updated_at, bad_count").eq(
+      "kind",
+      kind,
+    )
       .in("user_id", ids.slice(i, i + 200));
     if (flightId) q = q.eq("flight_id", flightId);
     const { data, error } = await q;
     if (error) throw new Error(`tokens read failed: ${error.message}`);
-    for (const r of data) tokens.push(r.token as string);
+    for (const r of data) tokens.push(r as TokenRow);
   }
-  return [...new Set(tokens)];
+  return [...new Map(tokens.map((t) => [t.token, t])).values()];
 }
 
 function progressOf(f: Row, now: number): number {
@@ -157,33 +187,71 @@ interface Tally {
   removed: number;
 }
 
-/** Sends to every token, a few at a time. Dead tokens are deleted; other failures are logged without secrets. */
+interface FanOutOpts {
+  /** Delete the row after a good send (a Live Activity that ended). */
+  deleteOnSuccess?: boolean;
+  /** Called when APNs refuses the provider token, so the cache can drop it. */
+  onProviderRejected?: () => void;
+}
+
+/**
+ * Sends to every token, a few at a time. 410 and Unregistered delete the row. BadDeviceToken is a
+ * strike: the second one deletes, unless every token of the batch got it, which points at a wrong
+ * APNS_SANDBOX and changes nothing. Rows are only touched while their updated_at is the one read,
+ * so a token re-registered meanwhile survives. Logs carry status and reason, never tokens.
+ */
 async function fanOut(
   db: SupabaseClient,
   label: string,
   kind: "alert" | "live_activity",
-  tokens: string[],
+  tokens: TokenRow[],
   send: (token: string) => Promise<ApnsResult>,
+  opts: FanOutOpts = {},
 ): Promise<Tally> {
   const tally: Tally = { sent: 0, failed: 0, removed: 0 };
-  await mapLimit(tokens, SEND_CONCURRENCY, async (token) => {
+  const bad: TokenRow[] = [];
+  let rejected = false;
+  const remove = async (t: TokenRow) => {
+    const del = await db.from("push_tokens").delete().eq("token", t.token)
+      .eq("kind", kind).eq("updated_at", t.updated_at);
+    if (del.error) {
+      console.error(`${label}: token delete failed: ${del.error.message}`);
+    } else tally.removed++;
+  };
+  await mapLimit(tokens, SEND_CONCURRENCY, async (t) => {
+    if (rejected) {
+      tally.failed++;
+      return;
+    }
     let r: ApnsResult;
     try {
-      r = await send(token);
+      r = await send(t.token);
     } catch {
       r = { ok: false, status: 0, reason: "send_error" };
     }
     if (r.ok) {
       tally.sent++;
+      if (opts.deleteOnSuccess) await remove(t);
+      else if (t.bad_count > 0) {
+        await db.from("push_tokens").update({ bad_count: 0 }).eq(
+          "token",
+          t.token,
+        )
+          .eq("kind", kind).eq("updated_at", t.updated_at);
+      }
       return;
     }
     tally.failed++;
-    if (isDeadToken(r)) {
-      const del = await db.from("push_tokens").delete().eq("token", token)
-        .eq("kind", kind);
-      if (del.error) {
-        console.error(`${label}: token delete failed: ${del.error.message}`);
-      } else tally.removed++;
+    if (isProviderTokenRejected(r)) {
+      rejected = true;
+      opts.onProviderRejected?.();
+      console.error(
+        `${label}: apns rejected the provider token reason=${r.reason}, batch stopped`,
+      );
+    } else if (isDeadToken(r)) {
+      await remove(t);
+    } else if (isBadDeviceToken(r)) {
+      bad.push(t);
     } else {
       console.error(
         `${label}: apns failure status=${r.status} reason=${
@@ -192,6 +260,25 @@ async function fanOut(
       );
     }
   });
+  if (bad.length > 0) {
+    if (tokens.length >= 2 && bad.length === tokens.length) {
+      console.error(
+        `${label}: BadDeviceToken for all ${tokens.length} tokens, likely APNS_SANDBOX mismatch, nothing deleted`,
+      );
+    } else {
+      console.error(`${label}: BadDeviceToken for ${bad.length} token(s)`);
+      for (const t of bad) {
+        if (t.bad_count >= 1) await remove(t);
+        else {
+          await db.from("push_tokens").update({ bad_count: t.bad_count + 1 })
+            .eq("token", t.token).eq("kind", kind).eq(
+              "updated_at",
+              t.updated_at,
+            );
+        }
+      }
+    }
+  }
   return tally;
 }
 
@@ -200,7 +287,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (req.method !== "POST") {
       throw new ApiError("invalid_request", 405, "Use POST");
     }
-    if (callerRole(req) !== "service_role") {
+    if (!(await isServiceCaller(req, deps))) {
       throw new ApiError("unauthorized", 401, "Service role only");
     }
     let body: { flightId?: unknown; eventId?: unknown };
@@ -244,6 +331,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const nowS = Math.floor(nowDate.getTime() / 1000);
     const jwt = await apnsJwt(cfg.teamId, cfg.keyId, cfg.p8, nowS);
     const fetchFn = deps.fetchFn ?? fetch;
+    const evict = () => evictApnsJwt(cfg.teamId, cfg.keyId, cfg.p8);
     const hour = nowS + 3600;
 
     // Alerts: followers who want notifications.
@@ -280,7 +368,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
             priority: 10,
             expiration: hour,
             collapseId: eventId,
-          }, fetchFn)),
+          }, fetchFn), { onProviderRejected: evict }),
       );
     }
 
@@ -313,9 +401,10 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           topic: `${cfg.bundleId}.push-type.liveactivity`,
           sandbox: cfg.sandbox,
           jwt,
-          priority: 10,
+          priority: IMMEDIATE_KINDS.has(kind) ? 10 : 5,
           expiration: hour,
         }, fetchFn),
+      { deleteOnSuccess: ends, onProviderRejected: evict },
     );
 
     return json({ ok: true, alerts: alertTally, liveActivities: laTally });

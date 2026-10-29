@@ -21,6 +21,8 @@ const b64 = (o: object) =>
   );
 const jwt = (role: string) => `${b64({ alg: "HS256" })}.${b64({ role })}.sig`;
 
+const SERVICE_KEY = jwt("service_role");
+
 interface Call {
   url: string;
   headers: Record<string, string>;
@@ -30,7 +32,7 @@ interface Call {
 }
 
 function fakeApns(
-  respond: (token: string) => Response = () =>
+  respond: (token: string) => Response | Promise<Response> = () =>
     new Response(null, { status: 200 }),
 ) {
   const calls: Call[] = [];
@@ -112,12 +114,15 @@ async function addToken(
   return token;
 }
 
+let clock = "2026-11-03T23:00:00Z";
+
 function call(
   flightId: string,
   eventId: string,
   apns: ReturnType<typeof fakeApns>,
   role = "service_role",
   cfg: ApnsConfig | null = CFG,
+  serviceKey: string = SERVICE_KEY,
 ) {
   return handler(
     new Request("http://localhost/push-sender", {
@@ -128,8 +133,9 @@ function call(
     {
       db,
       config: () => cfg ?? undefined,
+      serviceKey: () => serviceKey,
       fetchFn: apns.fn,
-      now: () => new Date("2026-11-03T23:00:00Z"),
+      now: () => new Date(clock),
     },
   );
 }
@@ -159,7 +165,12 @@ test(
         method: "POST",
         body: JSON.stringify({ flightId: f, eventId: e }),
       }),
-      { db, config: () => CFG, fetchFn: apns.fn },
+      {
+        db,
+        config: () => CFG,
+        fetchFn: apns.fn,
+        serviceKey: () => SERVICE_KEY,
+      },
     );
     assertEquals(none.status, 401);
     await none.body?.cancel();
@@ -178,7 +189,7 @@ test(db, "push-sender validates input and unknown events", async () => {
       headers: { authorization: `Bearer ${jwt("service_role")}` },
       body: JSON.stringify({ flightId: "x", eventId: "y" }),
     }),
-    { db, config: () => CFG, fetchFn: apns.fn },
+    { db, config: () => CFG, fetchFn: apns.fn, serviceKey: () => SERVICE_KEY },
   );
   assertEquals(bad.status, 400);
   await bad.body?.cancel();
@@ -233,48 +244,164 @@ test(
   },
 );
 
-test(db, "410 response deletes the token and others still go out", async () => {
+test(
+  db,
+  "410 deletes the token, BadDeviceToken only on a second strike",
+  async () => {
+    const f = await makeFlight();
+    const users = [
+      await makeUser(db),
+      await makeUser(db),
+      await makeUser(db),
+      await makeUser(db),
+    ];
+    for (const u of users) await follow(u, f);
+    const [gone, bad, boom, fine] = await Promise.all(
+      users.map((u) => addToken(u, "alert")),
+    );
+    const logs: string[] = [];
+    const origErr = console.error;
+    console.error = (...a: unknown[]) => logs.push(a.join(" "));
+    const respond = (t: string) =>
+      t === gone
+        ? Response.json({ reason: "Unregistered" }, { status: 410 })
+        : t === bad
+        ? Response.json({ reason: "BadDeviceToken" }, { status: 400 })
+        : t === boom
+        ? Response.json({ reason: "InternalServerError" }, { status: 500 })
+        : new Response(null, { status: 200 });
+    let first, second;
+    try {
+      first = await (await call(
+        f,
+        await makeEvent(f, "departure"),
+        fakeApns(respond),
+      )).json();
+      assertEquals(
+        (await tokensLeft([gone, bad, boom, fine])).sort(),
+        [bad, boom, fine].sort(),
+      );
+      const strike = await db.from("push_tokens").select("bad_count").eq(
+        "token",
+        bad,
+      ).single();
+      assertEquals(strike.data?.bad_count, 1);
+      second =
+        await (await call(f, await makeEvent(f, "arrival"), fakeApns(respond)))
+          .json();
+    } finally {
+      console.error = origErr;
+    }
+    assertEquals(first.alerts, { sent: 1, failed: 3, removed: 1 });
+    assertEquals(second.alerts.removed, 1);
+    assertEquals(
+      (await tokensLeft([bad, boom, fine])).sort(),
+      [boom, fine].sort(),
+    );
+    const text = logs.join("\n");
+    assert(text.includes("status=500") && text.includes("InternalServerError"));
+    for (const secret of [gone, bad, boom, fine, "bearer"]) {
+      assert(!text.includes(secret));
+    }
+  },
+);
+
+test(
+  db,
+  "BadDeviceToken for every token logs a sandbox mismatch and deletes nothing",
+  async () => {
+    const f = await makeFlight();
+    const u = await makeUser(db);
+    await follow(u, f);
+    const tokens = [
+      await addToken(u, "alert"),
+      await addToken(u, "alert"),
+      await addToken(u, "alert"),
+    ];
+    await db.from("push_tokens").update({ bad_count: 1 }).in("token", tokens);
+    const logs: string[] = [];
+    const origErr = console.error;
+    console.error = (...a: unknown[]) => logs.push(a.join(" "));
+    try {
+      const apns = fakeApns(() =>
+        Response.json({ reason: "BadDeviceToken" }, { status: 400 })
+      );
+      const out = await (await call(f, await makeEvent(f, "departure"), apns))
+        .json();
+      assertEquals(out.alerts, { sent: 0, failed: 3, removed: 0 });
+    } finally {
+      console.error = origErr;
+    }
+    assertEquals((await tokensLeft(tokens)).length, 3);
+    assert(logs.join("\n").includes("APNS_SANDBOX mismatch"));
+  },
+);
+
+test(db, "a token re-registered during the send survives a 410", async () => {
   const f = await makeFlight();
-  const users = [
-    await makeUser(db),
-    await makeUser(db),
-    await makeUser(db),
-    await makeUser(db),
-  ];
-  for (const u of users) await follow(u, f);
-  const [gone, bad, boom, fine] = await Promise.all(
-    users.map((u) => addToken(u, "alert")),
-  );
-  const e = await makeEvent(f, "departure");
-  const logs: string[] = [];
-  const origErr = console.error;
-  console.error = (...a: unknown[]) => logs.push(a.join(" "));
-  const apns = fakeApns((t) =>
-    t === gone
-      ? Response.json({ reason: "Unregistered" }, { status: 410 })
-      : t === bad
-      ? Response.json({ reason: "BadDeviceToken" }, { status: 400 })
-      : t === boom
-      ? Response.json({ reason: "InternalServerError" }, { status: 500 })
-      : new Response(null, { status: 200 })
-  );
-  let out;
-  try {
-    out = await (await call(f, e, apns)).json();
-  } finally {
-    console.error = origErr;
-  }
-  assertEquals(out.alerts, { sent: 1, failed: 3, removed: 2 });
-  assertEquals(
-    (await tokensLeft([gone, bad, boom, fine])).sort(),
-    [boom, fine].sort(),
-  );
-  const text = logs.join("\n");
-  assert(text.includes("status=500") && text.includes("InternalServerError"));
-  for (const secret of [gone, bad, boom, fine, "bearer"]) {
-    assert(!text.includes(secret));
-  }
+  const [a, b] = [await makeUser(db), await makeUser(db)];
+  await follow(a, f);
+  const token = await addToken(a, "alert");
+  const apns = fakeApns(async () => {
+    await db.from("push_tokens").update({
+      user_id: b,
+      updated_at: new Date(Date.now() + 1000).toISOString(),
+    }).eq("token", token);
+    return Response.json({ reason: "Unregistered" }, { status: 410 });
+  });
+  const out = await (await call(f, await makeEvent(f, "departure"), apns))
+    .json();
+  assertEquals(out.alerts.failed, 1);
+  assertEquals((await tokensLeft([token])).length, 1);
 });
+
+test(
+  db,
+  "a rejected provider token stops the batch and drops the cached JWT",
+  async () => {
+    const f = await makeFlight();
+    const u = await makeUser(db);
+    await follow(u, f);
+    const ins = await db.from("push_tokens").insert(
+      Array.from(
+        { length: 40 },
+        () => ({ user_id: u, token: newToken(), kind: "alert" }),
+      ),
+    );
+    if (ins.error) throw ins.error;
+    const reject = () =>
+      Response.json({ reason: "ExpiredProviderToken" }, { status: 403 });
+    const origErr = console.error;
+    console.error = () => {};
+    const a1 = fakeApns(reject);
+    let out;
+    try {
+      out = await (await call(f, await makeEvent(f, "departure"), a1)).json();
+    } finally {
+      console.error = origErr;
+    }
+    assertEquals(out.alerts.sent, 0);
+    assertEquals(out.alerts.failed, 40);
+    assert(a1.calls.length < 40, `sent ${a1.calls.length}`);
+    const a2 = fakeApns();
+    clock = "2026-11-03T23:05:00Z";
+    try {
+      await (await call(f, await makeEvent(f, "arrival"), a2)).body?.cancel();
+    } finally {
+      clock = "2026-11-03T23:00:00Z";
+    }
+    const iat = (c: Call) =>
+      JSON.parse(
+        atob(
+          c.headers.authorization.split(".")[1].replace(/-/g, "+").replace(
+            /_/g,
+            "/",
+          ),
+        ),
+      ).iat;
+    assert(iat(a2.calls[0]) > iat(a1.calls[0]), "cached JWT was reused");
+  },
+);
 
 test(db, "push-sender sends many tokens at most 10 at a time", async () => {
   const f = await makeFlight();
@@ -321,6 +448,8 @@ test(db, "arrival sends liveactivity end", async () => {
   assertEquals(c.body.aps["content-state"].status, "landed");
   assertEquals(c.body.aps["content-state"].progress, 1);
   assertEquals(c.body.aps["content-state"].gateDestination, "B22");
+  assertEquals(c.headers["apns-priority"], "10");
+  assertEquals((await tokensLeft([la])).length, 0); // ended activities are forgotten
   assert(c.body.aps["dismissal-date"] > c.body.aps.timestamp);
 });
 
@@ -348,6 +477,8 @@ test(
     const c = apns.calls[0];
     assertEquals(c.token, laKeeps);
     assertEquals(c.body.aps.event, "update");
+    assertEquals(c.headers["apns-priority"], "5"); // a delay is not an immediate kind
+    assertEquals((await tokensLeft([laKeeps])).length, 1);
     assertEquals(c.body.aps["dismissal-date"], undefined);
     const s = c.body.aps["content-state"];
     assertEquals(Object.keys(s).sort(), [

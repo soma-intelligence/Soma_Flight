@@ -78,9 +78,18 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         throw new ApiError("not_found", 404, "You do not follow this flight");
       }
     }
+    const lower = token.toLowerCase();
+    const prev = await deps.db.from("push_tokens").select("user_id")
+      .eq("token", lower).eq("kind", kind).maybeSingle();
+    if (prev.data && prev.data.user_id !== userId) {
+      console.log(
+        `push token reassigned kind=${kind} from=${prev.data.user_id} to=${userId}`,
+      );
+    }
     const { error } = await deps.db.from("push_tokens").upsert({
       user_id: userId,
-      token: token.toLowerCase(),
+      token: lower,
+      bad_count: 0,
       kind,
       flight_id: kind === "live_activity" ? flightId as string : null,
       platform,
