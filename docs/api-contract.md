@@ -133,9 +133,11 @@ agree on without a conversion rule.
 
 ## brand-asset
 
-`GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]`
+`GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|wordmark|tail|side_view[&type=<ICAO type>]`
 
-- Answer: `{ version, format, width, url, smallUrl, expiresAt }`. `format` is `png` or `webp`: SVG is never stored or served, vectors are rasterised at sync (stored image 384 px on the long side, `smallUrl` the 192 px one, null for provider rasters). `width` is the pixel width of `url`. `url` is a signed URL into our private `brand-assets` bucket, valid 3600 s (`expiresAt`). The provider licence key never reaches the app.
+- Answer: `{ version, format, width, url, smallUrl, expiresAt }`. `format` is `png` or `webp`: SVG is never stored or served, vectors are rasterised at sync (stored image 384 px on the long side, `smallUrl` the 192 px one, null for provider rasters). `width` is the pixel width of `url`. `url` (and `smallUrl`) is a signed path into our private `brand-assets` bucket, relative to the project (`/storage/v1/object/sign/brand-assets/...?token=...`), valid 3600 s (`expiresAt`). The app joins it to the project URL it was configured with and downloads from that host only: the function's own `SUPABASE_URL` is an internal host on the local stack (`kong:8000`) and may differ from a custom API domain. The provider licence key never reaches the app.
+- Kinds: `logo` (the airline's symbol when it has one, else its wordmark file, with the wordmark's version), `logo_dark`, `wordmark` (the full name mark, never a symbol), `tail`, `side_view`.
+- `version`: the row's version for logos (the source file's content version, so `logo` and `wordmark` share it exactly when they are the same file); for `side_view`, the content version in the object name (with `m` when the sync mirrored it), so a re-upload for a nose change is a new version.
 - `type` is required for `side_view` (the aircraft ICAO type, e.g. `B38M`) and refused for every other kind (400 `invalid_request`).
 - Unknown airline, no stored asset, or an object gone from the bucket: 404 `not_found`. The app falls back to its own mark.
 - Object paths carry the version (`logos/<ICAO>/<kind>-<version>.<ext>`, `side-views/<ICAO>/<TYPE>-<version>.<ext>`), so a change is a new URL and a cache never mixes versions.

@@ -299,21 +299,25 @@ final class AircraftArtMemo {
 enum FinArt {
     /// Without a wordmark to compare against, a logo this close to square is taken for a symbol.
     static let symbolAspect: ClosedRange<CGFloat> = 0.6...1.6
-    /// A logo that differs from the airline's wordmark is its symbol (the backend's `.logo` is the
-    /// symbol when there is one); it still has to be roughly compact.
+    /// A logo whose version differs from the airline's wordmark is its symbol: the backend's `.logo` is
+    /// the symbol when there is one, else the wordmark file itself, and both rows carry the source file's
+    /// content version. The bytes are no guide (`.logo` is the 192 px rendition, `.wordmark` the 384 px
+    /// one). A symbol still has to be roughly compact.
     static let knownSymbolAspect: ClosedRange<CGFloat> = 0.4...2.5
     /// Smaller art would blur on a fin.
     static let minPixelHeight: CGFloat = 64
 
     /// What goes on the fin: the tail asset when there is one, else the logo when it is the airline's
-    /// symbol (it differs from the `.wordmark`; when the wordmark is unknown, a near square), else nothing.
+    /// symbol (its version differs from the `.wordmark`'s; when the wordmark is unknown, a near square),
+    /// else nothing.
     /// Never a monogram, never a wordmark, nothing under `minPixelHeight`.
     static func choose(tail: BrandAsset?, logo: BrandAsset?, wordmark: BrandAsset? = nil) -> BrandAsset? {
         func tallEnough(_ a: BrandAsset) -> Bool { (a.pixelSize?.height ?? 0) >= minPixelHeight }
         if let tail, tail.decodes, tallEnough(tail) { return tail }
         guard let logo, logo.decodes, tallEnough(logo), let aspect = logo.pixelAspect else { return nil }
         if let wordmark {
-            guard wordmark.data != logo.data else { return nil }
+            // Same source file: the airline has no symbol, and a wordmark never goes on the fin.
+            guard wordmark.version != logo.version else { return nil }
             return knownSymbolAspect.contains(aspect) ? logo : nil
         }
         return symbolAspect.contains(aspect) ? logo : nil

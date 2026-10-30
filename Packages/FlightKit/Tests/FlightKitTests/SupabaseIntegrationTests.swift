@@ -50,6 +50,44 @@ struct SupabaseIntegrationTests {
         if let failure { throw failure }
     }
 
+    /// The brand chain, end to end on the local stack: run `brand-assets-sync` first with
+    /// `LOGO_PROVIDER=commons` (see docs/operations.md), then `INTEGRATION=1 INTEGRATION_BRAND=1`. A signed-in
+    /// user asks `brand-asset` for the UAL, DLH and AFR logos through `SupabaseBrandAssetService`: the signed
+    /// paths join the app's project URL (127.0.0.1, while the function signs on kong:8000) and come back as
+    /// PNG bytes. The cache lives in a temporary folder removed at the end.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["INTEGRATION_BRAND"] == "1"))
+    func brandChainServesLogos() async throws {
+        let backend = SupabaseBackend(config: SupabaseConfig(url: Self.url, anonKey: env("SUPABASE_ANON_KEY") ?? Self.localAnonKey),
+                                      authStorage: MemoryAuthStorage())
+        let auth = SupabaseAuthService(backend: backend)
+        let email = "flight-brand-\(UUID().uuidString.prefix(8).lowercased())@example.com"
+        let sessions = auth.session
+        try await auth.signInWithEmail(email)
+        let code = try await Self.linkCode(to: email)
+        var callback = URLComponents(url: SupabaseBackend.authCallback, resolvingAgainstBaseURL: false)!
+        callback.queryItems = [URLQueryItem(name: "code", value: code)]
+        try await auth.handleOpenURL(callback.url!)
+        var signedIn: UserSession?
+        for await s in sessions where s != nil { signedIn = s; break }
+        let user = try #require(signedIn)
+        let dir = FileManager.default.temporaryDirectory.appending(path: "brand-chain-\(UUID().uuidString)")
+        var failure: (any Error)?
+        do {
+            let service = SupabaseBrandAssetService(backend: backend, cacheDir: dir)
+            for icao in ["UAL", "DLH", "AFR"] {
+                let lookup = await service.lookup(icao, .logo, type: nil)
+                let asset = try #require(lookup.asset, "\(icao) logo -> \(lookup)")
+                let png = asset.data.prefix(8) == Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+                print("INTEGRATION brand \(icao) logo -> v\(asset.version) \(asset.format) \(asset.data.count) bytes png=\(png)")
+                #expect(png && asset.format == "png" && asset.decodes)
+            }
+        } catch { failure = error }
+        try? FileManager.default.removeItem(at: dir)
+        await auth.signOut()
+        await Self.deleteUser(user.userId)
+        if let failure { throw failure }
+    }
+
     private func checks(auth: SupabaseAuthService, flights: SupabaseFlightService, airports: SupabaseAirportService,
                         history: SupabaseHistoryService) async throws {
         // No AEROAPI_KEY locally: the lookup fails and must surface as providerUnavailable.

@@ -411,6 +411,28 @@ struct BrandAssetTests {
         }
     }
 
+    @Test func relativeSignedPathsJoinTheProjectURL() throws {
+        let json = Data(#"{"version":"v1","format":"png","width":384,"url":"/storage/v1/object/sign/brand-assets/logos/UAL/logo-v1.png?token=a.b","smallUrl":"/storage/v1/object/sign/brand-assets/logos/UAL/logo-v1-small.png?token=c"}"#.utf8)
+        let meta = try JSONDecoder().decode(BrandAssetMeta.self, from: json)
+        // Local stack: the function signs on kong:8000, the app talks to 127.0.0.1:58321.
+        let local = URL(string: "http://127.0.0.1:58321")!
+        let onLocal = meta.resolved(against: local)
+        #expect(onLocal.url.absoluteString == "http://127.0.0.1:58321/storage/v1/object/sign/brand-assets/logos/UAL/logo-v1.png?token=a.b")
+        #expect(onLocal.smallUrl?.absoluteString == "http://127.0.0.1:58321/storage/v1/object/sign/brand-assets/logos/UAL/logo-v1-small.png?token=c")
+        #expect(BrandDownloader.allows(onLocal.url, project: local))
+        // Custom API domain.
+        let custom = URL(string: "https://api.example.com")!
+        let onCustom = meta.resolved(against: custom)
+        #expect(onCustom.url.host() == "api.example.com")
+        #expect(BrandDownloader.allows(onCustom.url, project: custom))
+        // An absolute answer from another host is kept as is and still refused.
+        let absolute = BrandAssetMeta(version: "v1", format: "png", url: URL(string: "http://kong:8000/storage/v1/x")!)
+        #expect(!BrandDownloader.allows(absolute.resolved(against: local).url, project: local))
+        // A protocol-relative path cannot smuggle another host past the check.
+        let sneaky = BrandAssetMeta(version: "v1", format: "png", url: URL(string: "//evil.example/x")!)
+        #expect(!BrandDownloader.allows(sneaky.resolved(against: local).url, project: local))
+    }
+
     @Test func wordmarkFallsBackToTheName() {
         let ual = Airline(id: "UAL", iata: "UA", name: "United Airlines", colorPrimary: "#0033A0")
         #expect(AirlineWordmark.fallbackText(airline: ual, code: "UA") == "United Airlines")

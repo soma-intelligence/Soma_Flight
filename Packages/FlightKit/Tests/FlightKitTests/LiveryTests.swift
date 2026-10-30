@@ -108,13 +108,27 @@ struct LiveryTests {
         #expect(!afr.finTakesArt)
         // Too small to hold up on a fin.
         #expect(FinArt.choose(tail: nil, logo: Self.asset(width: 40, height: 40)) == nil)
-        // The logo is the wordmark (same bytes): no fin art whatever its shape.
+        // The logo is the wordmark (same version): no fin art whatever its shape.
         let squareWord = Self.asset(width: 96, height: 96)
         #expect(FinArt.choose(tail: nil, logo: squareWord, wordmark: squareWord) == nil)
-        // The logo differs from the wordmark: it is the symbol, taken up to 2.5:1.
-        let wideSymbol = Self.asset(width: 180, height: 80)
+        // The logo's version differs from the wordmark's: it is the symbol, taken up to 2.5:1.
+        var wideSymbol = Self.asset(width: 180, height: 80)
+        wideSymbol.version = "symbol"
         #expect(FinArt.choose(tail: nil, logo: wideSymbol, wordmark: Self.asset(width: 300, height: 60)) == wideSymbol)
         #expect(FinArt.choose(tail: nil, logo: wideSymbol) == nil, "without a wordmark only near squares pass")
+    }
+
+    /// Live builds: an airline with only a wordmark gets the 192 px rendition as `.logo` and the 384 px
+    /// one as `.wordmark`. The bytes differ, the version (the source file's) does not: no fin art.
+    @Test func wordmarkOnlyAirlineGetsNoTailLogo() {
+        let small = BrandAsset(data: Self.png(width: 192, height: 120, inset: 1, gray: 0.2), format: "png", version: "abc123")
+        let large = BrandAsset(data: Self.png(width: 384, height: 240, inset: 1, gray: 0.2), format: "png", version: "abc123")
+        #expect(small.data != large.data)
+        #expect(FinArt.choose(tail: nil, logo: small, wordmark: large) == nil)
+        // The same shapes from a symbol file (its own version) do go on the fin.
+        var symbol = small
+        symbol.version = "def456"
+        #expect(FinArt.choose(tail: nil, logo: symbol, wordmark: large) == symbol)
     }
 
     @Test func finArtInkFlipsOnLowContrast() {

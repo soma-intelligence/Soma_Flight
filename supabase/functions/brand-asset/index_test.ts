@@ -2,13 +2,15 @@ import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1";
 import {
   fakeVerifier,
   loadIndexHandler,
+  localEnv,
   makeUser,
   test,
   testDb,
 } from "../_shared/test_util.ts";
-import { handler } from "./handler.ts";
+import { answeredVersion, handler, projectPath } from "./handler.ts";
 
 const db = await testDb();
+const { url: PROJECT_URL } = await localEnv();
 const BUCKET = "brand-assets";
 const TAG = crypto.randomUUID().slice(0, 8);
 
@@ -82,9 +84,13 @@ test(db, "servesSignedUrlWithVersion", async () => {
     assertEquals(body.format, "svg");
     assertEquals(body.width, 640);
     assertEquals(body.expiresAt, "2026-11-01T13:00:00.000Z");
-    assertMatch(body.url, /^https?:\/\//);
+    // A path on the project, never an absolute URL: the app joins it to its own project URL.
+    assertMatch(
+      body.url,
+      /^\/storage\/v1\/object\/sign\/brand-assets\/.+\?token=/,
+    );
     assert(body.url.includes(`logo-t${TAG}.svg`));
-    const file = await fetch(body.url);
+    const file = await fetch(new URL(body.url, PROJECT_URL));
     assertEquals(file.status, 200);
     assertMatch(await file.text(), /<svg/);
 
@@ -237,4 +243,43 @@ test(db, "servesTheWordmarkKind", async () => {
   } finally {
     await undo();
   }
+});
+
+Deno.test("projectPathDropsTheOrigin", () => {
+  assertEquals(
+    projectPath(
+      "http://kong:8000/storage/v1/object/sign/brand-assets/logos/UAL/a.png?token=x.y",
+    ),
+    "/storage/v1/object/sign/brand-assets/logos/UAL/a.png?token=x.y",
+  );
+  assertEquals(
+    projectPath(
+      "https://abc.supabase.co/storage/v1/object/sign/brand-assets/b.png?token=t",
+    ),
+    "/storage/v1/object/sign/brand-assets/b.png?token=t",
+  );
+});
+
+Deno.test("sideViewVersionFollowsTheStoredBytes", () => {
+  // Same pair version, re-uploaded mirrored after a nose fix: the answered version changes.
+  const plain = answeredVersion(
+    "side_view",
+    "side-views/UAL/B38M-0123abcd.png",
+    "pair-v1",
+  );
+  const mirrored = answeredVersion(
+    "side_view",
+    "side-views/UAL/B38M-0123abcdm.png",
+    "pair-v1",
+  );
+  assertEquals(plain, "0123abcd");
+  assertEquals(mirrored, "0123abcdm");
+  assert(plain !== mirrored);
+  // Logos keep the row version (the file's content version already).
+  assertEquals(
+    answeredVersion("logo", "logos/UAL/logo-0123abcd.png", "0123abcd"),
+    "0123abcd",
+  );
+  // A path outside the naming scheme falls back to the row.
+  assertEquals(answeredVersion("side_view", "odd/name", "pair-v1"), "pair-v1");
 });

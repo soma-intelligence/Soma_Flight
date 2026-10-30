@@ -3,8 +3,10 @@ import os
 import Supabase
 import Synchronization
 
-/// What `brand-asset` answers (docs/api-contract.md): the version, the stored format, and a signed URL
-/// into our bucket (plus the 192 px rendition of a rasterised vector, when there is one).
+/// What `brand-asset` answers (docs/api-contract.md): the version, the stored format, and a signed path
+/// into our bucket (plus the 192 px rendition of a rasterised vector, when there is one). The backend
+/// answers paths relative to the project (`/storage/v1/object/sign/...`); `resolved(against:)` joins them to
+/// the project URL the app was configured with, so the downloader's same-host rule holds by construction.
 public struct BrandAssetMeta: Decodable, Sendable, Equatable {
     public var version: String
     public var format: String
@@ -14,6 +16,19 @@ public struct BrandAssetMeta: Decodable, Sendable, Equatable {
 
     public init(version: String, format: String, width: Int? = nil, url: URL, smallUrl: URL? = nil) {
         self.version = version; self.format = format; self.width = width; self.url = url; self.smallUrl = smallUrl
+    }
+
+    /// The URLs joined to `project`. An absolute URL stays as it is (and the downloader then checks its host).
+    public func resolved(against project: URL) -> BrandAssetMeta {
+        var copy = self
+        copy.url = Self.join(url, project)
+        copy.smallUrl = smallUrl.map { Self.join($0, project) }
+        return copy
+    }
+
+    static func join(_ url: URL, _ project: URL) -> URL {
+        guard url.scheme == nil else { return url }
+        return URL(string: url.relativeString, relativeTo: project)?.absoluteURL ?? url
     }
 }
 
@@ -97,8 +112,9 @@ struct SupabaseBrandAssetTransport: BrandAssetTransport {
     func meta(airline: String, kind: BrandAssetKind, type: String?) async throws(APIError) -> BrandAssetMeta {
         var query = [URLQueryItem(name: "airline", value: airline), URLQueryItem(name: "kind", value: kind.rawValue)]
         if let type { query.append(URLQueryItem(name: "type", value: type)) }
+        let project = backend.projectURL
         return try await backend.call("brand-asset", method: .get, query: query) { data in
-            try JSONDecoder().decode(BrandAssetMeta.self, from: data)
+            try JSONDecoder().decode(BrandAssetMeta.self, from: data).resolved(against: project)
         }
     }
 

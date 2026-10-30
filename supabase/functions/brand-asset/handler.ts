@@ -1,6 +1,9 @@
 // GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|wordmark|tail|side_view[&type=<ICAO type>]
 //   -> { version, format, width, url, smallUrl, expiresAt }
-// Reads airline_assets and signs the object in the private brand-assets bucket for 3600 s. The app
+// Reads airline_assets and signs the object in the private brand-assets bucket for 3600 s. `url` and
+// `smallUrl` are paths relative to the project (`/storage/v1/object/sign/...?token=...`): the function's
+// own SUPABASE_URL is an internal host on the local stack (kong:8000) and may differ from a custom API
+// domain, so the app joins the path to the project URL it was configured with. The app
 // only ever sees our bucket; the provider licence key stays with the sync job. No row is 404
 // not_found (the app falls back to its own mark). `type` is required for side_view and refused for
 // every other kind. 600 calls per user per hour.
@@ -19,6 +22,29 @@ const KINDS = new Set([
   "tail",
   "side_view",
 ]);
+/**
+ * The version the app caches by. A side view's object name carries the content version of the
+ * stored bytes (`<TYPE>-<hash>[m].<ext>`, `m` when the sync mirrored it), which changes when the
+ * provider corrects the nose without bumping the pair's version; the row's `version` does not.
+ * Logos answer the row's version (it is already the file's content version).
+ */
+export function answeredVersion(
+  kind: string,
+  path: string,
+  rowVersion: string,
+): string {
+  if (kind !== "side_view") return rowVersion;
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const m = /^[A-Z0-9]{2,4}-([A-Za-z0-9_]+)\.[a-z]+$/.exec(name);
+  return m ? m[1] : rowVersion;
+}
+
+/** The signed URL without its origin: what the app resolves against its own project URL. */
+export function projectPath(signedUrl: string): string {
+  const u = new URL(signedUrl);
+  return u.pathname + u.search;
+}
+
 const ICAO_AIRLINE = /^[A-Z]{3}$/;
 const ICAO_TYPE = /^[A-Z0-9]{2,4}$/;
 
@@ -98,14 +124,16 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         got.data.path_small,
         SIGNED_URL_SECONDS,
       );
-      smallUrl = small.data?.signedUrl ?? null;
+      smallUrl = small.data?.signedUrl
+        ? projectPath(small.data.signedUrl)
+        : null;
     }
     const now = (deps.now ?? (() => new Date()))();
     return json({
-      version: got.data.version,
+      version: answeredVersion(kind, got.data.path, got.data.version),
       format: got.data.format,
       width: got.data.width,
-      url: signed.data.signedUrl,
+      url: projectPath(signed.data.signedUrl),
       smallUrl,
       expiresAt: new Date(now.getTime() + SIGNED_URL_SECONDS * 1000)
         .toISOString(),

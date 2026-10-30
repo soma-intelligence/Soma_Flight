@@ -3,7 +3,9 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 let cached: { url: string; key: string; anon: string } | undefined;
 
-async function localEnv(): Promise<{ url: string; key: string; anon: string }> {
+export async function localEnv(): Promise<
+  { url: string; key: string; anon: string }
+> {
   if (cached) return cached;
   let url = Deno.env.get("SUPABASE_URL");
   let key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
