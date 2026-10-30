@@ -49,6 +49,8 @@ public struct SupabaseConfig: Sendable, Equatable {
 /// failure to `APIError`.
 public final class SupabaseBackend: Sendable {
     public let client: SupabaseClient
+    /// The project URL (signed storage URLs are only followed to this host).
+    public let projectURL: URL
     /// Where the email sign-in link sends the user back (registered in both apps' Info.plist).
     public static let authCallback = URL(string: "somaflight://auth-callback")!
 
@@ -62,6 +64,7 @@ public final class SupabaseBackend: Sendable {
         } else {
             auth = .init(redirectToURL: Self.authCallback, emitLocalSessionAsInitialSession: true)
         }
+        projectURL = config.url
         client = SupabaseClient(supabaseURL: config.url, supabaseKey: config.anonKey,
                                 options: SupabaseClientOptions(auth: auth))
     }

@@ -185,6 +185,47 @@ struct ComponentSnapshotTests {
         }
     }
 
+    /// Twelve airlines at 44 pt, light page then dark page: monograms, then the bundled Commons logos
+    /// (plates where the ink does not read on the page).
+    @Test func airlineLogos() async throws {
+        let codes = ["AFR", "UAL", "DAL", "AAL", "BAW", "ACA", "AMX", "ASA", "JBU", "SWA", "NKS", "FFT"]
+        let ref = ReferenceData.bundled()
+        let airlines = codes.compactMap { ref.airline($0) }
+        #expect(airlines.count == codes.count)
+        let fake = FakeBrandAssetService.bundled()
+        await AirlineLogo.preload(codes, service: fake)
+        func grid(_ title: String, logos: Bool) -> some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 10) {
+                    ForEach(airlines) { a in
+                        VStack(spacing: 4) {
+                            // An airline the memo does not know draws the monogram.
+                            AirlineLogo(airline: logos ? a : Airline(id: "-" + a.id, iata: a.iata, name: a.name,
+                                                                     colorPrimary: a.colorPrimary),
+                                        code: a.iata ?? a.id, size: 44)
+                            Text(a.id).font(.system(size: 10)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        func half(_ scheme: ColorScheme) -> some View {
+            VStack(alignment: .leading, spacing: 14) {
+                grid("Monograms", logos: false)
+                grid("Logos", logos: true)
+            }
+            .padding(16)
+            .background(scheme == .dark ? Color(red: 0x18 / 255, green: 0x18 / 255, blue: 0x1A / 255)
+                        : Color(red: 0xF2 / 255, green: 0xF2 / 255, blue: 0xF7 / 255))
+            .environment(\.colorScheme, scheme)
+        }
+        try render("AirlineLogo") {
+            VStack(spacing: 0) { half(.light); half(.dark) }
+                .environment(\.brandAssets, fake)
+        }
+    }
+
     @Test func acknowledgements() throws {
         try render("Acknowledgements") { AcknowledgementsView(scrolls: false, onDone: {}, textLimit: 2) }
         try render("Acknowledgements-light", light: true) { AcknowledgementsView(scrolls: false, onDone: {}, textLimit: 2) }

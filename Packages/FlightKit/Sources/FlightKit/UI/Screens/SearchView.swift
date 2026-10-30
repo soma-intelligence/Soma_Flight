@@ -265,7 +265,7 @@ struct ResultRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             let code = flight.operator.map(AirportFacts.airlineCode) ?? TravelFacts.airlineCode(ident: flight.ident)
-            AirlineBadge(code: code, key: flight.operator ?? code)
+            AirlineMark(code: code, key: flight.operator ?? code)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(Format.ident(flight.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.secondary)
@@ -324,39 +324,6 @@ struct RouteText: View {
         Text("\(Text(from).fontWeight(.semibold)) to \(Text(to).fontWeight(.semibold))")
             .scaledFont(17)
             .foregroundStyle(Theme.primary)
-    }
-}
-
-/// Round badge with the airline code on the airline's brand colour (resolved through the reference
-/// list, a hash tint for an unknown airline), standing in for a logo until the logos land.
-struct AirlineBadge: View {
-    var code: String
-    var key: String
-    /// A fixed diameter (already scaled by the caller); nil keeps the 34 pt Dynamic Type size.
-    var diameter: CGFloat? = nil
-    @ScaledMetric(relativeTo: .body) private var size = Self.baseSize
-    @Environment(\.reference) private var reference
-
-    /// The default diameter and the monogram's size at that diameter; a fixed diameter keeps the ratio.
-    static let baseSize: CGFloat = 34
-    static let baseText: CGFloat = 12
-
-    var body: some View {
-        let size = diameter ?? size
-        monogram
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(Circle().fill(TravelFacts.badgeTint(code: code, key: key, reference: reference)))
-            .overlay(Circle().strokeBorder(.white.opacity(0.14), lineWidth: 1))
-            .accessibilityHidden(true)
-    }
-
-    @ViewBuilder private var monogram: some View {
-        if let diameter {
-            Text(code).font(.system(size: diameter * Self.baseText / Self.baseSize, weight: .bold))
-        } else {
-            Text(code).scaledFont(Self.baseText, weight: .bold)
-        }
     }
 }
 

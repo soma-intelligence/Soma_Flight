@@ -11,6 +11,8 @@ public struct AppEnvironment: Sendable {
     public var push: any PushService
     /// Airframe delivery dates and names for the Passport's ages; nil shows no ages.
     public var aircraftFacts: (any AircraftFactsService)?
+    /// Airline logos (versioned disk cache over `brand-asset`); the shells put it in `\.brandAssets`.
+    public var brand: any BrandAssetService
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -25,9 +27,10 @@ public struct AppEnvironment: Sendable {
                 history: any HistoryService, push: any PushService, cache: CacheStore,
                 directory: AirportDirectory = .bundled(), reference: ReferenceData = .bundled(),
                 recents: RecentsStorage = .memory, requiresSignIn: Bool = false,
-                aircraftFacts: (any AircraftFactsService)? = nil) {
+                aircraftFacts: (any AircraftFactsService)? = nil,
+                brand: any BrandAssetService = FakeBrandAssetService()) {
         self.flights = flights; self.airports = airports; self.auth = auth
-        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.cache = cache
+        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.cache = cache
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
@@ -37,7 +40,7 @@ public struct AppEnvironment: Sendable {
     @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil) async throws -> AppEnvironment {
         AppEnvironment(flights: FakeFlightService(now: now), airports: FakeAirportService(now: now), auth: FakeAuthService(),
                        history: FakeHistoryService(limit: pastLimit), push: FakePushService(), cache: try CacheStore.inMemory(),
-                       aircraftFacts: FakeAircraftFactsService())
+                       aircraftFacts: FakeAircraftFactsService(), brand: FakeBrandAssetService.bundled())
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -60,7 +63,8 @@ public struct AppEnvironment: Sendable {
                               history: SupabaseHistoryService(backend: backend),
                               push: push, cache: cache, directory: directory,
                               recents: recents, requiresSignIn: true,
-                              aircraftFacts: SupabaseAircraftFactsService(backend: backend))
+                              aircraftFacts: SupabaseAircraftFactsService(backend: backend),
+                              brand: SupabaseBrandAssetService(backend: backend))
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes

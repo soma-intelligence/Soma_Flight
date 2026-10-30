@@ -352,7 +352,7 @@ struct ExtremeBlock: View {
         let code = TravelFacts.airlineCode(ident: f.ident)
         let date = PassportFacts.shortDate(f.departedAt, timeZone: from?.timeZone ?? .gmt)
         return HStack(spacing: 14) {
-            AirlineBadge(code: code, key: f.airline ?? code)
+            AirlineMark(code: code, key: f.airline ?? code)
             VStack(alignment: .leading, spacing: 2) {
                 let arrow = Text(Image(systemName: "arrow.right.circle.fill")).font(.system(size: 15))
                 Text("\(from?.city ?? f.originIcao)  \(arrow)  \(to?.city ?? f.destinationIcao)")

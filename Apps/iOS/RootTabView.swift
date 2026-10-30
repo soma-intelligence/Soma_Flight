@@ -162,6 +162,14 @@ private struct SearchSheet: View {
     var body: some View {
         SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
+            #if DEBUG
+            // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.
+            .task {
+                guard let query = UserDefaults.standard.string(forKey: "searchText"), store.text.isEmpty else { return }
+                store.text = query
+                await store.search()
+            }
+            #endif
             .presentationDetents([.large])
             .presentationBackground(Theme.background)
             .presentationCornerRadius(Theme.sheetRadius)

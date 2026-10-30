@@ -25,6 +25,7 @@ struct SomaFlightApp: App {
             Group {
                 if let home {
                     SignInGate(home: home) { RootTabView(home: home) }
+                        .environment(\.brandAssets, home.env.brand)
                 } else {
                     LaunchPlaceholder(failure: failure)
                 }

@@ -176,20 +176,6 @@ struct PassportRankings: Equatable {
 
 // MARK: - Views
 
-/// The airline's mark at `size`. For now the monogram badge in the brand colour (a three letter ICAO
-/// monogram when the airline has no IATA code); real logos replace it here.
-struct AirlineMark: View {
-    var airline: String
-    var size: CGFloat
-    @Environment(\.reference) private var reference
-
-    var body: some View {
-        let known = reference.airline(airline)
-        let code = known?.iata ?? known?.id ?? airline
-        AirlineBadge(code: String(code.prefix(3)), key: airline, diameter: size)
-    }
-}
-
 /// Horizontal violet bars, longest first: a label column, the bar sized to the largest value, the
 /// caption at the bar's end. Shows `PassportLists.barLimit` rows, then all after "Show more".
 /// Codes sit a little above their bar, so each bar runs between its code and the next one.

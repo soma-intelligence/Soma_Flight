@@ -96,8 +96,7 @@ struct DelayedFlightRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // A monogram until the airline logos land (plan Task 10).
-            AirlineBadge(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident)
+            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 7) {
                     Text(Format.ident(flight.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)

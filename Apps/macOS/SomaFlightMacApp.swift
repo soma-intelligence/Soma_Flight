@@ -57,6 +57,7 @@ struct SomaFlightMacApp: App {
             Group {
                 if let home {
                     SignInGate(home: home, showsProgress: true) { RootSidebarView(home: home) }
+                        .environment(\.brandAssets, home.env.brand)
                 } else {
                     LaunchPlaceholder(failure: failure, showsProgress: true) { failure = nil; attempt += 1 }
                 }
