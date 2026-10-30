@@ -31,12 +31,13 @@ targets:
         # Push Notifications. The signing profile decides the environment on a device build; Release
         # archives for production.
         aps-environment: $(APS_ENVIRONMENT)
-        # Shared with the widget extension: the Live Activity reads the clock setting here.
+        # Shared with the widget extension: the Live Activity reads the clock setting here, the widgets
+        # the My Flights snapshot.
         com.apple.security.application-groups: [group.me.somalabs.flight]
     dependencies:
       - package: FlightKit
         product: FlightKit
-      # The flight Live Activity (embedded app extension).
+      # The flight Live Activity and the home screen and lock screen widgets (embedded app extension).
       - target: SomaFlightWidgets
     settings:
       base:
@@ -102,10 +103,10 @@ targets:
     entitlements:
       path: Apps/Widgets/SomaFlightWidgets.entitlements
       properties:
-        # Reads the app's clock setting (24 or 12 hour).
+        # Reads the app's clock setting (24 or 12 hour) and the My Flights snapshot the widgets draw.
         com.apple.security.application-groups: [group.me.somalabs.flight]
     dependencies:
-      # Only the Live Activity attributes and views: FlightKit would pull Supabase and MapKit into the
+      # Only the Live Activity and widget models and views: FlightKit would pull Supabase and MapKit into the
       # extension, which has a tight memory budget and needs neither.
       - package: FlightKit
         product: FlightActivityKit
