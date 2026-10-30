@@ -13,7 +13,9 @@ iOS shell screenshots (docs/screens/ios/NAME.png, simulator captures at half of 
 beside the whole reference screen, also halved, as docs/screens/compare/ios-NAME.png.
 
 v1.1 iOS screenshots (docs/screens/ios/v2-NAME.png) are set beside the v1.1 references in
-.superpowers/ref-v2, as docs/screens/compare/v2-NAME.png (name them: `compare.py v2-passport-tab`).
+.superpowers/ref-v2 (V2_DIR), as docs/screens/compare/v2-NAME.png (name them: `compare.py v2-passport-tab`).
+Side view sheets (docs/screens/components/side-views-FAMILY.png) go beside the planes cropped out of the
+references the same way: `compare.py v2-aircraft-b777`.
 
 Mac shell screenshots (docs/screens/mac/NAME.png, window captures at @2x) are set beside the
 Mac reference window, also @2x, as docs/screens/compare/mac-NAME.png.
@@ -74,8 +76,11 @@ IOS_REFS = {
 # (.superpowers/ref-v2/NN.png, git-ignored), also halved and stacked side by side, as
 # docs/screens/compare/v2-NAME.png. The delay page has no reference screen of its own: it sits beside
 # the Passport tab's delays card (52) for the card it grows from.
-REFS_V2 = ROOT / ".superpowers/ref-v2"
-V2_REFS = {
+V2_DIR = ROOT / ".superpowers/ref-v2"
+REFS_V2 = V2_DIR
+# An entry is a reference number (the whole screen, halved) or (number, (left, top, right, bottom)) for a
+# crop at native size, stacked top to bottom.
+V2_REFS: dict[str, list] = {
     "passport-tab": ["52", "53"],
     "delays": ["52"],
     # Full Passport, top to bottom: header map (42), flights and distance (44), distance comparisons,
@@ -102,18 +107,46 @@ V2_REFS = {
     "aircraft-stats-4": ["48"],
     "aircraft-stats-5": ["47", "46"],
     "aircraft-stats-sparse": ["51"],
+    # Our side views (docs/screens/components/side-views-FAMILY.png, 1200 px) beside the planes cropped out of
+    # the references: the 777-300ER on the Passport card (52) and Aircraft Stats header (51), the 777-200ER on
+    # the flight sheet (32); the 787-10 on the newest aircraft card (46).
+    "aircraft-b777": [(52, (86, 2200, 1230, 2445)), (51, (60, 1050, 1260, 1340)), (32, (90, 420, 1230, 660))],
+    "aircraft-b787": [(46, (90, 2415, 600, 2565))],
 }
 
 
+def v2_ours(name: str) -> Path:
+    """Our image for a v1.1 comparison: a side view sheet, or an iOS capture."""
+    if name.startswith("aircraft-"):
+        return OURS / f"side-views-{name.removeprefix('aircraft-')}.png"
+    return IOS / f"v2-{name}.png"
+
+
+def v2_ref(entry) -> Image.Image:
+    if isinstance(entry, tuple):
+        n, box = entry
+        return Image.open(V2_DIR / f"{int(n):02d}.png").convert("RGB").crop(box)
+    r = Image.open(V2_DIR / f"{entry}.png").convert("RGB")
+    return r.resize((r.width // 2, r.height // 2), Image.LANCZOS)
+
+
 def compose_v2(name: str) -> Path:
-    refs = [Image.open(REFS_V2 / f"{n}.png").convert("RGB") for n in V2_REFS[name]]
-    refs = [r.resize((r.width // 2, r.height // 2), Image.LANCZOS) for r in refs]
-    left = Image.new("RGB", (sum(r.width for r in refs) + GAP * (len(refs) - 1), max(r.height for r in refs)), BG)
-    x = 0
-    for r in refs:
-        left.paste(r, (x, 0))
-        x += r.width + GAP
-    right = Image.open(IOS / f"v2-{name}.png").convert("RGB")
+    entries = V2_REFS[name]
+    refs = [v2_ref(e) for e in entries]
+    if all(isinstance(e, tuple) for e in entries):
+        # Crops stack top to bottom.
+        left = Image.new("RGB", (max(r.width for r in refs), sum(r.height for r in refs) + GAP * (len(refs) - 1)), BG)
+        y = 0
+        for r in refs:
+            left.paste(r, (0, y))
+            y += r.height + GAP
+    else:
+        left = Image.new("RGB", (sum(r.width for r in refs) + GAP * (len(refs) - 1), max(r.height for r in refs)), BG)
+        x = 0
+        for r in refs:
+            left.paste(r, (x, 0))
+            x += r.width + GAP
+    right = Image.open(v2_ours(name)).convert("RGB")
     return side_by_side(left, right, OUT / f"v2-{name}.png")
 
 
