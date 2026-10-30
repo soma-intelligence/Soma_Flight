@@ -44,7 +44,8 @@ public struct FlightDetailView: View {
             VStack(spacing: 0) {
                 if let flight = store.flight {
                     DetailHeader(flight: flight, origin: store.origin, destination: plannedDestination(flight),
-                                 airline: airline(flight), onClose: onClose)
+                                 airline: airline(flight), onClose: onClose,
+                                 actions: Self.barInHeader ? AnyView(bottomBar(flight, compact: true)) : nil)
                         .scaledPadding(.leading, Theme.gutter)
                         .scaledPadding(.trailing, 16)
                         .scaledPadding(.top, 16)
@@ -73,14 +74,15 @@ public struct FlightDetailView: View {
         }
         .background(Theme.background)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let flight = store.flight {
+            if let flight = store.flight, !Self.barInHeader {
                 bottomBar(flight)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .scaledPadding(.leading, Theme.gutter)
                     .scaledPadding(.bottom, 6)
             }
         }
-        .sheet(item: $editing) { field in
+        // The Mac shows the editors as popovers on their tile (`detailEditor`); iOS as sheets.
+        .sheet(item: Self.barInHeader ? .constant(nil) : $editing) { field in
             DetailEditSheet(field: field, store: store)
                 .environment(\.units, units)
         }
@@ -144,7 +146,8 @@ public struct FlightDetailView: View {
                              onAirport: onAirport)
                     .scaledPadding(.top, 16)
                 if let details = store.details {
-                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste, hint: pasteHint)
+                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste, hint: pasteHint,
+                                editing: $editing, store: store)
                         .scaledPadding(.top, 12)
                 }
             }
@@ -191,21 +194,31 @@ public struct FlightDetailView: View {
                 }
                 if let details = store.details {
                     NotesCard(notes: details.notes) { editing = .notes }
+                        .detailEditor(.notes, editing: $editing, store: store)
                 }
                 ReportLink(url: DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
                     .scaledPadding(.top, 24)
             }
             .scaledPadding(.horizontal, Theme.gutter)
         }
-        // Room for the floating bar over the last card.
-        .scaledPadding(.bottom, 88)
+        // Room for the floating bar over the last card (the Mac has it in the header).
+        .scaledPadding(.bottom, Self.barInHeader ? 24 : 88)
     }
 
-    private func bottomBar(_ flight: Flight) -> some View {
+    /// The Mac's 360 pt panel has no room for a floating bar: its three buttons go in the header.
+    static var barInHeader: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    private func bottomBar(_ flight: Flight, compact: Bool = false) -> some View {
         DetailBottomBar(shareText: DetailFacts.shareText(flight, origin: store.origin,
                                                          destination: plannedDestination(flight), clock: units.clock),
                         notify: DetailFacts.takesAlerts(flight) ? store.notify : nil,
-                        onNotify: { on in Task { await store.setNotify(on) } }) {
+                        onNotify: { on in Task { await store.setNotify(on) } }, compact: compact) {
             if store.isFollowed {
                 Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { stopTracking() }
             }

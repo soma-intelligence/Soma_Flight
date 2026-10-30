@@ -35,6 +35,9 @@ struct DetailTiles: View {
     var onPaste: ((String) -> Void)?
     /// A short line under the tiles, such as why a paste was not kept.
     var hint: String?
+    /// The open editor and the store it saves to: on the Mac the editor shows as a popover on its tile.
+    var editing: Binding<DetailField?>?
+    var store: FlightDetailStore?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -85,6 +88,7 @@ struct DetailTiles: View {
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
+        .detailEditor(field, editing: editing, store: store)
         .overlay(alignment: .topTrailing) {
             if field == .bookingCode, value == nil, let onPaste {
                 PasteButton(payloadType: String.self) { strings in
@@ -143,6 +147,26 @@ struct NotesCard: View {
 }
 
 // MARK: - Edit sheet
+
+extension View {
+    /// On the Mac, the editor for `field` opens as a popover anchored on this view while `editing` is
+    /// `field`; elsewhere nothing changes (the flight sheet presents it as a sheet).
+    @ViewBuilder func detailEditor(_ field: DetailField, editing: Binding<DetailField?>?, store: FlightDetailStore?) -> some View {
+        #if os(macOS)
+        if let editing, let store {
+            popover(isPresented: Binding(get: { editing.wrappedValue == field },
+                                         set: { if !$0, editing.wrappedValue == field { editing.wrappedValue = nil } }),
+                    arrowEdge: .bottom) {
+                DetailEditSheet(field: field, store: store)
+            }
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}
 
 /// What an edit sheet holds while open: the typed text, the class and reason, the inline error. Save
 /// checks the text, sends it through the store, and on a refusal keeps everything typed and says why.
@@ -224,60 +248,31 @@ struct DetailEditSheet: View {
     }
 
     var body: some View {
-        @Bindable var model = model
-        NavigationStack {
-            Form {
-                switch model.field {
-                case .bookingCode:
-                    Section {
-                        TextField("ABC123", text: $model.text)
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.characters)
-                            #endif
-                            .accessibilityLabel("Booking code")
-                    } footer: { footer }
-                case .seat:
-                    Section {
-                        TextField("23A", text: $model.text)
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.characters)
-                            #endif
-                            .accessibilityLabel("Seat")
-                    } footer: { footer }
-                    Section("Class") {
-                        Picker("Class", selection: $model.draft.seatClass) {
-                            Text("None").tag(SeatClass?.none)
-                            ForEach(SeatClass.allCases, id: \.self) { c in
-                                Text(c == .premiumEconomy ? "Premium" : c.title).tag(Optional(c))
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-                    Section("Reason") {
-                        Picker("Reason", selection: $model.draft.reason) {
-                            Text("None").tag(TripReason?.none)
-                            ForEach(TripReason.allCases, id: \.self) { r in Text(r.title).tag(Optional(r)) }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-                case .notes:
-                    Section {
-                        TextEditor(text: $model.text)
-                            .frame(minHeight: 180)
-                            .accessibilityLabel("Notes")
-                    } footer: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            footer
-                            Text("\(model.text.unicodeScalars.count) of \(FollowDetails.maxNotes)")
-                                .monospacedDigit()
-                        }
-                    }
+        #if os(macOS)
+        // A popover shows no toolbar: title on top, the form, then Cancel and Save.
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
+            form.formStyle(.grouped).scrollDisabled(model.field != .notes)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                if model.isSaving {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Save") { Task { if await model.save(to: store) { dismiss() } } }
+                        .keyboardShortcut(.defaultAction)
                 }
             }
+            .scaledPadding(.horizontal, 20)
+            .scaledPadding(.bottom, 16)
+        }
+        .frame(width: model.field == .seat ? 420 : 340)
+        .frame(minHeight: model.field == .notes ? 340 : nil)
+        .onChange(of: model.text) { model.error = nil }
+        .onAppear { store.clearDetailsError() }
+        #else
+        NavigationStack {
+            form
             .navigationTitle(title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -296,6 +291,63 @@ struct DetailEditSheet: View {
             .onChange(of: model.text) { model.error = nil }
         }
         .onAppear { store.clearDetailsError() }
+        #endif
+    }
+
+    private var form: some View {
+        @Bindable var model = model
+        return Form {
+            switch model.field {
+            case .bookingCode:
+                Section {
+                    TextField("ABC123", text: $model.text)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        #endif
+                        .accessibilityLabel("Booking code")
+                } footer: { footer }
+            case .seat:
+                Section {
+                    TextField("23A", text: $model.text)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        #endif
+                        .accessibilityLabel("Seat")
+                } footer: { footer }
+                Section("Class") {
+                    Picker("Class", selection: $model.draft.seatClass) {
+                        Text("None").tag(SeatClass?.none)
+                        ForEach(SeatClass.allCases, id: \.self) { c in
+                            Text(c == .premiumEconomy ? "Premium" : c.title).tag(Optional(c))
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+                Section("Reason") {
+                    Picker("Reason", selection: $model.draft.reason) {
+                        Text("None").tag(TripReason?.none)
+                        ForEach(TripReason.allCases, id: \.self) { r in Text(r.title).tag(Optional(r)) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+            case .notes:
+                Section {
+                    TextEditor(text: $model.text)
+                        .frame(minHeight: 180)
+                        .accessibilityLabel("Notes")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        footer
+                        Text("\(model.text.unicodeScalars.count) of \(FollowDetails.maxNotes)")
+                            .monospacedDigit()
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder private var footer: some View {

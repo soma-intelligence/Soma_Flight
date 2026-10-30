@@ -23,7 +23,11 @@ struct RootSidebarView: View {
     /// 77% of the iPhone's; 0.8 with the 10 pt floor keeps captions legible.
     static let metricsScale: CGFloat = 0.8
     static let minimumSize = CGSize(width: 900, height: 600)
-    static let defaultSize = CGSize(width: 1180, height: 800)
+    /// Tall enough for a full page sheet (`fullPageSize`) over the globe.
+    static let defaultSize = CGSize(width: 1180, height: 900)
+    /// The full Passport and Aircraft Stats open as sheets this size, at the iPhone's metrics
+    /// (`metricsScale` 1.0): they get the width the 360 pt panel lacks.
+    static let fullPageSize = CGSize(width: 720, height: 820)
 
     init(home: HomeModel) {
         self.home = home
@@ -60,12 +64,15 @@ struct RootSidebarView: View {
                 #endif
             }
             .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
-            // A Passport card's page opens as a sheet over the window.
+            // A Passport card's page (full Passport, Aircraft Stats, delays) opens as a sheet over the window,
+            // 720 x 820 at full metrics; a shorter window shrinks it to fit.
             .sheet(item: Binding(get: { home.fullPage }, set: { home.fullPage = $0 })) { page in
                 FullPageView(page: page, store: home.passport, lookup: env.lookup) { home.fullPage = nil }
                     .environment(\.units, units)
-                    .environment(\.metricsScale, Self.metricsScale)
-                    .frame(minWidth: 460, idealWidth: 520, minHeight: 640, idealHeight: 760)
+                    .environment(\.metricsScale, 1.0)
+                    .frame(width: Self.fullPageSize.width)
+                    .frame(minHeight: Self.minimumSize.height - 80, idealHeight: Self.fullPageSize.height,
+                           maxHeight: Self.fullPageSize.height)
             }
             .environment(\.units, units)
     }

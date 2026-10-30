@@ -193,6 +193,28 @@ MAC_REFS = {
 }
 
 
+# Mac v1.1 screens (Task 23): our window beside the Mac reference that sets the chrome (ref-v2 24 to 28 are the
+# v1 Mac shots: 25 the Passport panel, 26 the Aircraft Stats sheet, 28 the My Flights panel) and our iOS capture
+# of the same content. No Mac versions of refs 29 to 53 exist.
+MAC_V2 = {
+    "detail": ("28", "v2-detail-top"),
+    "detail-edit": ("28", "v2-detail-top"),
+    "passport-full": ("25", "v2-passport-full-1"),
+    "aircraft-stats": ("26", "v2-aircraft-stats-1"),
+}
+
+
+def compose_mac_v2(name: str) -> Path:
+    ref_name, ios_name = MAC_V2[name]
+    right = Image.open(MAC / f"v2-{name}.png").convert("RGB")
+    parts = [Image.open(V2_DIR / f"{ref_name}.png").convert("RGB"), Image.open(IOS / f"{ios_name}.png").convert("RGB")]
+    parts = [p.resize((round(p.width * right.height / p.height), right.height), Image.LANCZOS) for p in parts]
+    left = Image.new("RGB", (sum(p.width for p in parts) + GAP, right.height), BG)
+    left.paste(parts[0], (0, 0))
+    left.paste(parts[1], (parts[0].width + GAP, 0))
+    return side_by_side(left, right, OUT / f"mac-v2-{name}.png")
+
+
 def compose_mac(name: str, refs: Path) -> Path:
     left = open_ref(refs, MAC_REFS[name])
     right = Image.open(MAC / f"{name}.png").convert("RGB")
@@ -272,7 +294,9 @@ def main() -> None:
     args = ap.parse_args()
     for n in args.names:
         refs = Path(args.refs)
-        if n.startswith("v2-"):
+        if n.startswith("mac-v2-"):
+            print(compose_mac_v2(n.removeprefix("mac-v2-")))
+        elif n.startswith("v2-"):
             print(compose_v2(n.removeprefix("v2-")))
         elif n.startswith("mac-"):
             print(compose_mac(n.removeprefix("mac-"), refs))

@@ -93,13 +93,15 @@ extension DetailFacts {
 // MARK: - Header
 
 /// The pinned top of the flight sheet: the airline's logo, "UA 990 · FRI, 30 OCT", the route as the
-/// title, and the close button.
+/// title, and the close button. On the Mac the bottom bar's buttons sit here too (`actions`).
 struct DetailHeader: View {
     var flight: Flight
     var origin: Airport?
     var destination: Airport?
     var airline: Airline?
     var onClose: (() -> Void)?
+    /// Drawn between the title and the close button (the Mac panel's share, bell and menu).
+    var actions: AnyView?
     @ScaledMetric(relativeTo: .title3) private var logo: CGFloat = 32
 
     var body: some View {
@@ -120,6 +122,7 @@ struct DetailHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
+            if let actions { actions }
             if let onClose {
                 RoundButton(systemImage: "xmark", label: "Close", action: onClose)
             }
@@ -154,17 +157,30 @@ struct CountdownCard: View {
 // MARK: - Bottom bar
 
 /// The floating bar at the bottom of the flight sheet: share, the flight's alert bell (followed flights
-/// only) and a menu of the rarer actions.
+/// only) and a menu of the rarer actions. `compact` is the Mac panel's form: the same three buttons,
+/// smaller and without the glass capsule, in the header.
 struct DetailBottomBar<Menu: View>: View {
     var shareText: String
     /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts).
     var notify: Bool?
     var onNotify: (Bool) -> Void
+    var compact = false
     @ViewBuilder var menu: () -> Menu
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        HStack(spacing: 0) {
+        if compact {
+            buttons.buttonStyle(.plain)
+        } else {
+            buttons
+                .buttonStyle(.plain)
+                .scaledPadding(.horizontal, 8)
+                .glassEffect(.regular.tint(HomeTabPill.tint), in: .capsule)
+        }
+    }
+
+    private var buttons: some View {
+        HStack(spacing: compact ? 6 : 0) {
             ShareLink(item: shareText) {
                 icon("square.and.arrow.up")
             }
@@ -182,19 +198,25 @@ struct DetailBottomBar<Menu: View>: View {
                 icon("ellipsis")
             }
             .menuIndicator(.hidden)
+            #if os(macOS)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            // The borderless menu drops its label's background: the circle goes behind the menu instead.
+            .frame(width: compact ? Theme.metric(34, scale) : nil, height: compact ? Theme.metric(34, scale) : nil)
+            .background { if compact { Circle().fill(Theme.pill) } }
+            #endif
             .accessibilityLabel("More")
         }
-        .buttonStyle(.plain)
-        .scaledPadding(.horizontal, 8)
-        .glassEffect(.regular.tint(HomeTabPill.tint), in: .capsule)
     }
 
     private func icon(_ name: String) -> some View {
         Image(systemName: name)
-            .font(.system(size: Theme.fontSize(19, scale), weight: .medium))
+            .font(.system(size: Theme.fontSize(compact ? 15 : 19, scale), weight: .medium))
             .foregroundStyle(Theme.primary)
-            .frame(width: Theme.metric(54, scale), height: Theme.metric(50, scale))
+            .frame(width: Theme.metric(compact ? 34 : 54, scale), height: Theme.metric(compact ? 34 : 50, scale))
+            .background { if compact { Circle().fill(Theme.pill) } }
             .contentShape(Rectangle())
+            .help(name == "ellipsis" ? "More" : name == "square.and.arrow.up" ? "Share Flight" : "Alerts")
     }
 }
 
