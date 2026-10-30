@@ -20,9 +20,9 @@ enum B737Max {
         spec.engineDiameter = 2.15
         spec.engineLength = 4.5
         spec.engineClearance = 0.43
-        spec.engineInletFromWing = -2.2
+        spec.engineInletFromWing = -3.6
         spec.engineStyle = .chevron
-        spec.wingletHeight = 2.0
+        spec.wingletHeight = 1.9
         spec.bottom = 1.32
         spec.tailLength = 11.6
         return spec.build()

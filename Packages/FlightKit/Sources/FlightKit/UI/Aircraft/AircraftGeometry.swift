@@ -10,7 +10,7 @@ public enum AircraftLayer: Int, CaseIterable, Sendable {
 /// What a path is, so a livery can paint each part on its own: the hull takes the fuselage top, belly
 /// and cheatline (clipped to it), the fin the tail paint, the nacelles the engine colour.
 public enum AircraftPart: String, CaseIterable, Sendable {
-    case hull, fin, tailplane, wing, flapFairing, winglet, pylon, nacelle, inlet, exhaust
+    case hull, fairing, panelLine, fin, tailplane, wing, flapFairing, winglet, pylon, nacelle, inlet, fan, exhaust, plug
     case window, cockpit, mask, door, cargoDoor, apu, strut, tyre, hub
 }
 
@@ -82,12 +82,15 @@ public struct AircraftGeometry: Sendable {
     }
 }
 
+
 // MARK: - Spec
 
-/// The few numbers that make an airliner in profile. Lengths in metres; "from tail" distances are
-/// measured forward from the aft end, so a stretch only moves the barrel.
+/// The numbers that make an airliner in profile. Lengths in metres; "from tail" distances are measured
+/// forward from the aft end, so a stretch only moves the barrel. The view is from the side and a little
+/// below, so the near wing and tailplane show a slim strip of their lower surface.
 struct AirlinerSpec {
     enum Nose { case airbus, b737, b777, b787, a350 }
+    enum Fin { case swept, dorsal, clipped, curvedLeadingEdge, curvedTip }
     enum Winglet { case none, sharklet, blended, splitScimitar, raked, curled }
     enum EngineStyle { case plain, flatBottom, chevron }
 
@@ -101,39 +104,37 @@ struct AirlinerSpec {
     var noseLength: Double
     var tailLength: Double
 
-    // Fin: root leading edge and chord, tip chord, sweep run (tip LE x minus root LE x).
+    var fin: Fin
     var finRootLEFromTail: Double
     var finRootChord: Double
     var finTipChord: Double
+    /// Tip leading edge x minus root leading edge x.
     var finSweep: Double
     var finFillet: Double
 
-    // Horizontal tail.
     var tailplaneLEFromTail: Double
     var tailplaneChord: Double
     var tailplaneRun: Double
     var tailplaneRise: Double
 
-    // Wing (projection of the near wing).
+    /// Wing leading edge where it meets the fuselage side.
     var wingRootLE: Double
     var wingRootChord: Double
     var wingTipChord: Double
+    /// Tip leading edge x minus root leading edge x, as seen from the side.
     var wingSweep: Double
+    /// How much higher the tip sits than the root in the drawing (dihedral and the view from below).
     var wingRise: Double
     var winglet: Winglet
     var wingletHeight: Double
 
-    // Engine under the wing.
     var engineDiameter: Double
     var engineLength: Double
     var engineClearance: Double
-    /// Inlet x relative to the wing root leading edge.
+    /// Inlet x relative to the wing root leading edge (negative: ahead of it).
     var engineInletFromWing: Double
-    /// Fraction of the wing's projected run where the pylon meets it.
-    var engineSpan: Double
     var engineStyle: EngineStyle
 
-    // Gear.
     var noseGearX: Double
     var mainGearX: Double
     var noseTyre: Double
@@ -141,7 +142,6 @@ struct AirlinerSpec {
     var mainAxles: Int
     var axleSpacing: Double
 
-    // Cabin.
     var doors: [Door]
     var cargoDoors: [Double]
     var cargoDoorWidth: Double
@@ -185,46 +185,54 @@ struct Cubic {
     }
 }
 
+private func lerp(_ a: CGPoint, _ b: CGPoint, _ t: Double) -> CGPoint {
+    CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+}
+
+private func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
+
 extension AirlinerSpec {
     func build() -> AircraftGeometry {
         var shapes: [AircraftShape] = []
         func add(_ layer: AircraftLayer, _ part: AircraftPart, _ path: Path) {
             shapes.append(AircraftShape(layer: layer, part: part, path: path))
         }
-        let L = length, D = diameter, yb = bottom, yt = bottom + diameter
-        func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
+        let L = length, D = diameter, yb = bottom, yt = bottom + diameter, nl = noseLength
 
         // Hull ----------------------------------------------------------------------------------
-        // Nose tip height and the upper and lower curve controls (fractions of the diameter and nose
-        // length), then the cockpit window sill and the panes along the nose (fractions of its length).
-        let noseTip: Double, upperK: (Double, Double), lowerK: Double, sill: Double, panes: [(Double, Double)]
+        // Nose tip height, upper curve controls (fraction of D up from the tip, fraction of the nose
+        // length where the crown is reached), lower curve droop; cockpit panes as fractions of the nose.
+        let noseTip: Double, upperK: (Double, Double), lowerK: Double, panes: [(Double, Double)]
         switch nose {
-        case .airbus: noseTip = 0.34; upperK = (0.25, 0.50); lowerK = 0.30; sill = 0.675
-            panes = [(0.40, 0.53), (0.55, 0.67), (0.69, 0.79)]
-        case .b737: noseTip = 0.33; upperK = (0.22, 0.56); lowerK = 0.26; sill = 0.665
-            panes = [(0.44, 0.55), (0.57, 0.67), (0.69, 0.77)]
-        case .b777: noseTip = 0.33; upperK = (0.24, 0.54); lowerK = 0.30; sill = 0.705
-            panes = [(0.47, 0.58), (0.60, 0.70), (0.72, 0.80)]
-        case .b787: noseTip = 0.38; upperK = (0.22, 0.64); lowerK = 0.32; sill = 0.715
-            panes = [(0.50, 0.62), (0.64, 0.76)]
-        case .a350: noseTip = 0.35; upperK = (0.26, 0.54); lowerK = 0.30; sill = 0.69
-            panes = [(0.44, 0.56), (0.58, 0.69), (0.71, 0.80)]
+        case .airbus: noseTip = 0.30; upperK = (0.28, 0.45); lowerK = 0.25
+            panes = [(0.455, 0.575), (0.59, 0.69), (0.705, 0.79)]
+        case .b737: noseTip = 0.29; upperK = (0.22, 0.55); lowerK = 0.21
+            panes = [(0.49, 0.60), (0.615, 0.70), (0.715, 0.785)]
+        case .b777: noseTip = 0.32; upperK = (0.21, 0.56); lowerK = 0.25
+            panes = [(0.37, 0.48), (0.495, 0.58), (0.595, 0.66)]
+        case .b787: noseTip = 0.33; upperK = (0.25, 0.60); lowerK = 0.27
+            panes = [(0.53, 0.665), (0.68, 0.785)]
+        case .a350: noseTip = 0.31; upperK = (0.28, 0.52); lowerK = 0.25
+            panes = [(0.50, 0.61), (0.625, 0.715), (0.73, 0.80)]
         }
         let tipY = yb + noseTip * D
-        let upperNose = Cubic(p0: p(0, tipY), p1: p(0, tipY + upperK.0 * D),
-                              p2: p(noseLength * upperK.1, yt), p3: p(noseLength, yt))
-        let tailStart = L - tailLength
-        let tipTop = yb + 0.70 * D, tipBottom = yb + 0.56 * D
-        let upperTail = Cubic(p0: p(L - tailLength * 0.72, yt), p1: p(L - tailLength * 0.34, yt),
-                              p2: p(L - tailLength * 0.06, tipTop + 0.10 * D), p3: p(L, tipTop))
+        let upperNose = Cubic(p0: p(0, tipY), p1: p(0, tipY + upperK.0 * D), p2: p(nl * upperK.1, yt), p3: p(nl, yt))
+        let tipTop = yb + 0.74 * D, tipBottom = yb + 0.61 * D
+        let upperTail = Cubic(p0: p(L - tailLength * 0.74, yt), p1: p(L - tailLength * 0.34, yt),
+                              p2: p(L - tailLength * 0.07, tipTop + 0.07 * D), p3: p(L, tipTop))
+        let lowerTail = Cubic(p0: p(L, tipBottom), p1: p(L - tailLength * 0.40, yb + 0.30 * D),
+                              p2: p(L - tailLength * 0.80, yb), p3: p(L - tailLength, yb))
         func topY(_ x: Double) -> Double {
-            if x <= noseLength { return upperNose.y(atX: x) }
+            if x <= nl { return upperNose.y(atX: max(0, x)) }
             if x <= upperTail.p0.x { return yt }
             return upperTail.y(atX: min(x, L))
         }
-        let fairStart = wingRootLE - wingRootChord * 0.22
-        let fairEnd = wingRootLE + wingRootChord * 1.25
-        let bulge = D * 0.09
+        func bottomY(_ x: Double) -> Double {
+            x >= lowerTail.p3.x ? lowerTail.y(atX: min(x, L)) : yb
+        }
+        let rootLE = wingRootLE, cr = wingRootChord
+        let fairStart = rootLE - cr * 0.18, fairEnd = rootLE + cr * 1.22
+        let bulge = D * 0.075
 
         var hull = Path()
         hull.move(to: p(0, tipY))
@@ -232,13 +240,12 @@ extension AirlinerSpec {
         hull.addLine(to: upperTail.p0)
         hull.addCurve(to: upperTail.p3, control1: upperTail.p1, control2: upperTail.p2)
         hull.addLine(to: p(L, tipBottom))
-        hull.addCurve(to: p(tailStart, yb), control1: p(L - tailLength * 0.42, yb + 0.30 * D),
-                      control2: p(L - tailLength * 0.78, yb))
+        hull.addCurve(to: lowerTail.p3, control1: lowerTail.p1, control2: lowerTail.p2)
         hull.addLine(to: p(fairEnd, yb))
-        hull.addCurve(to: p(fairStart, yb), control1: p(fairEnd - (fairEnd - fairStart) * 0.25, yb - bulge * 1.33),
-                      control2: p(fairStart + (fairEnd - fairStart) * 0.2, yb - bulge * 1.33))
-        hull.addLine(to: p(noseLength * 0.9, yb))
-        hull.addCurve(to: p(0, tipY), control1: p(noseLength * 0.38, yb), control2: p(0, tipY - lowerK * D))
+        hull.addCurve(to: p(fairStart, yb), control1: p(fairEnd - (fairEnd - fairStart) * 0.22, yb - bulge * 1.33),
+                      control2: p(fairStart + (fairEnd - fairStart) * 0.18, yb - bulge * 1.33))
+        hull.addLine(to: p(nl * 0.85, yb))
+        hull.addCurve(to: p(0, tipY), control1: p(nl * 0.32, yb), control2: p(0, tipY - lowerK * D))
         hull.closeSubpath()
         add(.fuselage, .hull, hull)
 
@@ -246,36 +253,52 @@ extension AirlinerSpec {
         let apuH = (tipTop - tipBottom) * 0.55
         add(.fuselage, .apu, Path(ellipseIn: CGRect(x: L - 0.08, y: (tipTop + tipBottom - apuH) / 2, width: 0.08, height: apuH)))
 
-        // Cockpit ---------------------------------------------------------------------------------
-        let cockpitBottom = yb + sill * D
-        let inset = 0.07 * D
+        // Panel lines: the section joints, very faint.
+        for x in [nl * 1.02, rootLE - cr * 0.12, rootLE + cr * 1.05, L - tailLength * 0.98] {
+            var line = Path()
+            line.move(to: p(x, bottomY(x) + 0.03 * D))
+            line.addLine(to: p(x, topY(x) - 0.02 * D))
+            add(.doors, .panelLine, line)
+        }
+
+        // Cockpit: a thin band of panes following the nose curve, posts between them.
+        let bandTop = 0.045 * D, bandBottom = 0.112 * D
         func pane(_ x0: Double, _ x1: Double, front: Bool, aft: Bool) -> Path {
             var path = Path()
-            let top0 = topY(x0) - inset
-            path.move(to: p(front ? x0 + (top0 - cockpitBottom) * 0.6 : x0, cockpitBottom))
-            path.addLine(to: p(x0, top0))
+            let h0 = bandBottom - bandTop
+            path.move(to: p(front ? x0 + h0 * 0.9 : x0, topY(x0) - bandBottom))
+            path.addLine(to: p(x0, topY(x0) - bandTop))
             for i in 1...6 {
                 let x = x0 + (x1 - x0) * Double(i) / 6
-                path.addLine(to: p(x, topY(x) - inset))
+                path.addLine(to: p(x, topY(x) - bandTop))
             }
-            path.addLine(to: p(aft ? x1 - (topY(x1) - inset - cockpitBottom) * 0.45 : x1, cockpitBottom))
+            path.addLine(to: p(aft ? x1 - h0 * 0.7 : x1, topY(x1) - bandBottom))
+            for i in (1...5).reversed() {
+                let x = x0 + (x1 - x0) * Double(i) / 6
+                if !aft || x < x1 - h0 * 0.7 { path.addLine(to: p(x, topY(x) - bandBottom)) }
+            }
             path.closeSubpath()
             return path
         }
-        let nl = noseLength
         if nose == .a350 {
-            // The "panda mask": a black surround from the windscreen back past the side windows, its aft
-            // end swept down to a rounded point.
-            let m0 = nl * 0.38, m1 = nl * 0.86, mb = cockpitBottom - 0.035 * D
+            // The "panda mask": a black surround from the windscreen back past the side windows, its aft end
+            // drawn back to a rounded point.
+            let m0 = nl * 0.46, m1 = nl * 0.86
             var mask = Path()
-            mask.move(to: p(m0 + 0.05 * D, mb))
-            mask.addLine(to: p(m0 - 0.02 * D, topY(m0) - inset * 0.55))
+            mask.move(to: p(m0 + 0.06 * D, topY(m0) - bandBottom - 0.03 * D))
+            mask.addLine(to: p(m0 - 0.015 * D, topY(m0) - bandTop + 0.022 * D))
             for i in 1...10 {
                 let x = m0 + (m1 - m0) * Double(i) / 10
-                mask.addLine(to: p(x, topY(x) - inset * 0.55))
+                mask.addLine(to: p(x, topY(x) - bandTop + 0.022 * D))
             }
-            mask.addCurve(to: p(m1 + 0.02 * D, mb - 0.01 * D), control1: p(m1 + 0.10 * D, topY(m1) - inset * 0.7),
-                          control2: p(m1 + 0.09 * D, mb + 0.02 * D))
+            mask.addCurve(to: p(m1 + 0.13 * D, topY(m1) - 0.10 * D), control1: p(m1 + 0.06 * D, topY(m1) - bandTop + 0.02 * D),
+                          control2: p(m1 + 0.12 * D, topY(m1) - 0.07 * D))
+            mask.addCurve(to: p(m1 - 0.02 * D, topY(m1) - bandBottom - 0.03 * D), control1: p(m1 + 0.13 * D, topY(m1) - 0.13 * D),
+                          control2: p(m1 + 0.06 * D, topY(m1) - bandBottom - 0.03 * D))
+            for i in (1...9).reversed() {
+                let x = m0 + (m1 - m0) * Double(i) / 10
+                mask.addLine(to: p(x, topY(x) - bandBottom - 0.03 * D))
+            }
             mask.closeSubpath()
             add(.windows, .mask, mask)
         }
@@ -290,254 +313,338 @@ extension AirlinerSpec {
                 add(.doors, .door, Path(roundedRect: CGRect(x: door.x - door.width / 2, y: windowY - door.height * 0.55,
                                                             width: door.width, height: door.height), cornerRadius: 0.12))
             } else {
-                let top = windowY + windowHeight * 0.5 + 0.30
+                let top = windowY + windowHeight * 0.5 + 0.28
                 add(.doors, .door, Path(roundedRect: CGRect(x: door.x - door.width / 2, y: top - door.height,
-                                                            width: door.width, height: door.height), cornerRadius: 0.16))
+                                                            width: door.width, height: door.height), cornerRadius: 0.14))
             }
         }
-        let cargoH = D * 0.26
         for x in cargoDoors {
-            let bottomAt = yb + 0.10 * D
-            add(.doors, .cargoDoor, Path(roundedRect: CGRect(x: x - cargoDoorWidth / 2, y: bottomAt,
-                                                             width: cargoDoorWidth, height: cargoH), cornerRadius: 0.12))
+            add(.doors, .cargoDoor, Path(roundedRect: CGRect(x: x - cargoDoorWidth / 2, y: yb + 0.10 * D,
+                                                             width: cargoDoorWidth, height: D * 0.25), cornerRadius: 0.12))
         }
-        var x = firstWindow
-        while x <= L - lastWindowFromTail {
-            let blocked = doors.contains { abs($0.x - x) < $0.width / 2 + windowWidth * 0.9 }
+        var wx = firstWindow
+        while wx <= L - lastWindowFromTail {
+            let blocked = doors.contains { abs($0.x - wx) < $0.width / 2 + windowWidth * 0.9 }
             if !blocked {
-                add(.windows, .window, Path(roundedRect: CGRect(x: x - windowWidth / 2, y: windowY - windowHeight / 2,
+                add(.windows, .window, Path(roundedRect: CGRect(x: wx - windowWidth / 2, y: windowY - windowHeight / 2,
                                                                 width: windowWidth, height: windowHeight),
-                                            cornerRadius: windowWidth * 0.46))
+                                            cornerRadius: windowWidth * 0.42))
             }
-            x += windowPitch
+            wx += windowPitch
         }
 
-        // Fin and tailplane ----------------------------------------------------------------------
+        // Fin ----------------------------------------------------------------------------------
         let finRootLE = L - finRootLEFromTail
         let finRootTE = finRootLE + finRootChord
         let finTipLE = finRootLE + finSweep
         let finTipTE = finTipLE + finTipChord
         let finBaseY = topY(finRootLE)
         let finH = height - finBaseY
-        var fin = Path()
+        let root = p(finRootLE, finBaseY), tip = p(finTipLE, height)
         let filletStart = finRootLE - finFillet
-        fin.move(to: p(filletStart, topY(filletStart)))
-        let lePoint = { (f: Double) in self.lerp(p(finRootLE, finBaseY), p(finTipLE, height), f) }
-        fin.addCurve(to: lePoint(0.24), control1: p(finRootLE - finFillet * 0.45, topY(finRootLE - finFillet * 0.45) + 0.04),
-                     control2: lerp(p(finRootLE, finBaseY), p(finTipLE, height), 0.08))
-        fin.addLine(to: lePoint(0.97))
-        fin.addQuadCurve(to: p(finTipLE + finTipChord * 0.12, height), control: p(finTipLE, height))
-        fin.addLine(to: p(finTipTE, height))
-        fin.addLine(to: p(finRootTE, topY(finRootTE)))
-        let steps = 16
-        for i in 1...steps {
-            let xx = finRootTE - (finRootTE - filletStart) * Double(i) / Double(steps)
-            fin.addLine(to: p(xx, topY(xx)))
+        var finPath = Path()
+        finPath.move(to: p(filletStart, topY(filletStart)))
+        switch self.fin {
+        case .curvedLeadingEdge:
+            // One sweep from the fillet into the leading edge, no corner.
+            finPath.addCurve(to: lerp(root, tip, 0.96), control1: p(finRootLE - finFillet * 0.05, finBaseY + 0.03 * finH),
+                         control2: lerp(root, tip, 0.42))
+        case .dorsal:
+            // The 737's long, low dorsal fin running forward along the crown.
+            finPath.addCurve(to: lerp(root, tip, 0.30), control1: p(finRootLE - finFillet * 0.55, topY(finRootLE - finFillet * 0.55) + 0.05 * finH),
+                         control2: p(finRootLE - finFillet * 0.05, finBaseY + 0.15 * finH))
+            finPath.addLine(to: lerp(root, tip, 0.96))
+        default:
+            finPath.addCurve(to: lerp(root, tip, 0.20), control1: p(finRootLE - finFillet * 0.35, topY(finRootLE - finFillet * 0.35) + 0.02 * finH),
+                         control2: lerp(root, tip, 0.07))
+            finPath.addLine(to: lerp(root, tip, self.fin == .clipped ? 0.985 : 0.96))
         }
-        fin.closeSubpath()
-        add(.tail, .fin, fin)
+        let teAt = { (f: Double) in lerp(p(finRootTE, topY(finRootTE)), p(finTipTE, height), f) }
+        switch self.fin {
+        case .curvedTip:
+            // A350: the tip rounds down into the trailing edge.
+            finPath.addQuadCurve(to: p(finTipLE + finTipChord * 0.10, height), control: tip)
+            finPath.addLine(to: p(finTipLE + finTipChord * 0.45, height))
+            finPath.addCurve(to: teAt(0.80), control1: p(finTipTE + finTipChord * 0.05, height),
+                         control2: lerp(teAt(0.80), teAt(1), 0.55))
+        case .clipped:
+            finPath.addQuadCurve(to: p(finTipLE + finTipChord * 0.04, height), control: tip)
+            finPath.addLine(to: p(finTipTE, height))
+        default:
+            finPath.addQuadCurve(to: p(finTipLE + finTipChord * 0.12, height), control: tip)
+            finPath.addLine(to: p(finTipTE - finTipChord * 0.06, height))
+            finPath.addQuadCurve(to: teAt(0.985), control: p(finTipTE, height))
+        }
+        finPath.addLine(to: p(finRootTE, topY(finRootTE)))
+        for i in 1...20 {
+            let xx = finRootTE - (finRootTE - filletStart) * Double(i) / 20
+            finPath.addLine(to: p(xx, topY(xx)))
+        }
+        finPath.closeSubpath()
+        add(.tail, .fin, finPath)
+        // Rudder hinge line.
+        var rudder = Path()
+        rudder.move(to: lerp(p(finRootTE, topY(finRootTE)), p(finRootLE, finBaseY), 0.30))
+        rudder.addLine(to: lerp(p(finTipTE, height), tip, 0.32))
+        add(.tail, .panelLine, rudder)
 
+        // Tailplane: slim swept strip from the tail cone, its lower surface just showing.
         let tpLE = L - tailplaneLEFromTail
-        let tpY = yb + 0.58 * D
+        let tpZ = yb + 0.60 * D
+        let tpTipChord = tailplaneChord * 0.36
+        let tpRun = min(tailplaneRun, L - 0.25 - tpLE - tpTipChord)
+        let tpA = p(tpLE, tpZ), tpB = p(tpLE + tpRun, tpZ + tailplaneRise)
+        let tpC = p(tpLE + tpRun + tpTipChord, tpZ + tailplaneRise - 0.035 * D)
+        let tpE = p(tpLE + tailplaneChord, tpZ - 0.11 * D)
         var tailplane = Path()
-        tailplane.move(to: p(tpLE, tpY))
-        tailplane.addCurve(to: p(tpLE + tailplaneRun, tpY + tailplaneRise + 0.06),
-                           control1: p(tpLE + tailplaneRun * 0.3, tpY + 0.12), control2: p(tpLE + tailplaneRun * 0.7, tpY + tailplaneRise))
-        tailplane.addLine(to: p(tpLE + tailplaneRun + tailplaneChord * 0.35, tpY + tailplaneRise))
-        tailplane.addLine(to: p(tpLE + tailplaneChord, tpY - 0.10))
-        tailplane.addQuadCurve(to: p(tpLE, tpY), control: p(tpLE + tailplaneChord * 0.1, tpY - 0.14))
+        tailplane.move(to: tpA)
+        tailplane.addCurve(to: tpB, control1: lerp(tpA, tpB, 0.35), control2: lerp(tpA, tpB, 0.75))
+        tailplane.addQuadCurve(to: tpC, control: p(tpB.x + tpTipChord * 0.6, tpB.y + 0.005 * D))
+        tailplane.addLine(to: tpE)
+        tailplane.addCurve(to: tpA, control1: p(tpE.x - tailplaneChord * 0.45, tpE.y - 0.01 * D),
+                           control2: p(tpA.x + tailplaneChord * 0.08, tpA.y - 0.08 * D))
         tailplane.closeSubpath()
         add(.tail, .tailplane, tailplane)
+        var elevator = Path()
+        elevator.move(to: lerp(tpE, tpA, 0.30))
+        elevator.addLine(to: lerp(tpC, tpB, 0.30))
+        add(.tail, .panelLine, elevator)
 
-        // Wing ----------------------------------------------------------------------------------
-        let wingZ = yb + 0.08 * D
-        let thick = wingRootChord * 0.075
-        let tipLE = wingRootLE + wingSweep
-        let tipZ = wingZ + wingRise
-        let tipTE = tipLE + wingTipChord
+        // Wing -----------------------------------------------------------------------------------
+        let zr = yb + 0.30 * D
+        let tipLE = rootLE + wingSweep
+        let zt = zr + wingRise
+        let depthRoot = (D > 5 ? 0.24 : 0.19) * D, depthTip = max(0.10, 0.035 * D)
+        let wa = p(rootLE, zr), wb = p(tipLE, zt)
+        let wc = p(tipLE + wingTipChord, zt - depthTip)
+        let rootTE = p(rootLE + cr, zr - depthRoot * 0.75)
+        // Trailing edge kink: unswept inboard, swept outboard.
+        let kinkF = 0.32
+        let wk = p(rootTE.x + wingSweep * kinkF * 0.30, zr + wingRise * kinkF - depthRoot * 0.62)
+        func leZ(_ x: Double) -> Double { zr + wingRise * min(1, max(0, (x - rootLE) / wingSweep)) }
+
         func wingPath(dx: Double, dy: Double) -> Path {
+            func q(_ pt: CGPoint) -> CGPoint { p(pt.x + dx, pt.y + dy) }
             var w = Path()
-            w.move(to: p(wingRootLE + dx, wingZ + thick * 0.55 + dy))
-            w.addCurve(to: p(tipLE + dx, tipZ + thick * 0.25 + dy),
-                       control1: p(wingRootLE + wingSweep * 0.3 + dx, wingZ + thick * 0.6 + wingRise * 0.28 + dy),
-                       control2: p(tipLE - wingSweep * 0.2 + dx, tipZ + thick * 0.25 + dy))
-            w.addLine(to: p(tipTE + dx, tipZ + dy))
-            w.addCurve(to: p(wingRootLE + wingRootChord + dx, wingZ - thick * 0.15 + dy),
-                       control1: p(tipTE - wingSweep * 0.35 + dx, tipZ - wingRise * 0.35 + dy),
-                       control2: p(wingRootLE + wingRootChord + wingSweep * 0.15 + dx, wingZ + dy))
-            w.addCurve(to: p(wingRootLE + dx, wingZ + thick * 0.55 + dy),
-                       control1: p(wingRootLE + wingRootChord * 0.55 + dx, wingZ - thick * 0.9 + dy),
-                       control2: p(wingRootLE - wingRootChord * 0.04 + dx, wingZ - thick * 0.2 + dy))
+            w.move(to: q(wa))
+            w.addCurve(to: q(wb), control1: q(lerp(wa, wb, 0.33)), control2: q(p(lerp(wa, wb, 0.7).x, lerp(wa, wb, 0.7).y + 0.01 * D)))
+            w.addLine(to: q(wc))
+            w.addCurve(to: q(wk), control1: q(lerp(wc, wk, 0.4)), control2: q(lerp(wc, wk, 0.8)))
+            w.addQuadCurve(to: q(rootTE), control: q(p(wk.x - (wk.x - rootTE.x) * 0.4, rootTE.y + 0.02 * D)))
+            // Inboard: the lower surface running back into the belly fairing.
+            w.addCurve(to: q(wa), control1: q(p(rootLE + cr * 0.55, zr - depthRoot * 1.02)),
+                       control2: q(p(rootLE + cr * 0.06, zr - depthRoot * 0.55)))
             w.closeSubpath()
             return w
         }
-        let farOffset = (dx: wingSweep * 0.035, dy: wingRise * 0.09)
-        add(.wingFar, .wing, wingPath(dx: farOffset.dx, dy: farOffset.dy))
+        add(.wingFar, .wing, wingPath(dx: wingSweep * 0.03, dy: 0.12 * D))
+
+        // Wing-to-body fairing: the rounded fairing the wing root sits in, over the belly bulge.
+        var fairing = Path()
+        fairing.move(to: p(fairStart - cr * 0.06, yb + 0.02 * D))
+        fairing.addCurve(to: p(rootLE + cr * 0.12, zr + 0.06 * D), control1: p(fairStart, yb + 0.20 * D),
+                         control2: p(rootLE - cr * 0.02, zr + 0.06 * D))
+        fairing.addLine(to: p(rootLE + cr * 0.92, zr - 0.04 * D))
+        fairing.addCurve(to: p(fairEnd, yb), control1: p(fairEnd - cr * 0.05, zr - 0.06 * D), control2: p(fairEnd, yb + 0.10 * D))
+        fairing.addCurve(to: p(fairStart, yb), control1: p(fairEnd - (fairEnd - fairStart) * 0.22, yb - bulge * 1.33),
+                         control2: p(fairStart + (fairEnd - fairStart) * 0.18, yb - bulge * 1.33))
+        fairing.closeSubpath()
+        add(.wing, .fairing, fairing)
+
         add(.wing, .wing, wingPath(dx: 0, dy: 0))
-        for f in [0.30, 0.52, 0.74] {
-            let le = wingRootLE + wingSweep * f
-            let chord = wingRootChord + (wingTipChord - wingRootChord) * f
-            let z = wingZ + wingRise * f
-            let c0 = le + chord * 0.55, len = chord * 0.62, h = max(0.18, D * 0.05)
-            let zz = z - thick * 0.1
-            var canoe = Path()
-            canoe.move(to: p(c0, zz))
-            canoe.addCurve(to: p(c0 + len, zz - h * 0.15), control1: p(c0 + len * 0.25, zz - h * 1.3), control2: p(c0 + len * 0.85, zz - h * 0.9))
-            canoe.addLine(to: p(c0 + len * 0.5, zz))
-            canoe.closeSubpath()
-            add(.wing, .flapFairing, canoe)
+        // Slat line just behind the leading edge, flap line ahead of the trailing edge.
+        var slat = Path()
+        slat.move(to: p(rootLE + 0.5, leZ(rootLE + 0.5) - 0.035 * D))
+        slat.addLine(to: p(tipLE - 0.2, zt - 0.02 * D))
+        add(.wing, .panelLine, slat)
+        var flap = Path()
+        flap.move(to: p(rootTE.x - cr * 0.18, rootTE.y + 0.05 * D))
+        flap.addLine(to: p(wk.x - cr * 0.12, wk.y + 0.04 * D))
+        flap.addLine(to: p(wc.x - wingTipChord * 0.45, wc.y + 0.012 * D))
+        add(.wing, .panelLine, flap)
+
+        // Flap track fairings: small pods hanging under the trailing edge, pointed aft.
+        let pods: [Double] = family.isWidebody || family == .other && D > 5 ? [0.18, 0.40, 0.60, 0.78] : [0.22, 0.48, 0.74]
+        for f in pods {
+            let te = f < kinkF ? lerp(rootTE, wk, f / kinkF) : lerp(wk, wc, (f - kinkF) / (1 - kinkF))
+            let chord = cr + (wingTipChord - cr) * f
+            let len = chord * 0.30 + D * 0.12, h = D * 0.055
+            let x0 = te.x - len * 0.55, z0 = te.y + 0.005 * D
+            // A canoe under the trailing edge: rounded nose, deepest a third along, tapering aft.
+            var pod = Path()
+            pod.move(to: p(x0, z0))
+            pod.addCurve(to: p(x0 + len, z0 - h * 0.35), control1: p(x0 + len * 0.05, z0 - h * 1.25),
+                         control2: p(x0 + len * 0.6, z0 - h * 1.1))
+            pod.addQuadCurve(to: p(x0 + len * 0.45, z0 + 0.004 * D), control: p(x0 + len * 0.85, z0 + 0.004 * D))
+            pod.closeSubpath()
+            add(.wing, .flapFairing, pod)
         }
-        if let tip = wingletPath(tipLE: tipLE, tipTE: tipTE, tipZ: tipZ, thick: thick) {
-            add(.wing, .winglet, tip)
+        if let tipDevice = wingletPath(tipLE: tipLE, tipTE: tipLE + wingTipChord, tipZ: zt - depthTip * 0.5, thick: depthTip) {
+            add(.wing, .winglet, tipDevice)
         }
 
         // Engines ---------------------------------------------------------------------------------
-        let eX = wingRootLE + engineInletFromWing
+        let eX = rootLE + engineInletFromWing
         let eZ = engineClearance + engineDiameter / 2
-        let wingAtEngine = (x: wingRootLE + wingSweep * engineSpan, z: wingZ + wingRise * engineSpan)
         func engine(dx: Double, dy: Double, layer: AircraftLayer) {
             let d = engineDiameter, l = engineLength, x0 = eX + dx, z = eZ + dy
             let flat = engineStyle == .flatBottom
-            let bottomR = flat ? 0.40 * d : 0.5 * d
-            let cowlEnd = x0 + l * 0.66
+            let fanLen = l * (d > 3.6 ? 0.66 : 0.62)
+            let cowlEnd = x0 + fanLen
+            let low = flat ? 0.42 : 0.49
+            let nozzleR = 0.39 * d, nozzleLow = flat ? 0.33 * d : 0.39 * d
+
+            // Pylon up into the wing's lower surface.
+            var pylon = Path()
+            pylon.move(to: p(x0 + l * 0.14, z + 0.47 * d))
+            pylon.addLine(to: p(x0 + l * 0.30, max(z + 0.5 * d, leZ(x0 + l * 0.30) - 0.03 * D) + dy * 0))
+            pylon.addLine(to: p(x0 + l * 0.98, max(z + 0.38 * d, leZ(x0 + l * 0.98) - 0.10 * D)))
+            pylon.addQuadCurve(to: p(x0 + l * 0.84, z + 0.17 * d), control: p(x0 + l * 0.95, z + 0.24 * d))
+            pylon.closeSubpath()
+            add(layer, .pylon, pylon)
+
+            // Core cowl and exhaust plug behind the fan cowl.
+            let coreEnd = x0 + l * 0.86
+            var core = Path()
+            core.move(to: p(cowlEnd - 0.1, z + 0.31 * d))
+            core.addCurve(to: p(coreEnd, z + 0.18 * d), control1: p(cowlEnd + l * 0.10, z + 0.30 * d), control2: p(coreEnd - l * 0.08, z + 0.21 * d))
+            core.addLine(to: p(coreEnd, z - 0.16 * d))
+            core.addCurve(to: p(cowlEnd - 0.1, z - (flat ? 0.27 : 0.30) * d), control1: p(coreEnd - l * 0.08, z - 0.20 * d),
+                          control2: p(cowlEnd + l * 0.10, z - 0.28 * d))
+            core.closeSubpath()
+            add(layer, .exhaust, core)
+            var plug = Path()
+            plug.move(to: p(coreEnd - 0.05, z + 0.13 * d))
+            plug.addQuadCurve(to: p(x0 + l, z - 0.01 * d), control: p(coreEnd + l * 0.08, z + 0.10 * d))
+            plug.addQuadCurve(to: p(coreEnd - 0.05, z - 0.12 * d), control: p(coreEnd + l * 0.08, z - 0.08 * d))
+            plug.closeSubpath()
+            add(layer, .plug, plug)
+
+            // Fan cowl.
             var n = Path()
-            n.move(to: p(x0, z + 0.47 * d))
-            n.addCurve(to: p(cowlEnd, z + 0.40 * d), control1: p(x0 + l * 0.22, z + 0.53 * d), control2: p(x0 + l * 0.48, z + 0.50 * d))
+            n.move(to: p(x0 + 0.02 * d, z + 0.47 * d))
+            n.addCurve(to: p(cowlEnd, z + nozzleR), control1: p(x0 + l * 0.24, z + 0.54 * d), control2: p(x0 + l * 0.48, z + 0.50 * d))
             if engineStyle == .chevron {
-                // Serrated fan nozzle: chevrons from the cowl's top edge down to its bottom edge.
-                let teeth = 7
+                let teeth = 8
+                let span = nozzleR + nozzleLow
                 for i in 0..<teeth {
-                    let b = z + 0.40 * d - 0.80 * d * (Double(i) + 0.5) / Double(teeth)
-                    n.addLine(to: p(cowlEnd + l * 0.028, b))
-                    n.addLine(to: p(cowlEnd, z + 0.40 * d - 0.80 * d * Double(i + 1) / Double(teeth)))
+                    let mid = z + nozzleR - span * (Double(i) + 0.5) / Double(teeth)
+                    n.addLine(to: p(cowlEnd + l * 0.022, mid))
+                    n.addLine(to: p(cowlEnd, z + nozzleR - span * Double(i + 1) / Double(teeth)))
                 }
             } else {
-                n.addLine(to: p(cowlEnd, z - (flat ? 0.34 : 0.40) * d))
+                n.addQuadCurve(to: p(cowlEnd, z - nozzleLow), control: p(cowlEnd + l * 0.012, z))
             }
-            n.addCurve(to: p(x0, z - (bottomR - 0.03 * d)), control1: p(x0 + l * 0.48, z - bottomR - 0.02 * d),
-                       control2: p(x0 + l * 0.2, z - bottomR - 0.02 * d))
-            n.addCurve(to: p(x0, z + 0.47 * d), control1: p(x0 - 0.07 * d, z - 0.2 * d), control2: p(x0 - 0.07 * d, z + 0.3 * d))
+            n.addCurve(to: p(x0 + 0.02 * d, z - (low - 0.02) * d), control1: p(x0 + l * 0.48, z - (low + 0.01) * d),
+                       control2: p(x0 + l * 0.24, z - (low + 0.04) * d))
+            n.addCurve(to: p(x0 + 0.02 * d, z + 0.47 * d), control1: p(x0 - 0.06 * d, z - 0.22 * d), control2: p(x0 - 0.06 * d, z + 0.30 * d))
             n.closeSubpath()
-
-            // Core cowl, nozzle and plug behind the fan cowl.
-            var core = Path()
-            let coreEnd = x0 + l
-            core.move(to: p(cowlEnd - 0.05, z + 0.30 * d))
-            core.addCurve(to: p(coreEnd - l * 0.06, z + 0.15 * d), control1: p(cowlEnd + l * 0.12, z + 0.28 * d), control2: p(coreEnd - l * 0.15, z + 0.18 * d))
-            core.addQuadCurve(to: p(coreEnd, z), control: p(coreEnd - l * 0.01, z + 0.10 * d))
-            core.addQuadCurve(to: p(coreEnd - l * 0.06, z - 0.13 * d), control: p(coreEnd - l * 0.01, z - 0.09 * d))
-            core.addCurve(to: p(cowlEnd - 0.05, z - (flat ? 0.26 : 0.30) * d), control1: p(coreEnd - l * 0.15, z - 0.16 * d),
-                          control2: p(cowlEnd + l * 0.12, z - 0.26 * d))
-            core.closeSubpath()
-
-            // Pylon up into the wing.
-            var pylon = Path()
-            pylon.move(to: p(x0 + l * 0.18, z + 0.46 * d))
-            pylon.addLine(to: p(x0 + l * 0.30, wingAtEngine.z + dy + 0.15))
-            pylon.addLine(to: p(max(wingAtEngine.x + wingRootChord * 0.45, coreEnd + 0.2) + dx, wingAtEngine.z + dy - 0.05))
-            pylon.addQuadCurve(to: p(coreEnd - l * 0.02, z + 0.20 * d), control: p(coreEnd + l * 0.05, z + 0.35 * d))
-            pylon.closeSubpath()
-
-            // Inlet lip: a thin bright crescent at the front.
-            var lip = Path()
-            lip.move(to: p(x0, z + 0.47 * d))
-            lip.addCurve(to: p(x0, z - (bottomR - 0.03 * d)), control1: p(x0 - 0.07 * d, z + 0.3 * d), control2: p(x0 - 0.07 * d, z - 0.2 * d))
-            lip.addCurve(to: p(x0, z + 0.47 * d), control1: p(x0 + 0.02 * d, z - 0.2 * d), control2: p(x0 + 0.02 * d, z + 0.3 * d))
-            lip.closeSubpath()
-
-            add(layer, .pylon, pylon)
-            add(layer, .exhaust, core)
             add(layer, .nacelle, n)
+
+            // Inlet lip (bright crescent) and the fan face just showing behind it.
+            var lip = Path()
+            lip.move(to: p(x0 + 0.02 * d, z + 0.47 * d))
+            lip.addCurve(to: p(x0 + 0.02 * d, z - (low - 0.02) * d), control1: p(x0 - 0.06 * d, z + 0.30 * d), control2: p(x0 - 0.06 * d, z - 0.22 * d))
+            lip.addCurve(to: p(x0 + 0.02 * d, z + 0.47 * d), control1: p(x0 + 0.03 * d, z - 0.22 * d), control2: p(x0 + 0.03 * d, z + 0.30 * d))
+            lip.closeSubpath()
             add(layer, .inlet, lip)
+            var fan = Path()
+            fan.move(to: p(x0 + 0.05 * d, z + 0.40 * d))
+            fan.addCurve(to: p(x0 + 0.05 * d, z - (low - 0.08) * d), control1: p(x0 + 0.035 * d, z + 0.2 * d), control2: p(x0 + 0.035 * d, z - 0.2 * d))
+            fan.addCurve(to: p(x0 + 0.05 * d, z + 0.40 * d), control1: p(x0 + 0.075 * d, z - 0.2 * d), control2: p(x0 + 0.075 * d, z + 0.2 * d))
+            fan.closeSubpath()
+            add(layer, .fan, fan)
         }
-        engine(dx: wingSweep * 0.035, dy: wingRise * 0.09, layer: .engineFar)
+        engine(dx: wingSweep * 0.03, dy: 0.10 * D, layer: .engineFar)
         engine(dx: 0, dy: 0, layer: .engine)
 
         // Gear ----------------------------------------------------------------------------------
         func gear(dx: Double, layer: AircraftLayer, near: Bool) {
-            // Nose gear.
             let nx = noseGearX + dx
-            add(layer, .strut, Path(roundedRect: CGRect(x: nx - 0.09, y: noseTyre, width: 0.18, height: yb - noseTyre + 0.05),
+            add(layer, .strut, Path(roundedRect: CGRect(x: nx - 0.08, y: noseTyre, width: 0.16, height: yb - noseTyre + 0.05),
                                     cornerRadius: 0.05))
             add(layer, .tyre, Path(ellipseIn: CGRect(x: nx - noseTyre, y: 0, width: noseTyre * 2, height: noseTyre * 2)))
-            if near { add(layer, .hub, Path(ellipseIn: CGRect(x: nx - noseTyre * 0.45, y: noseTyre * 0.55, width: noseTyre * 0.9, height: noseTyre * 0.9))) }
-            // Main gear: leg from the wing root to the bogie.
+            if near { add(layer, .hub, Path(ellipseIn: CGRect(x: nx - noseTyre * 0.42, y: noseTyre * 0.58, width: noseTyre * 0.84, height: noseTyre * 0.84))) }
             let mx = mainGearX + dx
             let span = axleSpacing * Double(mainAxles - 1)
-            add(layer, .strut, Path(roundedRect: CGRect(x: mx - 0.14, y: mainTyre, width: 0.28, height: wingZ - mainTyre),
+            let legTop = zr - depthRoot * 0.6
+            add(layer, .strut, Path(roundedRect: CGRect(x: mx - 0.13, y: mainTyre, width: 0.26, height: legTop - mainTyre),
                                     cornerRadius: 0.07))
+            // Side brace from the leg up and forward into the wing.
+            var brace = Path()
+            brace.move(to: p(mx - 0.05, mainTyre + (legTop - mainTyre) * 0.55))
+            brace.addLine(to: p(mx - (legTop - mainTyre) * 0.35, legTop))
+            brace.addLine(to: p(mx - (legTop - mainTyre) * 0.35 + 0.12, legTop))
+            brace.addLine(to: p(mx + 0.05, mainTyre + (legTop - mainTyre) * 0.55 + 0.1))
+            brace.closeSubpath()
+            add(layer, .strut, brace)
             if mainAxles > 1 {
-                add(layer, .strut, Path(roundedRect: CGRect(x: mx - span / 2, y: mainTyre - 0.09, width: span, height: 0.18),
+                add(layer, .strut, Path(roundedRect: CGRect(x: mx - span / 2 - 0.1, y: mainTyre - 0.09, width: span + 0.2, height: 0.18),
                                         cornerRadius: 0.09))
             }
             for i in 0..<mainAxles {
                 let cx = mx - span / 2 + axleSpacing * Double(i)
                 add(layer, .tyre, Path(ellipseIn: CGRect(x: cx - mainTyre, y: 0, width: mainTyre * 2, height: mainTyre * 2)))
-                if near { add(layer, .hub, Path(ellipseIn: CGRect(x: cx - mainTyre * 0.45, y: mainTyre * 0.55, width: mainTyre * 0.9, height: mainTyre * 0.9))) }
+                if near { add(layer, .hub, Path(ellipseIn: CGRect(x: cx - mainTyre * 0.42, y: mainTyre * 0.58, width: mainTyre * 0.84, height: mainTyre * 0.84))) }
             }
         }
-        gear(dx: 0.35, layer: .gearFar, near: false)
+        gear(dx: 0.3, layer: .gearFar, near: false)
         gear(dx: 0, layer: .gear, near: true)
 
         // Slots ---------------------------------------------------------------------------------
         let midY = finBaseY + finH * 0.52
         let midLE = finRootLE + finSweep * 0.52, midTE = finRootTE + (finTipTE - finRootTE) * 0.52
         let chord = midTE - midLE
-        let finBox = CGRect(x: midLE + chord * 0.18, y: midY - finH * 0.28, width: chord * 0.62, height: finH * 0.56)
+        let finBox = CGRect(x: midLE + chord * 0.16, y: midY - finH * 0.27, width: chord * 0.62, height: finH * 0.54)
         let band = (windowY - windowHeight * 0.9)...(windowY + windowHeight * 0.9)
         let anchor = CGPoint(x: firstWindow + windowPitch * 2, y: windowY + windowHeight * 0.75)
         return AircraftGeometry(family: family, lengthM: length, heightM: height, shapes: shapes, finBox: finBox,
                                 cheatlineBand: band, titleAnchor: anchor, fuselageBottomM: yb, fuselageTopM: yt)
     }
 
-    private func lerp(_ a: CGPoint, _ b: CGPoint, _ t: Double) -> CGPoint {
-        CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
-    }
-
     /// The wing tip device in profile, rising from the tip chord.
     private func wingletPath(tipLE: Double, tipTE: Double, tipZ: Double, thick: Double) -> Path? {
         let c = tipTE - tipLE, h = wingletHeight
-        func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x, y: y) }
         var w = Path()
         switch winglet {
         case .none:
             return nil
         case .sharklet:
             // Airbus sharklet: a smooth blend from the tip into a tall swept fin.
-            w.move(to: p(tipLE - c * 0.1, tipZ + thick * 0.2))
-            w.addCurve(to: p(tipLE + c * 0.9, tipZ + h), control1: p(tipLE + c * 0.35, tipZ + thick * 0.4), control2: p(tipLE + c * 0.62, tipZ + h * 0.45))
-            w.addLine(to: p(tipLE + c * 1.22, tipZ + h))
-            w.addCurve(to: p(tipTE, tipZ), control1: p(tipLE + c * 1.1, tipZ + h * 0.5), control2: p(tipTE + c * 0.05, tipZ + h * 0.15))
+            w.move(to: p(tipLE - c * 0.15, tipZ + thick * 0.5))
+            w.addCurve(to: p(tipLE + c * 1.0, tipZ + h), control1: p(tipLE + c * 0.4, tipZ + thick * 0.6), control2: p(tipLE + c * 0.72, tipZ + h * 0.45))
+            w.addLine(to: p(tipLE + c * 1.30, tipZ + h))
+            w.addCurve(to: p(tipTE, tipZ - thick * 0.5), control1: p(tipLE + c * 1.18, tipZ + h * 0.5), control2: p(tipTE + c * 0.08, tipZ + h * 0.12))
             w.closeSubpath()
         case .blended:
             // 737NG blended winglet: a long sweep with a large root radius.
-            w.move(to: p(tipLE - c * 0.05, tipZ + thick * 0.2))
-            w.addCurve(to: p(tipLE + c * 1.15, tipZ + h), control1: p(tipLE + c * 0.55, tipZ + thick * 0.2), control2: p(tipLE + c * 0.85, tipZ + h * 0.55))
-            w.addLine(to: p(tipLE + c * 1.45, tipZ + h))
-            w.addCurve(to: p(tipTE, tipZ), control1: p(tipLE + c * 1.3, tipZ + h * 0.45), control2: p(tipTE + c * 0.1, tipZ + h * 0.08))
+            w.move(to: p(tipLE - c * 0.1, tipZ + thick * 0.5))
+            w.addCurve(to: p(tipLE + c * 1.2, tipZ + h), control1: p(tipLE + c * 0.6, tipZ + thick * 0.5), control2: p(tipLE + c * 0.9, tipZ + h * 0.55))
+            w.addLine(to: p(tipLE + c * 1.5, tipZ + h))
+            w.addCurve(to: p(tipTE, tipZ - thick * 0.5), control1: p(tipLE + c * 1.35, tipZ + h * 0.45), control2: p(tipTE + c * 0.12, tipZ + h * 0.08))
             w.closeSubpath()
         case .splitScimitar:
             // 737 MAX: the upper scimitar plus a ventral blade pointing down and aft.
-            w.move(to: p(tipLE - c * 0.05, tipZ + thick * 0.2))
-            w.addCurve(to: p(tipLE + c * 1.1, tipZ + h), control1: p(tipLE + c * 0.5, tipZ + thick * 0.2), control2: p(tipLE + c * 0.8, tipZ + h * 0.55))
-            w.addLine(to: p(tipLE + c * 1.38, tipZ + h * 1.02))
-            w.addCurve(to: p(tipTE, tipZ + thick * 0.1), control1: p(tipLE + c * 1.25, tipZ + h * 0.45), control2: p(tipTE + c * 0.1, tipZ + h * 0.08))
-            w.addLine(to: p(tipLE + c * 1.55, tipZ - h * 0.48))
-            w.addLine(to: p(tipLE + c * 1.30, tipZ - h * 0.47))
-            w.addCurve(to: p(tipLE + c * 0.15, tipZ), control1: p(tipLE + c * 0.8, tipZ - h * 0.22), control2: p(tipLE + c * 0.4, tipZ - 0.02))
+            w.move(to: p(tipLE - c * 0.1, tipZ + thick * 0.5))
+            w.addCurve(to: p(tipLE + c * 1.15, tipZ + h), control1: p(tipLE + c * 0.55, tipZ + thick * 0.5), control2: p(tipLE + c * 0.85, tipZ + h * 0.55))
+            w.addLine(to: p(tipLE + c * 1.42, tipZ + h * 1.02))
+            w.addCurve(to: p(tipTE, tipZ), control1: p(tipLE + c * 1.28, tipZ + h * 0.45), control2: p(tipTE + c * 0.1, tipZ + h * 0.08))
+            w.addLine(to: p(tipLE + c * 1.6, tipZ - h * 0.48))
+            w.addLine(to: p(tipLE + c * 1.36, tipZ - h * 0.47))
+            w.addCurve(to: p(tipLE + c * 0.15, tipZ - thick * 0.5), control1: p(tipLE + c * 0.8, tipZ - h * 0.22), control2: p(tipLE + c * 0.4, tipZ - thick * 0.5))
             w.closeSubpath()
         case .raked:
             // Raked tip: the tip runs on aft to a point instead of rising.
-            w.move(to: p(tipLE - c * 0.2, tipZ + thick * 0.25))
-            w.addCurve(to: p(tipTE + c * 1.4, tipZ + h), control1: p(tipLE + c * 0.9, tipZ + thick * 0.3), control2: p(tipTE + c * 0.9, tipZ + h * 0.7))
-            w.addCurve(to: p(tipTE - c * 0.1, tipZ), control1: p(tipTE + c * 1.0, tipZ + h * 0.3), control2: p(tipTE + c * 0.4, tipZ))
+            w.move(to: p(tipLE - c * 0.05, tipZ + thick * 0.5))
+            w.addCurve(to: p(tipTE + c * 1.8, tipZ + h), control1: p(tipLE + c * 0.9, tipZ + thick * 0.5 + h * 0.1), control2: p(tipTE + c * 1.2, tipZ + h * 0.75))
+            w.addCurve(to: p(tipTE - c * 0.25, tipZ - thick * 0.5), control1: p(tipTE + c * 1.1, tipZ + h * 0.25), control2: p(tipTE + c * 0.4, tipZ - thick * 0.5))
             w.closeSubpath()
         case .curled:
             // A350: the tip curls up and aft in one sweep.
-            w.move(to: p(tipLE - c * 0.15, tipZ + thick * 0.2))
-            w.addCurve(to: p(tipLE + c * 1.55, tipZ + h), control1: p(tipLE + c * 0.7, tipZ + thick * 0.2), control2: p(tipLE + c * 1.3, tipZ + h * 0.4))
-            w.addQuadCurve(to: p(tipLE + c * 1.78, tipZ + h * 0.96), control: p(tipLE + c * 1.7, tipZ + h * 1.02))
-            w.addCurve(to: p(tipTE, tipZ), control1: p(tipLE + c * 1.6, tipZ + h * 0.35), control2: p(tipTE + c * 0.25, tipZ + h * 0.05))
+            w.move(to: p(tipLE - c * 0.25, tipZ + thick * 0.5))
+            w.addCurve(to: p(tipLE + c * 1.55, tipZ + h), control1: p(tipLE + c * 0.75, tipZ + thick * 0.5), control2: p(tipLE + c * 1.3, tipZ + h * 0.4))
+            w.addQuadCurve(to: p(tipLE + c * 1.80, tipZ + h * 0.95), control: p(tipLE + c * 1.72, tipZ + h * 1.03))
+            w.addCurve(to: p(tipTE, tipZ - thick * 0.5), control1: p(tipLE + c * 1.6, tipZ + h * 0.35), control2: p(tipTE + c * 0.25, tipZ + h * 0.04))
             w.closeSubpath()
         }
         return w

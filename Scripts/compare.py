@@ -134,7 +134,9 @@ def compose_v2(name: str) -> Path:
     entries = V2_REFS[name]
     refs = [v2_ref(e) for e in entries]
     if all(isinstance(e, tuple) for e in entries):
-        # Crops stack top to bottom.
+        # Crops stack top to bottom, each scaled to the width of our planes (376 pt at @3x) so the two sides
+        # compare at the same scale.
+        refs = [r.resize((1128, round(r.height * 1128 / r.width)), Image.LANCZOS) for r in refs]
         left = Image.new("RGB", (max(r.width for r in refs), sum(r.height for r in refs) + GAP * (len(refs) - 1)), BG)
         y = 0
         for r in refs:

@@ -21,7 +21,7 @@ enum A320Family {
     static func geometry(_ icao: String?) -> AircraftGeometry {
         let v = variant(icao)
         let L = v.length, plug = v.forwardPlug
-        let rootLE = 13.6 + plug, rootChord = 6.6
+        let rootLE = 14.2 + plug, rootChord = 6.2
         var doors: [AirlinerSpec.Door] = [.init(x: 6.25, width: 0.81, height: 1.85)]
         if v.fourDoors {
             doors.append(.init(x: rootLE - 2.4, width: 1.07, height: 1.85))
@@ -33,14 +33,14 @@ enum A320Family {
         doors.append(.init(x: L - 7.3, width: 0.81, height: 1.85))
         return AirlinerSpec(
             family: .a320, length: L, height: 11.76, diameter: 4.14, bottom: 1.85,
-            nose: .airbus, noseLength: 6.0, tailLength: 11.4,
-            finRootLEFromTail: 7.9, finRootChord: 6.3, finTipChord: 2.3, finSweep: 4.4, finFillet: 1.6,
-            tailplaneLEFromTail: 6.3, tailplaneChord: 3.3, tailplaneRun: 3.4, tailplaneRise: 0.55,
-            wingRootLE: rootLE, wingRootChord: rootChord, wingTipChord: 1.6, wingSweep: 8.2, wingRise: 1.1,
-            winglet: .sharklet, wingletHeight: 2.43,
-            engineDiameter: v.neo ? 2.3 : 2.05, engineLength: v.neo ? 4.6 : 4.3, engineClearance: v.neo ? 0.5 : 0.56,
-            engineInletFromWing: v.neo ? -1.6 : -1.2, engineSpan: 0.3, engineStyle: .plain,
-            noseGearX: 5.07, mainGearX: rootLE + 4.1, noseTyre: 0.38, mainTyre: 0.585, mainAxles: 1, axleSpacing: 0,
+            nose: .airbus, noseLength: 6.3, tailLength: 11.6,
+            fin: .swept, finRootLEFromTail: 8.3, finRootChord: 6.4, finTipChord: 2.2, finSweep: 4.7, finFillet: 2.2,
+            tailplaneLEFromTail: 6.5, tailplaneChord: 3.4, tailplaneRun: 4.6, tailplaneRise: 1.15,
+            wingRootLE: rootLE, wingRootChord: rootChord, wingTipChord: 1.5, wingSweep: 8.4, wingRise: 1.65,
+            winglet: .sharklet, wingletHeight: 2.1,
+            engineDiameter: v.neo ? 2.3 : 2.05, engineLength: v.neo ? 4.7 : 4.3, engineClearance: v.neo ? 0.5 : 0.56,
+            engineInletFromWing: v.neo ? -2.7 : -2.3, engineStyle: .plain,
+            noseGearX: 5.07, mainGearX: rootLE + 3.5, noseTyre: 0.38, mainTyre: 0.585, mainAxles: 1, axleSpacing: 0,
             doors: doors, cargoDoors: [9.2 + plug * 0.5, L - 12.6], cargoDoorWidth: 1.82,
             windowPitch: 0.533, windowWidth: 0.24, windowHeight: 0.34, windowLine: 0.60,
             firstWindow: 7.35, lastWindowFromTail: 8.2

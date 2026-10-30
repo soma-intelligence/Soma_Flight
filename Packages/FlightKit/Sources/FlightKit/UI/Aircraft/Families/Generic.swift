@@ -11,7 +11,8 @@ public enum Generic {
         spec.engineLength = 4.2
         spec.engineClearance = 0.55
         spec.engineStyle = .plain
-        spec.finFillet = 1.8
+        spec.finFillet = 2.2
+        spec.fin = .swept
         return spec.build()
     }()
 
@@ -20,6 +21,7 @@ public enum Generic {
         spec.family = .other
         spec.nose = .b777
         spec.winglet = .none
+        spec.fin = .swept
         spec.engineStyle = .plain
         spec.windowPitch = 0.533
         spec.windowWidth = 0.28

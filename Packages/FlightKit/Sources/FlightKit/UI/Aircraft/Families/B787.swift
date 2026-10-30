@@ -18,7 +18,7 @@ enum B787 {
     }
 
     static func spec(length L: Double, height: Double, forwardPlug plug: Double) -> AirlinerSpec {
-        let rootLE = 24.8 + plug, rootChord = 11.6
+        let rootLE = 25.1 + plug, rootChord = 11.6
         let typeA = (w: 1.07, h: 1.93)
         let doors: [AirlinerSpec.Door] = [
             .init(x: 8.7, width: typeA.w, height: typeA.h),
@@ -28,14 +28,14 @@ enum B787 {
         ]
         return AirlinerSpec(
             family: .b787, length: L, height: height, diameter: 5.97, bottom: 2.35,
-            nose: .b787, noseLength: 10.2, tailLength: 18.5,
-            finRootLEFromTail: 13.6, finRootChord: 10.0, finTipChord: 3.5, finSweep: 7.4, finFillet: 4.6,
-            tailplaneLEFromTail: 12.2, tailplaneChord: 5.0, tailplaneRun: 6.8, tailplaneRise: 0.85,
-            wingRootLE: rootLE, wingRootChord: rootChord, wingTipChord: 1.5, wingSweep: 16.6, wingRise: 2.4,
+            nose: .b787, noseLength: 10.8, tailLength: 19.0,
+            fin: .curvedLeadingEdge, finRootLEFromTail: 14.0, finRootChord: 10.2, finTipChord: 3.3, finSweep: 8.2, finFillet: 5.2,
+            tailplaneLEFromTail: 12.0, tailplaneChord: 5.2, tailplaneRun: 9.3, tailplaneRise: 1.8,
+            wingRootLE: rootLE, wingRootChord: rootChord, wingTipChord: 1.5, wingSweep: 16.5, wingRise: 3.3,
             winglet: .raked, wingletHeight: 0.9,
-            engineDiameter: 3.3, engineLength: 5.7, engineClearance: 0.85,
-            engineInletFromWing: -0.2, engineSpan: 0.3, engineStyle: .chevron,
-            noseGearX: 5.4, mainGearX: rootLE + 6.8, noseTyre: 0.52, mainTyre: 0.64, mainAxles: 2, axleSpacing: 1.45,
+            engineDiameter: 3.35, engineLength: 5.7, engineClearance: 0.85,
+            engineInletFromWing: -3.7, engineStyle: .chevron,
+            noseGearX: 5.4, mainGearX: rootLE + 5.9, noseTyre: 0.52, mainTyre: 0.64, mainAxles: 2, axleSpacing: 1.45,
             doors: doors, cargoDoors: [12.6, L - 17.6], cargoDoorWidth: 2.7,
             windowPitch: 0.61, windowWidth: 0.30, windowHeight: 0.47, windowLine: 0.60,
             firstWindow: 9.9, lastWindowFromTail: 10.7
