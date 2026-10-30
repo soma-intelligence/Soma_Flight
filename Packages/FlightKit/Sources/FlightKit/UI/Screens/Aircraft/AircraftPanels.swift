@@ -214,6 +214,10 @@ enum Blueprint {
     static let navy = Color(red: 0x17 / 255, green: 0x2F / 255, blue: 0x5E / 255)
     /// The bar above the page, light blue.
     static let sky = Color(red: 0xCF / 255, green: 0xE0 / 255, blue: 0xF8 / 255)
+    /// The most flown type's "9 flights · 42 hours" line: it sits where the page fade reaches its mid blue,
+    /// so it needs a deeper ink than `navy` for 4.5:1 there.
+    static let deepRGB: (r: Double, g: Double, b: Double) = (0x0B / 255, 0x17 / 255, 0x33 / 255)
+    static let deep = Color(red: deepRGB.r, green: deepRGB.g, blue: deepRGB.b)
 }
 
 // MARK: - Header panel
@@ -284,8 +288,8 @@ struct AircraftTotalsPanel: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text(AircraftStatsCopy.flightsAndHours(most))
-                .scaledFont(16)
-                .foregroundStyle(Color(red: 0x2F / 255, green: 0x5C / 255, blue: 0xA8 / 255))
+                .scaledFont(16, weight: .medium)
+                .foregroundStyle(Blueprint.deep)
             // As wide as the panel, like the reference's hero plane: up to 88 pt tall, no wider than 340 pt.
             AircraftImage(type: mostFlownType, airline: mostFlownAirline,
                           height: min(88, 340 / AircraftSideView.aspect(type: mostFlownType)))

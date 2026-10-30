@@ -146,3 +146,19 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
         return (Int(data[0]), Int(data[1]), Int(data[2]))
     }
 }
+
+/// The "9 flights · 42 hours" line meets WCAG AA (4.5:1) over the part of the page fade it can sit on: from
+/// the second stop to a quarter past the third, toward the blueprint blue.
+@Test func mostFlownHoursLineMeetsContrast() {
+    func lum(_ r: Double, _ g: Double, _ b: Double) -> Double { BrandArt.relativeLuminance(r: r, g: g, b: b) }
+    let ink = lum(Blueprint.deepRGB.r, Blueprint.deepRGB.g, Blueprint.deepRGB.b)
+    let second = (0xA6 / 255.0, 0xCA / 255.0, 0xF1 / 255.0), third = (0x55 / 255.0, 0x90 / 255.0, 0xCF / 255.0)
+    let blueprint = (0x2F / 255.0, 0x6B / 255.0, 0xBA / 255.0)
+    func mix(_ a: (Double, Double, Double), _ b: (Double, Double, Double), _ t: Double) -> Double {
+        lum(a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t)
+    }
+    for t in stride(from: 0.0, through: 1.0, by: 0.1) {
+        #expect(BrandArt.contrast(ink, mix(second, third, t)) >= 4.5, "at \(t)")
+    }
+    #expect(BrandArt.contrast(ink, mix(third, blueprint, 0.25)) >= 4.5)
+}

@@ -714,8 +714,12 @@ def write_credits(manifest):
     logos, symbols = manifest["logos"], manifest.get("symbols", {})
 
     def credit(v):
-        return {"author": v["author"] or "Unknown author", "license": v["license"],
-                "license_url": v["license_url"], "source": v["source_page"], "attribution": v["attribution"]}
+        c = {"author": v["author"] or "Unknown author", "license": v["license"],
+             "license_url": v["license_url"], "source": v["source_page"], "attribution": v["attribution"]}
+        # A modified file (a share-alike one must say so) carries what was changed.
+        if v.get("changes"):
+            c["changes"] = v["changes"]
+        return c
 
     def symbol_credit(s):
         c = {"kind": "symbol", **credit(s)}

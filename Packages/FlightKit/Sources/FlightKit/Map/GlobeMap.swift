@@ -288,6 +288,7 @@ public struct GlobeMap: View {
                                 style: StrokeStyle(lineWidth: route.isPast ? 1.2 : 2.5, lineCap: .round, lineJoin: .round))
                 }
             }
+            let unlabelled = GlobeContent.labelHidden(airports)
             ForEach(airports) { a in
                 Annotation(a.iata ?? a.id, coordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lon), anchor: .center) {
                     Circle()
@@ -297,7 +298,8 @@ public struct GlobeMap: View {
                         .padding(8)
                         .contentShape(Circle())
                 }
-                .annotationTitles(.visible)
+                // Close neighbours (SFO and OAK) keep their dots; only the busier one is labelled.
+                .annotationTitles(unlabelled.contains(a.id) ? .hidden : .visible)
                 .tag(GlobeSelection.airport(a.id))
             }
             ForEach(planes) { p in

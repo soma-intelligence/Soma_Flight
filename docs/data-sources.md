@@ -1,9 +1,11 @@
 # Data sources
 
 Reference data that ships in the repo, where it comes from, under which licence, and when it was retrieved.
-No dataset here is share-alike. Two airline logo images are CC BY-SA (see Airline logos); they are shipped
-unchanged or only scaled, and nothing is derived from them (the cropped symbols all come from public domain
-files).
+No dataset here is share-alike. Three airline logo files are CC BY-SA (see Airline logos): the `OMA` and
+`ROT` wordmarks, shipped unchanged or only scaled and rasterized, and the `KLM` crown symbol, which we cropped
+(a tighter viewBox). The crop is an adaptation: it carries the same license (CC BY-SA 3.0), and Acknowledgements
+shows its author, a link to the license deed, its source and "Modified: cropped". The other cropped symbols
+all come from public domain files.
 
 ## Airports
 
@@ -125,7 +127,10 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   a name match ships only when the script's reviewed table (`SYMBOL_REVIEW`) accepts that file as the mark of the
   airline's current branding. Nothing is cropped or edited. 6 symbols: `DLH` crane and `NOZ` avatar (P8972),
   `KAL` taegeuk (P2910), `AAL` flight symbol (P154, symbol-named), `DAL` widget and `KLM` crown (Commons
-  category). Licences: 5 public domain, 1 CC BY-SA 3.0 (`KLM`, by 京市). 103 airlines keep their wordmark only.
+  category). Licences: 5 public domain, 1 CC BY-SA 3.0 (`KLM`, by 京市). Exception, later the same day: the `KLM`
+  crown's viewBox was cropped to the crown (manifest `changes`; the source canvas is twice its width). That
+  adaptation stays CC BY-SA 3.0, its credit carries `changes`, and Acknowledgements says "Modified: cropped" and
+  links the license deed (as it does for every CC file). 103 airlines keep their wordmark only.
   Rejected candidates and why are in `symbols-report.json`. About 80 KB.
 - Cropped symbols (Task 8d, same day, owner approved): where the symbol only exists inside the full logo, it is
   cut out of the stored Commons file by `python3 -I Scripts/logos/crop_symbols.py` (run at the end of

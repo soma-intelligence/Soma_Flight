@@ -93,7 +93,7 @@ struct AcknowledgementsTests {
             #expect(symbol.license == entry.license)
             #expect(symbol.source == entry.source_page && symbol.source.hasPrefix("https://commons.wikimedia.org/wiki/File:"))
             #expect(symbol.attribution.contains("via Wikimedia Commons"))
-            #expect(symbol.creditLine == "Symbol: \(entry.author), \(entry.license)")
+            #expect(symbol.creditLine == "Symbol: \(entry.author)")
             if entry.method == "crop" {
                 crops += 1
                 #expect(symbol.isCrop)
@@ -110,6 +110,48 @@ struct AcknowledgementsTests {
         // The summary row lists the symbols' licences too (KLM crown, CC BY-SA 3.0).
         let licenses = AcknowledgementsView.logoLicenses
         for entry in manifest.symbols.values { #expect(licenses.contains(entry.license)) }
+    }
+
+    /// CC BY-SA: every share-alike file, wordmark or symbol, links its licence deed, and a file we changed
+    /// (manifest `changes`, or a crop) says it was modified and that the adaptation keeps the licence.
+    @Test func everyShareAlikeAssetLinksItsLicenseAndNotesChanges() throws {
+        struct Entry: Decodable {
+            let license: String; let license_url: String?; let method: String?; let changes: String?
+        }
+        struct Manifest: Decodable { let logos: [String: Entry]; let symbols: [String: Entry] }
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "assets/logos/commons/manifest.json")
+        let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
+        let credits = Dictionary(uniqueKeysWithValues: AcknowledgementsView.logoCredits.map { ($0.icao, $0) })
+        typealias Note = AcknowledgementsView.LicenseNote
+        var shareAlike = 0, derived = 0
+        for (icao, entry) in manifest.logos where Note.isShareAlike(entry.license) {
+            shareAlike += 1
+            let credit = try #require(credits[icao])
+            #expect(Note.deed(credit.license_url) != nil, "no license deed for \(icao)")
+            let note = Note.modification(changes: credit.changes, cropped: false, license: credit.license)
+            if entry.changes != nil {
+                derived += 1
+                #expect(note?.hasPrefix("Modified: cropped") == true && note?.contains(entry.license) == true, "\(icao)")
+            } else {
+                #expect(note == nil, "\(icao) shipped unchanged")
+            }
+        }
+        for (icao, entry) in manifest.symbols where Note.isShareAlike(entry.license) {
+            shareAlike += 1
+            let symbol = try #require(credits[icao]?.symbol)
+            #expect(Note.deed(symbol.license_url) != nil, "no license deed for the \(icao) symbol")
+            if entry.changes != nil || entry.method == "crop" {
+                derived += 1
+                let note = try #require(symbol.modificationNote, "no modification note for the \(icao) symbol")
+                #expect(note.hasPrefix("Modified: cropped") && note.contains(entry.license))
+            }
+        }
+        // docs/data-sources.md and the App Store checklist: OMA, ROT and the KLM crown; one cropped (KLM).
+        #expect(shareAlike == 3)
+        #expect(derived == 1)
+        #expect(credits["KLM"]?.symbol?.modificationNote?.contains("CC BY-SA 3.0") == true)
     }
 
     @Test func flagLabelsNameTheCountry() {

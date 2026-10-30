@@ -45,8 +45,11 @@ public final class HomeModel {
     public private(set) var passport: PassportStore
     /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
-    /// The section on show.
-    public var tab: HomeTab = .flights
+    /// The section on show. Choosing Passport raises the iOS sheet to full height, like the reference,
+    /// so its three cards show at once.
+    public var tab: HomeTab = .flights {
+        didSet { if tab == .passport, oldValue != .passport { shell.detent = .large } }
+    }
     /// The Passport page open over the home, if any.
     public var fullPage: FullPage?
     /// The confirmation over the tab pill after a follow ("Following UA 990"); clears after `toastDuration`.

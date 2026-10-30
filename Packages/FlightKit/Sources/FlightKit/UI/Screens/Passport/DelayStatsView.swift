@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Delay stats, opened from the delays card: the hours lost as the hero, then how late the delayed
 /// flights were, how many of the flights were delayed and the average over every flight, then the ten
-/// flights that left latest. The figures are the core's (`PassportStats`); the list order is the store's.
+/// flights that arrived latest. The figures are the core's (`PassportStats`); the list order is the store's.
 struct DelayStatsView: View {
     @Bindable var store: PassportStore
     var lookup: (String) -> Airport?
@@ -29,7 +29,7 @@ struct DelayStatsView: View {
     private func figures(_ s: PassportStats) -> some View {
         HStack(alignment: .top, spacing: 8) {
             tile("Average delay", s.delayedFlights > 0 ? Format.minutes(s.avgDelayedMinutes) : "None",
-                 caption: "of delayed flights")
+                 caption: "of late arrivals")
             tile("Delayed", DelayFacts.share(delayed: s.delayedFlights, of: s.flights),
                  caption: DelayFacts.shareCaption(delayed: s.delayedFlights, of: s.flights))
             tile("Per flight", Format.minutes(s.avgDelayMinutes), caption: "on average")

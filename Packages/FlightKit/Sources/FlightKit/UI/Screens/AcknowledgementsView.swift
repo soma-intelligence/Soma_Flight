@@ -33,6 +33,8 @@ public struct AcknowledgementsView: View {
         var license_url: String?
         var source: String
         var attribution: String
+        /// What we changed in the file, when we changed it (manifest `changes`).
+        var changes: String?
         /// The airline's compact symbol, when it has one: a separate Commons file or a crop of the wordmark's.
         var symbol: SymbolCredit?
         var id: String { icao }
@@ -48,16 +50,42 @@ public struct AcknowledgementsView: View {
         var attribution: String
         var method: String?
         var derived_from: String?
+        /// What we changed in the file, when we changed it (manifest `changes`).
+        var changes: String?
 
         var isCrop: Bool { method == "crop" }
 
-        /// "Symbol: author, licence".
-        var creditLine: String { "Symbol: \(author), \(license)" }
+        /// "Symbol: author".
+        var creditLine: String { "Symbol: \(author)" }
+
+        /// "Modified: cropped" for a file we changed; a share-alike one also says its licence carries over.
+        var modificationNote: String? { LicenseNote.modification(changes: changes, cropped: isCrop, license: license) }
 
         /// "Cropped from <source file>" for a crop; nil for a symbol that is a Commons file of its own.
         var provenanceLine: String? {
             guard isCrop else { return nil }
             return "Cropped from \(derived_from ?? "the wordmark's file")"
+        }
+    }
+
+    /// Licence wording shared by the wordmark and symbol credits.
+    enum LicenseNote {
+        static func isShareAlike(_ license: String) -> Bool { license.contains("BY-SA") }
+
+        /// The licence deed, for a Creative Commons licence.
+        static func deed(_ url: String?) -> URL? {
+            guard let url, url.hasPrefix("https://creativecommons.org/") else { return nil }
+            return URL(string: url)
+        }
+
+        /// "Modified: cropped (what changed)", plus the licence the adaptation is offered under when the
+        /// source is share-alike; nil for a file shipped as it is.
+        static func modification(changes: String?, cropped: Bool, license: String) -> String? {
+            guard changes != nil || cropped else { return nil }
+            var note = "Modified: cropped"
+            if let changes { note += " (\(changes))" }
+            if isShareAlike(license) { note += ". This version is also under \(license)." }
+            return note
         }
     }
 
@@ -186,8 +214,13 @@ public struct AcknowledgementsView: View {
     private func logoCredit(_ credit: LogoCredit) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(credit.name) (\(credit.icao))").scaledFont(15).foregroundStyle(Theme.primary)
-            Text("\(credit.author), \(credit.license)").scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(credit.author).scaledFont(13).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            license(credit.license, url: credit.license_url)
+            if let note = LicenseNote.modification(changes: credit.changes, cropped: false, license: credit.license) {
+                Text(note).scaledFont(13).foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let url = URL(string: credit.source) {
                 Link(destination: url) {
                     Text("Source on Wikimedia Commons").scaledFont(13).foregroundStyle(Theme.accent)
@@ -198,8 +231,13 @@ public struct AcknowledgementsView: View {
                 Text(symbol.creditLine).scaledFont(13).foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.top, 4)
+                license(symbol.license, url: symbol.license_url)
                 if let line = symbol.provenanceLine {
                     Text(line).scaledFont(13).foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let note = symbol.modificationNote {
+                    Text(note).scaledFont(13).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !symbol.isCrop, let url = URL(string: symbol.source) {
@@ -213,6 +251,18 @@ public struct AcknowledgementsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .scaledPadding(.horizontal, 16)
         .scaledPadding(.vertical, 10)
+    }
+
+    /// The licence name, a link to its deed for a Creative Commons licence.
+    @ViewBuilder private func license(_ name: String, url: String?) -> some View {
+        if let deed = LicenseNote.deed(url) {
+            Link(destination: deed) {
+                Text(name).scaledFont(13).foregroundStyle(Theme.accent)
+            }
+            .accessibilityHint("Opens the \(name) license deed")
+        } else {
+            Text(name).scaledFont(13).foregroundStyle(Theme.secondary)
+        }
     }
 
     private func row(_ entry: Entry, last: Bool) -> some View {

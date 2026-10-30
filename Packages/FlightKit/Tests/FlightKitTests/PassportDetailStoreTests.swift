@@ -119,8 +119,8 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         #expect(DelayFacts.share(delayed: s.stats.delayedFlights, of: s.stats.flights) == "67%")
         #expect(DelayFacts.shareCaption(delayed: 2, of: 3) == "2 of 3 flights")
         #expect(DelayFacts.share(delayed: 0, of: 0) == "0%")
-        #expect(TravelFacts.delayedAverageLine(23, delayed: 2) == "Delayed flights left 23m late on average")
-        #expect(TravelFacts.delayedAverageLine(0, delayed: 0) == "None of your flights left 15 minutes late or more")
+        #expect(TravelFacts.delayedAverageLine(23, delayed: 2) == "Delayed flights arrived 23m late on average")
+        #expect(TravelFacts.delayedAverageLine(0, delayed: 0) == "None of your flights arrived 15 minutes late or more")
     }
 
     @Test func mostDelayedTopTen() async {

@@ -85,7 +85,7 @@ public final class PassportStore {
     /// Years with at least one flight, newest first.
     public var years: [Int] { Array(Set(all.map(\.localYear))).sorted(by: >) }
 
-    /// The selected year's flights that left latest, most late first, ten at most (the delay page's list).
+    /// The selected year's flights that arrived latest, most late first, ten at most (the delay page's list).
     public var mostDelayed: [PastFlight] { PassportPicks.mostDelayed(flights) }
 
     /// The most flown aircraft type of the year, from the reference list when it knows the designator.

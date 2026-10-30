@@ -803,6 +803,7 @@
     "symbol": {
       "attribution": "KLM crown logo by 京市, CC BY-SA 3.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:KLM_crown_logo.svg)",
       "author": "京市",
+      "changes": "viewBox cropped to the crown (the source canvas is twice its width)",
       "kind": "symbol",
       "license": "CC BY-SA 3.0",
       "license_url": "https://creativecommons.org/licenses/by-sa/3.0",

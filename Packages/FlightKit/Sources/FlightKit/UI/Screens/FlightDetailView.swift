@@ -162,10 +162,14 @@ public struct FlightDetailView: View {
                            timeZone: timeZoneChange(flight),
                            onAirport: onAirport)
                     .id("goodToKnow")
-                ForecastSection(forecast: store.forecast)
-                    .id("forecast")
+                // Canceled or diverted: no arrival forecast and no inbound plane.
+                let insights = FlightDetailStore.showsInsights(flight.status)
+                if insights {
+                    ForecastSection(forecast: store.forecast)
+                        .id("forecast")
+                }
                 let type = flight.aircraftType.flatMap { reference.type($0) }
-                if PlaneSection.isShown(type: type, inbound: store.inbound) {
+                if insights, PlaneSection.isShown(type: type, inbound: store.inbound) {
                     PlaneSection(flight: flight, type: type, airline: airline(flight), inbound: store.inbound)
                         .id("plane")
                 } else {

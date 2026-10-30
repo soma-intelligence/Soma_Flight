@@ -141,6 +141,27 @@ import Testing
         Issue.record("condition not met in 2 s")
     }
 
+    /// SFO and OAK (18 km apart) no longer pile their labels up: the busier keeps its label, the other its
+    /// dot; LAX, far enough, keeps both.
+    @Test func closeAirportsShowOneLabel() {
+        func airport(_ icao: String, _ iata: String, _ lat: Double, _ lon: Double) -> Airport {
+            Airport(id: icao, iata: iata, name: iata, city: iata, country: "US", lat: lat, lon: lon, tz: "America/Los_Angeles")
+        }
+        let all = ["KSFO": airport("KSFO", "SFO", 37.619, -122.375), "KOAK": airport("KOAK", "OAK", 37.721, -122.221),
+                   "KLAX": airport("KLAX", "LAX", 33.943, -118.408)]
+        let past = [("KOAK", "KLAX"), ("KSFO", "KLAX"), ("KSFO", "KLAX")].map { o, d in
+            PastFlight(date: .now, ident: "UA1", originIcao: o, destinationIcao: d, distanceKm: 500)
+        }
+        let g = GlobeContent.past(past, lookup: { all[$0] })
+        #expect(g.airports.map(\.id) == ["KLAX", "KSFO", "KOAK"])
+        #expect(GlobeContent.labelHidden(g.airports) == ["KOAK"])
+        // OAK busier: SFO loses the label instead.
+        let flipped = GlobeContent.past([("KOAK", "KLAX"), ("KOAK", "KLAX"), ("KSFO", "KLAX")].map { o, d in
+            PastFlight(date: .now, ident: "UA1", originIcao: o, destinationIcao: d, distanceKm: 500)
+        }, lookup: { all[$0] })
+        #expect(GlobeContent.labelHidden(flipped.airports) == ["KSFO"])
+    }
+
     @Test func globeContentForFollowedAndPast() async throws {
         let env = try await AppEnvironment.fake()
         let followed = try await env.flights.followed()

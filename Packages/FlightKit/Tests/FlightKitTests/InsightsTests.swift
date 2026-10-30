@@ -71,6 +71,41 @@ import Testing
         #expect(fakeEnv.insights is FakeInsightsService)
     }
 
+    /// Counts the paid calls a detail makes.
+    actor CountingInsights: InsightsService {
+        private(set) var calls = 0
+        func arrivalForecast(ident: String) async throws(APIError) -> ArrivalForecast? {
+            calls += 1
+            return FakeInsightsService.forecast(ident: ident)
+        }
+        func inbound(_ id: Flight.ID) async throws(APIError) -> [InboundLeg] { calls += 1; return [] }
+    }
+
+    @Test func canceledAndDivertedMakeNoInsightsCalls() async {
+        let flights = FakeFlightService(now: PreviewData.now)
+        for flight in [PreviewData.canceled, PreviewData.diverted] {
+            #expect(!FlightDetailStore.showsInsights(flight.status))
+            let counting = CountingInsights()
+            let store = FlightDetailStore(id: flight.id, flights: flights, airports: FakeAirportService(now: PreviewData.now),
+                                          insights: counting)
+            await store.load()
+            #expect(store.flight?.status == flight.status)
+            await store.loadExtras()
+            #expect(await counting.calls == 0, "\(flight.status) asked for insights")
+            #expect(store.forecast == nil)
+            #expect(store.inbound.isEmpty)
+        }
+        // A flight that still flies asks for both.
+        #expect(FlightDetailStore.showsInsights(.scheduled) && FlightDetailStore.showsInsights(.enRoute))
+        let counting = CountingInsights()
+        let store = FlightDetailStore(id: PreviewData.enRoute.id, flights: flights,
+                                      airports: FakeAirportService(now: PreviewData.now), insights: counting)
+        await store.load()
+        await store.loadExtras()
+        #expect(await counting.calls == 2)
+        #expect(store.forecast != nil)
+    }
+
     @Test func inboundOrder() async throws {
         let flights = FakeFlightService(now: PreviewData.now)
         let flight = PreviewData.enRoute

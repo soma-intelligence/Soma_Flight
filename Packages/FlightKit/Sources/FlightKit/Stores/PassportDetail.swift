@@ -47,7 +47,7 @@ extension AircraftFact {
 
 /// Presentation picks over the figures the core computed: which flights a list shows and in what order.
 enum PassportPicks {
-    /// The delayed flights (the core's 15 minute threshold) that left latest, most late first (ties: the
+    /// The delayed flights (the core's 15 minute threshold) that arrived latest, most late first (ties: the
     /// newest first); canceled flights left out.
     static func mostDelayed(_ flights: [PastFlight], limit: Int = 10) -> [PastFlight] {
         Array(flights

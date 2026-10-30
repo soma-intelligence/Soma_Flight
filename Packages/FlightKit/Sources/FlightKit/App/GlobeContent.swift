@@ -39,9 +39,35 @@ public struct GlobeContent: Sendable, Equatable {
         return Route(id: flight.id.uuidString, from: o.coordinate, to: d.coordinate, level: flight.level, isPast: false)
     }
 
+    /// Each airport once, the busiest first (most flights touching it here; ties keep first-seen order),
+    /// so `labelHidden` keeps the bigger one's label when two sit close together.
     private static func endpoints(_ codes: [String], lookup: (String) -> Airport?) -> [Airport] {
         var seen: Set<String> = []
-        return codes.compactMap { lookup($0) }.filter { seen.insert($0.id).inserted }
+        let found = codes.compactMap { lookup($0) }
+        var count: [String: Int] = [:]
+        for a in found { count[a.id, default: 0] += 1 }
+        let unique = found.filter { seen.insert($0.id).inserted }
+        return unique.enumerated().sorted {
+            (count[$0.element.id] ?? 0, -$0.offset) > (count[$1.element.id] ?? 0, -$1.offset)
+        }.map(\.element)
+    }
+
+    /// Closer than this, two airport labels pile up on the globe (SFO and OAK are 18 km apart).
+    public static let labelSpacingKm: Double = 100
+
+    /// The airports whose label the globe hides: walking the list in order (busiest first), an airport
+    /// within `labelSpacingKm` of one already labelled keeps its dot but loses its label.
+    public static func labelHidden(_ airports: [Airport], within km: Double = labelSpacingKm) -> Set<String> {
+        var shown: [Airport] = []
+        var hidden: Set<String> = []
+        for a in airports {
+            if shown.contains(where: { distanceKm($0.coordinate, a.coordinate) < km }) {
+                hidden.insert(a.id)
+            } else {
+                shown.append(a)
+            }
+        }
+        return hidden
     }
 }
 

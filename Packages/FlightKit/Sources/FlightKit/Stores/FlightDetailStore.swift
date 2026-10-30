@@ -104,12 +104,20 @@ public final class FlightDetailStore {
         error = firstError
     }
 
+    /// False for a canceled or diverted flight: an arrival forecast and the inbound plane mean nothing for
+    /// it, so the screen hides both sections and `loadExtras` makes no (paid) insights call.
+    public nonisolated static func showsInsights(_ status: FlightStatus) -> Bool {
+        status != .canceled && status != .diverted
+    }
+
     /// Fills Good to Know (each airport's delays and weather), the history card and the paid insights,
     /// after `load()`. The seven calls run at once; each failure leaves only its own value nil or empty.
-    /// A cancelled load (the sheet closed or the flight changed) assigns nothing.
+    /// A cancelled load (the sheet closed or the flight changed) assigns nothing. A canceled or diverted
+    /// flight skips the two insights calls (`showsInsights`).
     public func loadExtras() async {
         guard let f = flight else { return }
-        let airports = airports, insights = insights, history = history, id = id
+        let airports = airports, history = history, id = id
+        let insights: (any InsightsService)? = Self.showsInsights(f.status) ? self.insights : nil
         let originCode = f.originIcao
         let destinationCode = destination?.id ?? f.destinationIcao
         async let oStats = try? airports.stats(originCode)
@@ -117,8 +125,8 @@ public final class FlightDetailStore {
         async let oWeather = try? airports.weather(originCode)
         async let dWeather = try? airports.weather(destinationCode)
         async let past = Self.pastFlights(history)
-        async let forecastValue = try? insights.arrivalForecast(ident: f.ident)
-        async let inboundValue = try? insights.inbound(id)
+        async let forecastValue = Self.forecast(insights, ident: f.ident)
+        async let inboundValue = Self.inbound(insights, id: id)
         let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue)
         guard !Task.isCancelled else { return }
         originStats = results.0?.departures
@@ -130,6 +138,16 @@ public final class FlightDetailStore {
         }
         forecast = results.5
         inbound = results.6 ?? []
+    }
+
+    private nonisolated static func forecast(_ insights: (any InsightsService)?, ident: String) async -> ArrivalForecast? {
+        guard let insights else { return nil }
+        return try? await insights.arrivalForecast(ident: ident)
+    }
+
+    private nonisolated static func inbound(_ insights: (any InsightsService)?, id: Flight.ID) async -> [InboundLeg]? {
+        guard let insights else { return nil }
+        return try? await insights.inbound(id)
     }
 
     private nonisolated static func pastFlights(_ history: (any HistoryService)?) async -> [PastFlight]? {

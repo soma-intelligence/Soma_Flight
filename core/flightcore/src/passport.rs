@@ -7,7 +7,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// Flights of at least this distance are long haul.
 pub(crate) const LONG_HAUL_KM: u32 = 4000;
-/// A flight that left at least this many minutes late counts as delayed.
+/// A flight that arrived at least this many minutes late counts as delayed (`delay_minutes` is the
+/// arrival delay: actual minus scheduled arrival, as `archive_landed_flights` stores it).
 pub(crate) const DELAYED_MINUTES: u32 = 15;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -85,7 +86,7 @@ pub struct PassportStats {
     pub airlines: u32,
     pub delay_lost_minutes: u64,
     pub avg_delay_minutes: u32,
-    /// Counted flights that left `DELAYED_MINUTES` or more late.
+    /// Counted flights that arrived `DELAYED_MINUTES` or more late.
     pub delayed_flights: u32,
     /// Mean delay of those flights, rounded half up; 0 when none.
     pub avg_delayed_minutes: u32,

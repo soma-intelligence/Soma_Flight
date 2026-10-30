@@ -13,6 +13,20 @@ import Testing
         return home
     }
 
+    /// Passport from the tab opens at full height, as in the reference; My Flights leaves the sheet as it is.
+    @Test func passportTabOpensAtFullHeight() async throws {
+        let home = HomeModel(env: try await AppEnvironment.fake())
+        #expect(home.shell.detent == .medium)
+        home.tab = .passport
+        #expect(home.shell.detent == .large)
+        home.shell.detent = .medium
+        home.tab = .flights
+        #expect(home.shell.detent == .medium)
+        home.shell.detent = ShellModel.collapsed
+        home.tab = .passport
+        #expect(home.shell.detent == .large)
+    }
+
     private func defaults(_ values: [String: String]) -> UserDefaults {
         let name = "HomeModelTests.\(UUID().uuidString)"
         let d = UserDefaults(suiteName: name)!
