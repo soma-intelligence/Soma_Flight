@@ -4,7 +4,6 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { isServiceCaller } from "../_shared/auth.ts";
 import {
-  alertCopy,
   apnsJwt,
   type ApnsResult,
   evictApnsJwt,
@@ -15,9 +14,22 @@ import {
   mapLimit,
   sendApns,
 } from "../_shared/apns.ts";
+import {
+  type Alert,
+  type AlertCategory,
+  type AlertFlight,
+  type AlertHistory,
+  detectAlerts,
+  IMMEDIATE_ALERTS,
+  inboundLate,
+} from "../_shared/alerts.ts";
+import { alertText, type CopyContext } from "../_shared/alert_copy.ts";
 
 export const SEND_CONCURRENCY = 10;
-/** Live Activity pushes at priority 10 are budgeted by Apple; routine updates go at 5. */
+/**
+ * Live Activity pushes at priority 10 are budgeted by Apple; routine updates go at 5. An `update`
+ * event goes at 10 when one of its alerts is in IMMEDIATE_ALERTS (take-off, gate, cancel...).
+ */
 const IMMEDIATE_KINDS = new Set([
   "gate_change",
   "departure",
@@ -25,6 +37,8 @@ const IMMEDIATE_KINDS = new Set([
   "cancel",
   "diversion",
 ]);
+/** Flights whose inbound leg is the one an event is about, checked per call. */
+const MAX_DEPENDENTS = 20;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGE = 1000;
 
@@ -65,12 +79,11 @@ export function configFromEnv(): ApnsConfig | undefined {
 
 type Row = Record<string, unknown>;
 
-interface Flight {
+type Flight = AlertFlight & {
   id: string;
-  ident: string;
-  status: string;
+  provider_id: string;
   [k: string]: unknown;
-}
+};
 
 async function pagedUsers(
   db: SupabaseClient,
@@ -92,6 +105,7 @@ async function pagedUsers(
 }
 
 interface TokenRow {
+  user_id: string;
   token: string;
   updated_at: string;
   bad_count: number;
@@ -106,7 +120,9 @@ async function tokensFor(
   const ids = [...users];
   const tokens: TokenRow[] = [];
   for (let i = 0; i < ids.length; i += 200) {
-    let q = db.from("push_tokens").select("token, updated_at, bad_count").eq(
+    let q = db.from("push_tokens").select(
+      "user_id, token, updated_at, bad_count",
+    ).eq(
       "kind",
       kind,
     )
@@ -258,6 +274,183 @@ async function fanOut(
   return tally;
 }
 
+interface SendCtx {
+  db: SupabaseClient;
+  cfg: ApnsConfig;
+  jwt: string;
+  fetchFn: typeof fetch;
+  evict: () => void;
+  expiration: number;
+  /** The event that triggered the call, carried in every alert's payload. */
+  eventId: string;
+}
+
+/** The keys already sent for a flight and the newest delay sent per side (alert_log). */
+export async function historyOf(
+  db: SupabaseClient,
+  flightId: string,
+): Promise<AlertHistory> {
+  const { data, error } = await db.from("alert_log").select(
+    "key, kind, minutes",
+  ).eq("flight_id", flightId).order("sent_at", { ascending: false });
+  if (error) throw new Error(`alert log read failed: ${error.message}`);
+  const h: AlertHistory = {
+    keys: new Set(),
+    lastDelay: { departure: null, arrival: null },
+  };
+  for (const r of data ?? []) {
+    h.keys.add(r.key as string);
+    const side = r.kind === "departure_delay"
+      ? "departure"
+      : r.kind === "arrival_delay"
+      ? "arrival"
+      : null;
+    if (side && h.lastDelay[side] === null && typeof r.minutes === "number") {
+      h.lastDelay[side] = r.minutes;
+    }
+  }
+  return h;
+}
+
+/** The inbound leg's row when this flight names one and flights has it. Never fetched from the provider. */
+async function inboundOf(
+  db: SupabaseClient,
+  flight: Flight,
+): Promise<Flight | null> {
+  const id = flight.inbound_provider_id;
+  if (typeof id !== "string" || id === "") return null;
+  const { data, error } = await db.from("flights").select("*").eq(
+    "provider_id",
+    id,
+  ).maybeSingle();
+  if (error) {
+    console.error(`inbound read failed: ${error.message}`);
+    return null;
+  }
+  return (data as Flight | null) ?? null;
+}
+
+/**
+ * Claims alerts in alert_log (its key is unique per flight, so one already sent is dropped) and
+ * returns the ones this call won. The claim comes before the send: a crash in between loses that
+ * alert rather than sending it twice.
+ */
+export async function claim(
+  db: SupabaseClient,
+  flightId: string,
+  alerts: Alert[],
+): Promise<Alert[]> {
+  if (alerts.length === 0) return [];
+  const { data, error } = await db.from("alert_log").upsert(
+    alerts.map((a) => ({
+      flight_id: flightId,
+      key: a.key,
+      kind: a.kind,
+      minutes: a.minutes ?? null,
+    })),
+    { onConflict: "flight_id,key", ignoreDuplicates: true },
+  ).select("key");
+  if (error) throw new Error(`alert claim failed: ${error.message}`);
+  const won = new Set((data ?? []).map((r) => r.key as string));
+  return alerts.filter((a) => won.has(a.key));
+}
+
+const CATEGORIES: AlertCategory[] = [
+  "delays",
+  "gates",
+  "takeoff_landing",
+  "baggage",
+  "cancellations",
+  "reminders",
+];
+
+/** For each category, the users who turned it off. A user with no row has everything on. */
+export async function mutedBy(
+  db: SupabaseClient,
+  users: Set<string>,
+): Promise<Map<AlertCategory, Set<string>>> {
+  const out = new Map<AlertCategory, Set<string>>(
+    CATEGORIES.map((c) => [c, new Set<string>()]),
+  );
+  const ids = [...users];
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await db.from("notification_preferences")
+      .select(`user_id, ${CATEGORIES.join(", ")}`)
+      .in("user_id", ids.slice(i, i + 200));
+    if (error) throw new Error(`preferences read failed: ${error.message}`);
+    for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+      for (const c of CATEGORIES) {
+        if (r[c] === false) out.get(c)!.add(r.user_id as string);
+      }
+    }
+  }
+  return out;
+}
+
+type Sent = Tally & { kinds: string[] };
+
+/** Claims `alerts` for `flight` and sends each one to the followers who want its category. */
+async function deliver(
+  ctx: SendCtx,
+  flight: Flight,
+  alerts: Alert[],
+  inbound: Flight | null,
+): Promise<Sent> {
+  const tally: Sent = { sent: 0, failed: 0, removed: 0, kinds: [] };
+  const won = await claim(ctx.db, flight.id, alerts);
+  if (won.length === 0) return tally;
+  const users = await pagedUsers(ctx.db, flight.id, true);
+  if (users.size === 0) return tally;
+  const [tokens, muted, originTz, destinationTz] = await Promise.all([
+    tokensFor(ctx.db, "alert", users),
+    mutedBy(ctx.db, users),
+    tz(ctx.db, flight.origin_icao),
+    tz(ctx.db, flight.destination_icao),
+  ]);
+  const copyCtx: CopyContext = { originTz, destinationTz, inbound };
+  for (const a of won) {
+    const off = muted.get(a.category)!;
+    const to = tokens.filter((t) => !off.has(t.user_id));
+    if (to.length === 0) continue;
+    const body = {
+      aps: {
+        alert: alertText(a, flight, copyCtx),
+        sound: "default",
+        "thread-id": flight.id,
+      },
+      flightId: flight.id,
+      eventId: ctx.eventId,
+      kind: a.kind,
+    };
+    // Unique per alert of the event, under APNs' 64 bytes.
+    const collapseId = `${ctx.eventId}:${a.kind}${
+      a.side ? `:${a.side[0]}` : ""
+    }`;
+    const t = await fanOut(
+      ctx.db,
+      "alert",
+      "alert",
+      to,
+      (tok) =>
+        sendApns(tok, body, {
+          pushType: "alert",
+          topic: ctx.cfg.bundleId,
+          sandbox: ctx.cfg.sandbox,
+          jwt: ctx.jwt,
+          priority: 10,
+          expiration: ctx.expiration,
+          collapseId,
+        }, ctx.fetchFn),
+      { onProviderRejected: ctx.evict },
+    );
+    tally.sent += t.sent;
+    tally.failed += t.failed;
+    tally.removed += t.removed;
+    tally.kinds.push(a.kind);
+  }
+  return tally;
+}
+
 export async function handler(req: Request, deps: Deps): Promise<Response> {
   try {
     if (req.method !== "POST") {
@@ -292,7 +485,9 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     }
     const { db } = deps;
     const [ev, fl] = await Promise.all([
-      db.from("flight_events").select("id, flight_id, kind, payload")
+      db.from("flight_events").select(
+        "id, flight_id, kind, payload, provider_event_id",
+      )
         .eq("id", eventId).maybeSingle(),
       db.from("flights").select("*").eq("id", flightId).maybeSingle(),
     ]);
@@ -312,42 +507,47 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const evict = () => evictApnsJwt(cfg.teamId, cfg.keyId, cfg.p8);
     const hour = nowS + 3600;
 
-    // Alerts: followers who want notifications.
-    const alertTally: Tally = { sent: 0, failed: 0, removed: 0 };
-    const [originTz, destinationTz] = await Promise.all([
-      tz(db, flight.origin_icao),
-      tz(db, flight.destination_icao),
-    ]);
-    const copy = alertCopy(kind, flight as never, {
-      payload,
-      originTz,
-      destinationTz,
-    });
-    if (copy) {
-      const users = await pagedUsers(db, flightId, true);
-      const tokens = await tokensFor(db, "alert", users);
-      const aps = {
-        aps: {
-          alert: copy,
-          sound: "default",
-          "thread-id": flightId,
-        },
-        flightId,
-        eventId,
-      };
-      Object.assign(
-        alertTally,
-        await fanOut(db, "alert", "alert", tokens, (t) =>
-          sendApns(t, aps, {
-            pushType: "alert",
-            topic: cfg.bundleId,
-            sandbox: cfg.sandbox,
-            jwt,
-            priority: 10,
-            expiration: hour,
-            collapseId: eventId,
-          }, fetchFn), { onProviderRejected: evict }),
-      );
+    // Alerts: what this event is worth, each claimed once in alert_log, sent to the followers who
+    // want notifications and have not turned the alert's category off.
+    const send: SendCtx = {
+      db,
+      cfg,
+      jwt,
+      fetchFn,
+      evict,
+      expiration: hour,
+      eventId,
+    };
+    const history = await historyOf(db, flightId);
+    const detected = detectAlerts(
+      {
+        id: eventId,
+        kind,
+        payload,
+        providerEventId: ev.data.provider_event_id as string | null,
+      },
+      flight,
+      history,
+    );
+    const inbound = await inboundOf(db, flight);
+    const late = inboundLate(flight, inbound, history);
+    if (late) detected.push(late);
+    const alertTally = await deliver(send, flight, detected, inbound);
+
+    // Flights this one brings the aircraft for: their inbound late alert, to their own followers.
+    const dependents = await db.from("flights").select("*")
+      .eq("inbound_provider_id", flight.provider_id).limit(MAX_DEPENDENTS);
+    if (dependents.error) {
+      console.error(`dependents read failed: ${dependents.error.message}`);
+    }
+    for (const d of (dependents.data ?? []) as Flight[]) {
+      const a = inboundLate(d, flight, await historyOf(db, d.id));
+      if (!a) continue;
+      const t = await deliver(send, d, [a], flight);
+      alertTally.sent += t.sent;
+      alertTally.failed += t.failed;
+      alertTally.removed += t.removed;
+      alertTally.kinds.push(...t.kinds);
     }
 
     // Live Activities: tokens for this flight whose user still follows it (notify is not consulted).
@@ -368,6 +568,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           : {}),
       },
     };
+    const immediate = IMMEDIATE_KINDS.has(kind) ||
+      (kind === "update" && detected.some((a) => IMMEDIATE_ALERTS.has(a.kind)));
     const laTally = await fanOut(
       db,
       "live_activity",
@@ -379,13 +581,14 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           topic: `${cfg.bundleId}.push-type.liveactivity`,
           sandbox: cfg.sandbox,
           jwt,
-          priority: IMMEDIATE_KINDS.has(kind) ? 10 : 5,
+          priority: immediate ? 10 : 5,
           expiration: hour,
         }, fetchFn),
       { deleteOnSuccess: ends, onProviderRejected: evict },
     );
 
-    return json({ ok: true, alerts: alertTally, liveActivities: laTally });
+    const { kinds, ...alerts } = alertTally;
+    return json({ ok: true, alerts, kinds, liveActivities: laTally });
   } catch (e) {
     return errorResponse(e);
   }

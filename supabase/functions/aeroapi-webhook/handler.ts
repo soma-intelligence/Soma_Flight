@@ -21,7 +21,8 @@ export type EventKind =
   | "arrival"
   | "cancel"
   | "diversion"
-  | "position";
+  | "position"
+  | "update";
 
 export interface Deps {
   db: SupabaseClient;
@@ -70,6 +71,8 @@ const TEXT_KEYS: [string, string][] = [
   ["origin_iata", "origin_iata"],
   ["destination_icao", "destination_icao"],
   ["destination_iata", "destination_iata"],
+  // The leg that brings this aircraft, for the inbound late alert (migration 20261030000012).
+  ["inbound_fa_flight_id", "inbound_provider_id"],
 ];
 
 type Row = Record<string, unknown>;

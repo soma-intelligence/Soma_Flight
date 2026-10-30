@@ -70,6 +70,30 @@ can lag until the next lookup. Merge rules: `scheduled_off` and `scheduled_on` t
 given; `estimated_off` and `estimated_on` are frozen once the matching `actual_off` or `actual_on` exists
 (a later estimate is ignored).
 
+`inbound_provider_id` (text, nullable): the provider id of the leg that brings this flight's aircraft,
+kept from the webhook deliveries (`inbound_fa_flight_id`). The app does not read it; push-sender uses it
+for the inbound late alert, and only when that leg is in `flights` too.
+
+### notification_preferences
+
+One row per user, the alert categories they want. Clients have `select`, `insert` and `delete` on
+their own row and `update` of the category columns and `updated_at` (owner policy
+`notification_preferences_owner`, 42501 for another user's row on insert, 0 rows touched on update).
+No row means every category is on, so the app writes the row the first time something changes
+(an upsert on `user_id`).
+
+| Column | Type | Covers |
+| --- | --- | --- |
+| `delays` | bool, default true | `departure_delay`, `arrival_delay`, `schedule_change`, `inbound_late` |
+| `gates` | bool, default true | `gate_assigned`, `gate_change`, `terminal_change` |
+| `takeoff_landing` | bool, default true | `departed`, `takeoff`, `landing`, `arrived` |
+| `baggage` | bool, default true | `baggage_belt` |
+| `cancellations` | bool, default true | `cancel`, `reinstated`, `diversion` |
+| `reminders` | bool, default true | the app's local reminders (check-in, morning of the flight, leave for the airport); the server never reads it |
+| `updated_at` | timestamptz | set by the app on each save |
+
+`user_flights.notify = false` still silences every alert of that flight.
+
 ## Endpoints
 
 | Endpoint | Method | Body or query | Answer |
@@ -115,7 +139,7 @@ calls it while a flight's detail is open and draws the plane when `position_lat`
 ## Flight event payload
 
 `flight_events.payload` (read by the app as `FlightEvent.payload`, flattened to strings). The source of
-truth is `process_alert` (`supabase/migrations/20261029000006_flight_merge.sql`); an example of each kind
+truth is `process_alert` (`supabase/migrations/20261030000012_alerts.sql`); an example of each kind
 lives in `supabase/functions/aeroapi-webhook/contract/events.json`, written by the webhook tests and
 decoded by the Swift tests.
 
@@ -131,6 +155,54 @@ decoded by the Swift tests.
 The keys the app reads are single words: `FlightJSON.decoder` converts snake_case dictionary keys
 too (`delay_minutes` arrives as `delayMinutes`), so a single word is the only spelling both sides
 agree on without a conversion rule.
+
+Event kinds: `gate_change`, `delay`, `departure`, `arrival`, `cancel`, `diversion`, `position`, and
+`update` (since 20261030000012). An `update` is a delivery that is none of the others but changed what
+an alert is made from: the status, an actual or scheduled time, an estimate by 5 minutes or more, or a
+diverted flight's destination (diversion and change bodies only). Canceled and diverted flights get one
+only when the status or that destination changes. The app shows no timeline row for it
+(`FlightEventKind.update`); an unknown kind decodes as `update` too, so a newer backend never breaks
+the list. A `filed` delivery with `cancelled: false` lifts a cancel (status rebuilt from the actual
+times, `scheduled` when there are none) and makes an `update` whose `changes.status` goes from
+`canceled`.
+
+## Push alerts
+
+push-sender turns each event into alerts (`supabase/functions/_shared/alerts.ts`), claims each one in
+`alert_log` (unique per flight and key, service role only) and sends it to the followers with
+`notify` on and the alert's category on. All the words live in `_shared/alert_copy.ts`. Values come
+from the event's `changes`, so nothing calls the provider. An alert push carries `flightId`, `eventId`
+and `kind` beside `aps`, `thread-id` is the flight id and `apns-collapse-id` is
+`<eventId>:<kind>[:d|:a]`.
+
+| Kind | Category | When | Example |
+| --- | --- | --- | --- |
+| `departure_delay` | delays | before the gate out, the departure estimate is 15 min late with none sent, or 15 min off the last one sent, or back within 5 min after a late one | "AF 84 is now 25m late", "AF 84 is back on time" |
+| `arrival_delay` | delays | after the gate out, the same rule on the arrival estimate, measured from the last delay sent on either side | "AF 84 now arrives 1h 20m late" |
+| `schedule_change` | delays | `scheduled_out` or `scheduled_in` moved (not a first value) | "AF 84 schedule changed" |
+| `inbound_late` | delays | the inbound leg (`inbound_provider_id`, when its row is in `flights`) arrives less than 30 min before this flight's scheduled departure, and the departure estimate does not already cover it; once per flight; checked on this flight's events and on the inbound leg's | "AF 84 inbound plane is late" |
+| `gate_assigned` | gates | first departure or arrival gate; once per side | "Gate K36 assigned" |
+| `gate_change` | gates | a gate moved (departure side only until the gate out) | "Gate changed to G91" |
+| `terminal_change` | gates | a terminal moved (not a first value) | "Terminal changed to 2F" |
+| `baggage_belt` | baggage | first belt, or a move | "Bags on belt 4" |
+| `departed` | takeoff_landing | `actual_out` set; once | "AF 84 left the gate" |
+| `takeoff` | takeoff_landing | `actual_off` set, or a `departure` event without changes; once | "AF 84 took off" |
+| `landing` | takeoff_landing | `actual_on` set, or an `arrival` event without changes; once | "AF 84 landed" |
+| `arrived` | takeoff_landing | `actual_in` set; once | "AF 84 arrived at the gate" |
+| `cancel` | cancellations | status became `canceled` (nothing else is sent for that event) | "AF 84 canceled" |
+| `reinstated` | cancellations | status left `canceled` | "AF 84 is back on the schedule" |
+| `diversion` | cancellations | status became `diverted`, or a diverted flight's destination moved | "AF 84 diverted to KOAK" |
+
+Dedupe: once-only alerts use a fixed key (`takeoff`, `gate_assigned:departure`, `inbound_late`...),
+the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provider_event_id` without
+`:delay`, so a retried call or the two events of one delivery send nothing twice. The claim comes before
+the send: a crash in between loses that alert rather than doubling it. Two deliveries processed at the
+same moment can each see the same last delay and both send one (the webhook calls push-sender one event
+after another, so this needs two deliveries for one flight in the same second).
+
+Live Activity priority: 10 for `gate_change`, `departure`, `arrival`, `cancel` and `diversion` events
+(unchanged), and for an `update` event that carries a gate, terminal, gate out, take-off, landing, gate
+in, cancel, reinstated or diversion alert; 5 otherwise.
 
 ## brand-asset
 

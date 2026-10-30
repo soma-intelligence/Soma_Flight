@@ -7,10 +7,8 @@ import {
   jwtVerify,
 } from "npm:jose@5";
 import {
-  alertCopy,
   apnsHost,
   apnsJwt,
-  delayMinutes,
   evictApnsJwt,
   isBadDeviceToken,
   isDeadToken,
@@ -23,23 +21,6 @@ const { privateKey, publicKey } = await generateKeyPair("ES256", {
   extractable: true,
 });
 const P8 = await exportPKCS8(privateKey);
-
-const flight = {
-  ident: "AF84",
-  status: "scheduled" as const,
-  scheduled_out: "2026-11-03T22:30:00Z",
-  scheduled_in: "2026-11-04T09:00:00Z",
-  estimated_out: null,
-  estimated_in: null,
-  actual_out: null,
-  gate_origin: "K36",
-  gate_destination: "B22",
-  origin_iata: "CDG",
-  origin_icao: "LFPG",
-  destination_iata: "SFO",
-  destination_icao: "KSFO",
-  baggage_belt: null,
-};
 
 Deno.test("apnsJwt has ES256 header with kid and iss", async () => {
   const jwt = await apnsJwt("TEAM123456", "KEY1234567", P8, 1_000_000);
@@ -62,65 +43,6 @@ Deno.test("apnsJwt is cached for 50 minutes, then renewed", async () => {
 
 Deno.test("apnsJwt rejects a bad key", async () => {
   await assertRejects(() => apnsJwt("T2", "K2", "not a key", 1));
-});
-
-Deno.test("alertCopy gate_change names the new gate", () => {
-  const c = alertCopy("gate_change", flight)!;
-  assertEquals(c.title, "AF84 gate change");
-  assert(c.body.includes("K36"));
-  const arrived = alertCopy("gate_change", {
-    ...flight,
-    status: "en_route",
-    actual_out: "2026-11-03T22:40:00Z",
-  })!;
-  assert(arrived.body.includes("B22"));
-  const moved = alertCopy("gate_change", flight, {
-    payload: { changes: { gate_destination: { from: "B20", to: "B24" } } },
-  })!;
-  assert(moved.body.includes("B24"));
-});
-
-Deno.test("alertCopy delay needs 15 minutes", () => {
-  const ten = { ...flight, estimated_out: "2026-11-03T22:40:00Z" };
-  assertEquals(alertCopy("delay", ten), null);
-  const c = alertCopy("delay", {
-    ...flight,
-    estimated_out: "2026-11-03T23:15:00Z",
-  }, {
-    originTz: "Europe/Paris",
-  })!;
-  assertEquals(c.title, "AF84 delayed");
-  assert(c.body.includes("12:15 AM"), c.body);
-  assert(c.body.includes("45 min"));
-  // The event payload wins over the row.
-  assertEquals(
-    alertCopy("delay", ten, { payload: { delay_minutes: 20 } })!.title,
-    "AF84 delayed",
-  );
-  assertEquals(
-    alertCopy("delay", flight, { payload: { delay_minutes: 14 } }),
-    null,
-  );
-  assertEquals(delayMinutes(flight), null);
-  assertEquals(alertCopy("delay", flight), null);
-});
-
-Deno.test("alertCopy: position gets no alert, others do, no dashes", () => {
-  assertEquals(alertCopy("position", flight), null);
-  for (const k of ["departure", "arrival", "cancel", "diversion"] as const) {
-    const c = alertCopy(k, { ...flight, baggage_belt: "4" })!;
-    assert(c.title.startsWith("AF84 "), c.title);
-    assert(
-      !new RegExp(
-        `[${String.fromCharCode(0x2013)}${String.fromCharCode(0x2014)}]`,
-      ).test(c.title + c.body),
-    );
-  }
-  assert(
-    alertCopy("arrival", { ...flight, baggage_belt: "4" })!.body.includes(
-      "belt 4",
-    ),
-  );
 });
 
 Deno.test("sendApns sets the headers and sandbox host", async () => {

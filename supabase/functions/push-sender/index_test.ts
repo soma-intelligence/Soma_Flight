@@ -223,10 +223,11 @@ test(db, "push-sender skips users with notify false", async () => {
   assertEquals(c.headers["apns-push-type"], "alert");
   assertEquals(c.headers["apns-topic"], "me.soma.flight");
   assertEquals(c.headers["apns-priority"], "10");
-  assertEquals(c.headers["apns-collapse-id"], e);
-  assertEquals(c.body.aps.alert.title, "AF84 gate change");
-  assert(c.body.aps.alert.body.includes("K36"));
+  assertEquals(c.headers["apns-collapse-id"], `${e}:gate_change:d`);
+  assertEquals(c.body.aps.alert.title, "Gate changed to K36");
+  assert(c.body.aps.alert.body.includes("was K30"));
   assertEquals(c.body.flightId, f);
+  assertEquals(c.body.kind, "gate_change");
 });
 
 test(
