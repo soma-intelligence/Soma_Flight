@@ -107,6 +107,9 @@ V2_REFS: dict[str, list] = {
     "aircraft-stats-4": ["48"],
     "aircraft-stats-5": ["47", "46"],
     "aircraft-stats-sparse": ["51"],
+    # Blueprint drawings (Task 13): the cabin plan and class bar (50), the tail close-up behind the lead tail (47).
+    "blueprint-cabin": ["50"],
+    "blueprint-tail": ["47"],
     # Our side views (docs/screens/components/side-views-FAMILY.png, 1200 px) beside the planes cropped out of
     # the references: the 777-300ER on the Passport card (52) and Aircraft Stats header (51), the 777-200ER on
     # the flight sheet (32); the 787-10 on the newest aircraft card (46).

@@ -64,6 +64,22 @@ public enum Theme {
     /// Bars, chart columns and ratio fills in the Passport sections.
     public static let passportAccent = Color(red: 0x80 / 255, green: 0x5D / 255, blue: 0xEE / 255)
 
+    // MARK: Aircraft Stats blueprint (sampled from the v1.1 references 45 to 51; the same in both schemes)
+    /// The blueprint panel's blue paper.
+    public static let blueprint = Color(red: 0x2F / 255, green: 0x6B / 255, blue: 0xBA / 255)
+    /// The fine grid ruled on the blueprint paper.
+    public static let blueprintGrid = Color(red: 0x48 / 255, green: 0x83 / 255, blue: 0xC5 / 255)
+    /// Line art and lettering on the blueprint.
+    public static let blueprintInk = Color(red: 0xF4 / 255, green: 0xF8 / 255, blue: 0xFC / 255)
+    /// The light blue Aircraft Stats page, top to bottom: lavender under the year chips, sky blue, then into
+    /// the blueprint's blue where the panels start.
+    public static let aircraftPage = Gradient(colors: [
+        Color(red: 0xC9 / 255, green: 0xD4 / 255, blue: 0xF6 / 255),
+        Color(red: 0xA6 / 255, green: 0xCA / 255, blue: 0xF1 / 255),
+        Color(red: 0x55 / 255, green: 0x90 / 255, blue: 0xCF / 255),
+        blueprint,
+    ])
+
     // MARK: Type
     /// Text styles whose default iOS size matches the reference, so they follow Dynamic Type.
     /// macOS text styles are smaller (body is 13 pt) and macOS has no Dynamic Type, so the Mac

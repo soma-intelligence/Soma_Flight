@@ -13,7 +13,7 @@ struct AircraftStatsView: View {
     @State private var leadAge: UInt32?
 
     /// The light blue page (behind the year chips).
-    static let page = Color(red: 0xC9 / 255, green: 0xD4 / 255, blue: 0xF6 / 255)
+    static let page = Theme.aircraftPage.stops[0].color
     static let bar = Blueprint.sky
     /// The dark sections under the blueprint.
     static let sections = Color(red: 0x1B / 255, green: 0x1B / 255, blue: 0x1D / 255)
@@ -42,21 +42,20 @@ struct AircraftStatsView: View {
         } else {
             VStack(spacing: 0) {
                 AircraftTotalsPanel(stats: s, mostFlownType: store.mostFlownType, mostFlownAirline: store.mostFlownAirline)
-                    .background(LinearGradient(colors: [Self.page, Color(red: 0x9E / 255, green: 0xC0 / 255, blue: 0xF0 / 255),
-                                                        Blueprint.top],
-                                               startPoint: .top, endPoint: .bottom))
+                    .background(LinearGradient(gradient: Theme.aircraftPage, startPoint: .top, endPoint: .bottom))
                 if s.tails.first != nil || CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
-                    VStack(spacing: 0) {
-                        if let tail = s.tails.first {
-                            Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                            FrequentedTailPanel(tail: tail, ageMonths: leadAge)
-                        }
-                        if CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
-                            Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                            CabinPanel(stats: s)
+                    BlueprintPanel {
+                        VStack(spacing: 0) {
+                            if let tail = s.tails.first {
+                                Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
+                                FrequentedTailPanel(tail: tail, ageMonths: leadAge)
+                            }
+                            if CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
+                                Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
+                                CabinPanel(stats: s)
+                            }
                         }
                     }
-                    .background(BlueprintPaper())
                 }
             }
         }
@@ -258,7 +257,7 @@ struct FrequentTailsSection: View {
         }
         .scaledPadding(.bottom, 18)
         .background(alignment: .trailing) {
-            BlueprintTail(registration: t.registration, ink: Theme.secondary)
+            BlueprintTail(type: t.icaoType.flatMap(reference.type), registration: t.registration, ink: Theme.secondary)
                 .aspectRatio(1.8, contentMode: .fit)
                 .frame(height: 150)
                 .opacity(0.45)

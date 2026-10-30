@@ -208,120 +208,12 @@ enum AircraftStatsCopy {
 
 // MARK: - Blueprint
 
-/// The blueprint's colours: a mid blue page, white line art and a fine grid.
+/// The page's colours around the blueprint (the panel, grid and ink are `Theme.blueprint*`).
 enum Blueprint {
-    static let top = Color(red: 0x5C / 255, green: 0x93 / 255, blue: 0xE4 / 255)
-    static let bottom = Color(red: 0x33 / 255, green: 0x6E / 255, blue: 0xD2 / 255)
-    static let ink = Color.white
+    static let ink = Theme.blueprintInk
     static let navy = Color(red: 0x17 / 255, green: 0x2F / 255, blue: 0x5E / 255)
-    /// The page above the panels, light blue at the top.
+    /// The bar above the page, light blue.
     static let sky = Color(red: 0xCF / 255, green: 0xE0 / 255, blue: 0xF8 / 255)
-}
-
-/// Blue paper with a fine and a coarse grid.
-struct BlueprintPaper: View {
-    var body: some View {
-        LinearGradient(colors: [Blueprint.top, Blueprint.bottom], startPoint: .top, endPoint: .bottom)
-            .overlay {
-                Canvas { ctx, size in
-                    for (step, alpha) in [(CGFloat(11), 0.07), (CGFloat(55), 0.13)] {
-                        var p = Path()
-                        var x: CGFloat = 0
-                        while x <= size.width { p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: size.height)); x += step }
-                        var y: CGFloat = 0
-                        while y <= size.height { p.move(to: CGPoint(x: 0, y: y)); p.addLine(to: CGPoint(x: size.width, y: y)); y += step }
-                        ctx.stroke(p, with: .color(.white.opacity(alpha)), lineWidth: 0.5)
-                    }
-                }
-            }
-    }
-}
-
-/// Simple line art standing in for the blueprint drawings (plan Task 13 replaces this view): the rear of a
-/// fuselage with its fin and a door panel carrying the registration, or a cabin outline seen from above.
-struct BlueprintPlaceholder: View {
-    enum Kind: Equatable {
-        case tail(String)
-        case cabin
-    }
-
-    var kind: Kind
-    var ink: Color = Blueprint.ink
-
-    var body: some View {
-        switch kind {
-        case .tail(let registration): tail(registration)
-        case .cabin: cabin
-        }
-    }
-
-    /// Rear fuselage, nose off to the left, the fin rising at the right; 360 by 200 box.
-    private func tail(_ registration: String) -> some View {
-        Canvas { ctx, size in
-            let sx = size.width / 360, sy = size.height / 200
-            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
-            var hull = Path()
-            hull.move(to: p(0, 112)); hull.addLine(to: p(250, 104))
-            hull.addCurve(to: p(352, 120), control1: p(300, 102), control2: p(352, 108))
-            hull.addCurve(to: p(250, 150), control1: p(340, 134), control2: p(300, 146))
-            hull.addCurve(to: p(0, 196), control1: p(170, 160), control2: p(60, 186))
-            var fin = Path()
-            fin.move(to: p(150, 106)); fin.addLine(to: p(262, 0))
-            fin.move(to: p(250, 104)); fin.addLine(to: p(300, 0))
-            fin.move(to: p(272, 104)); fin.addLine(to: p(282, 46))
-            var tailplane = Path()
-            tailplane.move(to: p(232, 128)); tailplane.addLine(to: p(330, 122)); tailplane.addLine(to: p(336, 126))
-            tailplane.addLine(to: p(240, 140))
-            var panel = Path(roundedRect: CGRect(x: 90 * sx, y: 112 * sy, width: 70 * sx, height: 70 * sy), cornerRadius: 3)
-            panel.move(to: p(160, 150)); panel.addLine(to: p(345, 150))
-            var door = Path(roundedRect: CGRect(x: 44 * sx, y: 118 * sy, width: 26 * sx, height: 54 * sy), cornerRadius: 6)
-            door.addRect(CGRect(x: 50 * sx, y: 126 * sy, width: 14 * sx, height: 10 * sy))
-            for (path, alpha) in [(hull, 0.85), (fin, 0.6), (tailplane, 0.6), (panel, 0.7), (door, 0.6)] {
-                ctx.stroke(path, with: .color(ink.opacity(alpha)), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
-            }
-            for i in 0..<4 {
-                ctx.stroke(Path(roundedRect: CGRect(x: CGFloat(4 + i * 9) * sx, y: 138 * sy, width: 5 * sx, height: 7 * sy),
-                                cornerRadius: 1.5), with: .color(ink.opacity(0.55)), lineWidth: 0.8)
-            }
-            ctx.draw(Text(registration).font(.system(size: max(9, 12 * sy), weight: .medium)).foregroundStyle(ink.opacity(0.9)),
-                     at: p(125, 140))
-        }
-        .accessibilityHidden(true)
-    }
-
-    /// The cabin from above, open at the left, nose at the right, window rows top and bottom; 360 by 110.
-    private var cabin: some View {
-        Canvas { ctx, size in
-            let sx = size.width / 360, sy = size.height / 110
-            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
-            var hull = Path()
-            hull.move(to: p(0, 4)); hull.addLine(to: p(290, 4))
-            hull.addCurve(to: p(358, 55), control1: p(330, 4), control2: p(358, 30))
-            hull.addCurve(to: p(290, 106), control1: p(358, 80), control2: p(330, 106))
-            hull.addLine(to: p(0, 106))
-            var nose = Path()
-            nose.move(to: p(292, 12)); nose.addCurve(to: p(292, 98), control1: p(324, 30), control2: p(324, 80))
-            nose.move(to: p(300, 14)); nose.addCurve(to: p(300, 96), control1: p(332, 34), control2: p(332, 76))
-            ctx.stroke(hull, with: .color(ink.opacity(0.85)), lineWidth: 1)
-            ctx.stroke(nose, with: .color(ink.opacity(0.6)), lineWidth: 1)
-            for row in [CGFloat(10), 96] {
-                for i in 0..<26 where i % 9 != 8 {
-                    let x = CGFloat(10 + i * 10)
-                    ctx.stroke(Path(roundedRect: CGRect(x: x * sx, y: row * sy, width: 5 * sx, height: 4 * sy), cornerRadius: 1),
-                               with: .color(ink.opacity(0.5)), lineWidth: 0.7)
-                }
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// The tail drawing beside the frequented tail.
-struct BlueprintTail: View {
-    var registration: String
-    var ink: Color = Blueprint.ink
-
-    var body: some View { BlueprintPlaceholder(kind: .tail(registration), ink: ink) }
 }
 
 // MARK: - Header panel
@@ -416,7 +308,7 @@ struct FrequentedTailPanel: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            BlueprintTail(registration: tail.registration)
+            BlueprintTail(type: tail.icaoType.flatMap(reference.type), registration: tail.registration)
                 .aspectRatio(1.8, contentMode: .fit)
                 .frame(maxWidth: .infinity)
             VStack(alignment: .leading, spacing: 2) {
@@ -447,132 +339,19 @@ struct FrequentedTailPanel: View {
 
 // MARK: - Cabin
 
-/// Seat class counts as a segmented bar, then the cabin outline with the favourite seat and a seat for
-/// each position with its count.
+/// The cabin plan over the store's seat classes, positions and favourite seat.
 struct CabinPanel: View {
     var stats: AircraftStats
 
-    private var classes: [(String, UInt32)] {
-        let c = stats.seatClasses
-        return [("Eco", c.economy), ("Eco+", c.premiumEconomy), ("Business", c.business), ("First", c.first)]
-    }
-
-    static func hasClasses(_ s: AircraftStats) -> Bool {
-        let c = s.seatClasses
-        return c.economy + c.premiumEconomy + c.business + c.first > 0
-    }
+    static func hasClasses(_ s: AircraftStats) -> Bool { CabinPlan.hasClasses(s.seatClasses) }
 
     static func hasSeats(_ s: AircraftStats) -> Bool {
-        let p = s.seatPositions
-        return s.favouriteSeat != nil || p.aisle + p.middle + p.window > 0
+        CabinPlan.hasSeats(s.seatPositions, favourite: AircraftStatsCopy.favoriteSeat(s)?.value)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if Self.hasClasses(stats) { classBar }
-            if Self.hasSeats(stats) { CabinPlan(stats: stats) }
-        }
-        .foregroundStyle(Blueprint.ink)
-        .scaledPadding(.vertical, 22)
-    }
-
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @ScaledMetric(relativeTo: .subheadline) private var cellMinimum: CGFloat = 58
-    @ScaledMetric(relativeTo: .subheadline) private var cellHeight: CGFloat = 24
-    @ScaledMetric(relativeTo: .subheadline) private var labelHeight: CGFloat = 24
-
-    /// One segment per class, wider the more it was flown; at accessibility sizes a row per class instead.
-    @ViewBuilder private var classBar: some View {
-        if typeSize.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(classes, id: \.0) { name, count in
-                    HStack {
-                        Text(name).scaledFont(14)
-                        Spacer(minLength: 8)
-                        Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
-                    }
-                    .scaledPadding(.horizontal, 7)
-                    .frame(minHeight: cellHeight)
-                    .background(Rectangle().fill(.white.opacity(0.18)))
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .scaledPadding(.horizontal, 20)
-        } else {
-            segments
-        }
-    }
-
-    private var segments: some View {
-        let total = max(classes.reduce(0) { $0 + $1.1 }, 1)
-        return GeometryReader { geo in
-            let gap: CGFloat = 3
-            let spare = max(geo.size.width - cellMinimum * 4 - gap * 3, 0)
-            HStack(alignment: .bottom, spacing: gap) {
-                ForEach(classes, id: \.0) { name, count in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(name).scaledFont(14).lineLimit(1).minimumScaleFactor(0.7)
-                        HStack {
-                            Spacer(minLength: 0)
-                            Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
-                                .foregroundStyle(Blueprint.bottom)
-                        }
-                        .scaledPadding(.horizontal, 7)
-                        .frame(height: cellHeight)
-                        .background(Rectangle().fill(.white.opacity(0.62)))
-                    }
-                    .frame(width: cellMinimum + spare * CGFloat(count) / CGFloat(total))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(name), \(count)")
-                }
-            }
-        }
-        .frame(height: labelHeight + 6 + cellHeight)
-        .scaledPadding(.horizontal, 20)
-    }
-}
-
-/// The cabin seen from above with the favorite seat and the aisle, middle and window counts.
-struct CabinPlan: View {
-    var stats: AircraftStats
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        let p = stats.seatPositions
-        // At accessibility sizes the seats go under the favorite seat.
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
-            : AnyLayout(HStackLayout(spacing: 0))
-        layout {
-            if let fav = AircraftStatsCopy.favoriteSeat(stats) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(fav.title).scaledFont(15, weight: .semibold)
-                    Text(fav.value).scaledFont(16)
-                }
-                .accessibilityElement(children: .combine)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Spacer()
-            }
-            HStack(spacing: 14) {
-                seat("Aisle", p.aisle)
-                seat("Middle", p.middle)
-                seat("Window", p.window)
-            }
-            Spacer(minLength: 0).frame(maxWidth: .infinity)
-        }
-        .scaledPadding(.horizontal, 40)
-        .scaledPadding(.vertical, 22)
-        .background(BlueprintPlaceholder(kind: .cabin))
-        .frame(maxWidth: .infinity)
-    }
-
-    private func seat(_ name: String, _ count: UInt32) -> some View {
-        VStack(spacing: 3) {
-            Text(PassportFacts.count(count)).scaledFont(16).monospacedDigit()
-            Image(systemName: "carseat.right.fill").scaledFont(18)
-            Text(name).scaledFont(11, weight: .medium).opacity(0.85).lineLimit(1).fixedSize()
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(name), \(count)")
+        CabinPlan(classes: stats.seatClasses, positions: stats.seatPositions,
+                  favourite: AircraftStatsCopy.favoriteSeat(stats)?.value)
+            .scaledPadding(.vertical, 22)
     }
 }
