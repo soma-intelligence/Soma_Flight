@@ -185,7 +185,9 @@ public final class HomeModel {
         // A tap that launched the app opens first, without waiting for the lists.
         await processInbox()
         await load()
-        await push?.refresh()
+        // The notification settings call can take long or never answer (seen on simulators): it runs on
+        // its own and start never waits for it.
+        if let push { Task { await push.refresh() } }
         await processInbox()
         await reconcileActivities()
     }
@@ -257,10 +259,12 @@ public final class HomeModel {
 
     /// Wires the shell's notification plumbing: the app delegate's inbox and the call that asks the OS for
     /// a device token. Call once, before `start()`.
+    /// `enabled` defaults to the platform's (`PushCoordinator.platformSendsPushes`); tests force it.
     public func attachPush(inbox: PushInbox, authorizer: any NotificationAuthorizer = SystemNotificationAuthorizer(),
+                           enabled: Bool = PushCoordinator.platformSendsPushes,
                            registerForRemote: @escaping @MainActor () -> Void) {
         pushInbox = inbox
-        push = PushCoordinator(push: env.push, authorizer: authorizer, registerForRemote: registerForRemote)
+        push = PushCoordinator(push: env.push, authorizer: authorizer, enabled: enabled, registerForRemote: registerForRemote)
     }
 
     /// Changes whenever the app delegate leaves something in the inbox; the shells watch it.

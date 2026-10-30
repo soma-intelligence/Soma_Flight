@@ -274,9 +274,11 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
     /// Two edits close together: both are sent in order (or the older skipped) and the newer one stays.
     @Test func concurrentEditsLatestWins() async throws {
         let (store, flights, flight) = try await followedStore()
-        async let first = store.saveDetails(FollowDetails(seat: "1A"))
-        async let second = store.saveDetails(FollowDetails(seat: "2B"))
-        let results = await [first, second]
+        // Main actor tasks start in the order they are made, so "1A" is the older edit (two `async let`s
+        // may start in either order).
+        let first = Task { await store.saveDetails(FollowDetails(seat: "1A")) }
+        let second = Task { await store.saveDetails(FollowDetails(seat: "2B")) }
+        let results = [await first.value, await second.value]
         #expect(results == [true, true])
         #expect(store.details == FollowDetails(seat: "2B"))
         #expect(try await flights.followDetails(flight.id) == FollowDetails(seat: "2B"))

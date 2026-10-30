@@ -58,8 +58,8 @@ import Testing
         #expect(fake.inbound.count == 2)
         await insights.setNextError(.providerUnavailable)
         await fake.loadExtras()
-        #expect(fake.forecast == nil)
-        #expect(fake.inbound.count == 2)
+        // The two calls run at once, so either one takes the error; the other still fills.
+        #expect((fake.forecast == nil) != fake.inbound.isEmpty)
         #expect(fake.error == nil)
 
         // Live builds never get sample data.
