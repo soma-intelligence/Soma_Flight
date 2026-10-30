@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import SwiftUI
 
 /// The airlines, aircraft types and countries the app ships with (Resources/Reference), looked up
@@ -11,6 +12,8 @@ public struct ReferenceData: Sendable {
     private let airlineByName: [String: Airline]
     private let typeByCode: [String: AircraftType]
     private let countryByCode: [String: Country]
+    /// Liveries already worked out, by the code asked for (screens ask from their bodies).
+    private let liveries = LiveryMemo()
 
     public init(airlines: [Airline], types: [AircraftType], countries: [Country]) {
         self.airlines = airlines; self.types = types; self.countries = countries
@@ -80,16 +83,31 @@ public struct ReferenceData: Sendable {
     /// How an airline paints its aircraft: the hand-tuned seed entry when there is one, else derived from
     /// its brand colours, else `.plain` for an airline the list does not know. Takes ICAO, IATA or name.
     public func livery(_ icao: String) -> Livery {
+        if let held = liveries.get(icao) { return held }
         let key = icao.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if let seeded = LiverySeed.all[key] { return seeded }
-        guard let airline = airline(icao) else { return .plain }
-        return LiverySeed.all[airline.id.uppercased()] ?? .derived(from: airline)
+        let livery: Livery
+        if let seeded = LiverySeed.all[key] {
+            livery = seeded
+        } else if let airline = airline(icao) {
+            livery = LiverySeed.all[airline.id.uppercased()] ?? .derived(from: airline)
+        } else {
+            livery = .plain
+        }
+        liveries.set(icao, livery)
+        return livery
     }
 
     /// A country by ISO 3166-1 alpha-2 code, any case.
     public func country(_ iso2: String) -> Country? {
         countryByCode[iso2.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()]
     }
+}
+
+/// A lock-guarded cache of liveries by the code asked for.
+final class LiveryMemo: Sendable {
+    private let store = Mutex<[String: Livery]>([:])
+    func get(_ code: String) -> Livery? { store.withLock { $0[code] } }
+    func set(_ code: String, _ livery: Livery) { store.withLock { $0[code] = livery } }
 }
 
 private struct ReferenceKey: EnvironmentKey {

@@ -1,4 +1,5 @@
 import CoreGraphics
+import Synchronization
 import SwiftUI
 
 /// Draw order of a side view, back to front. The far wing, engine and gear sit behind the fuselage;
@@ -67,8 +68,22 @@ public struct AircraftGeometry: Sendable {
     }
 
     /// The drawing for a type: its own variant's length when the family is drawn, else the family's
-    /// default, else the generic body. `nil` gives the generic narrowbody.
+    /// default, else the generic body. `nil` gives the generic narrowbody. Built once per family and type
+    /// for the process (list rows ask on every redraw).
     public static func geometry(type: AircraftType?) -> AircraftGeometry {
+        let key = cacheKey(type)
+        if let held = geometryCache.withLock({ $0[key] }) { return held }
+        let built = build(type: type)
+        geometryCache.withLock { $0[key] = built }
+        return built
+    }
+
+    /// The cache key of a type's drawing: its family and ICAO id.
+    static func cacheKey(_ type: AircraftType?) -> String {
+        type.map { "\($0.family.rawValue)/\($0.id.uppercased())" } ?? "-"
+    }
+
+    private static func build(type: AircraftType?) -> AircraftGeometry {
         guard let type else { return Generic.narrowbody }
         switch type.family {
         case .a320: return A320Family.geometry(type.id)
@@ -82,6 +97,9 @@ public struct AircraftGeometry: Sendable {
     }
 }
 
+
+/// Drawings built so far, by `AircraftGeometry.cacheKey`.
+private let geometryCache = Mutex<[String: AircraftGeometry]>([:])
 
 // MARK: - Spec
 

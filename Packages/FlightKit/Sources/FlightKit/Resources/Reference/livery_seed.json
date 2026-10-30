@@ -8,7 +8,7 @@
       { "color": "#4B9CE2", "from": 0.42, "to": 0.455, "sweep": 0 }
     ],
     "tail": { "gradient": ["#1F4C8F", "#0C2340"] },
-    "engines": "#1F55B0",
+    "engines": "#16407F",
     "winglets": "#0C2340",
     "title": { "text": "UNITED", "color": "#0C2340", "weight": "heavy", "tracking": 0.22 }
   },
@@ -17,23 +17,24 @@
     "fuselageTop": "#F9FAFB",
     "belly": "#E3E6EB",
     "bellySplit": 0.22,
-    "cheatline": [],
+    "cheatline": [
+      { "color": "#002157", "from": 0.100, "to": 0.118, "sweep": 0 },
+      { "color": "#ED1C24", "from": 0.124, "to": 0.140, "sweep": 0 }
+    ],
     "tail": { "bands": ["#FFFFFF", "#002157", "#002157", "#FFFFFF", "#ED1C24", "#FFFFFF", "#FFFFFF"] },
     "engines": "#EEF0F3",
     "winglets": "#002157",
-    "title": { "text": "AIR FRANCE", "color": "#002157", "weight": "heavy", "tracking": 0.1 }
+    "title": { "text": "AIR FRANCE", "color": "#002157", "weight": "semibold", "tracking": 0.05 }
   },
   {
     "airline": "RYR",
     "fuselageTop": "#F8F9FA",
     "belly": "#073590",
-    "bellySplit": 0.33,
-    "cheatline": [
-      { "color": "#073590", "from": 0.30, "to": 0.36, "sweep": 4 }
-    ],
-    "tail": { "gradient": ["#0A3FA6", "#062B78"] },
+    "bellySplit": 0.18,
+    "cheatline": [],
+    "tail": { "solid": "#06266B" },
     "engines": "#073590",
     "winglets": "#073590",
-    "title": { "text": "RYANAIR", "color": "#073590", "weight": "heavy", "tracking": 0.06 }
+    "title": { "text": "Ryanair", "color": "#073590", "weight": "bold", "tracking": 0.0 }
   }
 ]

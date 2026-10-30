@@ -8,13 +8,13 @@ import UniformTypeIdentifiers
 
 /// Liveries (seed, derived, plain), the fin art choice and where `AircraftImage` takes its picture from.
 struct LiveryTests {
-    /// A PNG of `width` by `height` px, a grey block on transparency.
-    static func png(width: Int, height: Int) -> Data {
+    /// A PNG of `width` by `height` px, a grey block on transparency (`inset` px of clear margin).
+    static func png(width: Int, height: Int, inset: Int = 1, gray: CGFloat = 0.2) -> Data {
         let space = CGColorSpace(name: CGColorSpace.sRGB)!
         let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: space,
                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        ctx.setFillColor(CGColor(srgbRed: 0.2, green: 0.2, blue: 0.2, alpha: 1))
-        ctx.fill(CGRect(x: 1, y: 1, width: width - 2, height: height - 2))
+        ctx.setFillColor(CGColor(srgbRed: gray, green: gray, blue: gray, alpha: 1))
+        ctx.fill(CGRect(x: inset, y: inset, width: width - 2 * inset, height: height - 2 * inset))
         let data = NSMutableData()
         let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil)!
         CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
@@ -22,8 +22,8 @@ struct LiveryTests {
         return data as Data
     }
 
-    static func asset(width: Int, height: Int) -> BrandAsset {
-        BrandAsset(data: png(width: width, height: height), format: "png", version: "v1")
+    static func asset(width: Int, height: Int, inset: Int = 1, gray: CGFloat = 0.2) -> BrandAsset {
+        BrandAsset(data: png(width: width, height: height, inset: inset, gray: gray), format: "png", version: "v1")
     }
 
     @Test func seedDecodes() throws {
@@ -66,7 +66,9 @@ struct LiveryTests {
     @Test func derivedWithoutSecondaryHasNoStripe() {
         let livery = Livery.derived(from: Airline(id: "ABC", name: "Mono", colorPrimary: "#00B140"))
         #expect(livery.cheatline.isEmpty)
-        #expect(livery.tail == .solid("#00B140"))
+        // Transavia green is under 3:1 on white: darkened until it reads.
+        #expect(livery.tail == .solid(Livery.readable("#00B140", else: nil)))
+        #expect(livery.tail != .solid("#00B140"))
     }
 
     @Test func unknownAirlineIsPlain() {
@@ -97,13 +99,85 @@ struct LiveryTests {
         // A wordmark (wide) never goes on the fin.
         #expect(FinArt.choose(tail: nil, logo: Self.asset(width: 192, height: 30)) == nil)
         // A symbol (near square) does; a tail asset wins over it.
-        let symbol = Self.asset(width: 64, height: 60)
+        let symbol = Self.asset(width: 80, height: 76)
         #expect(FinArt.choose(tail: nil, logo: symbol) == symbol)
         let tail = Self.asset(width: 40, height: 80)
         #expect(FinArt.choose(tail: tail, logo: symbol) == tail)
         // A flag tail is its own art.
         let afr = LiveryRenderer(livery: LiverySeed.all["AFR"]!, geometry: .geometry(.a320), scale: 1, toView: .identity)
         #expect(!afr.finTakesArt)
+        // Too small to hold up on a fin.
+        #expect(FinArt.choose(tail: nil, logo: Self.asset(width: 40, height: 40)) == nil)
+        // The logo is the wordmark (same bytes): no fin art whatever its shape.
+        let squareWord = Self.asset(width: 96, height: 96)
+        #expect(FinArt.choose(tail: nil, logo: squareWord, wordmark: squareWord) == nil)
+        // The logo differs from the wordmark: it is the symbol, taken up to 2.5:1.
+        let wideSymbol = Self.asset(width: 180, height: 80)
+        #expect(FinArt.choose(tail: nil, logo: wideSymbol, wordmark: Self.asset(width: 300, height: 60)) == wideSymbol)
+        #expect(FinArt.choose(tail: nil, logo: wideSymbol) == nil, "without a wordmark only near squares pass")
+    }
+
+    @Test func finArtInkFlipsOnLowContrast() {
+        // Dark navy art on a navy fin turns white; on a white fin it stays as it is.
+        let navy = BrandArt.relativeLuminance(r: 0.02, g: 0.09, b: 0.30)
+        #expect(LiveryRenderer.artInk(finLuminance: navy, inkLuminance: navy) == .white)
+        #expect(LiveryRenderer.artInk(finLuminance: 1, inkLuminance: navy) == .asIs)
+        #expect(LiveryRenderer.artInk(finLuminance: 0.95, inkLuminance: 0.9) == .dark)
+    }
+
+    @Test func derivedTitleAndFinReadOnWhite() {
+        let reference = ReferenceData.bundled()
+        for airline in reference.airlines {
+            let livery = Livery.derived(from: airline)
+            #expect(Livery.contrastOnWhite(livery.title!.color) >= 3, "\(airline.id) title \(livery.title!.color)")
+            for c in livery.tail.colors { #expect(Livery.contrastOnWhite(c) >= 3, "\(airline.id) fin \(c)") }
+        }
+        // A pale primary gives way to a readable secondary, else to itself darkened.
+        let yellow = Livery.derived(from: Airline(id: "YEL", name: "Yellow", colorPrimary: "#FFE600", colorSecondary: "#1A2B88"))
+        #expect(yellow.title?.color == "#1A2B88")
+        let pale = Livery.derived(from: Airline(id: "PAL", name: "Pale", colorPrimary: "#FFE600"))
+        #expect(pale.tail.colors.first != "#FFE600")
+        #expect(Livery.contrastOnWhite(pale.tail.colors[0]) >= 3)
+    }
+
+    @Test func titleNeverCrossesADoor() throws {
+        let titles = Array(LiverySeed.all.values.compactMap(\.title)) + [
+            LiveryTitle(text: "Lufthansa Cargo", color: "#000000", weight: "bold", tracking: 0.02),
+            LiveryTitle(text: "Aerolineas Argentinas", color: "#000000", weight: "bold", tracking: 0.02),
+            LiveryTitle(text: "Brussels Airlines", color: "#000000", weight: "heavy", tracking: 0.1),
+        ]
+        let reference = ReferenceData.bundled()
+        let types: [AircraftType?] = [nil] + ["A319", "A320", "A321", "B737", "B738", "B739", "B37M", "B38M", "B3XM",
+                                             "B772", "B77W", "B788", "B789", "B78X", "A359", "A35K", "A333", "E190"]
+            .map { reference.type($0) }
+        for type in types {
+            let g = AircraftGeometry.geometry(type: type)
+            let doors = g.shapes.filter { $0.part == .door }.map { $0.path.boundingRect }
+            for title in titles {
+                let layout = try #require(LiveryRenderer.titleLayout(title, geometry: g), "\(title.text) on \(type?.id ?? "-")")
+                for door in doors {
+                    #expect(!layout.frame.intersects(door), "\(title.text) crosses a door on \(type?.id ?? "generic")")
+                }
+                #expect(layout.frame.maxY < g.fuselageTopM, "\(title.text) above the crown on \(type?.id ?? "-")")
+                #expect(layout.size > 0)
+            }
+        }
+    }
+
+    @Test func badLiveryJSONIsRefused() {
+        let twoKeys = ##"{"solid": "#000000", "gradient": ["#000000"]}"##
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(TailPaint.self, from: Data(twoKeys.utf8)) }
+        let weight = ##"{"text": "X", "color": "#000000", "weight": "light", "tracking": 0}"##
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(LiveryTitle.self, from: Data(weight.utf8)) }
+        let steep = ##"{"color": "#000000", "from": 0.1, "to": 0.2, "sweep": 70}"##
+        #expect((try? JSONDecoder().decode(Stripe.self, from: Data(steep.utf8)))?.sweep == Stripe.maxSweep)
+    }
+
+    @Test func accessibilityLabelNamesTheColours() {
+        let reference = ReferenceData.bundled()
+        #expect(AircraftImage.label(airline: reference.airline("DAL"), type: reference.type("A321")) == "Airbus A321 in Delta colours")
+        #expect(AircraftImage.label(airline: reference.airline("AFR"), type: reference.type("A359")).hasSuffix("in Air France colours"))
+        #expect(AircraftImage.label(airline: nil, type: reference.type("A321")) == "Airbus A321")
     }
 
     @MainActor @Test func finArtLoadsOnlyWhenThereIsArt() async {
@@ -122,6 +196,27 @@ struct LiveryTests {
         let source = await AircraftImage.source(airline: reference.airline("UAL"), type: reference.type("B77W"),
                                                 service: service, reference: reference)
         #expect(source == .provider(side))
+        // Clear margins are cropped before the shape is judged: a 400 x 200 canvas holding a 380 x 80 plane.
+        let padded = BrandAsset(data: Self.png(width: 400, height: 200, inset: 0), format: "png", version: "v1")
+        #expect(ProviderSideView.prepare(padded) == nil, "2:1 is no profile")
+        let plane = Self.paddedPlane()
+        let art = ProviderSideView.prepare(plane)
+        #expect(art != nil)
+        #expect(abs((art?.aspect ?? 0) - 380.0 / 80) < 0.1)
+    }
+
+    /// 400 x 200 transparent canvas with a 380 x 80 block in it (5:1 once cropped).
+    static func paddedPlane() -> BrandAsset {
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        let ctx = CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(srgbRed: 0.8, green: 0.8, blue: 0.8, alpha: 1))
+        ctx.fill(CGRect(x: 10, y: 60, width: 380, height: 80))
+        let data = NSMutableData()
+        let dest = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
+        CGImageDestinationFinalize(dest)
+        return BrandAsset(data: data as Data, format: "png", version: "v1")
     }
 
     @Test func aircraftImageFallsBackToRenderer() async {
@@ -137,5 +232,10 @@ struct LiveryTests {
         #expect(dlh == .renderer(.derived(from: reference.airline("DLH")!)))
         let none = await AircraftImage.source(airline: nil, type: nil, service: service, reference: reference)
         #expect(none == .renderer(.plain))
+        // A square "side view" is no profile: the renderer draws instead.
+        let square = FakeBrandAssetService(seeded: [("UAL", .sideView, Self.asset(width: 200, height: 200))], type: "B77W")
+        let fallback = await AircraftImage.source(airline: reference.airline("UAL"), type: reference.type("B77W"),
+                                                  service: square, reference: reference)
+        #expect(fallback == .renderer(LiverySeed.all["UAL"]!))
     }
 }

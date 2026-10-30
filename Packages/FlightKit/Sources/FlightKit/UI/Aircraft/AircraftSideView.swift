@@ -1,3 +1,4 @@
+import Synchronization
 import SwiftUI
 
 public enum AircraftStyle: Sendable { case livery, blueprint }
@@ -5,7 +6,8 @@ public enum AircraftStyle: Sendable { case livery, blueprint }
 /// An aircraft in profile, nose to the left, from our own geometry (`AircraftGeometry`), sized to its
 /// real proportions. `.livery` paints the parts from a `Livery` (plain when nil): fuselage top, belly and
 /// stripes clipped to the hull, fin paint, engines, winglets, the title over the windows, and the airline's
-/// tail or symbol art on the fin when `brandAssets` has one (never a monogram or a wordmark).
+/// tail or symbol art on the fin when `brandAssets` has one (never a monogram or a wordmark). `.blueprint`
+/// strokes every layer at 1 pt in `Theme.blueprintInk` with no fill.
 ///
 /// By default the aircraft is in flight with the gear up and the frame stops under the engines;
 /// `gearDown` draws the gear and takes the frame to the ground.
@@ -25,17 +27,18 @@ public struct AircraftSideView: View {
     /// Width over height of the drawing for a type and pose.
     public static func aspect(type: AircraftType?, gearDown: Bool = false) -> CGFloat {
         let g = AircraftGeometry.geometry(type: type)
-        return g.lengthM / (g.heightM - g.floorM(gearDown: gearDown))
+        return g.lengthM / (g.heightM - AircraftGeometry.floor(type: type, gearDown: gearDown))
     }
 
     public var body: some View {
         let geometry = AircraftGeometry.geometry(type: type)
+        let aspect = Self.aspect(type: type, gearDown: gearDown)
         let paint = livery ?? .plain
         let icao = paint.airline.isEmpty ? nil : paint.airline
         let _ = revision
         let art = style == .livery ? icao.flatMap { AircraftArtMemo.shared.art(AircraftArtMemo.finKey($0)) } : nil
         AircraftCanvas(geometry: geometry, livery: paint, style: style, gearDown: gearDown, finArt: art)
-            .aspectRatio(geometry.lengthM / (geometry.heightM - geometry.floorM(gearDown: gearDown)), contentMode: .fit)
+            .aspectRatio(aspect, contentMode: .fit)
             .accessibilityElement()
             .accessibilityLabel(type.map { "\($0.name) side view" } ?? "Aircraft side view")
             .task(id: style == .livery ? icao : nil) {
@@ -52,7 +55,20 @@ public struct AircraftSideView: View {
     }
 }
 
+/// Gear-up floors computed so far, by `AircraftGeometry.cacheKey`.
+private let floorCache = Mutex<[String: Double]>([:])
+
 extension AircraftGeometry {
+    /// `floorM(gearDown:)` of a type's drawing, worked out once per type.
+    static func floor(type: AircraftType?, gearDown: Bool) -> Double {
+        guard !gearDown else { return 0 }
+        let key = cacheKey(type)
+        if let held = floorCache.withLock({ $0[key] }) { return held }
+        let value = geometry(type: type).floorM(gearDown: false)
+        floorCache.withLock { $0[key] = value }
+        return value
+    }
+
     /// The lowest point drawn, in metres: the ground with the gear down, else the lowest part that is not
     /// gear (an engine or the belly fairing), less a hair of margin.
     func floorM(gearDown: Bool) -> Double {
@@ -81,8 +97,9 @@ struct AircraftCanvas: View {
 
             let paint = LiveryRenderer(livery: livery, geometry: g, scale: s, toView: toView)
             if style == .blueprint {
+                // Line art only: every layer stroked at 1 pt in the blueprint ink, nothing filled.
                 for shape in g.shapes where gearDown || (shape.layer != .gear && shape.layer != .gearFar) {
-                    ctx.stroke(shape.path.applying(toView), with: .color(.white.opacity(0.9)), lineWidth: 1)
+                    ctx.stroke(shape.path.applying(toView), with: .color(Theme.blueprintInk), lineWidth: 1)
                 }
                 return
             }
