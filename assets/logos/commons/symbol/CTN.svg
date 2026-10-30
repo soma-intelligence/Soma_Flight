@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" id="Layer_1" data-name="Layer 1" version="1.1" viewBox="0 0 78.0604 77.7687" sodipodi:docname="Croatia Airlines 2024 logo.svg" width="78.0604" height="77.7687" inkscape:version="1.4 (86a8ad7, 2024-10-11)">
+  <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Croatia_Airlines_2024_logo.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><sodipodi:namedview id="namedview6" pagecolor="#ffffff" bordercolor="#000000" borderopacity="0.25" inkscape:showpageshadow="2" inkscape:pageopacity="0.0" inkscape:pagecheckerboard="0" inkscape:deskcolor="#d1d1d1" inkscape:zoom="3.5927808" inkscape:cx="197.06184" inkscape:cy="55.806355" inkscape:window-width="1920" inkscape:window-height="1001" inkscape:window-x="-9" inkscape:window-y="-9" inkscape:window-maximized="1" inkscape:current-layer="Layer_1" />
+  <defs id="defs1">
+    <style id="style1">
+      .cls-1, .cls-2, .cls-3, .cls-4 {
+        stroke-width: 0px;
+      }
+
+      .cls-1, .cls-4 {
+        fill: #19386e;
+      }
+
+      .cls-2 {
+        fill: #007ac0;
+      }
+
+      .cls-3 {
+        fill: #c20016;
+      }
+
+      .cls-4 {
+        fill-rule: evenodd;
+      }
+    </style>
+  </defs>
+  <rect class="cls-2" y="64.612518" width="11.946747" height="11.946747" id="rect1" x="0" />
+  <rect class="cls-1" x="19.740768" y="42.602474" width="14.716391" height="14.716391" id="rect2" />
+  <rect class="cls-3" x="39.346451" y="20.626965" width="17.586613" height="17.586613" id="rect3" />
+  <rect class="cls-1" x="40.757034" y="63.052303" width="14.716391" height="14.716391" id="rect4" />
+  <rect class="cls-3" x="60.362717" y="41.076794" width="17.586613" height="17.586613" id="rect5" />
+  <rect class="cls-3" x="60.473801" width="17.586613" height="17.586613" id="rect6" y="0" />
+</svg>

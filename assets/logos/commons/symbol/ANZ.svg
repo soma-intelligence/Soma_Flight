@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" version="1.1" width="33.1875" height="33.0625" id="svg3347" viewBox="181.3125 2 33.1875 33.0625">
+  <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Air_New_Zealand_logo.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><defs id="defs3349">
+    <clipPath id="clipPath58">
+      <path d="m 0,0 595.276,0 0,841.89 L 0,841.89 0,0 z" id="path60" />
+    </clipPath>
+    <clipPath id="clipPath42">
+      <path d="m 0,0 595.276,0 0,841.89 L 0,841.89 0,0 z" id="path44" />
+    </clipPath>
+  </defs>
+  <metadata id="metadata3352">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g transform="translate(-434.6875,-494.78125)" id="layer1">
+    <path d="m 636.4375,496.78125 c -3.7475,0 -7.21625,2.6625 -9.1875,4.59375 -7.0125,6.84 -10.71875,11.46875 -10.71875,11.46875 l 31.25,0 1.40625,-3.125 -25.21875,0 c 0,0 1.90375,-2.6075 6,-6.46875 1.02875,-0.9625 3.7225,-3.375 6.46875,-3.375 1.80375,0 3.21875,1.1275 3.21875,2.65625 0,1.5125 -1.28125,1.9375 -1.28125,1.9375 0.13375,-0.64625 -0.3,-2.40625 -2,-2.40625 -1.7625,0 -2.5,1.345 -2.5,2.25 0,1.86 1.6925,3.1875 3.65625,3.1875 3.77625,0 5.53125,-2.685 5.53125,-5.28125 0,-2.62 -2.55375,-5.4375 -6.625,-5.4375 z M 616,514.46875 c 0,0 1.64,4.71625 3.8125,9.21875 1.84125,3.83625 4.895,6.15625 8.625,6.15625 3.505,0 5.875,-2.66625 5.875,-5.21875 0,-2.88875 -2.1975,-4.78125 -4.8125,-4.78125 -2.78875,0 -3.375,2.09625 -3.375,2.625 0,1.21875 1.02,2.34375 2.3125,2.34375 2.035,0 2.1875,-1.625 2.1875,-1.625 0,0 0.625,0.4 0.625,1.4375 0,0.9975 -0.845,2.28125 -2.8125,2.28125 -1.57,0 -3.8775,-0.8275 -5.46875,-4.1875 -1.87125,-3.93375 -2,-5.09375 -2,-5.09375 l 24.65625,0 1.40625,-3.15625 -31.03125,0 z" id="koru" style="fill:#231f20;fill-opacity:1;fill-rule:nonzero;stroke:none" />
+  </g>
+</svg>

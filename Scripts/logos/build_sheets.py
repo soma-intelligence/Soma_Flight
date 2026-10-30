@@ -8,6 +8,9 @@ docs/logos/library.png          per airline, its symbol (assets/logos/commons/sy
                                 light tile, with counts; then the airlines with no usable logo and why.
 docs/logos/symbols-at-size.png  every symbol at 24, 34 and 64 pt (rendered at 3x, as on an iPhone) on
                                 dark and light, with the wordmark at 34 pt for comparison.
+docs/logos/crops-review.png     every symbol cropped from a Commons logo (crop_symbols.py, crops.json): the
+                                source logo, the symbol at 64 pt and at 24 pt, each on dark and light, then
+                                the airlines left uncropped and why.
 docs/logos/flags.png            every flag in Flags.xcassets, labelled with its ISO 3166-1 alpha-2 code.
 
 Rendered with Playwright's headless Chromium. Images are shown through <img> only.
@@ -141,7 +144,7 @@ def symbols_at_size():
         ".panel.dark{background:#000}.panel.light{background:#fff;box-shadow:inset 0 0 0 1px #d1d1d6}"
         ".sz{display:flex;flex-direction:column;align-items:center;gap:6px}"
         ".box{display:flex;align-items:center;justify-content:center}"
-        ".box img{max-width:100%;max-height:100%}"
+        ".box img{width:100%;height:100%;object-fit:contain}"
         ".lab{font:10px ui-monospace,Menlo,monospace;color:#8e8e93}")
     body = (
         f"<style>{style}</style><div class=wrap><h1>Symbols at app sizes</h1>"
@@ -170,12 +173,59 @@ def flags():
     return len(sets)
 
 
+def crops_review():
+    manifest = json.loads((COMMONS / "manifest.json").read_text())
+    spec = json.loads((COMMONS / "crops.json").read_text())
+    crops = {k: v for k, v in manifest.get("symbols", {}).items() if v.get("method") == "crop"}
+
+    def pair(src, size, wide=False):
+        box = (f"width:{size * 4}px;height:{size}px" if wide else f"width:{size}px;height:{size}px")
+        return "".join(
+            f'<div class="t {c}"><div class=box style="{box}"><img src="{src}"></div></div>' for c in ("dark", "light"))
+
+    rows = []
+    for icao, v in sorted(crops.items()):
+        logo = (COMMONS / v["derived_from"]).resolve().as_uri()
+        sym = (COMMONS / v["file"]).resolve().as_uri()
+        what = spec["crops"].get(icao, {}).get("symbol", "")
+        rows.append(
+            f'<div class=row><div class=who><div class=code>{icao}</div><div>{html.escape(v["name"])}</div>'
+            f'<div class=lic>{html.escape(what)}</div>'
+            f'<div class=lic>{html.escape(v["license"])}, {html.escape(v["author"] or "Unknown author")}</div></div>'
+            f'<div class=grp>{pair(logo, 40, wide=True)}</div><div class=grp>{pair(sym, 64)}</div>'
+            f'<div class=grp>{pair(sym, 24)}</div></div>')
+    skipped = "".join(
+        f"<tr><td class=c>{k}</td><td>{html.escape(r)}</td></tr>" for k, r in sorted(spec.get("skipped", {}).items()))
+    style = (
+        ".row{display:flex;gap:18px;align-items:center;margin-bottom:8px}"
+        ".who{width:220px;font-size:12px;display:flex;flex-direction:column;gap:2px}"
+        ".lic{color:#636366;font-size:10px}.grp{display:flex;gap:4px}"
+        ".t{padding:10px;border-radius:10px;display:flex;align-items:center;justify-content:center}"
+        ".t.dark{background:#000}.t.light{background:#fff;box-shadow:inset 0 0 0 1px #d1d1d6}"
+        ".box{display:flex;align-items:center;justify-content:center}"
+        ".box img{width:100%;height:100%;object-fit:contain}"
+        ".hd{display:flex;gap:18px;font:600 11px -apple-system,system-ui,sans-serif;color:#636366;margin:0 0 8px}"
+        ".hd div{text-align:center}")
+    body = (
+        f"<style>{style}</style><div class=wrap><h1>Symbols cropped from the Commons logos ({len(crops)})</h1>"
+        f"<p>Wordmark elements removed from the published SVG, viewBox tightened; path data and colours untouched. "
+        f"Licence and author are the source logo's.</p>"
+        f"<div class=hd><div style='width:220px;text-align:left'>airline</div><div style='width:388px'>source logo</div>"
+        f"<div style='width:172px'>symbol 64 pt</div><div style='width:92px'>symbol 24 pt</div></div>"
+        f"{''.join(rows)}<h1 style='margin-top:30px'>Not cropped ({len(spec.get('skipped', {}))})</h1>"
+        f"<table>{skipped}</table></div>")
+    height = 32 + 120 + len(rows) * 92 + 80 + len(spec.get("skipped", {})) * 31 + 40
+    shoot(body, height, OUT / "crops-review.png", scale=2, width=1060)
+    return len(crops)
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     sym, word, none = library()
     at = symbols_at_size()
     n = flags()
-    print(f"library.png: {sym} symbols, {word} wordmarks, {none} with neither; "
+    c = crops_review()
+    print(f"crops-review.png: {c} crops; library.png: {sym} symbols, {word} wordmarks, {none} with neither; "
           f"symbols-at-size.png: {at}; flags.png: {n} flags")
     return 0
 

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" width="24.0034" height="24.0041" viewBox="75.4729 0.5491 24.0034 24.0041" version="1.1" id="svg18379" inkscape:version="1.1 (c68e22c387, 2021-05-23)" sodipodi:docname="Sheep_in_the_Big_City_logo.svg">
+  <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Volaris-logo.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><title id="title522">Volaris</title>
+  <sodipodi:namedview id="namedview18381" pagecolor="#ffffff" bordercolor="#111111" borderopacity="1" inkscape:pageshadow="0" inkscape:pageopacity="0" inkscape:pagecheckerboard="1" inkscape:document-units="px" showgrid="false" units="px" inkscape:zoom="11.313708" inkscape:cx="57.585009" inkscape:cy="14.893437" inkscape:window-width="1920" inkscape:window-height="1009" inkscape:window-x="-8" inkscape:window-y="-8" inkscape:window-maximized="1" inkscape:current-layer="layer1" height="75px" />
+  <defs id="defs18376" />
+  <g inkscape:label="Capa 1" inkscape:groupmode="layer" id="layer1">
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" transform="matrix(0.75548743,0,0,0.75548743,0.40249024,0.54910492)">
+      <g id="Desktop-HD" transform="translate(-165,-12)">
+        <g id="Header/Brand_header/Account">
+          <g id="Header/Brand_header">
+            <g id="Logo" transform="translate(165,12)">
+              <g id="Estrella" transform="translate(99.282984)">
+                <polygon id="Fill-12" fill="#eeefef" points="13.700757,4.5392432 18.239568,4.5392432 18.239568,0 13.700757,0 " />
+                <polygon id="Fill-13" fill="#b5d5f0" points="13.700757,9.0780541 18.239568,9.0780541 18.239568,4.5392432 13.700757,4.5392432 " />
+                <polygon id="Fill-14" fill="#6cadde" points="13.700757,13.616865 18.239568,13.616865 18.239568,9.0780541 13.700757,9.0780541 " />
+                <polygon id="Fill-15" fill="#b5d5f0" points="9.1619459,13.616865 13.700757,13.616865 13.700757,9.0780541 9.1619459,9.0780541 " />
+                <polygon id="Fill-16" fill="#d6a6cc" points="9.1619459,22.695351 13.700757,22.695351 13.700757,18.15654 9.1619459,18.15654 " />
+                <polygon id="Fill-17" fill="#b5d5f0" points="18.239568,13.616865 22.778378,13.616865 22.778378,9.0780541 18.239568,9.0780541 " />
+                <polygon id="Fill-18" fill="#dae7a2" points="18.239568,22.695351 22.778378,22.695351 22.778378,18.15654 18.239568,18.15654 " />
+                <polygon id="Fill-19" fill="#231f20" points="13.700757,18.156108 18.239568,18.156108 18.239568,13.616432 13.700757,13.616432 " />
+                <polygon id="Fill-20" fill="#91268f" points="13.700757,22.695351 18.239568,22.695351 18.239568,18.15654 13.700757,18.15654 " />
+                <polygon id="Fill-21" fill="#d6a6cc" points="13.700757,27.234162 18.239568,27.234162 18.239568,22.695351 13.700757,22.695351 " />
+                <polygon id="Fill-22" fill="#eeefef" points="13.700757,31.772973 18.239568,31.772973 18.239568,27.234162 13.700757,27.234162 " />
+                <polygon id="Fill-23" fill="#eeefef" points="0.083891892,18.156108 4.6227027,18.156108 4.6227027,13.616432 0.083891892,13.616432 " />
+                <polygon id="Fill-24" fill="#d6a6cc" points="4.6227027,18.156108 9.1619459,18.156108 9.1619459,13.616432 4.6227027,13.616432 " />
+                <polygon id="Fill-25" fill="#91268f" points="9.1619459,18.156108 13.700757,18.156108 13.700757,13.616432 9.1619459,13.616432 " />
+                <polygon id="Fill-26" fill="#8dc63f" points="18.239568,18.156108 22.778378,18.156108 22.778378,13.616432 18.239568,13.616432 " />
+                <polygon id="Fill-27" fill="#dae7a2" points="22.778378,18.156108 27.317189,18.156108 27.317189,13.616432 22.778378,13.616432 " />
+                <polygon id="Fill-28" fill="#eeefef" points="27.317189,18.156108 31.856,18.156108 31.856,13.616432 27.317189,13.616432 " />
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+  <metadata id="metadata18907">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:date>13-ene-2022</dc:date>
+        <cc:license rdf:resource="http://scripts.sil.org/OFL" />
+        <dc:title>Volaris</dc:title>
+      </cc:Work>
+      <cc:License rdf:about="http://scripts.sil.org/OFL">
+        <cc:permits rdf:resource="http://scripts.sil.org/pub/OFL/Reproduction" />
+        <cc:permits rdf:resource="http://scripts.sil.org/pub/OFL/Distribution" />
+        <cc:permits rdf:resource="http://scripts.sil.org/pub/OFL/Embedding" />
+        <cc:permits rdf:resource="http://scripts.sil.org/pub/OFL/DerivativeWorks" />
+        <cc:requires rdf:resource="http://scripts.sil.org/pub/OFL/Notice" />
+        <cc:requires rdf:resource="http://scripts.sil.org/pub/OFL/Attribution" />
+        <cc:requires rdf:resource="http://scripts.sil.org/pub/OFL/ShareAlike" />
+        <cc:requires rdf:resource="http://scripts.sil.org/pub/OFL/DerivativeRenaming" />
+        <cc:requires rdf:resource="http://scripts.sil.org/pub/OFL/BundlingWhenSelling" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+</svg>

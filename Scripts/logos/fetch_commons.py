@@ -37,6 +37,8 @@ Commons reports is checked, the bytes must look like the declared type, and rend
 It also writes the attribution list the app shows in Acknowledgements:
 Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json
 (one entry per airline for its wordmark, with a nested "symbol" credit when a symbol ships).
+At the end it runs crop_symbols.py, which adds the symbols cropped out of these logos (Task 8d,
+assets/logos/commons/crops.json) and rewrites that credit list with them.
 
 Polite client: descriptive User-Agent, at most one network request per second, every API answer and
 download cached under <work>/cache so a rerun costs nothing (--offline refuses any network call).
@@ -534,6 +536,14 @@ def main() -> int:
             credits.append({"icao": k, "name": s["name"], "kind": "symbol", **credit(s)})
     credits.sort(key=lambda c: c["icao"])
     APP_ATTRIBUTION.write_text(dump(credits))
+
+    # Task 8d: the symbols cropped out of these logos (crops.json) are rebuilt on top, and the credit list
+    # rewritten with them. A crop whose source changed is refused there and reported here.
+    crop = subprocess.run([sys.executable, "-I", str(Path(__file__).with_name("crop_symbols.py"))],
+                          capture_output=True, text=True, timeout=600)
+    print(crop.stdout, end="")
+    if crop.returncode:
+        print(f"crop_symbols.py: some crops refused (exit {crop.returncode}){': ' + crop.stderr if crop.stderr else ''}")
 
     counts = {}
     for r in rejected.values():

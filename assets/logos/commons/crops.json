@@ -1,0 +1,315 @@
+{
+  "_about": "Per airline: which elements of the Commons logo (assets/logos/commons/<source>) draw its symbol. keep = index paths from the root (child positions, '1/0/3'); everything else drawn is removed and the viewBox is set tight around what is kept. PNG sources take box = [x, y, w, h] in pixels and are refused under 192 px on the long side. source_sha256 pins the file the spec was written against. Built by Scripts/logos/crop_symbols.py; find index paths with --inspect ICAO.",
+  "crops": {
+    "AAR": {
+      "source": "AAR.svg",
+      "source_sha256": "64fac17da5f9e2c3d45c7441c1b9bcfa8ac33547326530d888d89bcbdc20d2d2",
+      "keep": [
+        "0"
+      ],
+      "symbol": "the wing mark"
+    },
+    "ACA": {
+      "source": "ACA.svg",
+      "source_sha256": "2cc0d1007c46cf46e8bd7a8c80e2033e55d84bf18d38af1884282a8477756270",
+      "keep": [
+        "1/0"
+      ],
+      "symbol": "the maple leaf roundel"
+    },
+    "AEE": {
+      "source": "AEE.svg",
+      "source_sha256": "a6d98c54f72733237cd968a2b3268e04729596c0567d65fb1ffb45109caabd02",
+      "keep": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "symbol": "the gull"
+    },
+    "AFR": {
+      "source": "AFR.svg",
+      "source_sha256": "5ed88125c4270bfb74edd456aaa19c60efeea86f0acaf0925bed1bc2140d87e0",
+      "keep": [
+        "0/0"
+      ],
+      "symbol": "the red stripe right of the name"
+    },
+    "AHY": {
+      "source": "AHY.svg",
+      "source_sha256": "a1a15930a52ca91477a8cc17eb7ca0bd8a2ad5882f39d11909df084550bc98f1",
+      "keep": [
+        "3/0/0",
+        "3/0/1",
+        "3/0/2",
+        "3/0/3",
+        "3/0/4",
+        "3/0/5",
+        "3/0/6",
+        "3/0/7"
+      ],
+      "symbol": "the ring and the wing"
+    },
+    "AIC": {
+      "source": "AIC.svg",
+      "source_sha256": "82c6b022a6de8aa75bd4c83b2417a2daeab34a775b1dd96c68fb8931283a01f9",
+      "keep": [
+        "8",
+        "9"
+      ],
+      "symbol": "the window frame"
+    },
+    "ANZ": {
+      "source": "ANZ.svg",
+      "source_sha256": "bfc22a3f397c8adaccda246820294c50a719157015951c1e17a7c623be8bb46e",
+      "keep": [
+        "2/1"
+      ],
+      "symbol": "the koru"
+    },
+    "BEL": {
+      "source": "BEL.svg",
+      "source_sha256": "b2b62be972ff482199469c05ba5d3b293b9269eeda1270894a3dfbe672b5c811",
+      "keep": [
+        "1/0/0/1"
+      ],
+      "symbol": "the nine dots forming a b"
+    },
+    "CTN": {
+      "source": "CTN.svg",
+      "source_sha256": "32dc849156bce0d429f225eab0f96360411916464713195d3014aa0fc0d5d3f8",
+      "keep": [
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "symbol": "the checker squares"
+    },
+    "DAH": {
+      "source": "DAH.svg",
+      "source_sha256": "d6c83742fc2ae9bd40c5b48047b9c730d87db73249ab6ae7e9cd2f0e1a0e2f6e",
+      "keep": [
+        "38",
+        "39",
+        "40",
+        "41"
+      ],
+      "symbol": "the bird roundel"
+    },
+    "EIN": {
+      "source": "EIN.svg",
+      "source_sha256": "6ef4e7c4f18edff7edf42739172de14ec1a541fc519f99289e1c43dbacd67e80",
+      "keep": [
+        "1",
+        "2"
+      ],
+      "symbol": "the shamrock"
+    },
+    "IBE": {
+      "source": "IBE.svg",
+      "source_sha256": "90fcf4c0d236e2ae8d2b405d3c967b22d86cea72672f0bd099f5ba274daf1e9c",
+      "keep": [
+        "2/1",
+        "2/2"
+      ],
+      "symbol": "the two tail flames"
+    },
+    "ICE": {
+      "source": "ICE.svg",
+      "source_sha256": "7db2cd37e3859b7ea6481f078186d4a5039785f405aec7e700b5fcb247cba795",
+      "keep": [
+        "11"
+      ],
+      "symbol": "the tail with the Icelandair wing"
+    },
+    "KQA": {
+      "source": "KQA.svg",
+      "source_sha256": "ff090a4728d89dd8bfc40e9dec6d29abdc0f593032936c0750d46726d3edb40c",
+      "keep": [
+        "2/0",
+        "2/1"
+      ],
+      "symbol": "the KQ roundel"
+    },
+    "LAN": {
+      "source": "LAN.svg",
+      "source_sha256": "5df87c63fdd4521699c8d9c0579a82c2b7d849b99245197b197cdd1a3d4617d7",
+      "keep": [
+        "1/1",
+        "1/2"
+      ],
+      "symbol": "the LATAM mark"
+    },
+    "LGL": {
+      "source": "LGL.svg",
+      "source_sha256": "19442af7f0185f59e3eb992ea325b56224bb13dd9471fd508b6eaf8a6f311e6a",
+      "keep": [
+        "1/2",
+        "1/4"
+      ],
+      "symbol": "the ring with the arrow"
+    },
+    "MXY": {
+      "source": "MXY.svg",
+      "source_sha256": "3ca72a311f9e5724ede140e084b5dc6ecb8abbddb9c38449befd70e2031eca2c",
+      "keep": [
+        "5"
+      ],
+      "symbol": "the check mark"
+    },
+    "PAL": {
+      "source": "PAL.svg",
+      "source_sha256": "779e6cffc74b81470f514042c47a9778f62f3d299d5656f1f8ef33b5466b1605",
+      "keep": [
+        "1/18"
+      ],
+      "symbol": "the sun and tail mark"
+    },
+    "SAA": {
+      "source": "SAA.svg",
+      "source_sha256": "0262aeb28d97331bef862cccce089bda47be531cbca8801e884b57a1dac78b9d",
+      "keep": [
+        "1/19",
+        "1/20",
+        "1/21",
+        "1/22",
+        "1/23",
+        "1/24",
+        "1/25"
+      ],
+      "symbol": "the tail flag"
+    },
+    "SWA": {
+      "source": "SWA.svg",
+      "source_sha256": "1d43f2e1685af4b60e8c30530348523fe1a860cc8c92214d97fc781a9e24b154",
+      "keep": [
+        "2",
+        "4",
+        "6",
+        "8"
+      ],
+      "symbol": "the heart"
+    },
+    "SWR": {
+      "source": "SWR.svg",
+      "source_sha256": "eba2df4e442ad7484f6299cc900e1ade21a3d9c73e9d476f496ff730efdaf9d4",
+      "keep": [
+        "0/0",
+        "1/0"
+      ],
+      "symbol": "the tail fin with the Swiss cross"
+    },
+    "SXS": {
+      "source": "SXS.svg",
+      "source_sha256": "e1cfe32689d682cf828637127deb46cd0b1f2ec39c0059b0feee3fba1d29996e",
+      "keep": [
+        "2/0/0/10",
+        "2/0/0/11",
+        "2/0/0/12",
+        "2/0/0/13",
+        "2/0/0/14",
+        "2/0/0/15",
+        "2/0/0/16",
+        "2/0/0/17",
+        "2/0/0/18"
+      ],
+      "symbol": "the sun over the sea"
+    },
+    "THY": {
+      "source": "THY.svg",
+      "source_sha256": "703a4d8758a1557a3f0ce8d692c1ed1388bbe9f6c95d07ccfcce8e1e56528594",
+      "keep": [
+        "3/0/1"
+      ],
+      "symbol": "the bird roundel on its white ring"
+    },
+    "TOM": {
+      "source": "TOM.svg",
+      "source_sha256": "ed194fb165ee2cb9cef706089e2d1f5868e9cab74718ac8a1e753940e0b4c321",
+      "keep": [
+        "1"
+      ],
+      "symbol": "the smile"
+    },
+    "TRA": {
+      "source": "TRA.svg",
+      "source_sha256": "2dc5c8b9ca2408dab2f96379853511d1423f1356e35c8c362a240fb64f9e9659",
+      "keep": [
+        "0"
+      ],
+      "symbol": "the t mark"
+    },
+    "TSC": {
+      "source": "TSC.svg",
+      "source_sha256": "a5716f8874762a2cbf74ddabc3eaea667110105be38f20ac914eff35bb744803",
+      "keep": [
+        "3",
+        "4"
+      ],
+      "symbol": "the star"
+    },
+    "TVF": {
+      "source": "TVF.svg",
+      "source_sha256": "8f0faf7e8bf2a2e055354a6b895fc0a8849e29b6420c221ea61de21169ecff09",
+      "keep": [
+        "0",
+        "1"
+      ],
+      "symbol": "the t roundel"
+    },
+    "TWB": {
+      "source": "TWB.svg",
+      "source_sha256": "e0bbbd7ede4fc34711d78f58a6efb08535addc593ab6c49646b968e2c0d4ea05",
+      "keep": [
+        "0/0",
+        "0/1",
+        "0/2"
+      ],
+      "symbol": "the T mark"
+    },
+    "VOI": {
+      "source": "VOI.svg",
+      "source_sha256": "9dd0cff1bb3a6c40caecbca94895fdd0fb496cfa7fdadc2a9b1f019e48fb4559",
+      "keep": [
+        "3/0/0/0/0/0/1"
+      ],
+      "symbol": "the cross of squares"
+    },
+    "VXP": {
+      "source": "VXP.svg",
+      "source_sha256": "ca0f33f19d550e8bf3e11f2b5f232320ce939d864887f3a229b5ea99d7217c3a",
+      "keep": [
+        "0/0",
+        "0/1",
+        "0/3"
+      ],
+      "symbol": "the chevrons"
+    },
+    "WJA": {
+      "source": "WJA.svg",
+      "source_sha256": "1fd4ae8f28ae636a1e80cfe47e9415e2c3224079fef67caf7e68f0589de25ded",
+      "keep": [
+        "3/7",
+        "4"
+      ],
+      "symbol": "the three maple leaves"
+    }
+  },
+  "skipped": {
+    "AUA": "the arrow is one path with the letters of \"Austrian\" (path 0/2): no element boundary to cut on",
+    "CEB": "PNG source stored at 192 x 51 px: the symbol crop would be under 192 px on its long side (no upscaling)",
+    "CPA": "the brushwing is one path with the letters of \"CATHAY\" (path 4/2/0/0): no element boundary to cut on",
+    "ETH": "the red feather is one path with \"Ethiopian\" and the Amharic name (path 2); the other two feathers alone are not the mark",
+    "EWG": "the two maroon stripes are one path with \"Eurowings\" (path 1); only the blue stripe stands alone, half the mark",
+    "KZR": "PNG source stored at 192 x 76 px: the bird crop would be under 192 px on its long side (no upscaling)",
+    "MSR": "the whole logo, Horus and both names, is a single path",
+    "OMA": "PNG source stored at 192 x 47 px: the mark crop would be under 192 px on its long side (no upscaling)",
+    "RAM": "the emblem is one path with \"royal air maroc\" (path 0/0)",
+    "RWD": "PNG source stored at 192 x 45 px: the sun crop would be under 192 px on its long side (no upscaling)",
+    "UAL": "the stored logo is the wordmark only, no symbol to cut out"
+  }
+}

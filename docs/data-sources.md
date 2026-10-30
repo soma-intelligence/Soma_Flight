@@ -2,7 +2,8 @@
 
 Reference data that ships in the repo, where it comes from, under which licence, and when it was retrieved.
 No dataset here is share-alike. Two airline logo images are CC BY-SA (see Airline logos); they are shipped
-unchanged or only scaled, and nothing is derived from them.
+unchanged or only scaled, and nothing is derived from them (the cropped symbols all come from public domain
+files).
 
 ## Airports
 
@@ -101,8 +102,8 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   manifest (one entry per airline for the wordmark, a nested `symbol` credit when a symbol ships) and shown in
   Acknowledgements under "Airline logos (Wikimedia Commons)".
 - Built by `python3 -I Scripts/logos/fetch_commons.py`; review sheets `docs/logos/library.png` (symbol and
-  wordmark side by side, dark and light) and `docs/logos/symbols-at-size.png` (every symbol at 24, 34 and 64 pt)
-  by `python3 -I Scripts/logos/build_sheets.py` (which also draws `docs/logos/flags.png`, the 251 bundled flags).
+  wordmark side by side, dark and light), `docs/logos/symbols-at-size.png` (every symbol at 24, 34 and 64 pt)
+  and `docs/logos/crops-review.png` (the cropped symbols beside their source) by `python3 -I Scripts/logos/build_sheets.py` (which also draws `docs/logos/flags.png`, the 251 bundled flags).
 - Retrieved: 2026-10-29.
 - Method: for each of the 138 airlines in `supabase/seed/airlines.csv`, the Wikidata item with that ICAO airline
   code (P230) is chosen by the reference seed rule (not dissolved, matching IATA code, most sitelinks), and its
@@ -126,7 +127,27 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   `KAL` taegeuk (P2910), `AAL` flight symbol (P154, symbol-named), `DAL` widget and `KLM` crown (Commons
   category). Licences: 5 public domain, 1 CC BY-SA 3.0 (`KLM`, by 京市). 103 airlines keep their wordmark only.
   Rejected candidates and why are in `symbols-report.json`. About 80 KB.
-- Size: about 1.9 MB for `assets/logos` (SVGs 1.3 MB, 192 px PNGs 0.8 MB).
+- Cropped symbols (Task 8d, same day, owner approved): where the symbol only exists inside the full logo, it is
+  cut out of the stored Commons file by `python3 -I Scripts/logos/crop_symbols.py` (run at the end of
+  `fetch_commons.py` too), following `assets/logos/commons/crops.json`. Method: crop only. For an SVG the spec
+  names the elements that draw the symbol (index paths from the root, found with `--inspect ICAO`); every other
+  drawn element (the wordmark) is removed, defs, styles and gradients stay, and the viewBox is set tight around
+  what is left (exact Bezier extrema, transforms, clip paths, half the stroke width). Path data, colours and
+  transforms are not touched: nothing is redrawn, recoloured, scaled or distorted. A PNG source would be cut by
+  pixel box and refused under 192 px on its long side (no upscaling). The file is parsed as XML only (Python
+  standard library, no external entities, nothing in it is run); each spec pins the source's sha256, so a changed
+  source is refused until looked at again; the output is byte-identical on a rerun. Manifest entries: kind
+  `symbol`, `method: "crop"`, `derived_from` (the stored source file), `crop` (the kept index paths), licence,
+  author, source page and Commons metadata inherited from the source logo, attribution = the source's plus
+  ", cropped to the symbol". The app's credit list gives such a symbol `method` and `derived_from`; a CC BY or
+  CC BY-SA source would keep its licence and attribution (none of the 31 is: all public domain). 31 cropped:
+  `AAR` `ACA` `AEE` `AFR` `AHY` `AIC` `ANZ` `BEL` `CTN` `DAH` `EIN` `IBE` `ICE` `KQA` `LAN` `LGL` `MXY` `PAL` `SAA`
+  `SWA` `SWR` `SXS` `THY` `TOM` `TRA` `TSC` `TVF` `TWB` `VOI` `VXP` `WJA`. 11 not cropped, reasons in
+  `crops.json` (`skipped`): the symbol is one path with the letters (`AUA`, `CPA`, `ETH`, `EWG`, `MSR`, `RAM`),
+  the stored PNG is 192 px wide so the crop would be under 192 px (`CEB`, `KZR`, `OMA`, `RWD`), no symbol in the
+  logo (`UAL`). Review sheet: `docs/logos/crops-review.png` (source logo, symbol at 64 and 24 pt, dark and
+  light). About 0.4 MB. 37 airlines now have a symbol.
+- Size: about 2.3 MB for `assets/logos` with the crops.
 - Use: `LOGO_PROVIDER=commons` makes `brand-assets-sync` load this library into the private `brand-assets`
   bucket (`supabase/functions/_shared/brand/commons.ts`), from `COMMONS_LOGO_BASE` when set (an http URL
   serving this folder, since the edge runtime cannot read the repo), else the repo copy. Kind `logo` is the
