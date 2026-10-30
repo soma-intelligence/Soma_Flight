@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The app's dark tokens (FlightKit `Theme`, dark values) for the Live Activity, which is always drawn
-/// dark. `LiveActivityStateTests` checks they still match the theme.
+/// The app's dark tokens (FlightKit `Theme`, dark values) for the Live Activity and the widgets, which
+/// are always drawn dark. `LiveActivityStateTests` checks they still match the theme.
 public enum ActivityPalette {
     public static let background = Color(hex: 0x18181A)
     public static let track = Color(hex: 0x373738)
@@ -12,6 +12,10 @@ public enum ActivityPalette {
     public static let veryLate = Color(hex: 0xFF453A)
     public static let canceled = Color(hex: 0xFFFFFF)
     public static let diverted = Color(hex: 0xBF5AF2)
+    /// The flight sheet's gate badge (FlightKit `GateBadge.yellow`), and the pill of a gate not assigned
+    /// yet (`Theme.pill`). The widgets draw them.
+    public static let gate = Color(hex: 0xF4C430)
+    public static let pill = Color(hex: 0x2C2C2F)
 
     public static func color(_ level: DelayLevel) -> Color {
         switch level {
