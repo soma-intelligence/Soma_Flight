@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The home sheet: followed flights as cards, in the air first, then the ones still to come,
+/// The home sheet: followed flights as rows, in the air first, then the ones still to come,
 /// then the finished, canceled and diverted ones until they are removed. Offline it shows the
 /// last saved list with its age, and online it flags a list older than the TTL. With nothing followed
 /// it invites a search; before the first load finishes it shows a spinner, and after a failed load with
@@ -15,10 +15,11 @@ public struct MyFlightsView: View {
     var lookup: (String) -> Airport?
     var fixedNow: Date?
     var scrolls: Bool
+    @Environment(\.reference) private var reference
 
     /// - Parameters:
     ///   - onSearch: opens the search sheet from the empty state; nil hides the button.
-    ///   - lookup: airport by ICAO, for city names and local times on the cards.
+    ///   - lookup: airport by ICAO, for city names and local times on the rows.
     ///   - now: a fixed clock for previews; nil follows the real time.
     public init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)? = nil,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil) {
@@ -92,8 +93,8 @@ public struct MyFlightsView: View {
                         .scaledPadding(.bottom, 10)
                     ForEach(group.flights) { flight in
                         Button { onSelect(flight) } label: {
-                            FlightCard(flight: flight, origin: lookup(flight.originIcao),
-                                       destination: lookup(flight.destinationIcao), now: now)
+                            MyFlightRow(flight: flight, origin: lookup(flight.originIcao),
+                                        destination: lookup(flight.destinationIcao), airline: airline(flight), now: now)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -101,8 +102,8 @@ public struct MyFlightsView: View {
                                 Task { await store.unfollow(flight) }
                             }
                         }
-                        .scaledPadding(.bottom, 12)
                     }
+                    Spacer().frame(height: 0).scaledPadding(.bottom, 14)
                 }
             }
         }
@@ -111,6 +112,10 @@ public struct MyFlightsView: View {
     }
 
     private func reload() { Task { await store.load() } }
+
+    private func airline(_ f: Flight) -> Airline? {
+        f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
+    }
 }
 
 /// Centered invitation shown when nothing is followed.

@@ -49,6 +49,14 @@ public final class HomeModel {
     public var tab: HomeTab = .flights
     /// The Passport page open over the home, if any.
     public var fullPage: FullPage?
+    /// The confirmation over the tab pill after a follow ("Following UA 990"); clears after `toastDuration`.
+    public private(set) var toast: String?
+    /// How long the toast stays.
+    public static let toastDuration: Duration = .seconds(3)
+    /// Waits out the toast; tests replace it to move the clock by hand.
+    @ObservationIgnored var toastSleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    /// Bumped by every toast, so an older timer never clears a newer one.
+    @ObservationIgnored private var toastSerial = 0
     /// The account the two stores were built for.
     @ObservationIgnored private var storesOwner: UUID?
     /// Notification permission and token registration; nil until the shell calls `attachPush`.
@@ -248,10 +256,30 @@ public final class HomeModel {
     /// Nothing can be opened or registered before the account the backend needs is signed in.
     private var canHandlePush: Bool { !env.requiresSignIn || owner != nil }
 
-    /// A follow went through: reload My Flights, then (the first time) ask for notifications.
-    public func didFollow() async {
+    /// A follow went through: says so over the tab pill, reloads My Flights, then (the first time) asks
+    /// for notifications.
+    public func didFollow(_ flight: Flight? = nil) async {
+        if let flight { showToast("Following \(Format.ident(flight.ident))") }
         await myFlights.load()
         await push?.didFollow()
+    }
+
+    /// Shows `text` over the tab pill for `toastDuration`; a newer toast replaces it and restarts the wait.
+    public func showToast(_ text: String) {
+        toastSerial += 1
+        let serial = toastSerial, sleep = toastSleep
+        toast = text
+        Task { [weak self] in
+            do { try await sleep(Self.toastDuration) } catch { return }
+            guard let self, self.toastSerial == serial else { return }
+            self.toast = nil
+        }
+    }
+
+    /// The airlines and airports the Add Flight sheet offers first, from the Passport's flights (the year
+    /// on show) and the followed ones.
+    public var frequent: [FrequentItem] {
+        FrequentlyUsed.compute(past: passport.flights, followed: followed, reference: env.reference, lookup: env.lookup)
     }
 
     /// Acts on what the app delegate left in the inbox: registers the device token, opens the flight a
@@ -314,11 +342,13 @@ public final class HomeModel {
     }
     #endif
 
-    /// Opens a screen without taps, for screenshot runs: `-tab passport`, `-open flight` (the first one
+    /// Opens a screen without taps, for screenshot runs: `-toast <text>`, `-tab passport`, `-open flight` (the first one
     /// in the air) or `-open airport:KAUS`, `-fullPage passport|delays|aircraftStats` (the Passport tab
     /// with that page over it), `-year 2025` (the Passport's year), and on iOS `-detent large` or
     /// `-detent small`. Call after the first load, from DEBUG builds only.
     public func applyLaunchArguments(_ args: UserDefaults = .standard) {
+        // `-toast "Following UA 990"` holds that toast on screen (no timer) for a capture.
+        if let text = args.string(forKey: "toast") { toast = text }
         if let tab = args.string(forKey: "tab").flatMap(HomeTab.init(rawValue:)) { self.tab = tab }
         if args.object(forKey: "year") != nil { passport.year = args.integer(forKey: "year") }
         if let page = args.string(forKey: "fullPage").flatMap(FullPage.init(rawValue:)) {

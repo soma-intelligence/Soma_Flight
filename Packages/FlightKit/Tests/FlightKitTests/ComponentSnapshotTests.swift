@@ -119,12 +119,13 @@ struct ComponentSnapshotTests {
         }
     }
 
-    @Test func flightCard() throws {
-        try render("FlightCard") {
-            VStack(spacing: 12) {
+    @Test func myFlightRow() throws {
+        try render("MyFlightRow") {
+            VStack(spacing: 0) {
                 ForEach(PreviewData.followed) { f in
-                    FlightCard(flight: f, origin: PreviewData.airport(f.originIcao),
-                               destination: PreviewData.airport(f.destinationIcao), now: now)
+                    MyFlightRow(flight: f, origin: PreviewData.airport(f.originIcao),
+                                destination: PreviewData.airport(f.destinationIcao),
+                                airline: ReferenceData.bundled().airline(ident: f.ident), now: now)
                 }
             }
             .padding(16)

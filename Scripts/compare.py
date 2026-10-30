@@ -125,6 +125,10 @@ V2_REFS: dict[str, list] = {
     # tiles) beside 35 and 34; the bottom (`-detailScroll bottom`: notes card, bottom bar) beside 29.
     "detail-top": ["35", "34"],
     "detail-notes": ["29"],
+    # My Flights rows with the follow toast held on (`-useFakes YES -toast "Following UA 990" -detent large`) beside
+    # 36; the Add Flight sheet's frequently used airlines and airports (`-useFakes YES -sheet search`) beside 38.
+    "myflights": ["36"],
+    "add-flight": ["38"],
 }
 
 

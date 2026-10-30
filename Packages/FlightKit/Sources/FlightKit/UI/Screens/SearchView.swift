@@ -25,6 +25,7 @@ public struct SearchView: View {
     var onFollowed: (Flight) -> Void
     var lookup: (String) -> Airport?
     var alreadyFollowed: FollowedFlights
+    var frequent: [FrequentItem]
     var scrolls: Bool
 
     @State private var followed: Set<Flight.ID> = []
@@ -35,15 +36,18 @@ public struct SearchView: View {
     /// - Parameters:
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
     ///   - alreadyFollowed: flights already followed, which show "Following" instead of a second Follow.
+    ///   - frequent: the airlines and airports offered before anything is typed (`HomeModel.frequent`).
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
-                lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init()) {
-        self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed, scrolls: true)
+                lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init(),
+                frequent: [FrequentItem] = []) {
+        self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
+                  frequent: frequent, scrolls: true)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
-         alreadyFollowed: FollowedFlights = .init(), scrolls: Bool) {
+         alreadyFollowed: FollowedFlights = .init(), frequent: [FrequentItem] = [], scrolls: Bool) {
         self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
-        self.alreadyFollowed = alreadyFollowed; self.scrolls = scrolls
+        self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.scrolls = scrolls
     }
 
     public var body: some View {
@@ -152,10 +156,17 @@ public struct SearchView: View {
 
     private var suggestions: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if !frequent.isEmpty {
+                CapsHeader("Frequently used")
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, 18)
+                    .scaledPadding(.bottom, 4)
+                ForEach(frequent) { frequentRow($0) }
+            }
             if !store.recent.isEmpty {
                 CapsHeader("Recent searches")
                     .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 18)
+                    .scaledPadding(.top, frequent.isEmpty ? 18 : 22)
                     .scaledPadding(.bottom, 4)
                 ForEach(store.recent, id: \.self) { q in
                     OptionRow(icon: icon(for: q), title: q, subtitle: describe(q)) {
@@ -164,19 +175,44 @@ public struct SearchView: View {
                     }
                 }
             }
-            CapsHeader("Ways to search")
+            CapsHeader("More")
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.top, 22)
                 .scaledPadding(.bottom, 4)
-            OptionRow(icon: "number", title: "By flight number", subtitle: "Airline code and number, like UA1527") {
+            OptionRow(icon: Self.routeIcon, title: "Find by route", subtitle: nil) {
                 focused = true
             }
-            OptionRow(icon: Self.routeIcon, title: "By route", subtitle: "Two airports, like AUS SFO") {
+        }
+    }
+
+    /// An airline fills the field with its code and a space, ready for the number; an airport runs its
+    /// search at once.
+    @ViewBuilder private func frequentRow(_ item: FrequentItem) -> some View {
+        switch item {
+        case .airline(let a, _):
+            FrequentRow(title: a.name, subtitle: Self.subtitle(item)) {
+                AirlineLogo(airline: a, code: a.iata ?? a.id, size: Self.frequentIcon, decorative: true)
+            } action: {
+                store.text = "\(a.iata ?? a.id) "
                 focused = true
             }
-            OptionRow(icon: "building.columns", title: "By airport", subtitle: "One airport code for its flights today") {
-                focused = true
+        case .airport(let a, _):
+            FrequentRow(title: DetailFacts.shortName(a.name), subtitle: Self.subtitle(item)) {
+                CountryFlag(code: a.country, size: Self.frequentIcon, decorative: true)
+            } action: {
+                store.text = a.iata ?? a.id
+                run()
             }
+        }
+    }
+
+    static let frequentIcon: CGFloat = 24
+
+    /// "F8 · FLE" for an airline, "SFO · KSFO · San Francisco" for an airport.
+    static func subtitle(_ item: FrequentItem) -> String {
+        switch item {
+        case .airline(let a, _): [a.iata, a.id].compactMap { $0 }.joined(separator: " · ")
+        case .airport(let a, _): [a.iata, a.id, a.city].compactMap { $0 }.joined(separator: " · ")
         }
     }
 
@@ -248,6 +284,32 @@ struct OptionRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// An icon (logo or flag), a title and a grey line of codes.
+struct FrequentRow<Icon: View>: View {
+    var title: String
+    var subtitle: String
+    @ViewBuilder var icon: Icon
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                icon
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).scaledFont(17).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(subtitle).scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -339,7 +401,9 @@ struct SearchPreview: View {
     var body: some View {
         Group {
             if let store {
-                SearchView(store: store, onFollowed: { _ in }, lookup: SearchPreview.lookup)
+                SearchView(store: store, onFollowed: { _ in }, lookup: SearchPreview.lookup,
+                           frequent: FrequentlyUsed.compute(past: [], followed: PreviewData.followed,
+                                                            reference: .bundled(), lookup: SearchPreview.lookup))
             } else {
                 ProgressView()
             }

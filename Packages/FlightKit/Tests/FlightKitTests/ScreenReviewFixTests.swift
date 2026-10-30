@@ -133,8 +133,8 @@ import Testing
         let now = PreviewData.now, tz = PreviewData.kaus.timeZone
         let flight = PreviewData.enRoute
         #expect(try differs { _ in
-            FlightCard(flight: flight, origin: PreviewData.airport(flight.originIcao),
-                       destination: PreviewData.airport(flight.destinationIcao), now: now)
+            MyFlightRow(flight: flight, origin: PreviewData.airport(flight.originIcao),
+                        destination: PreviewData.airport(flight.destinationIcao), airline: nil, now: now)
         })
         #expect(try differs { _ in
             FlightTimeline(flight: flight, origin: PreviewData.airport(flight.originIcao),

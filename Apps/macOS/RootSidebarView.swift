@@ -110,8 +110,8 @@ struct RootSidebarView: View {
         @Bindable var home = home
         Group {
             if showSearch {
-                SearchView(store: search, onFollowed: { _ in Task { await home.didFollow() } }, lookup: env.lookup,
-                           alreadyFollowed: FollowedFlights(home.followed))
+                SearchView(store: search, onFollowed: { flight in Task { await home.didFollow(flight) } },
+                           lookup: env.lookup, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent)
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {
                 switch home.tab {
@@ -131,8 +131,15 @@ struct RootSidebarView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0; showSearch = false }), bottom: 14,
-                        onSearch: { showSearch = true })
+            VStack(spacing: 12) {
+                if let toast = home.toast {
+                    AddedToast(text: toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0; showSearch = false }), bottom: 14,
+                            onSearch: { showSearch = true })
+            }
+            .animation(.smooth, value: home.toast)
         }
     }
 

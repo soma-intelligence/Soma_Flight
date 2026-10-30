@@ -86,7 +86,8 @@ struct RootTabView: View {
         .presentationCornerRadius(Theme.sheetRadius)
         .interactiveDismissDisabled()
         .sheet(isPresented: $showSearch) {
-            SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), onFollowed: { _ in Task { await home.didFollow() } })
+            SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
+                        onFollowed: { flight in Task { await home.didFollow(flight) } })
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -120,7 +121,14 @@ struct RootTabView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // The pill reaches 14 pt into the home indicator inset (34 pt on Face ID iPhones), so it sits
             // 20 pt above the sheet's bottom edge as in the reference.
-            HomeTabPill(tab: $home.tab, bottom: -14, onSearch: { showSearch = true })
+            VStack(spacing: 12) {
+                if let toast = home.toast {
+                    AddedToast(text: toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                HomeTabPill(tab: $home.tab, bottom: -14, onSearch: { showSearch = true })
+            }
+            .animation(.smooth, value: home.toast)
         }
     }
 
@@ -151,16 +159,20 @@ private struct SearchSheet: View {
     @State private var store: SearchStore
     var lookup: (String) -> Airport?
     var alreadyFollowed: FollowedFlights
+    var frequent: [FrequentItem]
     var onFollowed: (Flight) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, onFollowed: @escaping (Flight) -> Void) {
+    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem],
+         onFollowed: @escaping (Flight) -> Void) {
         _store = State(initialValue: env.makeSearchStore())
-        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.onFollowed = onFollowed
+        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent
+        self.onFollowed = onFollowed
     }
 
     var body: some View {
-        SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed)
+        SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
+                   frequent: frequent)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             #if DEBUG
             // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.
