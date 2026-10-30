@@ -413,6 +413,10 @@ verify_jwt = true
 verify_jwt = true
 static_files = ["./functions/_shared/brand/resvg/*"]
 
+# Arrival forecast and inbound chain (paid AeroAPI history and flight info, cached in Postgres).
+[functions.flight-insights]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

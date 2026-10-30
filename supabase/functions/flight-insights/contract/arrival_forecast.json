@@ -1,0 +1,21 @@
+{
+  "ident": "AF84",
+  "fetched_at": "2026-11-03T10:00:00.000Z",
+  "stale": false,
+  "forecast": {
+    "ident": "AF84",
+    "days": 60,
+    "observed": 13,
+    "late_percent": 45,
+    "average_late_minutes": 42,
+    "percents": {
+      "early": 16,
+      "on_time": 23,
+      "late15": 15,
+      "late30": 15,
+      "late45": 15,
+      "canceled": 8,
+      "diverted": 8
+    }
+  }
+}

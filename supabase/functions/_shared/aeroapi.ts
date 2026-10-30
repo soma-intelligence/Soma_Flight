@@ -25,10 +25,14 @@ export type AirportListKind =
  * Source: docs/provider-check.md (official pricing page, checked 2026-10-28).
  * UNVERIFIED: /airports/{id}/flights/to/{dest_id} is not on the pricing page; 0.02 is the
  * combined-board price used as a stand-in. The OpenAPI file publishes no prices.
+ * UNVERIFIED: /history/flights/{ident} is not in docs/provider-check.md either; 0.02 is a cautious
+ * stand-in (four times the live flight info price), so the spend cap errs on the safe side. Confirm
+ * before purchase.
  */
 export const ENDPOINT_COST: Record<string, number> = {
   "/flights/{ident}": 0.005,
   "/flights/{id}/position": 0.01,
+  "/history/flights/{ident}": 0.02,
   "/airports/{id}/flights/departures": 0.005,
   "/airports/{id}/flights/arrivals": 0.005,
   "/airports/{id}/flights/scheduled_departures": 0.005,
@@ -46,6 +50,9 @@ export function estimateCost(endpoint: string): number {
   }
   return cost;
 }
+
+/** Longest start-to-end span the history endpoint accepts in one query (OpenAPI 4.17.1). */
+export const HISTORY_WINDOW_DAYS = 7;
 
 /** Provider limit for start/end: no more than 10 days back and 2 days ahead. */
 export function inProviderWindow(at: Date, now: Date = new Date()): boolean {
@@ -109,6 +116,42 @@ export class AeroApi {
       return rows[0] ?? null;
     } catch (e) {
       if (e instanceof ApiError && e.code === "not_found") return null;
+      throw e;
+    }
+  }
+
+  /**
+   * Past flights of an ident from the history endpoint, whose scheduled_out falls in [start, end).
+   * The provider takes spans of at most 7 days (HISTORY_WINDOW_DAYS) and no bound in the future, so
+   * `end` is held a minute behind the clock; callers walk longer spans window by window. The answer
+   * carries no inbound_fa_flight_id. Follows links.next up to `maxPages` pages, each one billed
+   * result set; an empty window returns [] without a call.
+   */
+  async flightHistory(
+    ident: string,
+    start: Date,
+    end: Date,
+    maxPages = 2,
+  ): Promise<AeroFlight[]> {
+    const to = new Date(Math.min(end.getTime(), this.now().getTime() - 60_000));
+    if (!(start.getTime() < to.getTime())) return [];
+    const q = new URLSearchParams({
+      ident_type: "designator",
+      start: start.toISOString(),
+      end: to.toISOString(),
+    });
+    try {
+      const rows = await this.paged<AeroFlight>(
+        "/history/flights/{ident}",
+        `/history/flights/${encodeURIComponent(ident)}`,
+        "flights",
+        maxPages,
+        q,
+      );
+      return dedupeByFaFlightId(rows);
+    } catch (e) {
+      // An ident the provider never saw in the window is "no flights", not a failure.
+      if (e instanceof ApiError && e.code === "not_found") return [];
       throw e;
     }
   }
@@ -425,7 +468,8 @@ export function dedupeByFaFlightId(flights: AeroFlight[]): AeroFlight[] {
   return [...byId.values()];
 }
 
-function statusOf(f: AeroFlight): FlightRow["status"] {
+/** The app's status for a provider flight (canceled and diverted win over actual times). */
+export function statusOf(f: AeroFlight): FlightRow["status"] {
   if (f.cancelled) return "canceled";
   if (f.diverted) return "diverted";
   if (f.actual_in) return "arrived";
