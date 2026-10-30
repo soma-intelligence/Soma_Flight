@@ -287,7 +287,7 @@ extension AirlinerSpec {
             panes = [(0.50, 0.61), (0.625, 0.715), (0.73, 0.80)]
         case .a220: noseTip = 0.30; upperK = (0.30, 0.50); lowerK = 0.24
             panes = [(0.46, 0.585), (0.60, 0.70), (0.715, 0.80)]
-        case .a380: noseTip = 0.27; upperK = (0.40, 0.32); lowerK = 0.30
+        case .a380: noseTip = 0.27; upperK = (0.36, 0.56); lowerK = 0.30
             panes = [(0.20, 0.30), (0.312, 0.39), (0.402, 0.46)]
         case .b747: noseTip = 0.29; upperK = (0.30, 0.42); lowerK = 0.25
             panes = [(0.47, 0.555), (0.567, 0.635), (0.647, 0.70)]
@@ -315,7 +315,7 @@ extension AirlinerSpec {
         let rootLE = wingRootLE, cr = wingRootChord
         // A high wing sits in a fairing on the crown.
         let dorsal: Cubic? = high ? {
-            let a = rootLE - cr * 0.45, b = rootLE + cr * 1.55, rise = 0.10 * D
+            let a = rootLE - cr * 0.55, b = rootLE + cr * 1.65, rise = 0.16 * D
             return Cubic(p0: p(a, yt), p1: p(a + (b - a) * 0.22, yt + rise * 1.33), p2: p(b - (b - a) * 0.40, yt + rise * 1.33), p3: p(b, yt))
         }() : nil
         func topY(_ x: Double) -> Double {
@@ -568,10 +568,11 @@ extension AirlinerSpec {
         }
 
         // Wing -----------------------------------------------------------------------------------
-        let zr = high ? yt - 0.02 * D : yb + 0.30 * D
+        // A high wing sits on the crown in its fairing; a low wing under the barrel.
+        let zr = high ? yt + 0.05 * D : yb + 0.30 * D
         let tipLE = rootLE + wingSweep
         let zt = zr + wingRise
-        let depthRoot = (high ? 0.15 : D > 5 ? 0.24 : 0.19) * D, depthTip = max(0.10, 0.035 * D)
+        let depthRoot = (high ? 0.20 : D > 5 ? 0.24 : 0.19) * D, depthTip = max(0.10, 0.035 * D)
         let wa = p(rootLE, zr), wb = p(tipLE, zt)
         let wc = p(tipLE + wingTipChord, zt - depthTip)
         let rootTE = p(rootLE + cr, zr - depthRoot * 0.75)
@@ -622,7 +623,8 @@ extension AirlinerSpec {
             add(.wing, .fairing, fairing)
         }
 
-        add(.wing, .wing, wingPath(dx: 0, dy: 0))
+        // A high wing goes on after the near nacelle that hangs from it (see the turboprop case below).
+        if !high { add(.wing, .wing, wingPath(dx: 0, dy: 0)) }
         // Slat line just behind the leading edge, flap line ahead of the trailing edge.
         if !high {
             var slat = Path()
@@ -634,7 +636,7 @@ extension AirlinerSpec {
         flap.move(to: p(rootTE.x - cr * 0.18, rootTE.y + 0.05 * D))
         flap.addLine(to: p(wk.x - cr * 0.12, wk.y + 0.04 * D))
         flap.addLine(to: p(wc.x - wingTipChord * 0.45, wc.y + 0.012 * D))
-        add(.wing, .panelLine, flap)
+        if !high { add(.wing, .panelLine, flap) }
 
         // Flap track fairings: small pods hanging under the trailing edge, pointed aft.
         let pods: [Double] = high ? [] : family.isWidebody || family == .other && D > 5 ? [0.18, 0.40, 0.60, 0.78] : [0.22, 0.48, 0.74]
@@ -806,10 +808,16 @@ extension AirlinerSpec {
             engine(x0: x0, z: z + 0.03 * D, rear: true, layer: .engineFar)
             engine(x0: x0, z: z, rear: true, layer: .engine)
         case .turboprop:
-            // Axis just under the wing; the nacelle top runs into the wing's lower surface.
-            let z = zr - depthRoot * 0.35 - engineDiameter * 0.5
+            // The nacelle hangs from the wing: its top tucks into the wing's lower surface, so the axis sits
+            // just under the crown and the propeller turns ahead of the wing, not low on the cabin.
+            let z = zr - depthRoot * 0.6 - engineDiameter * 0.36
             turboprop(x0: eX + 0.12, z: z + 0.05 * D, layer: .engineFar)
             turboprop(x0: eX, z: z, layer: .engine)
+        }
+        if high {
+            // The near high wing over the nacelle's top, so the engine reads as hanging under it.
+            add(.engine, .wing, wingPath(dx: 0, dy: 0))
+            add(.engine, .panelLine, flap)
         }
 
         // Gear ----------------------------------------------------------------------------------

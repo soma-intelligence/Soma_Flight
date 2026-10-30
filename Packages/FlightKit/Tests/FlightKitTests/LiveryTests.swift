@@ -192,6 +192,15 @@ struct LiveryTests {
         AircraftArtMemo.shared.removeAll()
     }
 
+    /// The KLM crown once sat on a canvas twice its width (192 by 54 px): too wide and too short for the fin.
+    /// Cropped to the crown it passes, told apart from the wordmark.
+    @MainActor @Test func klmCrownGoesOnTheFin() async {
+        AircraftArtMemo.shared.removeAll()
+        let art = await FinArt.load(icao: "KLM", service: FakeBrandAssetService.bundled())
+        #expect(art != nil)
+        AircraftArtMemo.shared.removeAll()
+    }
+
     @Test func aircraftImagePrefersProvider() async {
         let reference = ReferenceData.bundled()
         let side = Self.asset(width: 400, height: 100)

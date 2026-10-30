@@ -3792,7 +3792,8 @@
       "attribution": "KLM crown logo by 京市, CC BY-SA 3.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:KLM_crown_logo.svg)",
       "attribution_required": true,
       "author": "京市",
-      "bytes": 2429,
+      "bytes": 2452,
+      "changes": "viewBox cropped to the crown (the source canvas is twice its width)",
       "credit": "Own work",
       "file": "symbol/KLM.svg",
       "format": "svg",
@@ -3803,14 +3804,14 @@
       "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
       "name": "KLM Royal Dutch Airlines",
       "png": "symbol/png/KLM.png",
-      "png_sha256": "b6597939bc82675e02f955ba745d6f4656148734a0b8452f0eef46e64fd62972",
+      "png_sha256": "7d1c42fc6de8ab46aec4730bb4d6d079cac83e4839d6f09e28a47c20b7e1bf8c",
       "png_size": [
         192,
-        54
+        109
       ],
       "resized_from_source": false,
       "retrieved": "2026-10-29",
-      "sha256": "d5cfe83175ed3afe758a05c93ec68cfe4d6cbf5dc62bd4be1d429a6e9d5de691",
+      "sha256": "13eb53dbab619ad43933ead8ae8c89077dbbe310b237c61a259e380cecb64ee1",
       "source_file": "KLM crown logo.svg",
       "source_page": "https://commons.wikimedia.org/wiki/File:KLM_crown_logo.svg",
       "source_sha1": "d9e51c372d981afafe6a34120520653af0da907a",

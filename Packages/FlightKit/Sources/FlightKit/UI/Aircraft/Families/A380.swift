@@ -22,9 +22,11 @@ enum A380 {
             noseGearX: 6.2, mainGearX: rootLE + 12.6, noseTyre: 0.64, mainTyre: 0.71, mainAxles: 3, axleSpacing: 1.7,
             doors: doors, cargoDoors: [15.0, L - 20.6], cargoDoorWidth: 2.7,
             windowPitch: 0.533, windowWidth: 0.28, windowHeight: 0.40, windowLine: 0.42,
-            firstWindow: 8.4, lastWindowFromTail: 13.6
+            firstWindow: 8.0, lastWindowFromTail: 12.2
         )
-        spec.upperDeck = .init(windowY: yb + 0.78 * D, firstWindow: 14.2, lastWindow: L - 15.6)
+        // Both decks are windowed nose to tail: the upper row starts just behind the cockpit and runs as far
+        // back as the main deck's.
+        spec.upperDeck = .init(windowY: yb + 0.78 * D, firstWindow: 10.6, lastWindow: L - 12.8)
         spec.outboardEngine = (inletFromWing: 9.6, clearance: 2.9)
         spec.wingGear = (dx: -4.0, axles: 2)
         return spec.build()

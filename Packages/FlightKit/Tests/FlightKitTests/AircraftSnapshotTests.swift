@@ -105,8 +105,9 @@ struct AircraftSnapshotTests {
     /// The entries from the remaining families, on their own sheet.
     static let remainingFamilies: Set<String> = ["a220", "a330", "a380", "b747", "b757", "b767", "ejet", "crj", "atr"]
 
-    /// What production serves as `.logo`: the Commons symbol when one was cropped
-    /// (assets/logos/commons/symbol/png), else the full logo (a wordmark, which never goes on a fin).
+    /// What production serves: `.logo` is the Commons symbol when one was cropped
+    /// (assets/logos/commons/symbol/png), else the full logo (a wordmark, which never goes on a fin);
+    /// `.wordmark` is the full logo, so a symbol is told apart from it as in the app.
     static func brandService() -> FakeBrandAssetService {
         var seeded: [(icao: String, kind: BrandAssetKind, asset: BrandAsset)] = []
         for icao in Set(liveryMatrix.map(\.icao)) {
@@ -114,6 +115,9 @@ struct AircraftSnapshotTests {
             let full = repoRoot.appending(path: "assets/logos/commons/png/\(icao).png")
             if let data = (try? Data(contentsOf: symbol)) ?? (try? Data(contentsOf: full)) {
                 seeded.append((icao, .logo, BrandAsset(data: data, format: "png", version: "snapshot")))
+            }
+            if let word = try? Data(contentsOf: full) {
+                seeded.append((icao, .wordmark, BrandAsset(data: word, format: "png", version: "snapshot")))
             }
         }
         return FakeBrandAssetService(seeded: seeded)

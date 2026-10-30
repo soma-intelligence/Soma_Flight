@@ -159,8 +159,19 @@ struct AircraftGeometryTests {
         let hull = b747.parts[.hull]!.boundingRect
         #expect(hull.maxY > b747.fuselageTopM + 1)
         // High wing: the ATR's wing sits on the crown.
-        let wing = atr.shapes.first { $0.layer == .wing && $0.part == .wing }!.path.boundingRect
+        // Its near wing is drawn over the nacelle that hangs from it.
+        let wing = atr.shapes.first { $0.layer == .engine && $0.part == .wing }!.path.boundingRect
         #expect(wing.midY > atr.fuselageTopM - 0.5)
+        // The near nacelle hangs from that wing, high on the barrel, not low over the cabin windows.
+        let nacelle = atr.shapes.first { $0.layer == .engine && $0.part == .nacelle }!.path.boundingRect
+        #expect(nacelle.maxY > wing.minY, "nacelle top tucked under the wing")
+        #expect(nacelle.midY > (atr.fuselageBottomM + atr.fuselageTopM) / 2 + 0.3, "nacelle axis \(nacelle.midY)")
+        // The A380's upper deck is windowed as far fore and aft as the main deck.
+        let a380 = AircraftGeometry.geometry(.a380)
+        let windows = a380.shapes.filter { $0.part == .window }.map { $0.path.boundingRect }
+        let upper = windows.filter { $0.minY > a380.cheatlineBand.upperBound + 1 }
+        let lower = windows.filter { $0.maxY <= a380.cheatlineBand.upperBound + 1 }
+        #expect(upper.map(\.minX).min()! < 12 && upper.map(\.maxX).max()! > lower.map(\.maxX).max()! - 1.5)
     }
 
     @Test func everyPathInsideTheBox() {
