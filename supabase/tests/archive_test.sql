@@ -165,15 +165,17 @@ select is((select count(*) from past_flights where user_id = 'c9c9c9c9-0000-0000
 select is((select count(*) from user_flights where user_id = 'c9c9c9c9-0000-0000-0000-000000000003'),
   0::bigint, 'deleted profile: follow removed');
 
--- past_flights fields the app decodes as non-optional are not null with defaults.
-insert into past_flights (user_id, date) values ('a9a9a9a9-0000-0000-0000-000000000001', now());
+-- past_flights fields the app decodes as non-optional are not null with defaults. (Rows written by
+-- the archive: client rows are checked and completed by past_flights_fill, 20261030000013.)
+insert into past_flights (user_id, date, source) values ('a9a9a9a9-0000-0000-0000-000000000001', now(), 'archive');
 select results_eq(
   $$select ident, origin_icao, destination_icao, distance_km, delay_minutes, status::text
     from past_flights where user_id = 'a9a9a9a9-0000-0000-0000-000000000001' and flight_id is null$$,
   $$values (''::text, ''::text, ''::text, 0, 0, 'completed'::text)$$,
-  'manual row gets defaults');
+  'a row without a flight gets defaults');
 select throws_ok(
-  $$insert into past_flights (user_id, date, distance_km) values ('a9a9a9a9-0000-0000-0000-000000000001', now(), null)$$,
+  $$insert into past_flights (user_id, date, distance_km, source)
+    values ('a9a9a9a9-0000-0000-0000-000000000001', now(), null, 'archive')$$,
   '23502', null, 'distance_km cannot be null');
 select is(haversine_km(0, 0, 0, 180)::int, 20015, 'antipodal pair does not raise');
 
