@@ -51,7 +51,7 @@ fileprivate extension ForeignBytes {
 // Converter for `&[u8]` / `[ByRef] bytes` arguments.
 //
 // Conforms to `FfiConverter` so the compiler enforces the full converter
-// method set. Only the scope-bound `lower(_:_body:)` overload is sound —
+// method set. Only the scope-bound `lower(_:_body:)` overload is sound,
 // zero-copy byte buffers only flow foreign -> Rust, and only in argument
 // position. The four protocol-witness methods (`lift`, `lower`, `read`,
 // `write`) `fatalError` at runtime if anyone reaches them.

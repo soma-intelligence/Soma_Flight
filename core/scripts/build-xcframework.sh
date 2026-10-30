@@ -57,6 +57,8 @@ xcodebuild -create-xcframework \
 
 mkdir -p "$PKG/Sources/FlightCore"
 cp "$WORK/gen/FlightCore.swift" "$PKG/Sources/FlightCore/FlightCore.swift"
+# The project never ships the em dash (U+2014); UniFFI's template has one in a comment.
+perl -CSD -pi -e 's/[ \t]*\x{2014}/,/g' "$PKG/Sources/FlightCore/FlightCore.swift"
 
 # Fixtures replayed by Tests/FlightCoreTests/FixtureTests.swift.
 mkdir -p "$PKG/Tests/FlightCoreTests/Fixtures"

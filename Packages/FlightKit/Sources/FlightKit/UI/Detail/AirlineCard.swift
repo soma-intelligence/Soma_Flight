@@ -84,7 +84,9 @@ struct AirlineCard: View {
                 ForEach(Self.codes(airline), id: \.self) { code in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(code.label).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
+                        // One word callsigns (SOUTHWEST) shrink rather than break mid-word.
                         Text(code.value).scaledFont(18).foregroundStyle(Theme.primary)
+                            .lineLimit(1).minimumScaleFactor(0.6)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)

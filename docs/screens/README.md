@@ -11,3 +11,4 @@
   and lands in `final/rendered/dark` and `final/rendered/light`. Mac window captures of the final pass are not kept either: run the Mac app with `-useFakes` (plus `-open flight`, `-open airport:KAUS`, `-tab passport`) and capture the window with `screencapture -l`.
 
 Kept PNGs are recompressed losslessly (zlib level 9, identical pixels). Prefer adding few, small images: git keeps every version forever.
+- `v1-1-overview.png`: the v1.1 screens on one labelled sheet for the owner (iOS simulator captures with `-useFakes YES`, plus the Mac windows), built by `python3 Scripts/overview.py` from `ios/v2-*.png` and `mac/v2-*.png`. The full pages (Passport, delays, aircraft stats) scroll, so they are captured from the simulator, not rendered: ImageRenderer draws a ScrollView's content blank.

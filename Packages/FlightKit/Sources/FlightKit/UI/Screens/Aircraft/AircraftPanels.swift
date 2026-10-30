@@ -286,7 +286,9 @@ struct AircraftTotalsPanel: View {
             Text(AircraftStatsCopy.flightsAndHours(most))
                 .scaledFont(16)
                 .foregroundStyle(Color(red: 0x2F / 255, green: 0x5C / 255, blue: 0xA8 / 255))
-            AircraftImage(type: mostFlownType, airline: mostFlownAirline, height: 70)
+            // As wide as the panel, like the reference's hero plane: up to 88 pt tall, no wider than 340 pt.
+            AircraftImage(type: mostFlownType, airline: mostFlownAirline,
+                          height: min(88, 340 / AircraftSideView.aspect(type: mostFlownType)))
                 .frame(maxWidth: .infinity)
                 .scaledPadding(.top, 8)
         }

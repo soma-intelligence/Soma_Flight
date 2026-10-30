@@ -128,6 +128,8 @@ V2_REFS: dict[str, list] = {
     # My Flights rows with the follow toast held on (`-useFakes YES -toast "Following UA 990" -detent large`) beside
     # 36; the Add Flight sheet's frequently used airlines and airports (`-useFakes YES -sheet search`) beside 38.
     "myflights": ["36"],
+    # The launch screen (Task 24): globe and the My Flights sheet at its resting detent, beside the rows of 36.
+    "home": ["36"],
     # The same at the largest accessibility size (simctl content_size accessibility-extra-extra-extra-large).
     "myflights-ax5": ["36"],
     "add-flight": ["38"],
