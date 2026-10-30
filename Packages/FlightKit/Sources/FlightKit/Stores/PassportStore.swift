@@ -80,6 +80,8 @@ public final class PassportStore {
     public var flights: [PastFlight] {
         all.filter { year == nil || $0.localYear == year }.sorted { $0.date > $1.date }
     }
+    /// Every flight of the history, whatever the year (airlines as the core reads them, ICAO when known).
+    public var allFlights: [PastFlight] { mapped }
     /// Years with at least one flight, newest first.
     public var years: [Int] { Array(Set(all.map(\.localYear))).sorted(by: >) }
 

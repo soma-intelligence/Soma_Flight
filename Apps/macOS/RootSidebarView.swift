@@ -132,14 +132,10 @@ struct RootSidebarView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 12) {
-                if let toast = home.toast {
-                    AddedToast(text: toast)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                ToastSlot(text: home.toast)
                 HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0; showSearch = false }), bottom: 14,
                             onSearch: { showSearch = true })
             }
-            .animation(.smooth, value: home.toast)
         }
     }
 

@@ -57,6 +57,19 @@ public final class HomeModel {
     @ObservationIgnored var toastSleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     /// Bumped by every toast, so an older timer never clears a newer one.
     @ObservationIgnored private var toastSerial = 0
+    /// The running timer of the toast on show; a newer toast cancels it.
+    @ObservationIgnored private var toastTimer: Task<Void, Never>?
+    /// A toast waiting for the search sheet to close (iOS covers the tab pill with it).
+    public private(set) var pendingToast: String?
+    /// True while a sheet covers the tab pill (the iOS search sheet). A toast raised meanwhile waits and
+    /// shows, with its full time, once this turns false. The Mac's inline search never sets it.
+    public var searchOpen = false {
+        didSet {
+            guard oldValue, !searchOpen, let text = pendingToast else { return }
+            pendingToast = nil
+            showToast(text)
+        }
+    }
     /// The account the two stores were built for.
     @ObservationIgnored private var storesOwner: UUID?
     /// Notification permission and token registration; nil until the shell calls `attachPush`.
@@ -264,22 +277,30 @@ public final class HomeModel {
         await push?.didFollow()
     }
 
-    /// Shows `text` over the tab pill for `toastDuration`; a newer toast replaces it and restarts the wait.
+    /// Shows `text` over the tab pill for `toastDuration` and has VoiceOver read it; a newer toast replaces
+    /// it and restarts the wait. While `searchOpen`, it waits for the sheet to close instead.
     public func showToast(_ text: String) {
+        if searchOpen {
+            pendingToast = text
+            return
+        }
         toastSerial += 1
         let serial = toastSerial, sleep = toastSleep
         toast = text
-        Task { [weak self] in
+        AccessibilityNotification.Announcement(text).post()
+        toastTimer?.cancel()
+        toastTimer = Task { [weak self] in
             do { try await sleep(Self.toastDuration) } catch { return }
             guard let self, self.toastSerial == serial else { return }
             self.toast = nil
         }
     }
 
-    /// The airlines and airports the Add Flight sheet offers first, from the Passport's flights (the year
-    /// on show) and the followed ones.
+    /// The airlines and airports the Add Flight sheet offers first, from the whole flight history (every
+    /// year, whatever the Passport shows) and the followed flights.
     public var frequent: [FrequentItem] {
-        FrequentlyUsed.compute(past: passport.flights, followed: followed, reference: env.reference, lookup: env.lookup)
+        FrequentlyUsed.compute(past: passport.allFlights, followed: followed, reference: env.reference,
+                               lookup: env.lookup)
     }
 
     /// Acts on what the app delegate left in the inbox: registers the device token, opens the flight a

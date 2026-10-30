@@ -52,7 +52,7 @@ public struct SearchView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ScreenTitle("Find a Flight", subtitle: "Flight number, route, or airport")
+            ScreenTitle("Add Flight", subtitle: "Airline, airport, or flight number")
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.top, 22)
             field

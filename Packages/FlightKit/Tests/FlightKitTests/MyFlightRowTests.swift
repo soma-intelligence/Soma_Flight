@@ -28,14 +28,21 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(col(f, out.addingTimeInterval(-5 * 3600 - 59)) == "5|HRS")
         #expect(col(f, out.addingTimeInterval(-3600)) == "1|HR")
         #expect(col(f, out.addingTimeInterval(-40 * 60 - 10)) == "40|MIN")
-        #expect(col(f, out.addingTimeInterval(30)) == "0|MIN")
+        #expect(col(f, out.addingTimeInterval(-90)) == "1|MIN")
+        #expect(col(f, out.addingTimeInterval(30)) == "|DEPARTING")
+        var unknownOut = f
+        unknownOut.scheduledOut = nil
+        #expect(col(unknownOut, out) == "|SCHEDULED")
 
         var air = f
         air.status = .enRoute
         air.actualOut = out
         #expect(col(air, arr.addingTimeInterval(-2 * 3600 - 300)) == "2h|LEFT")
         #expect(col(air, arr.addingTimeInterval(-40 * 60)) == "40m|LEFT")
-        #expect(col(air, arr.addingTimeInterval(60)) == "0m|LEFT")
+        #expect(col(air, arr.addingTimeInterval(60)) == "|ARRIVING")
+        var unknownIn = air
+        unknownIn.scheduledIn = nil
+        #expect(col(unknownIn, out) == "|IN AIR")
 
         for (status, word) in [(FlightStatus.landed, "LANDED"), (.arrived, "LANDED"), (.canceled, "CANCELED"),
                                (.diverted, "DIVERTED")] {
@@ -50,6 +57,10 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         let sfo = DetailPart1Tests.sfo, cdg = DetailPart1Tests.cdg
         #expect(MyFlightRow.day(f, origin: sfo) == "Fri, Oct 30")
         #expect(MyFlightRow.marker(f, origin: sfo, destination: cdg) == "+1")
+        // A delay past local midnight moves the date with the time shown.
+        var late = f
+        late.estimatedOut = date("2026-10-31T08:30:00Z")
+        #expect(MyFlightRow.day(late, origin: sfo) == "Sat, Oct 31")
         var short = f
         short.scheduledIn = f.scheduledOut!.addingTimeInterval(2 * 3600)
         #expect(MyFlightRow.marker(short, origin: sfo, destination: sfo) == nil)
@@ -72,5 +83,43 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         for _ in 0..<1000 where home.toast != nil { await Task.yield() }
         #expect(home.toast == nil)
         #expect(asked.withLock { $0 } == [.seconds(3)])
+    }
+
+    /// iOS: a follow inside the search sheet keeps its toast until the sheet closes, then shows it in full.
+    @Test func toastWaitsForTheSearchSheet() async throws {
+        let home = HomeModel(env: try await AppEnvironment.fake())
+        let (gate, open) = AsyncStream<Void>.makeStream()
+        let asked = Mutex(0)
+        home.toastSleep = { _ in
+            asked.withLock { $0 += 1 }
+            for await _ in gate { return }
+        }
+        home.searchOpen = true
+        await home.didFollow(Self.ua990)
+        #expect(home.toast == nil)
+        #expect(home.pendingToast == "Following UA 990")
+        for _ in 0..<20 { await Task.yield() }
+        #expect(asked.withLock { $0 } == 0)
+        home.searchOpen = false
+        #expect(home.toast == "Following UA 990")
+        #expect(home.pendingToast == nil)
+        open.yield()
+        for _ in 0..<1000 where home.toast != nil { await Task.yield() }
+        #expect(home.toast == nil)
+        #expect(asked.withLock { $0 } == 1)
+    }
+
+    /// Frequently used reads every year of the history, not the year the Passport shows.
+    @Test func frequentIgnoresThePassportYear() async throws {
+        let home = HomeModel(env: try await AppEnvironment.fake())
+        await home.load()
+        let years = home.passport.years
+        #expect(years.count > 1)
+        let all = home.frequent
+        #expect(!all.isEmpty)
+        for y in years {
+            home.passport.year = y
+            #expect(home.frequent == all)
+        }
     }
 }

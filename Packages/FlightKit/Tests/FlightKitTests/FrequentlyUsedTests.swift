@@ -61,6 +61,23 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(codes(again) == ["UAL:2", "AAL:1", "KAUS:2", "KDEN:2"])
     }
 
+    @Test func frequentCountsAFlightOnce() {
+        // An airport under two spellings in one flight counts once; a followed flight already in the
+        // history counts once; canceled flights do not count.
+        let lookup: (String) -> Airport? = { Self.lookup($0 == "SFO" ? "KSFO" : $0) }
+        let past = [
+            Self.past("UA1", "KSFO", "SFO", "2026-01-01"),
+            Self.past("UA2", "KSFO", "KLAX", "2026-11-01"),
+            Self.past("AA1", "KJFK", "KATL", "2026-01-03"),
+        ]
+        var canceled = past[2]
+        canceled.status = .canceled
+        let followed = [Self.followed("UA2", "KSFO", "KLAX", "2026-11-01")]
+        let items = FrequentlyUsed.compute(past: Array(past.prefix(2)) + [canceled], followed: followed,
+                                           reference: Self.ref, lookup: lookup)
+        #expect(codes(items) == ["UAL:2", "KSFO:2", "KLAX:1"])
+    }
+
     @Test func frequentSkipsUnknown() {
         let past = [Self.past("ZZ1", "XXXX", "YYYY", "2026-01-01"), Self.past("ZZ2", "XXXX", "KSFO", "2026-01-02")]
         let items = FrequentlyUsed.compute(past: past, followed: [], reference: Self.ref, lookup: Self.lookup)

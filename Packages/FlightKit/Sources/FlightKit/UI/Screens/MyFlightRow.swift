@@ -5,7 +5,9 @@ import SwiftUI
 extension DetailFacts {
     /// The big figure and the word under it at the start of a My Flights row: time to the gate departure
     /// ("1" "DAY", "3" "DAYS", "5" "HRS", "1" "HR", "40" "MIN"), time left in the air ("2h" "LEFT", "40m"
-    /// "LEFT"), or how it ended with no figure ("LANDED", "CANCELED", "DIVERTED"). Whole units, rounded down.
+    /// "LEFT"), or a word with no figure: how it ended ("LANDED", "CANCELED", "DIVERTED"), "DEPARTING" past
+    /// its departure time while still at the gate, "ARRIVING" past its arrival time while still in the air,
+    /// and "SCHEDULED" / "IN AIR" when the time is unknown. Whole units, rounded down.
     static func countdownColumn(_ f: Flight, now: Date) -> (value: String, unit: String) {
         switch f.status {
         case .canceled: return ("", "CANCELED")
@@ -13,11 +15,13 @@ extension DetailFacts {
         case .landed, .arrived: return ("", "LANDED")
         case .departed, .enRoute:
             guard let end = bestIn(f) else { return ("", "IN AIR") }
-            let m = max(0, Int(end.timeIntervalSince(now) / 60))
+            let m = Int(end.timeIntervalSince(now) / 60)
+            guard m >= 1 else { return ("", "ARRIVING") }
             return (m >= 60 ? "\(m / 60)h" : "\(m)m", "LEFT")
         case .scheduled, .unknown:
             guard let out = bestOut(f) else { return ("", "SCHEDULED") }
-            let s = max(0, out.timeIntervalSince(now))
+            let s = out.timeIntervalSince(now)
+            guard s >= 60 else { return ("", "DEPARTING") }
             if s >= 86_400 {
                 let d = Int(s / 86_400)
                 return ("\(d)", d == 1 ? "DAY" : "DAYS")
@@ -43,6 +47,7 @@ public struct MyFlightRow: View {
     var airline: Airline?
     var now: Date
     @Environment(\.units) private var units
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .largeTitle) private var column: CGFloat = 66
 
     public init(flight: Flight, origin: Airport?, destination: Airport?, airline: Airline?, now: Date = .now) {
@@ -50,14 +55,12 @@ public struct MyFlightRow: View {
         self.airline = airline; self.now = now
     }
 
-    /// "Fri, Oct 30": the day it leaves, in the origin's zone.
+    /// "Fri, Oct 30": the day it leaves as best known (the time shown beside the origin), in the origin's zone.
     static func day(_ f: Flight, origin: Airport?) -> String? {
-        guard let out = f.scheduledOut ?? DetailFacts.bestOut(f) else { return nil }
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = origin?.timeZone ?? .current
-        df.dateFormat = "EEE, MMM d"
-        return df.string(from: out)
+        guard let out = DetailFacts.bestOut(f) else { return nil }
+        var style = Date.FormatStyle(locale: Locale(identifier: "en_US_POSIX"), timeZone: origin?.timeZone ?? .current)
+        style = style.weekday(.abbreviated).month(.abbreviated).day()
+        return out.formatted(style)
     }
 
     /// The arrival's day marker ("+1"), from the detail sheet's rule.
@@ -69,13 +72,27 @@ public struct MyFlightRow: View {
 
     public var body: some View {
         let count = DetailFacts.countdownColumn(flight, now: now)
-        HStack(alignment: .center, spacing: 13) {
-            countdown(count)
-                .frame(width: column)
-            VStack(alignment: .leading, spacing: 0) {
-                details
-                    .scaledPadding(.vertical, 14)
-                Hairline()
+        Group {
+            if typeSize.isAccessibilitySize {
+                // No room for a column: the countdown leads the text as one line.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text([count.value, count.unit].filter { !$0.isEmpty }.joined(separator: " "))
+                        .scaledFont(20, weight: .semibold)
+                        .foregroundStyle(count.value.isEmpty ? unitColor : Theme.primary)
+                    details
+                }
+                .scaledPadding(.vertical, 14)
+                .overlay(alignment: .bottom) { Hairline() }
+            } else {
+                HStack(alignment: .center, spacing: 13) {
+                    countdown(count)
+                        .frame(width: column)
+                    VStack(alignment: .leading, spacing: 0) {
+                        details
+                            .scaledPadding(.vertical, 14)
+                        Hairline()
+                    }
+                }
             }
         }
         .contentShape(Rectangle())
@@ -115,25 +132,43 @@ public struct MyFlightRow: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .center, spacing: 8) {
-                AirlineLogo(airline: airline, code: code, size: 18, decorative: true)
-                Text(Format.ident(flight.ident))
-                    .scaledFont(15)
-                    .foregroundStyle(Theme.secondary)
-                Spacer(minLength: 8)
-                if let day = Self.day(flight, origin: origin) {
-                    Text(day)
-                        .scaledFont(15)
-                        .foregroundStyle(Theme.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 8) {
+                    logoAndIdent
+                    Spacer(minLength: 8)
+                    dayText
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    logoAndIdent
+                    dayText
                 }
             }
             RouteText(from: origin?.city ?? flight.originCode, to: destination?.city ?? flight.destinationCode)
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 14) { ends }
                 VStack(alignment: .leading, spacing: 4) { ends }
             }
             .scaledPadding(.top, 2)
+        }
+    }
+
+    private var logoAndIdent: some View {
+        HStack(alignment: .center, spacing: 8) {
+            AirlineLogo(airline: airline, code: code, size: 18, decorative: true)
+            Text(Format.ident(flight.ident))
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize()
+        }
+    }
+
+    @ViewBuilder private var dayText: some View {
+        if let day = Self.day(flight, origin: origin) {
+            Text(day)
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize()
         }
     }
 
@@ -194,8 +229,8 @@ public struct AddedToast: View {
                 .accessibilityHidden(true)
             Text(text)
                 .foregroundStyle(Theme.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
         }
         .scaledFont(17, weight: .semibold)
         .scaledPadding(.horizontal, 22)
@@ -203,5 +238,23 @@ public struct AddedToast: View {
         .glassEffect(.regular.tint(HomeTabPill.tint), in: .capsule)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
+    }
+}
+
+/// The toast's place above the tab pill: slides up and fades, or only fades under Reduce Motion.
+public struct ToastSlot: View {
+    var text: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init(text: String?) { self.text = text }
+
+    public var body: some View {
+        Group {
+            if let text {
+                AddedToast(text: text)
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth, value: text)
     }
 }

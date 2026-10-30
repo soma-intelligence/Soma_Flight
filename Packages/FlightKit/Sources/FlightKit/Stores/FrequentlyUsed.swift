@@ -19,9 +19,11 @@ public enum FrequentlyUsed {
     /// How many of each kind the sheet shows.
     public static let limit = 2
 
-    /// The top two airlines, then the top two airports, by number of flights (a flight counts for both
-    /// of its airports). A tie goes to the one flown most recently, then to the lower code (ICAO).
-    /// Airlines the reference list does not know and airports `lookup` does not find are skipped.
+    /// The top two airlines, then the top two airports, by number of flights (a flight counts once for
+    /// each of its airports). A tie goes to the one flown most recently, then to the lower code (ICAO).
+    /// Canceled flights did not fly and are left out; a followed flight already in the history (same
+    /// number, leaving within a day of it) counts once. Airlines the reference list does not know and
+    /// airports `lookup` does not find are skipped.
     public static func compute(past: [PastFlight], followed: [Flight], reference: ReferenceData,
                                lookup: (String) -> Airport?) -> [FrequentItem] {
         var airlines: [String: Tally<Airline>] = [:]
@@ -29,20 +31,26 @@ public enum FrequentlyUsed {
 
         func count(airline: Airline?, airportCodes: [String], at date: Date) {
             if let airline { airlines[airline.id, default: Tally(item: airline)].add(date) }
-            for code in Set(airportCodes) {
-                guard let airport = lookup(code) else { continue }
+            var seen: Set<String> = []
+            for code in airportCodes {
+                guard let airport = lookup(code), seen.insert(airport.id).inserted else { continue }
                 airports[airport.id, default: Tally(item: airport)].add(date)
             }
         }
 
-        for f in past {
+        let flown = past.filter { $0.status != .canceled }
+        for f in flown {
             let airline = f.airline.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
             count(airline: airline, airportCodes: [f.originIcao, f.destinationIcao], at: f.date)
         }
-        for f in followed {
+        for f in followed where f.status != .canceled {
+            let date = f.scheduledOut ?? f.estimatedOut ?? f.actualOut ?? f.scheduledIn ?? f.estimatedIn
+            let ident = f.ident.uppercased()
+            if let date, flown.contains(where: { $0.ident.uppercased() == ident && abs($0.date.timeIntervalSince(date)) < 86_400 }) {
+                continue
+            }
             let airline = f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
-            let date = f.scheduledOut ?? f.estimatedOut ?? f.actualOut ?? .distantPast
-            count(airline: airline, airportCodes: [f.originIcao, f.destinationIcao], at: date)
+            count(airline: airline, airportCodes: [f.originIcao, f.destinationIcao], at: date ?? .distantPast)
         }
 
         let topAirlines = top(airlines).map { FrequentItem.airline($0.item, count: $0.count) }

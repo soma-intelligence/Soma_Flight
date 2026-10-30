@@ -65,6 +65,8 @@ struct RootTabView: View {
             .onChange(of: shell.path) { _, path in
                 if !path.isEmpty { showSearch = false; showSettings = false }
             }
+            // The search sheet covers the tab pill: a follow's toast waits for it to close.
+            .onChange(of: showSearch) { _, open in home.searchOpen = open }
             .environment(\.units, units)
     }
 
@@ -122,13 +124,9 @@ struct RootTabView: View {
             // The pill reaches 14 pt into the home indicator inset (34 pt on Face ID iPhones), so it sits
             // 20 pt above the sheet's bottom edge as in the reference.
             VStack(spacing: 12) {
-                if let toast = home.toast {
-                    AddedToast(text: toast)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                ToastSlot(text: home.toast)
                 HomeTabPill(tab: $home.tab, bottom: -14, onSearch: { showSearch = true })
             }
-            .animation(.smooth, value: home.toast)
         }
     }
 
