@@ -188,7 +188,9 @@ struct LiveryRenderer {
         let bottom = g.titleAnchor.y + d * 0.03, top = bottom + nominal * m.lineHeight
         let start = g.titleAnchor.x
         let end = start + g.lengthM * (g.family.isWidebody ? 0.30 : 0.34)
-        let blocks = g.shapes.filter { $0.part == .door }.map { $0.path.boundingRect }
+        // Doors, and on the near side any engine part at title height (a turboprop's nacelle and propeller).
+        let blocks = g.shapes.filter { $0.part == .door || $0.layer == .engine && [.nacelle, .propeller, .spinner].contains($0.part) }
+            .map { $0.path.boundingRect }
             .filter { $0.maxY > bottom && $0.minY < top }
             .map { ($0.minX - doorMargin, $0.maxX + doorMargin) }
             .sorted { $0.0 < $1.0 }

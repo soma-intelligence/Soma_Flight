@@ -28,7 +28,16 @@ struct AircraftSnapshotTests {
         ("b737max", .b737max, ["B38M", "B37M", "B3XM"]),
         ("b777", .b777, ["B77W", "B772"]),
         ("b787", .b787, ["B789", "B788", "B78X"]),
-        ("generic", .other, ["", "A333"]),
+        ("a220", .a220, ["BCS3", "BCS1"]),
+        ("a330", .a330, ["A333", "A332", "A339", "A338"]),
+        ("a380", .a380, ["A388"]),
+        ("b747", .b747, ["B744", "B748", "B74S"]),
+        ("b757", .b757, ["B752", "B753"]),
+        ("b767", .b767, ["B763", "B762", "B764"]),
+        ("ejet", .ejet, ["E190", "E170", "E175", "E195", "E290", "E295"]),
+        ("crj", .crj, ["CRJ9", "CRJ2", "CRJ7", "CRJX"]),
+        ("atr", .atr, ["AT76", "AT46"]),
+        ("generic", .other, ["", "A346"]),
     ]
 
     func render<V: View>(_ name: String, @ViewBuilder _ content: () -> V) throws {
@@ -86,7 +95,15 @@ struct AircraftSnapshotTests {
         ("RYR", "b737", "B738"), ("RYR", "b737max", "B38M"),
         ("DLH", "a350", "A359"), ("ACA", "b787", "B789"), ("TRA", "b737", "B738"), ("BEL", "a320", "A320"),
         ("FLE", "b737max", "B38M"),
+        // The remaining families: seed liveries, then a derived one on each.
+        ("UAL", "b757", "B752"), ("UAL", "b767", "B763"), ("AFR", "a220", "BCS3"), ("AFR", "a330", "A332"),
+        ("ACA", "a220", "BCS3"), ("BEL", "a330", "A333"), ("DLH", "a380", "A388"), ("DLH", "b747", "B748"),
+        ("DAL", "b757", "B752"), ("DAL", "b767", "B763"), ("KLM", "ejet", "E190"), ("SKW", "crj", "CRJ9"),
+        ("ANZ", "atr", "AT76"),
     ]
+
+    /// The entries from the remaining families, on their own sheet.
+    static let remainingFamilies: Set<String> = ["a220", "a330", "a380", "b747", "b757", "b767", "ejet", "crj", "atr"]
 
     /// What production serves as `.logo`: the Commons symbol when one was cropped
     /// (assets/logos/commons/symbol/png), else the full logo (a wordmark, which never goes on a fin).
@@ -128,23 +145,26 @@ struct AircraftSnapshotTests {
             let cg = try #require(renderer.cgImage)
             try write(cg, to: Self.liveryDir.appending(path: "\(entry.icao)-\(entry.family).png"))
         }
-        let sheet = VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(Self.liveryMatrix.enumerated()), id: \.offset) { _, entry in
-                VStack(alignment: .leading, spacing: 2) {
-                    plane(entry, width: 380)
-                    Text("\(entry.icao) \(reference.type(entry.type)?.name ?? entry.type)\(LiverySeed.all[entry.icao] == nil ? ", derived" : ", seed")")
-                        .font(.system(size: 7, weight: .medium)).foregroundStyle(.secondary)
+        let remaining = Self.liveryMatrix.filter { Self.remainingFamilies.contains($0.family) }
+        for (name, entries) in [("sheet", Self.liveryMatrix), ("sheet-remaining-families", remaining)] {
+            let sheet = VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        plane(entry, width: 380)
+                        Text("\(entry.icao) \(reference.type(entry.type)?.name ?? entry.type)\(LiverySeed.all[entry.icao] == nil ? ", derived" : ", seed")")
+                            .font(.system(size: 7, weight: .medium)).foregroundStyle(.secondary)
+                    }
                 }
             }
+            .padding(12)
+            .frame(width: 404, alignment: .leading)
+            .background(sky)
+            .environment(\.colorScheme, .light)
+            let renderer = ImageRenderer(content: sheet)
+            renderer.scale = 3
+            let cg = try #require(renderer.cgImage)
+            try write(cg, to: Self.liveryDir.appending(path: "\(name).png"))
         }
-        .padding(12)
-        .frame(width: 404, alignment: .leading)
-        .background(sky)
-        .environment(\.colorScheme, .light)
-        let renderer = ImageRenderer(content: sheet)
-        renderer.scale = 3
-        let cg = try #require(renderer.cgImage)
-        try write(cg, to: Self.liveryDir.appending(path: "sheet.png"))
         AircraftArtMemo.shared.removeAll()
     }
 }

@@ -148,11 +148,14 @@ struct LiveryTests {
         ]
         let reference = ReferenceData.bundled()
         let types: [AircraftType?] = [nil] + ["A319", "A320", "A321", "B737", "B738", "B739", "B37M", "B38M", "B3XM",
-                                             "B772", "B77W", "B788", "B789", "B78X", "A359", "A35K", "A333", "E190"]
+                                             "B772", "B77W", "B788", "B789", "B78X", "A359", "A35K", "A333", "E190",
+                                             "BCS1", "BCS3", "A332", "A339", "A388", "B744", "B748", "B74S", "B752", "B753",
+                                             "B762", "B763", "B764", "E170", "E295", "CRJ2", "CRJ9", "AT45", "AT76"]
             .map { reference.type($0) }
         for type in types {
             let g = AircraftGeometry.geometry(type: type)
-            let doors = g.shapes.filter { $0.part == .door }.map { $0.path.boundingRect }
+            let doors = g.shapes.filter { $0.part == .door || $0.layer == .engine && $0.part == .propeller }
+                .map { $0.path.boundingRect }
             for title in titles {
                 let layout = try #require(LiveryRenderer.titleLayout(title, geometry: g), "\(title.text) on \(type?.id ?? "-")")
                 for door in doors {

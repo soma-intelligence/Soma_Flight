@@ -110,7 +110,10 @@ struct AircraftCanvas: View {
             let engine = Color(hexString: livery.engines) ?? Color(white: 0.78)
             let cool = Color(red: 0.55, green: 0.62, blue: 0.72)
             let yb = g.fuselageBottomM, yt = g.fuselageTopM
-            let hullTop = CGPoint(x: 0, y: y(yt)), hullBottom = CGPoint(x: 0, y: y(yb))
+            // The skin's light runs from the highest point of the hull (the 747's upper deck when it has one).
+            let hullHigh = g.shapes.first { $0.part == .hull }.map { Double($0.path.boundingRect.maxY) } ?? yt
+            let crown = g.heightM - max(yt, hullHigh)
+            let hullTop = CGPoint(x: 0, y: crown * s), hullBottom = CGPoint(x: 0, y: y(yb))
             // Top lightest, a soft shoulder, then cooler toward the belly.
             let skin = GraphicsContext.Shading.linearGradient(
                 Gradient(stops: [.init(color: top.mix(with: .black, by: 0.05), location: 0),
@@ -212,6 +215,14 @@ struct AircraftCanvas: View {
                         ctx.fill(path, with: .color(Color(white: far ? 0.09 : 0.14)))
                     case .hub:
                         ctx.fill(path, with: metal(Color(white: 0.62), box, light: 0.3, dark: 0.2))
+                    case .propeller:
+                        ctx.fill(path, with: .linearGradient(
+                            Gradient(colors: [Color(white: far ? 0.20 : 0.30), Color(white: far ? 0.12 : 0.17)]),
+                            startPoint: CGPoint(x: box.minX, y: 0), endPoint: CGPoint(x: box.maxX, y: 0)))
+                    case .spinner:
+                        let base = far ? engine.mix(with: .black, by: 0.25) : engine
+                        ctx.fill(path, with: metal(base, box, light: 0.55, dark: 0.30))
+                        ctx.stroke(path, with: .color(ink), lineWidth: hair * 0.8)
                     }
                 }
             }
@@ -231,7 +242,7 @@ extension Color {
 #if DEBUG
 #Preview("Side views") {
     VStack(spacing: 16) {
-        ForEach([AircraftFamily.a320, .b737, .b737max, .a350, .b777, .b787], id: \.self) { f in
+        ForEach(AircraftFamily.allCases, id: \.self) { f in
             AircraftSideView(type: AircraftType(id: "", family: f, manufacturer: "", name: f.rawValue))
                 .frame(height: 70)
         }
