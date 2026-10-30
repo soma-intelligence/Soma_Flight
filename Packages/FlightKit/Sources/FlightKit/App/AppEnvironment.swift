@@ -50,7 +50,7 @@ public struct AppEnvironment: Sendable {
         return AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
                               history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
                               cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
-                              brand: FakeBrandAssetService.bundled(), insights: FakeInsightsService(flights: flights))
+                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights))
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -74,7 +74,7 @@ public struct AppEnvironment: Sendable {
                               push: push, cache: cache, directory: directory,
                               recents: recents, requiresSignIn: true,
                               aircraftFacts: SupabaseAircraftFactsService(backend: backend),
-                              brand: SupabaseBrandAssetService(backend: backend))
+                              brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)))
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes

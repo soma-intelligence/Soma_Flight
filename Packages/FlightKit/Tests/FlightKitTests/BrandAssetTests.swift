@@ -499,3 +499,30 @@ final class RedirectStub: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 }
+
+/// The side views shipped in Resources/SideViews answer before the wrapped service.
+@Suite struct BundledSideViewTests {
+    @Test func everyPairDecodesAsAProfile() async throws {
+        let pairs = BundledSideViews.pairs
+        #expect(pairs.count >= 600)
+        let service = BundledSideViews(over: FakeBrandAssetService())
+        // Every file decodes; one in ten also goes through the app's profile check (cropping is slow).
+        for (i, pair) in pairs.sorted().enumerated() {
+            let parts = pair.split(separator: "-").map(String.init)
+            let asset = try #require(await service.asset(parts[0], .sideView, type: parts[1]), "\(pair)")
+            #expect(asset.format == "webp" && asset.decodes, "\(pair)")
+            guard i % 10 == 0 else { continue }
+            let art = try #require(ProviderSideView.prepare(asset), "\(pair) is not a profile")
+            #expect(ProviderSideView.aspect.contains(art.aspect))
+        }
+    }
+
+    @Test func otherKindsAndPairsGoToTheWrappedService() async throws {
+        let logo = BrandAsset(data: Data([1]), format: "png", version: "v")
+        let service = BundledSideViews(over: FakeBrandAssetService(seeded: [("UAL", .logo, logo)]))
+        #expect(await service.asset("UAL", .logo) == logo)
+        #expect(await service.lookup(" ual ", .sideView, type: "b38m ").asset != nil)
+        #expect(await service.lookup("UAL", .sideView, type: "ZZZZ") == .missing)
+        #expect(await service.asset("UAL", .sideView, type: nil) == nil)
+    }
+}
