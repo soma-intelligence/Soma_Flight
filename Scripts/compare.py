@@ -121,6 +121,10 @@ V2_REFS: dict[str, list] = {
     # A livery (docs/screens/liveries/ICAO-FAMILY.png) beside the same reference planes: ref 33 only shows a
     # cut-off tail, so the United 777 is held against the full 777s of 52, 51 and 32 for finish and scale.
     "livery-ual-b777": [(52, (86, 2200, 1230, 2445)), (51, (60, 1050, 1260, 1340)), (32, (90, 420, 1230, 660))],
+    # Flight sheet (Task 15), from `-useFakes YES -open flight -detent large`: the top (header, countdown, times,
+    # tiles) beside 35 and 34; the bottom (`-detailScroll bottom`: notes card, bottom bar) beside 29.
+    "detail-top": ["35", "34"],
+    "detail-notes": ["29"],
 }
 
 

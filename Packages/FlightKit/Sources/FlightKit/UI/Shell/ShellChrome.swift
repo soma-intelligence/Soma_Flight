@@ -7,16 +7,17 @@ public struct FlightScreen: View {
     @State private var store: FlightDetailStore
     var onAirport: (String) -> Void
     var onClose: () -> Void
+    var onStopTracking: ((Flight) -> Void)?
 
+    /// - Parameter onStopTracking: unfollows the flight (the menu's "Stop Tracking"); nil leaves it out.
     public init(env: AppEnvironment, id: Flight.ID, owner: UUID?, onAirport: @escaping (String) -> Void,
-                onClose: @escaping () -> Void) {
+                onClose: @escaping () -> Void, onStopTracking: ((Flight) -> Void)? = nil) {
         _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
-        self.onAirport = onAirport; self.onClose = onClose
+        self.onAirport = onAirport; self.onClose = onClose; self.onStopTracking = onStopTracking
     }
 
     public var body: some View {
-        FlightDetailView(store: store, onAirport: onAirport)
-            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
+        FlightDetailView(store: store, onAirport: onAirport, onClose: onClose, onStopTracking: onStopTracking)
             .task {
                 await store.load()
                 // The live position of a followed flight in the air; it also reaches the globe through
@@ -56,7 +57,13 @@ public struct HomeDestination: View {
     public var body: some View {
         switch route {
         case .flight(let id):
-            FlightScreen(env: home.env, id: id, owner: home.owner, onAirport: home.open(airport:), onClose: home.shell.close)
+            FlightScreen(env: home.env, id: id, owner: home.owner, onAirport: home.open(airport:),
+                         onClose: home.shell.close) { flight in
+                Task {
+                    await home.myFlights.unfollow(flight)
+                    if home.myFlights.error == nil { home.shell.close() }
+                }
+            }
         case .airport(let code):
             AirportScreen(env: home.env, code: code, onClose: home.shell.close)
         }

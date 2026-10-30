@@ -61,6 +61,21 @@ extension ComponentSnapshotTests {
         }
     }
 
+    /// Task 15: the v1.1 sheet top (header, countdown, times, empty tiles) and, with details kept, the
+    /// filled tiles and the notes card near the bottom.
+    @Test func flightDetailV2Screens() async throws {
+        let top = await FlightDetailPreview.makeStore(.enRoute)
+        #expect(top.details == .empty)
+        try screen("flight-detail-v2-top") {
+            FlightDetailView(store: top, onAirport: { _ in }, onClose: {}, now: now, scrolls: false)
+        }
+        let noted = await FlightDetailPreview.makeStore(.noted)
+        #expect(noted.details?.seat == "23A")
+        try screen("flight-detail-v2-notes") {
+            FlightDetailView(store: noted, onAirport: { _ in }, onClose: {}, now: now, scrolls: false)
+        }
+    }
+
     @Test func searchScreens() async throws {
         for (mode, name) in [(SearchPreview.Mode.start, "search"), (.results, "search-results"),
                              (.planLimit, "search-plan-limit")] {

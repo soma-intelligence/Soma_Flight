@@ -13,6 +13,12 @@ public final class FlightDetailStore {
     public private(set) var notify: Bool?
     /// A notify change is on its way to the server.
     public private(set) var isSavingNotify = false
+    /// What the user noted on the flight (booking code, seat, notes); nil when not followed or unknown.
+    public private(set) var details: FollowDetails?
+    /// A details change is on its way to the server.
+    public private(set) var isSavingDetails = false
+    /// Why the last details change did not stick; cleared by the next successful one.
+    public private(set) var detailsError: APIError?
 
     private let id: Flight.ID
     private let flights: any FlightService
@@ -38,6 +44,8 @@ public final class FlightDetailStore {
         flight = f
         // The switch only: a failure hides it rather than covering the flight with an error.
         if !isSavingNotify, let n = try? await flights.notifies(id), !isSavingNotify { notify = n }
+        // The tiles likewise: a failure keeps what they show.
+        if !isSavingDetails, let d = try? await flights.followDetails(id), !isSavingDetails { details = d }
 
         var eventsFailed = false
         do { events = try await flights.events(id) } catch { note(error); eventsFailed = true }
@@ -93,5 +101,44 @@ public final class FlightDetailStore {
             notify = before
             self.error = error
         }
+    }
+
+    /// Stores the booking code, seat and notes of the followed flight. Each field is normalised first
+    /// (`FollowDetails.normalized()`); a value that does not normalise sends nothing. The tiles change at
+    /// once and go back, with `detailsError` set, when the server refuses.
+    public func saveDetails(_ new: FollowDetails) async {
+        guard let before = details, !isSavingDetails, let clean = new.normalized() else { return }
+        guard clean != before else { return }
+        details = clean
+        isSavingDetails = true
+        defer { isSavingDetails = false }
+        do {
+            try await flights.saveFollowDetails(id, clean)
+            detailsError = nil
+        } catch {
+            details = before
+            detailsError = error
+        }
+    }
+}
+
+extension FollowDetails {
+    /// The details as stored: seat and booking code trimmed and upper-cased, notes trimmed, empty text
+    /// cleared. nil when any field is not valid (a seat like "ZZ", a 3-letter code, notes over 2000).
+    public func normalized() -> FollowDetails? {
+        var out = self
+        if let s = seat {
+            guard let v = Self.normalizedSeat(s) else { return nil }
+            out.seat = v
+        }
+        if let b = bookingCode {
+            guard let v = Self.normalizedBookingCode(b) else { return nil }
+            out.bookingCode = v
+        }
+        if let n = notes {
+            guard let v = Self.normalizedNotes(n) else { return nil }
+            out.notes = v
+        }
+        return out
     }
 }

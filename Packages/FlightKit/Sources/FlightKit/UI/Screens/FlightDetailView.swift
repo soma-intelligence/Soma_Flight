@@ -1,48 +1,99 @@
 import SwiftUI
 
-/// One followed flight in full: chips and route title, the card with times and progress, a
-/// canceled or diverted notice, the timeline, gates and terminals, the aircraft, what changed,
-/// and both airports as links to their sheets. The map arc and live plane belong to the shell.
+/// One followed flight in full: the airline, flight number and route pinned at the top; then the
+/// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
+/// code and seat tiles, the timeline, the aircraft, what changed, and the notes. A floating bar shares
+/// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
+/// belong to the shell.
 public struct FlightDetailView: View {
     var store: FlightDetailStore
     var onAirport: (String) -> Void
+    var onClose: (() -> Void)?
+    var onStopTracking: ((Flight) -> Void)?
     var fixedNow: Date?
     var scrolls: Bool
+    @State private var editing: DetailField?
+    @Environment(\.reference) private var reference
+    @Environment(\.units) private var units
+    @Environment(\.openURL) private var openURL
 
     /// - Parameters:
     ///   - onAirport: opens the airport sheet for an ICAO code.
+    ///   - onClose: closes the sheet; nil hides the close button.
+    ///   - onStopTracking: unfollows the flight; nil leaves "Stop Tracking" out of the menu.
     ///   - now: a fixed clock for previews; nil follows the real time.
-    public init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, now: Date? = nil) {
-        self.init(store: store, onAirport: onAirport, now: now, scrolls: true)
+    public init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, onClose: (() -> Void)? = nil,
+                onStopTracking: ((Flight) -> Void)? = nil, now: Date? = nil) {
+        self.init(store: store, onAirport: onAirport, onClose: onClose, onStopTracking: onStopTracking,
+                  now: now, scrolls: true)
     }
 
-    init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, now: Date?, scrolls: Bool) {
-        self.store = store; self.onAirport = onAirport; self.fixedNow = now; self.scrolls = scrolls
+    init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, onClose: (() -> Void)? = nil,
+         onStopTracking: ((Flight) -> Void)? = nil, now: Date?, scrolls: Bool) {
+        self.store = store; self.onAirport = onAirport; self.onClose = onClose
+        self.onStopTracking = onStopTracking; self.fixedNow = now; self.scrolls = scrolls
     }
 
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(spacing: 0) {
                 if let flight = store.flight {
-                    FlightHeader(flight: flight, origin: store.origin, destination: store.destination)
-                        .scaledPadding(.horizontal, Theme.gutter)
-                        .scaledPadding(.top, 18)
+                    DetailHeader(flight: flight, origin: store.origin, destination: plannedDestination(flight),
+                                 airline: airline(flight), onClose: onClose)
+                        .scaledPadding(.leading, Theme.gutter)
+                        .scaledPadding(.trailing, 16)
+                        .scaledPadding(.top, 16)
                         .scaledPadding(.bottom, 12)
                     Hairline()
                     ScreenScroll(scrolls: scrolls) { sections(flight, now: now) }
-                } else if let error = store.error {
-                    ErrorBanner(error: error, retry: reload)
-                        .scaledPadding(.all, 16)
-                    Spacer(minLength: 0)
+                        .defaultScrollAnchor(Self.startAnchor)
                 } else {
-                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let onClose {
+                        HStack { Spacer(); RoundButton(systemImage: "xmark", label: "Close", action: onClose) }
+                            .scaledPadding(.top, 16)
+                            .scaledPadding(.trailing, 16)
+                    }
+                    if let error = store.error {
+                        ErrorBanner(error: error, retry: reload)
+                            .scaledPadding(.all, 16)
+                        Spacer(minLength: 0)
+                    } else {
+                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             }
         }
         .background(Theme.background)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let flight = store.flight {
+                bottomBar(flight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .scaledPadding(.leading, Theme.gutter)
+                    .scaledPadding(.bottom, 6)
+            }
+        }
+        .sheet(item: $editing) { field in
+            DetailEditSheet(field: field, details: store.details ?? .empty) { new in
+                Task { await store.saveDetails(new) }
+            }
+            .environment(\.units, units)
+        }
     }
 
     private func reload() { Task { await store.load() } }
+
+    /// Where the sheet opens: the top, or the bottom for screenshot runs (`-detailScroll bottom`).
+    private static var startAnchor: UnitPoint? {
+        #if DEBUG
+        UserDefaults.standard.string(forKey: "detailScroll") == "bottom" ? .bottom : nil
+        #else
+        nil
+        #endif
+    }
+
+    private func airline(_ f: Flight) -> Airline? {
+        f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
+    }
 
     /// Live flights go stale after 5 minutes, the rest after an hour.
     static func ttl(_ f: Flight) -> Duration {
@@ -51,22 +102,28 @@ public struct FlightDetailView: View {
 
     private func sections(_ flight: Flight, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
                 }
+                if let error = store.detailsError {
+                    ErrorBanner(error: error)
+                }
                 SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
                 if let notice = notice(flight) { notice }
-                FlightCard(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
-                if let line = DetailFacts.progressLine(flight, now: now) {
-                    Text(line)
-                        .scaledFont(13, weight: .medium)
-                        .foregroundStyle(Theme.secondary)
-                        .scaledPadding(.horizontal, 4)
+                CountdownCard(title: DetailFacts.countdown(flight, destination: store.destination, now: now),
+                              caption: DetailFacts.countdownCaption(flight, airline: airline(flight)))
+                DepartArrive(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now,
+                             onAirport: onAirport)
+                    .scaledPadding(.top, 16)
+                if let details = store.details {
+                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste)
+                        .scaledPadding(.top, 12)
                 }
             }
-            .scaledPadding(.horizontal, 16)
-            .scaledPadding(.vertical, 16)
+            .scaledPadding(.horizontal, Theme.gutter)
+            .scaledPadding(.top, 16)
+            .scaledPadding(.bottom, 24)
 
             section {
                 SectionHeader("Timeline", subtitle: "Local times at each airport")
@@ -74,21 +131,9 @@ public struct FlightDetailView: View {
                 FlightTimeline(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
             }
             section {
-                SectionHeader("Gates and Terminals", subtitle: "Updated as the airline posts them")
-                    .scaledPadding(.bottom, 16)
-                GatesGrid(flight: flight)
-            }
-            section {
                 SectionHeader("Aircraft")
                     .scaledPadding(.bottom, 12)
                 AircraftRow(type: flight.aircraftType, registration: flight.registration)
-            }
-            if let notify = store.notify, DetailFacts.takesAlerts(flight) {
-                section {
-                    SectionHeader("Alerts")
-                        .scaledPadding(.bottom, 8)
-                    NotifyRow(isOn: notify, saving: store.isSavingNotify) { on in Task { await store.setNotify(on) } }
-                }
             }
             if !store.events.isEmpty {
                 section {
@@ -99,31 +144,41 @@ public struct FlightDetailView: View {
                     }
                 }
             }
-            section {
-                SectionHeader("Airports")
-                    .scaledPadding(.bottom, 4)
-                AirportLinkRow(role: "Departure", code: flight.originIcao, airport: store.origin, tag: nil) {
-                    onAirport(store.origin?.id ?? flight.originIcao)
-                }
-                Hairline(leading: 52)
-                if flight.status == .diverted, let diverted = store.destination, diverted.id != flight.destinationIcao {
+            if flight.status == .diverted, let diverted = store.destination, diverted.id != flight.destinationIcao {
+                section {
                     AirportLinkRow(role: "Diverted to", code: diverted.id, airport: diverted, tag: "Diverted") {
                         onAirport(diverted.id)
                     }
-                    Hairline(leading: 52)
-                    AirportLinkRow(role: "Planned arrival", code: flight.destinationIcao, airport: nil,
-                                   iata: flight.destinationIata, tag: nil) {
-                        onAirport(flight.destinationIcao)
-                    }
-                } else {
-                    AirportLinkRow(role: "Arrival", code: flight.destinationIcao, airport: store.destination,
-                                   iata: flight.destinationIata, tag: nil) {
-                        onAirport(store.destination?.id ?? flight.destinationIcao)
-                    }
                 }
             }
+            if let details = store.details {
+                NotesCard(notes: details.notes) { editing = .notes }
+                    .scaledPadding(.horizontal, Theme.gutter)
+                    .scaledPadding(.top, 8)
+            }
         }
-        .scaledPadding(.bottom, 32)
+        // Room for the floating bar over the last card.
+        .scaledPadding(.bottom, 88)
+    }
+
+    private func bottomBar(_ flight: Flight) -> some View {
+        DetailBottomBar(shareText: DetailFacts.shareText(flight, origin: store.origin,
+                                                         destination: plannedDestination(flight), clock: units.clock),
+                        notify: DetailFacts.takesAlerts(flight) ? store.notify : nil,
+                        onNotify: { on in Task { await store.setNotify(on) } }) {
+            if store.notify != nil, let onStopTracking {
+                Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { onStopTracking(flight) }
+            }
+            Button("Copy Flight Number", systemImage: "doc.on.doc") { Pasteboard.copy(Format.ident(flight.ident)) }
+            Button("Report a Data Issue", systemImage: "exclamationmark.bubble") { openURL(SettingsView.supportURL) }
+        }
+    }
+
+    /// Keeps pasted text only when it reads as a booking code.
+    private func paste(_ text: String) {
+        guard case let code?? = FollowDetails.normalizedBookingCode(text), var next = store.details else { return }
+        next.bookingCode = code
+        Task { await store.saveDetails(next) }
     }
 
     /// The card and timeline describe the planned trip; a diversion target only shows when it is
@@ -159,84 +214,6 @@ public struct FlightDetailView: View {
 
 // MARK: - Pieces
 
-/// The flight's own alert switch (`follow(_:notify:)`); which kinds of alert go out is the system's
-/// notification settings, not a per-type filter, in v1.
-struct NotifyRow: View {
-    var isOn: Bool
-    var saving: Bool
-    var onChange: @MainActor @Sendable (Bool) -> Void
-    @Environment(\.metricsScale) private var scale
-
-    var body: some View {
-        // Drawn by hand: a system Toggle does not render in ImageRenderer snapshots.
-        Button { onChange(!isOn) } label: {
-            HStack(spacing: 14) {
-                Image(systemName: isOn ? "bell.badge.fill" : "bell.slash.fill")
-                    .scaledFont(18, weight: .medium)
-                    .foregroundStyle(Theme.primary)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Notify Me").scaledFont(17).foregroundStyle(Theme.primary)
-                    Text("Gate changes, delays of 15 minutes or more, take-off, landing, cancellation and diversion")
-                        .scaledFont(13)
-                        .foregroundStyle(Theme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 12)
-                Capsule()
-                    .fill(isOn ? Theme.onTime : Theme.secondary.opacity(0.35))
-                    .frame(width: 51 * scale, height: 31 * scale)
-                    .overlay(alignment: isOn ? .trailing : .leading) {
-                        Circle().fill(.white).padding(2).shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                    }
-                    .opacity(saving ? 0.6 : 1)
-                    .animation(.snappy(duration: 0.2), value: isOn)
-            }
-            .frame(minHeight: 56)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(saving)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Notify Me")
-        .accessibilityValue(isOn ? "On" : "Off")
-        .accessibilityHint("Alerts for this flight")
-        .accessibilityAddTraits(.isToggle)
-    }
-}
-
-/// Chips (flight number, aircraft, day), "Paris to San Francisco", airline and status in caps.
-struct FlightHeader: View {
-    var flight: Flight
-    var origin: Airport?
-    var destination: Airport?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
-                CodeChip(Format.ident(flight.ident))
-                if let type = flight.aircraftType { CodeChip(type) }
-                if let out = flight.scheduledOut {
-                    CodeChip(ScreenFormat.chipDay(out, origin?.timeZone ?? .current).uppercased())
-                }
-            }
-            .scaledPadding(.bottom, 6)
-            Text(ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode))
-                .themeFont(.sheetTitle)
-                .foregroundStyle(Theme.primary)
-                .lineLimit(2)
-            Text(DetailFacts.caption(flight).uppercased())
-                .scaledFont(13, weight: .medium)
-                .foregroundStyle(Theme.secondary)
-                .lineLimit(1)
-                .scaledPadding(.top, 3)
-        }
-        .scaledPadding(.trailing, 60)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// Tinted card for a canceled or diverted flight.
 struct StatusNotice: View {
     var color: Color
@@ -265,49 +242,6 @@ struct StatusNotice: View {
 }
 
 /// Departure and arrival terminal, gate and belt, "TBA" until known.
-struct GatesGrid: View {
-    var flight: Flight
-
-    var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 18) {
-            GridRow {
-                side("Departure", flight.originCode)
-                cell("Terminal", flight.terminalOrigin)
-                cell("Gate", flight.gateOrigin)
-                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-            }
-            GridRow {
-                side("Arrival", flight.destinationCode)
-                cell("Terminal", flight.terminalDestination)
-                cell("Gate", flight.gateDestination)
-                cell("Belt", flight.baggageBelt)
-            }
-        }
-        .monospacedDigit()
-    }
-
-    private func side(_ title: String, _ code: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title.uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
-            Text(code).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func cell(_ label: String, _ value: String?) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
-            Text(value ?? "TBA")
-                .scaledFont(22, weight: .semibold)
-                .foregroundStyle(value == nil ? Theme.secondary.opacity(0.7) : Theme.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 struct AircraftRow: View {
     var type: String?
     var registration: String?
@@ -484,7 +418,7 @@ enum DetailFacts {
 
 /// Loads a detail store from the seed at the seed's own clock.
 struct FlightDetailPreview: View {
-    enum Mode { case enRoute, sparse, canceled, diverted, error, stale, failed }
+    enum Mode { case enRoute, sparse, canceled, diverted, error, stale, failed, noted }
     var mode: Mode = .enRoute
     @State private var store: FlightDetailStore?
 
@@ -516,6 +450,10 @@ struct FlightDetailPreview: View {
             await airports.setNextError(.providerUnavailable)
             await s.load()
         }
+        if mode == .noted {
+            await s.saveDetails(FollowDetails(seatClass: .business, seat: "23A", reason: .personal, bookingCode: "K7PQ2X",
+                                              notes: "Lounge on the upper level past security. Ask for the exit row on the way back."))
+        }
         return s
     }
 }
@@ -527,5 +465,6 @@ struct FlightDetailPreview: View {
 #Preview("Diverted") { FlightDetailPreview(mode: .diverted).preferredColorScheme(.dark) }
 #Preview("Error, data kept") { FlightDetailPreview(mode: .error).preferredColorScheme(.dark) }
 #Preview("Stale") { FlightDetailPreview(mode: .stale).preferredColorScheme(.dark) }
+#Preview("Noted") { FlightDetailPreview(mode: .noted).preferredColorScheme(.dark) }
 #Preview("Failed, nothing to show") { FlightDetailPreview(mode: .failed).preferredColorScheme(.light) }
 #endif
