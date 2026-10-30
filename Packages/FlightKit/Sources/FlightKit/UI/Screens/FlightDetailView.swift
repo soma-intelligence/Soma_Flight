@@ -2,7 +2,8 @@ import SwiftUI
 
 /// One followed flight in full: the airline, flight number and route pinned at the top; then the
 /// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
-/// code and seat tiles, the timeline, the aircraft, what changed, and the notes. A floating bar shares
+/// code and seat tiles, Good to Know, the aircraft, the detailed timetable, the airline, the user's
+/// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
 /// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
 /// belong to the shell.
 public struct FlightDetailView: View {
@@ -48,8 +49,11 @@ public struct FlightDetailView: View {
                         .scaledPadding(.top, 16)
                         .scaledPadding(.bottom, 12)
                     Hairline()
-                    ScreenScroll(scrolls: scrolls) { sections(flight, now: now) }
-                        .defaultScrollAnchor(Self.startAnchor)
+                    ScrollViewReader { proxy in
+                        ScreenScroll(scrolls: scrolls) { sections(flight, now: now) }
+                            .defaultScrollAnchor(Self.startAnchor)
+                            .task(id: store.routeHistory != nil) { await jumpForScreenshots(proxy) }
+                    }
                 } else {
                     if let onClose {
                         HStack { Spacer(); RoundButton(systemImage: "xmark", label: "Close", action: onClose) }
@@ -87,6 +91,9 @@ public struct FlightDetailView: View {
             Text(store.trackingError?.message ?? "")
         }
         .sensoryFeedback(.error, trigger: pasteFailures)
+        .task(id: store.flight?.id) {
+            if store.flight != nil { await store.loadExtras() }
+        }
     }
 
     private func reload() { Task { await store.load() } }
@@ -97,6 +104,16 @@ public struct FlightDetailView: View {
         UserDefaults.standard.string(forKey: "detailScroll") == "bottom" ? .bottom : nil
         #else
         nil
+        #endif
+    }
+
+    /// Screenshot runs: `-detailScroll goodToKnow|timetable|airline` opens the sheet with that card at
+    /// the top, once the extras are in.
+    private func jumpForScreenshots(_ proxy: ScrollViewProxy) async {
+        #if DEBUG
+        guard let target = UserDefaults.standard.string(forKey: "detailScroll"), target != "bottom" else { return }
+        try? await Task.sleep(for: .milliseconds(400))
+        proxy.scrollTo(target, anchor: .top)
         #endif
     }
 
@@ -134,37 +151,42 @@ public struct FlightDetailView: View {
             .scaledPadding(.top, 16)
             .scaledPadding(.bottom, 24)
 
-            section {
-                SectionHeader("Timeline", subtitle: "Local times at each airport")
-                    .scaledPadding(.bottom, 16)
-                FlightTimeline(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
-            }
-            section {
-                SectionHeader("Aircraft")
-                    .scaledPadding(.bottom, 12)
-                AircraftRow(type: flight.aircraftType, registration: flight.registration)
-            }
-            if !store.events.isEmpty {
-                section {
-                    SectionHeader("Changes", subtitle: "What moved since you started tracking")
-                        .scaledPadding(.bottom, 8)
-                    ForEach(store.events.reversed()) { e in
-                        EventRow(event: e, timeZone: store.origin?.timeZone ?? .current)
+            VStack(alignment: .leading, spacing: 16) {
+                GoodToKnow(origin: .init(icao: flight.originIcao, code: flight.originCode, stats: store.originStats,
+                                         weather: store.originWeather, departures: true),
+                           destination: arrivalSide(flight),
+                           timeZone: timeZoneChange(flight),
+                           onAirport: onAirport)
+                    .id("goodToKnow")
+                DetailCard {
+                    CardTitle("Aircraft")
+                        .scaledPadding(.bottom, 12)
+                    AircraftRow(type: flight.aircraftType, registration: flight.registration)
+                }
+                TimetableCard(rows: Timetable.rows(flight, originTz: store.origin?.timeZone ?? .gmt,
+                                                   destinationTz: plannedDestination(flight)?.timeZone ?? .gmt,
+                                                   clock: units.clock))
+                    .id("timetable")
+                AirlineCard(airline: airline(flight))
+                    .id("airline")
+                if let history = store.routeHistory {
+                    RouteHistoryCard(history: history, from: flight.originCode, to: flight.destinationCode)
+                }
+                UpdatesCard(events: store.events, timeZone: store.origin?.timeZone ?? .current)
+                if flight.status == .diverted, let diverted = store.destination, diverted.id != flight.destinationIcao {
+                    DetailCard {
+                        AirportLinkRow(role: "Diverted to", code: diverted.id, airport: diverted, tag: "Diverted") {
+                            onAirport(diverted.id)
+                        }
                     }
                 }
-            }
-            if flight.status == .diverted, let diverted = store.destination, diverted.id != flight.destinationIcao {
-                section {
-                    AirportLinkRow(role: "Diverted to", code: diverted.id, airport: diverted, tag: "Diverted") {
-                        onAirport(diverted.id)
-                    }
+                if let details = store.details {
+                    NotesCard(notes: details.notes) { editing = .notes }
                 }
+                ReportLink(url: DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
+                    .scaledPadding(.top, 24)
             }
-            if let details = store.details {
-                NotesCard(notes: details.notes) { editing = .notes }
-                    .scaledPadding(.horizontal, Theme.gutter)
-                    .scaledPadding(.top, 8)
-            }
+            .scaledPadding(.horizontal, Theme.gutter)
         }
         // Room for the floating bar over the last card.
         .scaledPadding(.bottom, 88)
@@ -179,7 +201,9 @@ public struct FlightDetailView: View {
                 Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { stopTracking() }
             }
             Button("Copy Flight Number", systemImage: "doc.on.doc") { Pasteboard.copy(Format.ident(flight.ident)) }
-            Button("Report a Data Issue", systemImage: "exclamationmark.bubble") { openURL(SettingsView.supportURL) }
+            Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {
+                openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
+            }
         }
     }
 
@@ -208,6 +232,19 @@ public struct FlightDetailView: View {
         Task { await store.saveDetails(next) }
     }
 
+    /// The destination's Good to Know block: where the flight actually lands.
+    private func arrivalSide(_ f: Flight) -> GoodToKnow.Side {
+        let icao = store.destination?.id ?? f.destinationIcao
+        let code = store.destination.map { $0.iata ?? $0.id } ?? f.destinationCode
+        return .init(icao: icao, code: code, stats: store.destinationStats, weather: store.destinationWeather,
+                     departures: false)
+    }
+
+    private func timeZoneChange(_ f: Flight) -> (title: String, text: String)? {
+        guard let o = store.origin, let d = plannedDestination(f), let arrival = DetailFacts.bestIn(f) else { return nil }
+        return DetailFacts.timeZoneChange(origin: o, destination: d, arrival: arrival, clock: units.clock)
+    }
+
     /// The card and timeline describe the planned trip; a diversion target only shows when it is
     /// the planned airport.
     private func plannedDestination(_ f: Flight) -> Airport? {
@@ -228,14 +265,6 @@ public struct FlightDetailView: View {
         default:
             return nil
         }
-    }
-
-    private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0) { content() }
-            .scaledPadding(.horizontal, Theme.gutter)
-            .scaledPadding(.vertical, 22)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .top) { Hairline() }
     }
 }
 
@@ -375,9 +404,99 @@ struct EventRow: View {
     }
 }
 
+/// Every change the backend saw on the flight, newest first, along a thin line; never blurred.
+/// Draws nothing until there is one.
+struct UpdatesCard: View {
+    var events: [FlightEvent]
+    var timeZone: TimeZone
+    @Environment(\.units) private var units
+
+    private var shown: [(event: FlightEvent, text: String)] {
+        events.reversed().compactMap { e in DetailFacts.eventText(e).map { (e, $0) } }
+    }
+
+    var body: some View {
+        let rows = shown
+        if !rows.isEmpty {
+            DetailCard {
+                CardTitle("Updates", subtitle: DetailFacts.updatesLine(rows.count))
+                    .scaledPadding(.bottom, 10)
+                ForEach(Array(rows.enumerated()), id: \.element.event.id) { index, row in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(spacing: 0) {
+                            Image(systemName: DetailFacts.eventIcon(row.event.kind))
+                                .scaledFont(13, weight: .semibold)
+                                .foregroundStyle(Theme.primary)
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(Theme.pill))
+                            if index < rows.count - 1 {
+                                Rectangle().fill(Theme.separator).frame(width: 2).frame(maxHeight: .infinity)
+                            }
+                        }
+                        .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.text).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
+                            Text("\(ScreenFormat.day(row.event.receivedAt, timeZone)), "
+                                 + Format.clock(row.event.receivedAt, timeZone, units.clock))
+                                .scaledFont(14)
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.secondary)
+                        }
+                        .scaledPadding(.bottom, index < rows.count - 1 ? 14 : 0)
+                        Spacer(minLength: 0)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+}
+
+/// "Report a Data Issue", centred under the last card; opens a mail to support about this flight.
+struct ReportLink: View {
+    var url: URL
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button { openURL(url) } label: {
+            Label(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble")
+                .scaledFont(18)
+                .foregroundStyle(Theme.secondary)
+                .frame(maxWidth: .infinity)
+                .scaledPadding(.vertical, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Writes to support about this flight")
+    }
+}
+
 // MARK: - Wording
 
 enum DetailFacts {
+    static let reportLabel = "Report a Data Issue"
+
+    /// "3 updates for this flight".
+    static func updatesLine(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "update" : "updates") for this flight"
+    }
+
+    /// A mail to support about this flight: "Soma Flight data issue: UA990 2026-10-30", with the day it
+    /// leaves in the origin's zone.
+    static func reportURL(_ f: Flight, origin: TimeZone = .gmt) -> URL {
+        var subject = "Soma Flight data issue: \(f.ident)"
+        if let out = f.scheduledOut ?? f.estimatedOut ?? f.actualOut {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = origin
+            let c = cal.dateComponents([.year, .month, .day], from: out)
+            subject += String(format: " %04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+        }
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let encoded = subject.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+        return URL(string: "mailto:support@somalabs.me?subject=\(encoded)")!
+    }
+
     /// "Air France  ·  In the air" style caption under the title.
     /// Canceled and finished flights send no more alerts, so they show no switch.
     static func takesAlerts(_ f: Flight) -> Bool {
@@ -470,9 +589,10 @@ struct FlightDetailPreview: View {
         case .diverted: PreviewData.diverted
         default: PreviewData.enRoute
         }
-        let s = FlightDetailStore(id: flight.id, flights: flights, airports: airports)
+        let s = FlightDetailStore(id: flight.id, flights: flights, airports: airports, history: FakeHistoryService())
         if mode == .failed { await flights.setNextError(.providerUnavailable) }
         await s.load()
+        await s.loadExtras()
         if mode == .error {
             await airports.setNextError(.providerUnavailable)
             await s.load()

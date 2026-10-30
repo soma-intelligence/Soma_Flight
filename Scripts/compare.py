@@ -131,6 +131,11 @@ V2_REFS: dict[str, list] = {
     # The same at the largest accessibility size (simctl content_size accessibility-extra-extra-extra-large).
     "myflights-ax5": ["36"],
     "add-flight": ["38"],
+    # Flight sheet, part 2 (Task 16), opened with `-detailScroll goodToKnow|timetable|airline`: Good to Know
+    # beside 34 and 33, the detailed timetable beside 32 and 31, the airline card, history and updates beside 30.
+    "detail-good-to-know": ["34", "33"],
+    "detail-timetable": ["32", "31"],
+    "detail-airline": ["30"],
 }
 
 

@@ -120,7 +120,7 @@ public struct AppEnvironment: Sendable {
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
-        FlightDetailStore(id: id, flights: flights, airports: airports, cache: cache.scoped(for: owner))
+        FlightDetailStore(id: id, flights: flights, airports: airports, history: history, cache: cache.scoped(for: owner))
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.

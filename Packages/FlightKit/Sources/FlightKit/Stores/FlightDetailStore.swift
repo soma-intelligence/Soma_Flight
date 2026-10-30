@@ -24,6 +24,17 @@ public final class FlightDetailStore {
     /// True while the user follows the flight, as far as this screen knows.
     public var isFollowed: Bool { details != nil }
 
+    // Good to Know and the history card (`loadExtras()`). Each one is nil until it loads and stays nil
+    // when its call fails: a failure hides that row only, never an error banner.
+    /// Departures at the origin.
+    public private(set) var originStats: DelayStats?
+    /// Arrivals at the destination.
+    public private(set) var destinationStats: DelayStats?
+    public private(set) var originWeather: Weather?
+    public private(set) var destinationWeather: Weather?
+    /// The user's past flights between the two airports, both ways; nil when none or not loaded.
+    private(set) var routeHistory: RouteHistory?
+
     /// What the server holds, to go back to when a save fails.
     private var confirmedDetails: FollowDetails?
     /// Bumped by every save; only the newest one may roll back or report an error.
@@ -34,10 +45,13 @@ public final class FlightDetailStore {
     private let id: Flight.ID
     private let flights: any FlightService
     private let airports: any AirportService
+    private let history: (any HistoryService)?
     private let cache: (any FlightListCache)?
 
-    public init(id: Flight.ID, flights: any FlightService, airports: any AirportService, cache: (any FlightListCache)? = nil) {
-        self.id = id; self.flights = flights; self.airports = airports; self.cache = cache
+    /// - Parameter history: the user's past flights, for the history card; nil shows none.
+    public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
+                history: (any HistoryService)? = nil, cache: (any FlightListCache)? = nil) {
+        self.id = id; self.flights = flights; self.airports = airports; self.history = history; self.cache = cache
     }
 
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
@@ -79,6 +93,24 @@ public final class FlightDetailStore {
             destination = nil
         }
         error = firstError
+    }
+
+    /// Fills Good to Know (each airport's delays and weather) and the history card, after `load()`.
+    /// Calls run one after another (origin stats, destination stats, origin weather, destination
+    /// weather, history); each failure leaves only its own value nil.
+    public func loadExtras() async {
+        guard let f = flight else { return }
+        let originCode = f.originIcao
+        let destinationCode = destination?.id ?? f.destinationIcao
+        originStats = (try? await airports.stats(originCode))?.departures
+        destinationStats = (try? await airports.stats(destinationCode))?.arrivals
+        originWeather = (try? await airports.weather(originCode))?.weather
+        destinationWeather = (try? await airports.weather(destinationCode))?.weather
+        if let history, let past = try? await history.pastFlights() {
+            routeHistory = RouteHistory.compute(past, origin: f.originIcao, destination: f.destinationIcao)
+        } else {
+            routeHistory = nil
+        }
     }
 
     /// How often an open detail asks for the live position while the flight is in the air: the
