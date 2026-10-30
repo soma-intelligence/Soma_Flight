@@ -77,6 +77,15 @@ public struct ReferenceData: Sendable {
         typeByCode[icao.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()]
     }
 
+    /// How an airline paints its aircraft: the hand-tuned seed entry when there is one, else derived from
+    /// its brand colours, else `.plain` for an airline the list does not know. Takes ICAO, IATA or name.
+    public func livery(_ icao: String) -> Livery {
+        let key = icao.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if let seeded = LiverySeed.all[key] { return seeded }
+        guard let airline = airline(icao) else { return .plain }
+        return LiverySeed.all[airline.id.uppercased()] ?? .derived(from: airline)
+    }
+
     /// A country by ISO 3166-1 alpha-2 code, any case.
     public func country(_ iso2: String) -> Country? {
         countryByCode[iso2.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()]

@@ -1,105 +1,113 @@
 import SwiftUI
 
-/// An aircraft in profile, nose to the left. For now a neutral generic side view in greys whatever the
-/// type and airline: liveries and provider side views replace the body (plan Task 12) behind the same
-/// signature, so every screen that shows an aircraft already goes through this view.
+/// An aircraft in colour, in profile, nose to the left, in flight with the gear up: the provider's side
+/// view for this airline and type when the brand service has one (cached or fetched), else our own
+/// drawing (`AircraftSideView`) in the airline's livery (`ReferenceData.livery`). Every screen that shows
+/// an aircraft in colour goes through this view; blueprint drawings always use our renderer.
 public struct AircraftImage: View {
     var type: AircraftType?
     var airline: Airline?
     var height: CGFloat
-
-    /// Width over height of the drawing.
-    static let aspect: CGFloat = 4.4
+    @Environment(\.brandAssets) private var service
+    @Environment(\.reference) private var reference
+    /// Bumped when the task stores a provider side view, so the body reads the memo again.
+    @State private var revision = 0
 
     public init(type: AircraftType?, airline: Airline?, height: CGFloat = 72) {
         self.type = type; self.airline = airline; self.height = height
     }
 
-    public var body: some View {
-        GenericSideView()
-            .frame(width: height * Self.aspect, height: height)
-            .accessibilityElement()
-            .accessibilityLabel(type.map { "\($0.name) side view" } ?? "Aircraft side view")
+    /// Where the picture comes from.
+    public enum Source: Sendable, Equatable {
+        case provider(BrandAsset)
+        case renderer(Livery)
     }
-}
 
-/// A plain airliner silhouette in a 440 by 100 box: white fuselage, grey belly, fin, wing, engine and a
-/// window line.
-private struct GenericSideView: View {
-    private static let skin = Color(white: 0.97)
-    private static let belly = Color(white: 0.80)
-    private static let line = Color(white: 0.55)
-    private static let dark = Color(white: 0.38)
+    /// The provider side view when the service has one for this airline and type, else our renderer in the
+    /// airline's livery (plain without an airline).
+    public static func source(airline: Airline?, type: AircraftType?, service: any BrandAssetService,
+                              reference: ReferenceData = .bundled()) async -> Source {
+        if let airline, let type, !type.id.isEmpty,
+           let asset = await service.asset(airline.id, .sideView, type: type.id), asset.decodes {
+            return .provider(asset)
+        }
+        return .renderer(airline.map { reference.livery($0.id) } ?? .plain)
+    }
 
-    var body: some View {
-        Canvas { ctx, size in
-            let sx = size.width / 440, sy = size.height / 100
-            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * sx, y: y * sy) }
+    /// Fills the memos (provider side views and fin art) for these pairs, for renders that cannot wait
+    /// for a task.
+    public static func preload(_ pairs: [(airline: Airline?, type: AircraftType?)], service: any BrandAssetService) async {
+        for pair in pairs {
+            guard let airline = pair.airline else { continue }
+            await load(airline: airline, type: pair.type, service: service)
+            await FinArt.load(icao: airline.id, service: service)
+        }
+    }
 
-            // Fin and the far tailplane, behind the fuselage.
-            var fin = Path()
-            fin.move(to: p(338, 54)); fin.addLine(to: p(392, 4)); fin.addLine(to: p(416, 4))
-            fin.addLine(to: p(408, 54)); fin.closeSubpath()
-            ctx.fill(fin, with: .color(Self.belly))
-            ctx.stroke(fin, with: .color(Self.line), lineWidth: 0.8)
+    private var sideKey: String? {
+        guard let airline, let type, !type.id.isEmpty else { return nil }
+        return AircraftArtMemo.sideKey(airline.id, type.id)
+    }
 
-            // Fuselage: rounded nose, straight barrel, tail cone rising to the fin.
-            var hull = Path()
-            hull.move(to: p(30, 70))
-            hull.addCurve(to: p(64, 46), control1: p(14, 66), control2: p(24, 48))
-            hull.addLine(to: p(360, 44))
-            hull.addCurve(to: p(428, 50), control1: p(396, 44), control2: p(420, 46))
-            hull.addLine(to: p(428, 56))
-            hull.addCurve(to: p(330, 76), control1: p(400, 64), control2: p(360, 76))
-            hull.addLine(to: p(60, 78))
-            hull.addCurve(to: p(30, 70), control1: p(44, 78), control2: p(34, 75))
-            hull.closeSubpath()
-            ctx.fill(hull, with: .color(Self.skin))
-            // Belly below the window line.
-            var belly = Path()
-            belly.addRect(CGRect(x: 0, y: 66 * sy, width: size.width, height: size.height))
-            ctx.drawLayer { layer in
-                layer.clip(to: hull)
-                layer.fill(belly, with: .color(Self.belly))
+    @MainActor @discardableResult
+    static func load(airline: Airline, type: AircraftType?, service: any BrandAssetService) async -> BrandArt? {
+        guard let type, !type.id.isEmpty else { return nil }
+        let key = AircraftArtMemo.sideKey(airline.id, type.id)
+        switch await service.lookup(airline.id, .sideView, type: type.id) {
+        case .unavailable:
+            return AircraftArtMemo.shared.art(key)
+        case .missing:
+            AircraftArtMemo.shared.set(key, .none)
+            return nil
+        case .found(let asset):
+            if let held = AircraftArtMemo.shared.art(key), held.version == asset.version { return held }
+            let art = await FinArt.decode(asset, maxPixel: 1200)
+            AircraftArtMemo.shared.set(key, art.map { .art($0) } ?? .none)
+            return art
+        }
+    }
+
+    public var body: some View {
+        let _ = revision
+        let provided = sideKey.flatMap { AircraftArtMemo.shared.art($0) }
+        Group {
+            if let provided {
+                Image(decorative: provided.image, scale: 1)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(provided.aspect, contentMode: .fit)
+                    .frame(height: height)
+            } else {
+                AircraftSideView(type: type, livery: airline.map { reference.livery($0.id) } ?? .plain)
+                    .frame(width: height * AircraftSideView.aspect(type: type), height: height)
             }
-            ctx.stroke(hull, with: .color(Self.line), lineWidth: 0.9)
+        }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .task(id: sideKey) {
+            guard let airline, sideKey != nil else { return }
+            let before = sideKey.flatMap { AircraftArtMemo.shared.art($0) }?.version
+            let after = await Self.load(airline: airline, type: type, service: service)
+            if after?.version != before { revision += 1 }
+        }
+    }
 
-            // Cockpit and cabin windows.
-            var cockpit = Path()
-            cockpit.move(to: p(40, 55)); cockpit.addLine(to: p(52, 51)); cockpit.addLine(to: p(56, 56))
-            cockpit.addLine(to: p(42, 58)); cockpit.closeSubpath()
-            ctx.fill(cockpit, with: .color(Self.dark))
-            for i in 0..<34 {
-                let x = 80 + CGFloat(i) * 7.6
-                ctx.fill(Path(ellipseIn: CGRect(x: x * sx, y: 54 * sy, width: 3 * sx, height: 4 * sy)), with: .color(Self.dark))
-            }
-
-            // Near tailplane.
-            var tail = Path()
-            tail.move(to: p(372, 58)); tail.addLine(to: p(420, 62)); tail.addLine(to: p(420, 66))
-            tail.addLine(to: p(380, 64)); tail.closeSubpath()
-            ctx.fill(tail, with: .color(Self.belly))
-            ctx.stroke(tail, with: .color(Self.line), lineWidth: 0.8)
-
-            // Wing root and engine under it.
-            var wing = Path()
-            wing.move(to: p(150, 70)); wing.addLine(to: p(250, 72)); wing.addLine(to: p(286, 86))
-            wing.addLine(to: p(262, 86)); wing.closeSubpath()
-            ctx.fill(wing, with: .color(Self.belly))
-            ctx.stroke(wing, with: .color(Self.line), lineWidth: 0.8)
-            let engine = Path(roundedRect: CGRect(x: 160 * sx, y: 78 * sy, width: 50 * sx, height: 16 * sy),
-                              cornerRadius: 8 * sy)
-            ctx.fill(engine, with: .color(Color(white: 0.88)))
-            ctx.stroke(engine, with: .color(Self.line), lineWidth: 0.8)
-            ctx.fill(Path(CGRect(x: 160 * sx, y: 79 * sy, width: 3 * sx, height: 14 * sy)), with: .color(Self.dark))
+    private var label: String {
+        switch (airline, type) {
+        case let (a?, t?): "\(a.name) \(t.name) side view"
+        case let (nil, t?): "\(t.name) side view"
+        case let (a?, nil): "\(a.name) aircraft side view"
+        case (nil, nil): "Aircraft side view"
         }
     }
 }
 
 #if DEBUG
-#Preview("Generic side view") {
+#Preview("Aircraft images") {
+    let reference = ReferenceData.bundled()
     VStack(spacing: 20) {
-        AircraftImage(type: nil, airline: nil)
+        AircraftImage(type: reference.type("B77W"), airline: reference.airline("UAL"))
+        AircraftImage(type: reference.type("A320"), airline: reference.airline("AFR"), height: 40)
         AircraftImage(type: nil, airline: nil, height: 40)
     }
     .padding()

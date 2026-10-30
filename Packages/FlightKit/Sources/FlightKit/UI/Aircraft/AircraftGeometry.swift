@@ -262,7 +262,7 @@ extension AirlinerSpec {
         }
 
         // Cockpit: a thin band of panes following the nose curve, posts between them.
-        let bandTop = 0.045 * D, bandBottom = 0.112 * D
+        let bandTop = 0.040 * D, bandBottom = 0.130 * D
         func pane(_ x0: Double, _ x1: Double, front: Bool, aft: Bool) -> Path {
             var path = Path()
             let h0 = bandBottom - bandTop

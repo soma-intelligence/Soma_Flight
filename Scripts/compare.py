@@ -112,13 +112,19 @@ V2_REFS: dict[str, list] = {
     # the flight sheet (32); the 787-10 on the newest aircraft card (46).
     "aircraft-b777": [(52, (86, 2200, 1230, 2445)), (51, (60, 1050, 1260, 1340)), (32, (90, 420, 1230, 660))],
     "aircraft-b787": [(46, (90, 2415, 600, 2565))],
+    # A livery (docs/screens/liveries/ICAO-FAMILY.png) beside the same reference planes: ref 33 only shows a
+    # cut-off tail, so the United 777 is held against the full 777s of 52, 51 and 32 for finish and scale.
+    "livery-ual-b777": [(52, (86, 2200, 1230, 2445)), (51, (60, 1050, 1260, 1340)), (32, (90, 420, 1230, 660))],
 }
 
 
 def v2_ours(name: str) -> Path:
     """Our image for a v1.1 comparison: a side view sheet, or an iOS capture."""
-    if name.startswith("aircraft-"):
+    if name.startswith("aircraft-") and not name.startswith("aircraft-stats"):
         return OURS / f"side-views-{name.removeprefix('aircraft-')}.png"
+    if name.startswith("livery-"):
+        icao, family = name.removeprefix("livery-").split("-", 1)
+        return OURS.parent / "liveries" / f"{icao.upper()}-{family}.png"
     return IOS / f"v2-{name}.png"
 
 

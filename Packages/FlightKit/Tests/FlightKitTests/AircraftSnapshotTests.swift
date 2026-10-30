@@ -61,7 +61,7 @@ struct AircraftSnapshotTests {
                     ForEach(Array(types.enumerated()), id: \.offset) { i, type in
                         let g = AircraftGeometry.geometry(type: type)
                         VStack(alignment: .leading, spacing: 2) {
-                            AircraftSideView(type: type)
+                            AircraftSideView(type: type, gearDown: true)
                                 .frame(width: (Self.width - 24) * g.lengthM / longest)
                             Text(type?.name ?? "Generic").font(.system(size: 7, weight: .medium)).foregroundStyle(.secondary)
                         }
@@ -72,6 +72,80 @@ struct AircraftSnapshotTests {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+    // MARK: Liveries
+
+    static let liveryDir: URL = outDir.deletingLastPathComponent().appending(path: "liveries")
+    static let repoRoot: URL = outDir.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+    /// Seed airlines on every drawn family they fly, then derived liveries on one family each.
+    static let liveryMatrix: [(icao: String, family: String, type: String)] = [
+        ("UAL", "a320", "A320"), ("UAL", "b737", "B739"), ("UAL", "b737max", "B39M"), ("UAL", "b777", "B77W"),
+        ("UAL", "b787", "B789"),
+        ("AFR", "a320", "A320"), ("AFR", "a350", "A359"), ("AFR", "b777", "B77W"), ("AFR", "b787", "B789"),
+        ("RYR", "b737", "B738"), ("RYR", "b737max", "B38M"),
+        ("DLH", "a350", "A359"), ("ACA", "b787", "B789"), ("TRA", "b737", "B738"), ("BEL", "a320", "A320"),
+        ("FLE", "b737max", "B38M"),
+    ]
+
+    /// What production serves as `.logo`: the Commons symbol when one was cropped
+    /// (assets/logos/commons/symbol/png), else the full logo (a wordmark, which never goes on a fin).
+    static func brandService() -> FakeBrandAssetService {
+        var seeded: [(icao: String, kind: BrandAssetKind, asset: BrandAsset)] = []
+        for icao in Set(liveryMatrix.map(\.icao)) {
+            let symbol = repoRoot.appending(path: "assets/logos/commons/symbol/png/\(icao).png")
+            let full = repoRoot.appending(path: "assets/logos/commons/png/\(icao).png")
+            if let data = (try? Data(contentsOf: symbol)) ?? (try? Data(contentsOf: full)) {
+                seeded.append((icao, .logo, BrandAsset(data: data, format: "png", version: "snapshot")))
+            }
+        }
+        return FakeBrandAssetService(seeded: seeded)
+    }
+
+    func write(_ cg: CGImage, to url: URL) throws {
+        let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, cg, nil)
+        #expect(CGImageDestinationFinalize(dest))
+    }
+
+    @Test func liveries() async throws {
+        let reference = ReferenceData.bundled()
+        let service = Self.brandService()
+        AircraftArtMemo.shared.removeAll()
+        await AircraftSideView.preload(Self.liveryMatrix.map(\.icao), service: service)
+        try FileManager.default.createDirectory(at: Self.liveryDir, withIntermediateDirectories: true)
+        let sky = Color(red: 0.87, green: 0.91, blue: 0.97)
+        func plane(_ entry: (icao: String, family: String, type: String), width: CGFloat) -> some View {
+            let type = reference.type(entry.type)
+            return AircraftSideView(type: type, livery: reference.livery(entry.icao))
+                .frame(width: width)
+                .environment(\.brandAssets, service)
+        }
+        for entry in Self.liveryMatrix {
+            let view = plane(entry, width: 400).padding(12).background(sky).environment(\.colorScheme, .light)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 3
+            let cg = try #require(renderer.cgImage)
+            try write(cg, to: Self.liveryDir.appending(path: "\(entry.icao)-\(entry.family).png"))
+        }
+        let sheet = VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(Self.liveryMatrix.enumerated()), id: \.offset) { _, entry in
+                VStack(alignment: .leading, spacing: 2) {
+                    plane(entry, width: 380)
+                    Text("\(entry.icao) \(reference.type(entry.type)?.name ?? entry.type)\(LiverySeed.all[entry.icao] == nil ? ", derived" : ", seed")")
+                        .font(.system(size: 7, weight: .medium)).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 404, alignment: .leading)
+        .background(sky)
+        .environment(\.colorScheme, .light)
+        let renderer = ImageRenderer(content: sheet)
+        renderer.scale = 3
+        let cg = try #require(renderer.cgImage)
+        try write(cg, to: Self.liveryDir.appending(path: "sheet.png"))
+        AircraftArtMemo.shared.removeAll()
     }
 }
 #endif

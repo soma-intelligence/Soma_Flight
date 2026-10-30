@@ -1,0 +1,39 @@
+[
+  {
+    "airline": "UAL",
+    "fuselageTop": "#F8F9FA",
+    "belly": "#0C2340",
+    "bellySplit": 0.42,
+    "cheatline": [
+      { "color": "#4B9CE2", "from": 0.42, "to": 0.455, "sweep": 0 }
+    ],
+    "tail": { "gradient": ["#1F4C8F", "#0C2340"] },
+    "engines": "#1F55B0",
+    "winglets": "#0C2340",
+    "title": { "text": "UNITED", "color": "#0C2340", "weight": "heavy", "tracking": 0.22 }
+  },
+  {
+    "airline": "AFR",
+    "fuselageTop": "#F9FAFB",
+    "belly": "#E3E6EB",
+    "bellySplit": 0.22,
+    "cheatline": [],
+    "tail": { "bands": ["#FFFFFF", "#002157", "#002157", "#FFFFFF", "#ED1C24", "#FFFFFF", "#FFFFFF"] },
+    "engines": "#EEF0F3",
+    "winglets": "#002157",
+    "title": { "text": "AIR FRANCE", "color": "#002157", "weight": "heavy", "tracking": 0.1 }
+  },
+  {
+    "airline": "RYR",
+    "fuselageTop": "#F8F9FA",
+    "belly": "#073590",
+    "bellySplit": 0.33,
+    "cheatline": [
+      { "color": "#073590", "from": 0.30, "to": 0.36, "sweep": 4 }
+    ],
+    "tail": { "gradient": ["#0A3FA6", "#062B78"] },
+    "engines": "#073590",
+    "winglets": "#073590",
+    "title": { "text": "RYANAIR", "color": "#073590", "weight": "heavy", "tracking": 0.06 }
+  }
+]
