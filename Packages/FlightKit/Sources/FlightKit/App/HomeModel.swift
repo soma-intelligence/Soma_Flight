@@ -80,6 +80,9 @@ public final class HomeModel {
     @ObservationIgnored private var pushInbox: PushInbox?
     /// The flight Live Activity; nil until the iOS shell calls `attachLiveActivities` (never on the Mac).
     @ObservationIgnored public private(set) var activities: FlightActivityController?
+    /// The home screen and lock screen widgets' snapshot; nil until the iOS shell calls `attachWidgets`
+    /// (never on the Mac, which has no widget extension).
+    @ObservationIgnored public private(set) var widgets: WidgetSnapshotWriter?
     /// `start()` has run: the stores have been built for an owner and loaded once.
     @ObservationIgnored private var started = false
     /// The owner and session state the session watch last acted on.
@@ -118,6 +121,7 @@ public final class HomeModel {
         let ownerChanged = now != seenOwner, resolved = awaiting != seenAwaiting
         seenOwner = now
         seenAwaiting = awaiting
+        clearWidgetsIfSignedOut()
         if ownerChanged, started {
             userChanged()
         } else if ownerChanged || resolved {
@@ -208,6 +212,8 @@ public final class HomeModel {
     public func userChanged() {
         shell.reset()
         fullPage = nil
+        // The previous account's flights leave the widgets now; the new account's load writes its own.
+        widgets?.clear()
         rebuildStores()
         // Signed out too (nil): a sign-in as the same account later registers the token again.
         push?.accountChanged(owner: owner)
@@ -225,7 +231,7 @@ public final class HomeModel {
         myFlights.onListChange = nil
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
-        wireActivities()
+        wireListChange()
     }
 
     // MARK: Live Activity
@@ -234,13 +240,33 @@ public final class HomeModel {
     /// (load, pushed update, unfollow) re-runs its start and end rules. Call once, before `start()`.
     public func attachLiveActivities(_ controller: FlightActivityController) {
         activities = controller
-        wireActivities()
+        wireListChange()
     }
 
-    private func wireActivities() {
-        guard let activities else { return }
-        // Scheduled synchronously, so the controller runs the lists in the order the store changed.
-        myFlights.onListChange = { list in activities.scheduleSync(list) }
+    /// Hands the widgets' snapshot to the home: from now on every trusted change of My Flights rewrites
+    /// it. Call once, before `start()`.
+    public func attachWidgets(_ writer: WidgetSnapshotWriter) {
+        widgets = writer
+        wireListChange()
+    }
+
+    /// Points My Flights' change callback at the Live Activity and the widgets, whichever are attached.
+    private func wireListChange() {
+        let activities = activities, widgets = widgets
+        guard activities != nil || widgets != nil else { return }
+        myFlights.onListChange = { [weak self] list in
+            // Scheduled synchronously, so the controller runs the lists in the order the store changed.
+            activities?.scheduleSync(list)
+            // Signed out, the widgets stay empty whatever a late load returns.
+            guard let self, !(self.env.requiresSignIn && self.owner == nil) else { return }
+            widgets?.write(list)
+        }
+    }
+
+    /// Signed out, the widgets show nothing: a later account must never see the previous one's flights.
+    private func clearWidgetsIfSignedOut() {
+        guard let widgets, !awaitingSession, env.requiresSignIn, owner == nil else { return }
+        widgets.clear()
     }
 
     /// Settles the activities for the account signed in now: signed out ends them all, otherwise the
