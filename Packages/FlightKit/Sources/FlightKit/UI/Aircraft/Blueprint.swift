@@ -52,18 +52,38 @@ struct BlueprintGrid: View {
 
 /// The aft fuselage and fin of a type, drawn from the same `AircraftGeometry` as its side view at 2.5 times
 /// the scale a side view of the same width would use, the tail cone near the right edge. The registration
-/// is lettered on the aft fuselage in a monospaced font, inside a box like a placard panel. Every layer is
+/// is lettered on the aft fuselage in a monospaced font, inside a box like a placard panel (left out with
+/// `showsRegistration: false`, for a faint copy behind a heading that already names it). Every layer is
 /// stroked at 1 pt in `ink` (the blueprint ink by default) with no fill; the gear stays up.
 public struct BlueprintTail: View {
     var type: AircraftType?
     var registration: String
     var ink: Color
+    var showsRegistration: Bool
+    /// The lettering's smallest size, following Dynamic Type.
+    @ScaledMetric(relativeTo: .caption2) private var letterFloor: CGFloat = 11
 
     /// How much closer than a side view of the same width.
     public static let zoom: CGFloat = 2.5
 
-    public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk) {
-        self.type = type; self.registration = registration; self.ink = ink
+    public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk, showsRegistration: Bool = true) {
+        self.type = type; self.registration = registration; self.ink = ink; self.showsRegistration = showsRegistration
+    }
+
+    /// Lettering size and placard box, in view points, for a frame of `size`: a fifth of the barrel's drawn
+    /// height, never under `floor` (itself held to 8% of the frame width so it fits the drawing) nor over 5.5%
+    /// of the width. The box is sized for a monospaced face (0.6 em advance) with half a letter of margin.
+    static func placard(_ g: AircraftGeometry, size: CGSize, registration: String, floor: CGFloat)
+        -> (letter: CGFloat, box: CGRect) {
+        let t = transform(g, size: size)
+        let diameter = (g.fuselageTopM - g.fuselageBottomM) * t.a
+        let least = min(floor, size.width * 0.08)
+        let letter = max(least, min(diameter * 0.2, size.width * 0.055))
+        let centre = registrationCentre(g, size: size).applying(t)
+        let textWidth = CGFloat(registration.count) * letter * 0.6
+        let box = CGRect(x: centre.x - textWidth / 2 - letter * 0.5, y: centre.y - letter * 0.95,
+                         width: textWidth + letter, height: letter * 1.9)
+        return (letter, box)
     }
 
     /// Metres (x from the nose, y up from the ground) to points in a frame of `size`: `zoom` times the side
@@ -89,29 +109,25 @@ public struct BlueprintTail: View {
 
     public var body: some View {
         let g = AircraftGeometry.geometry(type: type)
+        let floor = letterFloor
         Canvas { ctx, size in
             let toView = Self.transform(g, size: size)
-            // Lettering painted on the skin: sized from the barrel, not from Dynamic Type (the panel beside the
-            // drawing carries the registration as text).
-            let s = toView.a
-            let diameter = (g.fuselageTopM - g.fuselageBottomM) * s
-            let letter = max(8, min(diameter * 0.2, 16))
-            let centre = Self.registrationCentre(g, size: size).applying(toView)
-            let text = ctx.resolve(Text(registration).font(.system(size: letter, weight: .medium, design: .monospaced))
-                .foregroundStyle(ink))
-            let measured = text.measure(in: CGSize(width: size.width, height: letter * 2))
-            let box = CGRect(x: centre.x - measured.width / 2 - letter * 0.5, y: centre.y - measured.height / 2 - letter * 0.35,
-                             width: measured.width + letter, height: measured.height + letter * 0.7)
-            let placard = Path(roundedRect: box, cornerRadius: 2)
-            ctx.stroke(placard, with: .color(ink), lineWidth: 1)
-            ctx.draw(text, at: centre)
-            // The airframe's lines stop at the placard's edge.
-            var outside = Path(CGRect(origin: .zero, size: size))
-            outside.addPath(placard)
-            ctx.clip(to: outside, style: FillStyle(eoFill: true))
-            for shape in g.shapes where shape.layer != .gear && shape.layer != .gearFar {
-                ctx.stroke(shape.path.applying(toView), with: .color(ink), lineWidth: 1)
+            if showsRegistration {
+                // Lettering painted on the skin; the panel beside the drawing carries the registration as text.
+                let (letter, box) = Self.placard(g, size: size, registration: registration, floor: floor)
+                let placard = Path(roundedRect: box, cornerRadius: 2)
+                ctx.stroke(placard, with: .color(ink), lineWidth: 1)
+                ctx.draw(Text(registration).font(.system(size: letter, weight: .medium, design: .monospaced))
+                    .foregroundStyle(ink), at: CGPoint(x: box.midX, y: box.midY))
+                // The airframe's lines stop at the placard's edge.
+                var outside = Path(CGRect(origin: .zero, size: size))
+                outside.addPath(placard)
+                ctx.clip(to: outside, style: FillStyle(eoFill: true))
             }
+            // One path, one stroke call.
+            var lines = Path()
+            for shape in g.shapes where shape.layer != .gear && shape.layer != .gearFar { lines.addPath(shape.path) }
+            ctx.stroke(lines.applying(toView), with: .color(ink), lineWidth: 1)
         }
         .accessibilityHidden(true)
     }
@@ -125,17 +141,21 @@ public struct BlueprintTail: View {
 public struct CabinPlan: View {
     var classes: SeatClassCounts
     var positions: PositionCounts
-    /// The favourite seat line, "20D (2 times)".
-    var favourite: String?
+    /// The favourite seat's title and line, ("Favorite seat", "20D (2 times)"), from `AircraftStatsCopy`.
+    var favourite: (title: String, value: String)?
 
-    public init(classes: SeatClassCounts, positions: PositionCounts, favourite: String?) {
+    public init(classes: SeatClassCounts, positions: PositionCounts, favourite: (title: String, value: String)?) {
         self.classes = classes; self.positions = positions; self.favourite = favourite
     }
 
     static func hasClasses(_ c: SeatClassCounts) -> Bool { c.economy + c.premiumEconomy + c.business + c.first > 0 }
-    static func hasSeats(_ p: PositionCounts, favourite: String?) -> Bool {
-        favourite != nil || p.aisle + p.middle + p.window > 0
+    static func hasSeats(_ p: PositionCounts, hasFavourite: Bool) -> Bool {
+        hasFavourite || p.aisle + p.middle + p.window > 0
     }
+
+    /// The class bar turns into a row per class from this size: four segments of at least `cellMinimum`
+    /// no longer fit a 375 pt phone.
+    static func stacksClasses(_ size: DynamicTypeSize) -> Bool { size >= .xxxLarge }
 
     private var rows: [(String, UInt32)] {
         [("Eco", classes.economy), ("Eco+", classes.premiumEconomy), ("Business", classes.business), ("First", classes.first)]
@@ -144,7 +164,7 @@ public struct CabinPlan: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if Self.hasClasses(classes) { classBar }
-            if Self.hasSeats(positions, favourite: favourite) { seats }
+            if Self.hasSeats(positions, hasFavourite: favourite != nil) { seats }
         }
         .foregroundStyle(Theme.blueprintInk)
     }
@@ -157,9 +177,9 @@ public struct CabinPlan: View {
 
     // MARK: Class bar
 
-    /// One segment per class, wider the more it was flown; at accessibility sizes a row per class instead.
+    /// One segment per class, wider the more it was flown; from xxxLarge a row per class instead.
     @ViewBuilder private var classBar: some View {
-        if typeSize.isAccessibilitySize {
+        if Self.stacksClasses(typeSize) {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(rows, id: \.0) { name, count in
                     HStack {
@@ -210,40 +230,65 @@ public struct CabinPlan: View {
     // MARK: Seats
 
     private var seats: some View {
-        // At accessibility sizes the seats go under the favourite seat.
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14))
-            : AnyLayout(HStackLayout(spacing: 0))
+        let stacked = typeSize.isAccessibilitySize
+        // At accessibility sizes the favourite seat goes on top and the seats under it, a row each.
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14)) : AnyLayout(HStackLayout(spacing: 0))
         return layout {
             if let favourite {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Favorite seat").scaledFont(15, weight: .semibold)
-                    Text(favourite).scaledFont(16)
+                    Text(favourite.title).scaledFont(15, weight: .semibold)
+                    Text(favourite.value).scaledFont(16)
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityElement(children: .combine)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            } else if !stacked {
                 Spacer()
             }
-            HStack(alignment: .bottom, spacing: 14) {
-                seat("Aisle", positions.aisle, .aisle)
-                seat("Middle", positions.middle, .middle)
-                seat("Window", positions.window, .window)
+            if stacked {
+                VStack(alignment: .leading, spacing: 10) {
+                    seatRow("Aisle", positions.aisle, .aisle)
+                    seatRow("Middle", positions.middle, .middle)
+                    seatRow("Window", positions.window, .window)
+                }
+            } else {
+                HStack(alignment: .bottom, spacing: 14) {
+                    seat("Aisle", positions.aisle, .aisle)
+                    seat("Middle", positions.middle, .middle)
+                    seat("Window", positions.window, .window)
+                }
+                Spacer(minLength: 0).frame(maxWidth: .infinity)
             }
-            Spacer(minLength: 0).frame(maxWidth: .infinity)
         }
-        .scaledPadding(.horizontal, 40)
+        // Inside the cabin walls: 40 pt at the reference, 24 pt at accessibility sizes so the rows keep their width.
+        .scaledPadding(.horizontal, stacked ? 24 : 40)
         .scaledPadding(.vertical, 26)
         .background(CabinOutline().stroke(Theme.blueprintInk, lineWidth: 1))
         .frame(maxWidth: .infinity)
     }
 
+    private func glyph(_ position: SeatGlyph.Position) -> some View {
+        SeatGlyph(position: position)
+            .stroke(Theme.blueprintInk, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+            .frame(width: seatSide * 1.3, height: seatSide)
+    }
+
     private func seat(_ name: String, _ count: UInt32, _ position: SeatGlyph.Position) -> some View {
         VStack(spacing: 3) {
             Text(PassportFacts.count(count)).scaledFont(16).monospacedDigit()
-            SeatGlyph(position: position)
-                .stroke(Theme.blueprintInk, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
-                .frame(width: seatSide * 1.3, height: seatSide)
+            glyph(position)
             Text(name).scaledFont(11, weight: .medium).opacity(0.85).lineLimit(1).fixedSize()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name), \(count)")
+    }
+
+    /// One seat per row at accessibility sizes: glyph, count, then the name, which may wrap.
+    private func seatRow(_ name: String, _ count: UInt32, _ position: SeatGlyph.Position) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            glyph(position)
+            Text(PassportFacts.count(count)).scaledFont(16, weight: .semibold).monospacedDigit()
+            Text(name).scaledFont(14).opacity(0.85).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(count)")
@@ -300,6 +345,8 @@ struct SeatGlyph: Shape {
 
 /// A generic narrow cabin from above, open at the left, the nose at the right: the two side walls with a
 /// window row along each, exit doors breaking the rows, and the cockpit bulkhead and windscreen in the nose.
+/// The same plan for every type (a 777 and an A220 look alike): `AircraftGeometry` has no top view, and the
+/// counts it frames are across all types anyway.
 struct CabinOutline: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
@@ -354,7 +401,7 @@ struct CabinOutline: Shape {
             BlueprintTail(type: nil, registration: "F-GSQI").aspectRatio(1.8, contentMode: .fit)
             AircraftSideView(type: nil, style: .blueprint).frame(height: 60)
             CabinPlan(classes: SeatClassCounts(economy: 54, premiumEconomy: 0, business: 2, first: 0),
-                      positions: PositionCounts(window: 5, middle: 6, aisle: 24), favourite: "20D (2 times)")
+                      positions: PositionCounts(window: 5, middle: 6, aisle: 24), favourite: ("Favorite seat", "20D (2 times)"))
         }
         .padding(.vertical)
     }

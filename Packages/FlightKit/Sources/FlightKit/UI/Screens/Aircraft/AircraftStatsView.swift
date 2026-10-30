@@ -257,7 +257,8 @@ struct FrequentTailsSection: View {
         }
         .scaledPadding(.bottom, 18)
         .background(alignment: .trailing) {
-            BlueprintTail(type: t.icaoType.flatMap(reference.type), registration: t.registration, ink: Theme.secondary)
+            BlueprintTail(type: t.icaoType.flatMap(reference.type), registration: t.registration, ink: Theme.secondary,
+                          showsRegistration: false)
                 .aspectRatio(1.8, contentMode: .fit)
                 .frame(height: 150)
                 .opacity(0.45)

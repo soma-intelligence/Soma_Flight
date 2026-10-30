@@ -346,12 +346,12 @@ struct CabinPanel: View {
     static func hasClasses(_ s: AircraftStats) -> Bool { CabinPlan.hasClasses(s.seatClasses) }
 
     static func hasSeats(_ s: AircraftStats) -> Bool {
-        CabinPlan.hasSeats(s.seatPositions, favourite: AircraftStatsCopy.favoriteSeat(s)?.value)
+        CabinPlan.hasSeats(s.seatPositions, hasFavourite: s.favouriteSeat != nil)
     }
 
     var body: some View {
         CabinPlan(classes: stats.seatClasses, positions: stats.seatPositions,
-                  favourite: AircraftStatsCopy.favoriteSeat(stats)?.value)
+                  favourite: AircraftStatsCopy.favoriteSeat(stats))
             .scaledPadding(.vertical, 22)
     }
 }

@@ -56,50 +56,124 @@ struct BlueprintTests {
         abs(a.0 - b.0) <= tolerance && abs(a.1 - b.1) <= tolerance && abs(a.2 - b.2) <= tolerance
     }
 
-    @Test func blueprintHasNoFill() throws {
-        let type = ReferenceData.bundled().type("B77W")
-        let g = AircraftGeometry.geometry(type: type)
-        let width: CGFloat = 400
-        let bitmap = try #require(Bitmap(AircraftSideView(type: type, style: .blueprint)
-            .frame(width: width)
-            .background(Theme.blueprint)))
-        let height = width / AircraftSideView.aspect(type: type)
-        #expect(bitmap.width == Int(width) && abs(CGFloat(bitmap.height) - height) <= 1)
-        // The canvas maps metres the way AircraftCanvas does: x * s, (heightM - y) * s.
-        let s = width / g.lengthM
-        let toView = CGAffineTransform(a: s, b: 0, c: 0, d: -s, tx: 0, ty: g.heightM * s)
+    /// Points of the hull, mapped by `toView` into a `width` by `height` frame, clear of every line by 3 pt and
+    /// outside every other part (and outside `avoid`). Small parts (windows, door handles) are kept off by their
+    /// box: the stroked outline of a part narrower than the margin winds to nothing around its middle.
+    static func clearHullPoints(_ g: AircraftGeometry, _ toView: CGAffineTransform, width: CGFloat, height: CGFloat,
+                                avoid: CGRect = .null) throws -> [CGPoint] {
         let hull = try #require(g.parts[.hull]).applying(toView)
-        // Every other part with a 3 pt margin around it: small parts (windows, door handles) by their box, as
-        // the stroked outline of a part narrower than the margin winds to nothing around its middle; larger
-        // ones by their outline and interior.
         let others = g.shapes.filter { $0.layer != .gear && $0.layer != .gearFar && $0.part != .hull }
             .map { $0.path.applying(toView) }
         let boxes = others.map { $0.boundingRect.insetBy(dx: -3, dy: -3) }.filter { $0.width < 12 || $0.height < 12 }
+            + [avoid.insetBy(dx: -3, dy: -3)]
         let large = others.filter { let b = $0.boundingRect; return b.width >= 6 && b.height >= 6 }
         let outlines = large.map { $0.strokedPath(StrokeStyle(lineWidth: 6)) } + large + [hull.strokedPath(StrokeStyle(lineWidth: 6))]
-        func clear(_ pt: CGPoint) -> Bool {
-            !boxes.contains { $0.contains(pt) } && !outlines.contains { $0.contains(pt) }
-        }
-        // Points inside the hull, clear of every line by 3 pt and outside every other part.
-        var interior: [CGPoint] = []
+        var points: [CGPoint] = []
         for y in stride(from: 1, to: Int(height) - 2, by: 2) {
             for x in stride(from: 1, to: Int(width) - 1, by: 3) {
                 let pt = CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)
-                if hull.contains(pt) && clear(pt) { interior.append(pt) }
+                if hull.contains(pt) && !boxes.contains(where: { $0.contains(pt) }) && !outlines.contains(where: { $0.contains(pt) }) {
+                    points.append(pt)
+                }
             }
         }
-        #expect(interior.count > 20, "found \(interior.count) clear interior points")
-        for pt in interior {
+        return points
+    }
+
+    func expectPanel(_ bitmap: Bitmap, at points: [CGPoint], _ what: String) {
+        #expect(points.count > 20, "\(what): found \(points.count) clear interior points")
+        for pt in points {
             let c = bitmap.rgb(Int(pt.x), Int(pt.y))
-            #expect(Self.close(c, Self.panel), "fill at \(pt): \(c)")
+            #expect(Self.close(c, Self.panel), "\(what) fill at \(pt): \(c)")
         }
-        // The lines are drawn, in the light ink.
-        #expect(bitmap.count(differingFrom: Self.panel) > 500)
+    }
+
+    @Test func blueprintHasNoFill() throws {
+        let reference = ReferenceData.bundled()
+        // Side view: the canvas maps metres the way AircraftCanvas does, x * s and (heightM - y) * s.
+        let type = reference.type("B77W")
+        let g = AircraftGeometry.geometry(type: type)
+        let width: CGFloat = 400
+        let side = try #require(Bitmap(AircraftSideView(type: type, style: .blueprint)
+            .frame(width: width)
+            .background(Theme.blueprint)))
+        let height = width / AircraftSideView.aspect(type: type)
+        #expect(side.width == Int(width) && abs(CGFloat(side.height) - height) <= 1)
+        let s = width / g.lengthM
+        let toView = CGAffineTransform(a: s, b: 0, c: 0, d: -s, tx: 0, ty: g.heightM * s)
+        expectPanel(side, at: try Self.clearHullPoints(g, toView, width: width, height: height), "side view")
+        #expect(side.count(differingFrom: Self.panel) > 500)
+
+        // Tail close-up, with and without the placard (whose lettering is ink, so its box is kept off).
+        let size = CGSize(width: 360, height: 200)
+        for id in ["B77W", "A320"] {
+            let t = reference.type(id)
+            let tg = AircraftGeometry.geometry(type: t)
+            let toTail = BlueprintTail.transform(tg, size: size)
+            let box = BlueprintTail.placard(tg, size: size, registration: "N370DN", floor: 11).box
+            for shows in [false, true] {
+                let tail = try #require(Bitmap(BlueprintTail(type: t, registration: "N370DN", showsRegistration: shows)
+                    .frame(width: size.width, height: size.height).background(Theme.blueprint)))
+                expectPanel(tail, at: try Self.clearHullPoints(tg, toTail, width: size.width, height: size.height, avoid: box),
+                            "\(id) tail")
+                #expect(tail.count(differingFrom: Self.panel) > 500)
+            }
+        }
+
+        // Cabin plan: the outline's middle band and a seat's backrest stay paper.
+        let cabin = try #require(Bitmap(CabinOutline().stroke(Theme.blueprintInk, lineWidth: 1)
+            .frame(width: 360, height: 110).background(Theme.blueprint)))
+        #expect(cabin.count(differingFrom: Self.panel) > 200)
+        for y in stride(from: 33, to: 77, by: 3) {
+            for x in stride(from: 36, to: 270, by: 3) {
+                let c = cabin.rgb(x, y)
+                #expect(Self.close(c, Self.panel), "cabin fill at \(x), \(y): \(c)")
+            }
+        }
+        for position in [SeatGlyph.Position.aisle, .middle, .window] {
+            let seat = try #require(Bitmap(SeatGlyph(position: position).stroke(Theme.blueprintInk, lineWidth: 1.2)
+                .frame(width: 39, height: 30).background(Theme.blueprint)))
+            #expect(seat.count(differingFrom: Self.panel) > 40)
+            // Backrest centre: x 19.5, y 0.31 of the height.
+            #expect(Self.close(seat.rgb(19, 9), Self.panel), "\(position) seat filled")
+        }
+    }
+
+    /// The registration placard cuts the airframe's lines: inside its box only the lettering is drawn. A blank
+    /// registration gives the box with nothing in it, where the lines would otherwise cross.
+    @Test func placardInterruptsLines() throws {
+        let size = CGSize(width: 360, height: 200)
+        let blank = "      "
+        for id in ["B77W", "A320", "B789"] {
+            let t = ReferenceData.bundled().type(id)
+            let g = AircraftGeometry.geometry(type: t)
+            let (letter, box) = BlueprintTail.placard(g, size: size, registration: blank, floor: 11)
+            #expect(letter >= 11, "\(id) letter \(letter)")
+            let inner = box.insetBy(dx: 2.5, dy: 2.5)
+            func inkInside(_ shows: Bool) throws -> Int {
+                let bitmap = try #require(Bitmap(BlueprintTail(type: t, registration: blank, showsRegistration: shows)
+                    .frame(width: size.width, height: size.height).background(Theme.blueprint)))
+                var n = 0
+                for y in Int(inner.minY.rounded(.up))..<Int(inner.maxY) {
+                    for x in Int(inner.minX.rounded(.up))..<Int(inner.maxX) where !Self.close(bitmap.rgb(x, y), Self.panel) { n += 1 }
+                }
+                return n
+            }
+            #expect(try inkInside(false) > 0, "\(id): no line crosses the placard's place")
+            #expect(try inkInside(true) == 0, "\(id): lines cross the placard")
+        }
+    }
+
+    @Test func classBarStacksFromXXXLarge() {
+        #expect(!CabinPlan.stacksClasses(.large))
+        #expect(!CabinPlan.stacksClasses(.xxLarge))
+        #expect(CabinPlan.stacksClasses(.xxxLarge))
+        #expect(CabinPlan.stacksClasses(.accessibility5))
     }
 
     @Test func tailUsesSameGeometry() {
         let size = CGSize(width: 360, height: 200)
-        for family in [AircraftFamily.a320, .b777, .b787, .other] {
+        for family in AircraftFamily.allCases {
             let g = AircraftGeometry.geometry(family)
             let t = BlueprintTail.transform(g, size: size)
             let side = size.width / g.lengthM
@@ -130,13 +204,13 @@ struct BlueprintTests {
         }
         let plan = try #require(Bitmap(CabinPlan(classes: SeatClassCounts(economy: 22, premiumEconomy: 4, business: 3, first: 4),
                                                  positions: PositionCounts(window: 17, middle: 1, aisle: 20),
-                                                 favourite: "12A (1 time)")
+                                                 favourite: ("Favorite seat", "12A (1 time)"))
             .frame(width: 393).background(Theme.blueprint)))
         #expect(plan.count(differingFrom: Self.panel) > 1000)
         // Nothing to show: no class bar, no seats.
         let empty = SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0)
         #expect(!CabinPlan.hasClasses(empty))
-        #expect(!CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), favourite: nil))
-        #expect(CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), favourite: "1A (1 time)"))
+        #expect(!CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), hasFavourite: false))
+        #expect(CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), hasFavourite: true))
     }
 }
