@@ -117,6 +117,77 @@ public final class PassportStore {
         await loadFacts()
     }
 
+    // MARK: Writes
+
+    /// Why the last add, edit, delete or import failed; nil once one succeeds. The sheets show it.
+    public private(set) var writeError: APIError?
+
+    public func clearWriteError() { writeError = nil }
+
+    /// Stores a flight added by hand; true once the server has it (the list shows it straight away).
+    public func add(_ flight: PastFlight) async -> Bool {
+        do {
+            let stored = try await history.add(flight)
+            await applied { $0.append(stored) }
+            return true
+        } catch {
+            writeError = error
+            return false
+        }
+    }
+
+    /// Replaces a manual or imported flight; true once stored.
+    public func update(_ flight: PastFlight) async -> Bool {
+        do {
+            let stored = try await history.update(flight)
+            await applied { all in all = all.map { $0.id == stored.id ? stored : $0 } }
+            return true
+        } catch {
+            writeError = error
+            return false
+        }
+    }
+
+    /// Deletes a manual or imported flight; true once gone.
+    public func delete(_ id: PastFlight.ID) async -> Bool {
+        do {
+            try await history.delete(id)
+            await applied { all in all.removeAll { $0.id == id } }
+            return true
+        } catch {
+            writeError = error
+            return false
+        }
+    }
+
+    /// What importing `data` would add, skip and leave out as duplicates of the history as loaded.
+    public func importPreview(_ data: Data, now: Date = .now) throws(PastFlightImport.Failure) -> PastFlightImport.Preview {
+        try PastFlightImport.preview(data, existing: all, airport: airport, reference: reference, now: now)
+    }
+
+    /// Stores the flights of an import; the number stored, nil when a batch failed (the history is
+    /// reloaded then, so the batches already stored show).
+    public func importFlights(_ flights: [PastFlight]) async -> Int? {
+        guard !flights.isEmpty else { return 0 }
+        do {
+            let stored = try await history.addAll(flights)
+            await applied { $0 += stored }
+            return stored.count
+        } catch {
+            writeError = error
+            await load()
+            return nil
+        }
+    }
+
+    /// After a write the server accepted: applies its change to the loaded history (the figures follow)
+    /// and saves the copy on the device.
+    private func applied(_ change: (inout [PastFlight]) -> Void) async {
+        writeError = nil
+        change(&all)
+        await cache?.save(past: all)
+    }
+
     // MARK: Figures
 
     private func loadFacts() async {

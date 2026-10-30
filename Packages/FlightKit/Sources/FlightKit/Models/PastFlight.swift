@@ -4,6 +4,13 @@ public enum PastFlightStatus: String, Codable, Sendable, Hashable {
     case completed, canceled, diverted
 }
 
+/// Where a past flight comes from: archived from a followed flight, added by hand, or imported from a file.
+/// Only manual and imported flights can be edited or deleted; archived ones are read only.
+public enum PastFlightSource: String, Codable, Sendable, Hashable {
+    case archive, manual
+    case `import`
+}
+
 public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var id: UUID
     public var date: Date
@@ -31,6 +38,11 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var airMinutes: Int?
     /// Where the traveller says they sat; nil leaves it to the seat number.
     public var seatPosition: SeatPosition?
+    /// Where the row comes from; nil (payloads older than the column, the seed) reads as archived.
+    public var source: PastFlightSource?
+
+    /// True for the flights the traveller added or imported: those they may edit and delete.
+    public var isEditable: Bool { source == .manual || source == .import }
 
     public init(
         id: UUID = UUID(), date: Date, ident: String, originIcao: String, destinationIcao: String,
@@ -38,7 +50,8 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         distanceKm: Int, blockMinutes: Int? = nil, delayMinutes: Int = 0, status: PastFlightStatus = .completed,
         originTz: String? = nil, seatClass: SeatClass? = nil, reason: TripReason? = nil,
         bookingCode: String? = nil, notes: String? = nil, originCountry: String? = nil,
-        destinationCountry: String? = nil, airMinutes: Int? = nil, seatPosition: SeatPosition? = nil
+        destinationCountry: String? = nil, airMinutes: Int? = nil, seatPosition: SeatPosition? = nil,
+        source: PastFlightSource? = nil
     ) {
         self.id = id; self.date = date; self.ident = ident
         self.originIcao = originIcao; self.destinationIcao = destinationIcao
@@ -47,6 +60,6 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         self.delayMinutes = delayMinutes; self.status = status; self.originTz = originTz
         self.seatClass = seatClass; self.reason = reason; self.bookingCode = bookingCode; self.notes = notes
         self.originCountry = originCountry; self.destinationCountry = destinationCountry; self.airMinutes = airMinutes
-        self.seatPosition = seatPosition
+        self.seatPosition = seatPosition; self.source = source
     }
 }

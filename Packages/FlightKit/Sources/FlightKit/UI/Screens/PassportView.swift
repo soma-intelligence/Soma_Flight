@@ -116,6 +116,10 @@ public struct PassportView: View {
 struct EmptyHistory: HistoryService {
     func pastFlights() async throws(APIError) -> [PastFlight] { [] }
     func export(_ format: ExportFormat) async throws(APIError) -> Data { Data() }
+    func add(_ flight: PastFlight) async throws(APIError) -> PastFlight { flight }
+    func addAll(_ flights: [PastFlight]) async throws(APIError) -> [PastFlight] { flights }
+    func update(_ flight: PastFlight) async throws(APIError) -> PastFlight { flight }
+    func delete(_ id: PastFlight.ID) async throws(APIError) {}
 }
 
 /// A Passport store from the seed history, optionally failing or offline.
