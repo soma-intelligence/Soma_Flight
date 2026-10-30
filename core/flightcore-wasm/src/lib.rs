@@ -4,6 +4,7 @@
 use flightcore::aircraft::{AircraftFact, TypeInfo, compute_aircraft_stats};
 use flightcore::delay::{BoardFlight, compute_stats};
 use flightcore::geo::{Coord, MAX_SEGMENTS, distance_km, great_circle};
+use flightcore::impact::{Conditions, describe_weather, present_weather, weather_impact};
 use flightcore::passport::{PastFlight, compute_passport};
 use flightcore::passport_detail::{CountryInfo, compute_passport_detail};
 use flightcore::weather::flight_category;
@@ -57,6 +58,22 @@ pub fn compute_stats_js(rows_json: &str) -> String {
 #[wasm_bindgen(js_name = flightCategory)]
 pub fn flight_category_js(ceiling_ft: Option<i32>, visibility_sm: f64) -> String {
     encode(&flight_category(ceiling_ft, visibility_sm))
+}
+
+/// Weather impact of one observation or forecast period (`Conditions` JSON, camelCase).
+#[wasm_bindgen(js_name = weatherImpact)]
+pub fn weather_impact_js(conditions_json: &str) -> String {
+    finish(parse::<Conditions>("conditions", conditions_json).map(|c| weather_impact(&c)))
+}
+
+#[wasm_bindgen(js_name = describeWeather)]
+pub fn describe_weather_js(wx: &str) -> String {
+    describe_weather(wx)
+}
+
+#[wasm_bindgen(js_name = presentWeather)]
+pub fn present_weather_js(report: &str) -> String {
+    present_weather(report)
 }
 
 #[wasm_bindgen(js_name = computePassport)]

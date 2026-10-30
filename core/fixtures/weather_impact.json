@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "written_by_hand": "the spec of core/flightcore/src/impact.rs, replayed by Rust, Swift and Deno",
+    "rules": {
+      "ceiling": "< 500 ft severe, < 1000 moderate, <= 3000 minor; arrivals",
+      "visibility": "< 1 sm severe (both), < 3 moderate, <= 5 minor (arrivals); fog names it once",
+      "wind": "gust >= 40 or wind >= 35 severe, gust >= 30 or wind >= 25 moderate, gust >= 25 or wind >= 20 minor; arrivals",
+      "thunderstorm": "TS on the field severe, VCTS moderate; both",
+      "freezing": "FZRA, FZDZ, PL severe; FZFG moderate; both",
+      "snow": "+SN or BLSN severe, SN moderate; both",
+      "fog": "FG moderate, arrivals; MIFG, BCFG, PRFG and VCFG do not count",
+      "slows": "level moderate or severe"
+    }
+  },
+  "impact": [
+    {
+      "name": "fine_day",
+      "conditions": { "ceilingFt": 25000, "visibilitySm": 10, "windKt": 12, "gustKt": 22, "wx": "" },
+      "level": "none", "slows": false, "affects": null, "hazards": [],
+      "reason": "No weather likely to slow flights"
+    },
+    {
+      "name": "all_unknown",
+      "conditions": { "ceilingFt": null, "visibilitySm": null, "windKt": null, "gustKt": null, "wx": "" },
+      "level": "none", "slows": false, "affects": null, "hazards": [],
+      "reason": "No weather likely to slow flights"
+    },
+    {
+      "name": "low_clouds_and_fog",
+      "conditions": { "ceilingFt": 800, "visibilitySm": 1.5, "windKt": 4, "gustKt": null, "wx": "FG" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["lowCeiling", "fog"],
+      "reason": "Low clouds and fog: arrivals likely slowed"
+    },
+    {
+      "name": "thick_fog_cdg",
+      "conditions": { "ceilingFt": 100, "visibilitySm": 0.19, "windKt": 0, "gustKt": null, "wx": "FG" },
+      "level": "severe", "slows": true, "affects": "both", "hazards": ["lowCeiling", "fog"],
+      "reason": "Very low clouds and thick fog: departures and arrivals likely held up"
+    },
+    {
+      "name": "light_rain_ifr_ceiling",
+      "conditions": { "ceilingFt": 900, "visibilitySm": 10, "windKt": 3, "gustKt": null, "wx": "-RA" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["lowCeiling"],
+      "reason": "Low clouds: arrivals likely slowed"
+    },
+    {
+      "name": "mvfr_is_minor",
+      "conditions": { "ceilingFt": 2500, "visibilitySm": 6, "windKt": 3, "gustKt": null, "wx": "-RA" },
+      "level": "minor", "slows": false, "affects": "arrivals", "hazards": ["lowCeiling"],
+      "reason": "A low cloud deck: small delays possible"
+    },
+    {
+      "name": "mist_poor_visibility",
+      "conditions": { "ceilingFt": null, "visibilitySm": 2, "windKt": 5, "gustKt": null, "wx": "BR" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["lowVisibility"],
+      "reason": "Poor visibility: arrivals likely slowed"
+    },
+    {
+      "name": "thunderstorm_on_field",
+      "conditions": { "ceilingFt": 3500, "visibilitySm": 4, "windKt": 18, "gustKt": 34, "wx": "+TSRA" },
+      "level": "severe", "slows": true, "affects": "both", "hazards": ["thunderstorm", "lowVisibility", "wind"],
+      "reason": "Thunderstorms: departures and arrivals likely held up"
+    },
+    {
+      "name": "thunderstorm_nearby",
+      "conditions": { "ceilingFt": null, "visibilitySm": 10, "windKt": 10, "gustKt": null, "wx": "VCTS" },
+      "level": "moderate", "slows": true, "affects": "both", "hazards": ["thunderstorm"],
+      "reason": "Thunderstorms nearby: departures and arrivals likely slowed"
+    },
+    {
+      "name": "showers_nearby_are_nothing",
+      "conditions": { "ceilingFt": 4000, "visibilitySm": 10, "windKt": 7, "gustKt": null, "wx": "VCSH" },
+      "level": "none", "slows": false, "affects": null, "hazards": [],
+      "reason": "No weather likely to slow flights"
+    },
+    {
+      "name": "strong_gusts",
+      "conditions": { "ceilingFt": null, "visibilitySm": 10, "windKt": 22, "gustKt": 36, "wx": "" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["wind"],
+      "reason": "Strong gusts: arrivals likely slowed"
+    },
+    {
+      "name": "very_strong_gusts",
+      "conditions": { "ceilingFt": null, "visibilitySm": 10, "windKt": 30, "gustKt": 48, "wx": "" },
+      "level": "severe", "slows": true, "affects": "arrivals", "hazards": ["wind"],
+      "reason": "Very strong gusts: arrivals likely held up"
+    },
+    {
+      "name": "steady_strong_wind",
+      "conditions": { "ceilingFt": null, "visibilitySm": 10, "windKt": 27, "gustKt": null, "wx": "" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["wind"],
+      "reason": "Strong winds: arrivals likely slowed"
+    },
+    {
+      "name": "gusty_is_minor",
+      "conditions": { "ceilingFt": null, "visibilitySm": 10, "windKt": 15, "gustKt": 26, "wx": "" },
+      "level": "minor", "slows": false, "affects": "arrivals", "hazards": ["wind"],
+      "reason": "Gusty winds: small delays possible"
+    },
+    {
+      "name": "snow",
+      "conditions": { "ceilingFt": 1800, "visibilitySm": 2, "windKt": 10, "gustKt": null, "wx": "-SN BR" },
+      "level": "moderate", "slows": true, "affects": "both", "hazards": ["snow", "lowCeiling", "lowVisibility"],
+      "reason": "Snow and poor visibility: departures and arrivals likely slowed"
+    },
+    {
+      "name": "heavy_snow",
+      "conditions": { "ceilingFt": 600, "visibilitySm": 0.5, "windKt": 15, "gustKt": 25, "wx": "+SN" },
+      "level": "severe", "slows": true, "affects": "both", "hazards": ["snow", "lowCeiling", "lowVisibility", "wind"],
+      "reason": "Heavy snow and very poor visibility: departures and arrivals likely held up"
+    },
+    {
+      "name": "freezing_rain",
+      "conditions": { "ceilingFt": 1200, "visibilitySm": 3, "windKt": 8, "gustKt": null, "wx": "-FZRA BR" },
+      "level": "severe", "slows": true, "affects": "both", "hazards": ["freezingPrecip", "lowCeiling", "lowVisibility"],
+      "reason": "Freezing rain: departures and arrivals likely held up"
+    },
+    {
+      "name": "freezing_fog",
+      "conditions": { "ceilingFt": null, "visibilitySm": 2, "windKt": 2, "gustKt": null, "wx": "FZFG" },
+      "level": "moderate", "slows": true, "affects": "both", "hazards": ["fog"],
+      "reason": "Freezing fog: departures and arrivals likely slowed"
+    },
+    {
+      "name": "shallow_fog_does_not_count",
+      "conditions": { "ceilingFt": null, "visibilitySm": 6, "windKt": 2, "gustKt": null, "wx": "MIFG" },
+      "level": "none", "slows": false, "affects": null, "hazards": [],
+      "reason": "No weather likely to slow flights"
+    },
+    {
+      "name": "heavy_rain_alone",
+      "conditions": { "ceilingFt": 4000, "visibilitySm": 6, "windKt": 12, "gustKt": null, "wx": "+RA" },
+      "level": "minor", "slows": false, "affects": "arrivals", "hazards": ["heavyRain"],
+      "reason": "Heavy rain: small delays possible"
+    },
+    {
+      "name": "whole_report_as_wx",
+      "conditions": { "ceilingFt": 800, "visibilitySm": 1.5, "windKt": 4, "gustKt": null, "wx": "KSFO 240556Z 00000KT 1 1/2SM FG BKN008 12/12 A3001" },
+      "level": "moderate", "slows": true, "affects": "arrivals", "hazards": ["lowCeiling", "fog"],
+      "reason": "Low clouds and fog: arrivals likely slowed"
+    }
+  ],
+  "describe": [
+    { "wx": "", "text": "" },
+    { "wx": "-RA", "text": "light rain" },
+    { "wx": "-RA BR", "text": "light rain and mist" },
+    { "wx": "+TSRA", "text": "thunderstorms with heavy rain" },
+    { "wx": "TS", "text": "thunderstorms" },
+    { "wx": "VCTS", "text": "thunderstorms nearby" },
+    { "wx": "VCSH", "text": "showers nearby" },
+    { "wx": "-SHRA", "text": "light rain showers" },
+    { "wx": "FZFG", "text": "freezing fog" },
+    { "wx": "-FZRA", "text": "light freezing rain" },
+    { "wx": "BCFG", "text": "patches of fog" },
+    { "wx": "MIFG", "text": "shallow fog" },
+    { "wx": "BLSN", "text": "blowing snow" },
+    { "wx": "RASN", "text": "rain and snow" },
+    { "wx": "-SN BR HZ", "text": "light snow, mist and haze" },
+    { "wx": "10SM BKN009", "text": "" }
+  ],
+  "present_weather": [
+    { "report": "SPECI KAUS 291744Z VRB03KT 10SM -RA BKN009 BKN026 22/20 A3015 RMK AO2 P0001", "wx": "-RA" },
+    { "report": "METAR LFPG 240600Z 00000KT 0300 FG VV001 08/08 Q1021 TEMPO 1500 BR", "wx": "FG" },
+    { "report": "KSFO 232356Z 29014KT 10SM FEW015 SCT200 17/11 A3002", "wx": "" },
+    { "report": "KORD 241451Z 27018G29KT 1/2SM +SN BLSN VV005 M04/M06 A2990 RMK AO2", "wx": "+SN BLSN" },
+    { "report": "EGLL 241420Z 24008KT 9999 VCSH NSW FEW020 14/09 Q1009 NOSIG", "wx": "VCSH" }
+  ]
+}

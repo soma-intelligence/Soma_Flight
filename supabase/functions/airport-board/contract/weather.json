@@ -23,7 +23,24 @@
         "windKt": 3,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 2500
+        "ceilingFt": 2500,
+        "change": null,
+        "probability": null,
+        "wx": "-RA",
+        "clouds": [
+          {
+            "cover": "SCT",
+            "baseFt": 1500
+          },
+          {
+            "cover": "BKN",
+            "baseFt": 2500
+          },
+          {
+            "cover": "OVC",
+            "baseFt": 10000
+          }
+        ]
       },
       {
         "from": "2026-10-29T21:00:00.000Z",
@@ -33,7 +50,20 @@
         "windKt": 7,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 10000
+        "ceilingFt": 10000,
+        "change": "FM",
+        "probability": null,
+        "wx": "VCSH",
+        "clouds": [
+          {
+            "cover": "SCT",
+            "baseFt": 4000
+          },
+          {
+            "cover": "OVC",
+            "baseFt": 10000
+          }
+        ]
       },
       {
         "from": "2026-10-30T00:00:00.000Z",
@@ -43,7 +73,16 @@
         "windKt": 3,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 4000
+        "ceilingFt": 4000,
+        "change": "FM",
+        "probability": null,
+        "wx": null,
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 4000
+          }
+        ]
       },
       {
         "from": "2026-10-30T15:00:00.000Z",
@@ -53,7 +92,16 @@
         "windKt": 6,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 5000
+        "ceilingFt": 5000,
+        "change": "FM",
+        "probability": null,
+        "wx": "-RA BR",
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 5000
+          }
+        ]
       },
       {
         "from": "2026-10-30T19:00:00.000Z",
@@ -63,8 +111,39 @@
         "windKt": 5,
         "gustKt": null,
         "visibilitySm": 3,
-        "ceilingFt": 900
+        "ceilingFt": 900,
+        "change": "FM",
+        "probability": null,
+        "wx": "-RA BR",
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 900
+          }
+        ]
       }
-    ]
+    ],
+    "wx": "-RA",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "baseFt": 900
+      },
+      {
+        "cover": "BKN",
+        "baseFt": 2600
+      },
+      {
+        "cover": "BKN",
+        "baseFt": 4600
+      },
+      {
+        "cover": "OVC",
+        "baseFt": 13000
+      }
+    ],
+    "dewpointC": 20,
+    "altimeterHpa": 1021.1,
+    "tafIssuedAt": "2026-10-29T17:30:00.000Z"
   }
 }

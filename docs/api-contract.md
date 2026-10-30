@@ -183,7 +183,11 @@ Rules the app can rely on:
   (calm also has `windKt: 0`). `ceilingFt` is the lowest broken, overcast or vertical visibility layer, null
   when there is none. `visibilitySm` reads `10+` as 10. `category` comes from the Rust core (FAA thresholds),
   or from the feed when visibility is missing. Forecast periods without a time range or a category are left
-  out. An airport with no usable METAR is 404 `not_found`; a failed METAR request is never cached (the old
+  out. `wx` holds the present weather groups ("-RA BR", null when none), `clouds` every layer, `dewpointC`
+  and `altimeterHpa` the rest of the METAR, `tafIssuedAt` when the TAF was issued. Each forecast period has
+  its own `wx` and `clouds`, and `change` says how it starts: null for the base forecast, `FM`, `BECMG`,
+  `TEMPO` or `PROB` (with `probability` in percent); TEMPO and PROB periods overlap the one they sit in.
+  The app reads these through the core's weather impact (`impact.rs`). An airport with no usable METAR is 404 `not_found`; a failed METAR request is never cached (the old
   snapshot is served stale, or 503).
 
 The example files below are generated from the handler by `airport-board/index_test.ts`
@@ -548,7 +552,24 @@ The example files below are generated from the handler by `airport-board/index_t
         "windKt": 3,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 2500
+        "ceilingFt": 2500,
+        "change": null,
+        "probability": null,
+        "wx": "-RA",
+        "clouds": [
+          {
+            "cover": "SCT",
+            "baseFt": 1500
+          },
+          {
+            "cover": "BKN",
+            "baseFt": 2500
+          },
+          {
+            "cover": "OVC",
+            "baseFt": 10000
+          }
+        ]
       },
       {
         "from": "2026-10-29T21:00:00.000Z",
@@ -558,7 +579,20 @@ The example files below are generated from the handler by `airport-board/index_t
         "windKt": 7,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 10000
+        "ceilingFt": 10000,
+        "change": "FM",
+        "probability": null,
+        "wx": "VCSH",
+        "clouds": [
+          {
+            "cover": "SCT",
+            "baseFt": 4000
+          },
+          {
+            "cover": "OVC",
+            "baseFt": 10000
+          }
+        ]
       },
       {
         "from": "2026-10-30T00:00:00.000Z",
@@ -568,7 +602,16 @@ The example files below are generated from the handler by `airport-board/index_t
         "windKt": 3,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 4000
+        "ceilingFt": 4000,
+        "change": "FM",
+        "probability": null,
+        "wx": null,
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 4000
+          }
+        ]
       },
       {
         "from": "2026-10-30T15:00:00.000Z",
@@ -578,7 +621,16 @@ The example files below are generated from the handler by `airport-board/index_t
         "windKt": 6,
         "gustKt": null,
         "visibilitySm": 6,
-        "ceilingFt": 5000
+        "ceilingFt": 5000,
+        "change": "FM",
+        "probability": null,
+        "wx": "-RA BR",
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 5000
+          }
+        ]
       },
       {
         "from": "2026-10-30T19:00:00.000Z",
@@ -588,9 +640,40 @@ The example files below are generated from the handler by `airport-board/index_t
         "windKt": 5,
         "gustKt": null,
         "visibilitySm": 3,
-        "ceilingFt": 900
+        "ceilingFt": 900,
+        "change": "FM",
+        "probability": null,
+        "wx": "-RA BR",
+        "clouds": [
+          {
+            "cover": "OVC",
+            "baseFt": 900
+          }
+        ]
       }
-    ]
+    ],
+    "wx": "-RA",
+    "clouds": [
+      {
+        "cover": "BKN",
+        "baseFt": 900
+      },
+      {
+        "cover": "BKN",
+        "baseFt": 2600
+      },
+      {
+        "cover": "BKN",
+        "baseFt": 4600
+      },
+      {
+        "cover": "OVC",
+        "baseFt": 13000
+      }
+    ],
+    "dewpointC": 20,
+    "altimeterHpa": 1021.1,
+    "tafIssuedAt": "2026-10-29T17:30:00.000Z"
   }
 }
 ```
