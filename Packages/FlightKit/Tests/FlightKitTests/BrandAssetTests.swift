@@ -39,16 +39,20 @@ struct BrandAssetTests {
         var answer: Result<BrandAssetMeta, APIError>
         var files: [URL: Data] = [:]
         var failDownloads = false
+        /// Every call waits this long first (a slow link).
+        var delay: Duration = .zero
         private(set) var metaCalls = 0
         private(set) var downloads = 0
 
         init(_ answer: Result<BrandAssetMeta, APIError>) { self.answer = answer }
 
         func set(_ answer: Result<BrandAssetMeta, APIError>) { self.answer = answer }
+        func slow(_ d: Duration) { delay = d }
         func serve(_ url: URL, _ data: Data) { files[url] = data }
 
         func meta(airline: String, kind: BrandAssetKind, type: String?) async throws(APIError) -> BrandAssetMeta {
             metaCalls += 1
+            if delay > .zero { try? await Task.sleep(for: delay) }
             return try answer.get()
         }
 
@@ -70,7 +74,7 @@ struct BrandAssetTests {
 
     func service(_ transport: Transport) -> SupabaseBrandAssetService {
         let clock = clock
-        return SupabaseBrandAssetService(backend: nil, cacheDir: dir, transport: transport, clock: { clock.now })
+        return SupabaseBrandAssetService(transport: transport, cacheDir: dir, clock: { clock.now })
     }
 
     /// A transport serving version `v` of UAL's logo (the small rendition, as logos use).
@@ -131,6 +135,9 @@ struct BrandAssetTests {
         await t.set(.success(Self.meta("v2")))
         await t.serve(Self.meta("v2").smallUrl!, Self.png(gray: 0.9))
         clock.advance(SupabaseBrandAssetService.revalidateAfter + 1)
+        // Stale: the cached file at once, the new version fetched behind it.
+        #expect(await svc.asset("UAL", .logo)?.version == "v1")
+        await svc.settle()
         let fresh = try #require(await svc.asset("UAL", .logo))
         #expect(fresh.version == "v2")
         #expect(fresh.data == Self.png(gray: 0.9))
@@ -147,6 +154,7 @@ struct BrandAssetTests {
         clock.advance(SupabaseBrandAssetService.revalidateAfter + 1)
         let same = try #require(await svc.asset("UAL", .logo))
         #expect(same.version == "v1")
+        await svc.settle()
         #expect(await t.metaCalls == 2)
         #expect(await t.downloads == 1)
         #expect(await svc.savedIndex().entries["UAL/logo"]?.checkedAt == clock.now)
@@ -182,24 +190,32 @@ struct BrandAssetTests {
         await t.set(.failure(.offline))
         clock.advance(SupabaseBrandAssetService.revalidateAfter + 1)
         #expect(await svc.asset("UAL", .logo) == cached)
+        await svc.settle()
         #expect(await t.metaCalls == 2)
         // Retried at most once a minute.
         clock.advance(30)
         #expect(await svc.asset("UAL", .logo) == cached)
+        await svc.settle()
         #expect(await t.metaCalls == 2)
         clock.advance(31)
         #expect(await svc.asset("UAL", .logo) == cached)
+        await svc.settle()
         #expect(await t.metaCalls == 3)
         #expect(files() == ["logo-v1.png"])
         // A failed download of a new version keeps the old file as well.
         await t.set(.success(Self.meta("v2")))
         clock.advance(61)
         #expect(await svc.asset("UAL", .logo) == cached)
+        await svc.settle()
+        #expect(await svc.asset("UAL", .logo) == cached)
         #expect(files() == ["logo-v1.png"])
-        // Nothing cached and offline: nil, not a remembered miss.
+        // Nothing cached and offline: unavailable, not a remembered miss.
         let other = Transport(.failure(.offline))
-        #expect(await service(other).asset("DAL", .logo) == nil)
-        #expect(await svc.savedIndex().misses["DAL/logo"] == nil)
+        let fresh = service(other)
+        #expect(await fresh.lookup("DAL", .logo, type: nil) == .unavailable)
+        #expect(await fresh.savedIndex().misses["DAL/logo"] == nil)
+        // A 404 is a known absence.
+        #expect(await service(Transport(.failure(.notFound))).lookup("KLM", .logo, type: nil) == .missing)
     }
 
     @Test func corruptFileIsDropped() async throws {
@@ -218,7 +234,7 @@ struct BrandAssetTests {
         // A download that does not decode is never written and counts as a miss.
         let bad = Transport(.success(Self.meta("v9")))
         await bad.serve(Self.meta("v9").smallUrl!, Data("not an image".utf8))
-        let svc2 = SupabaseBrandAssetService(backend: nil, cacheDir: dir.appending(path: "other"), transport: bad,
+        let svc2 = SupabaseBrandAssetService(transport: bad, cacheDir: dir.appendingPathExtension("other"),
                                              clock: { [clock] in clock.now })
         #expect(await svc2.asset("UAL", .logo) == nil)
         #expect(await svc2.savedIndex().entries.isEmpty)
@@ -269,25 +285,130 @@ struct BrandAssetTests {
     }
 
     @Test func plateFollowsContrast() throws {
-        let darkInk = try #require(BrandArt.make(BrandAsset(data: Self.png(gray: 0.1), format: "png", version: "1")))
-        #expect(darkInk.luminance < 0.05)
+        func art(_ gray: CGFloat, opaque: Bool = false) throws -> BrandArt {
+            try #require(BrandArt.make(BrandAsset(data: Self.png(gray: gray, opaque: opaque), format: "png", version: "1"),
+                                       maxPixel: 64))
+        }
+        let page = LogoSurface.page, card = LogoSurface.card
+        let darkInk = try art(0.1)
         #expect(darkInk.coverage > 0.2 && darkInk.coverage < 0.5)
-        // Dark ink vanishes on the dark page: white plate. On the light page it reads alone.
-        #expect(AirlineLogo.plate(luminance: darkInk.luminance, coverage: darkInk.coverage, dark: true) == .light)
-        #expect(AirlineLogo.plate(luminance: darkInk.luminance, coverage: darkInk.coverage, dark: false) == nil)
-        // White ink on the light page: dark plate.
-        let whiteInk = try #require(BrandArt.make(BrandAsset(data: Self.png(gray: 1), format: "png", version: "1")))
-        #expect(AirlineLogo.plate(luminance: whiteInk.luminance, coverage: whiteInk.coverage, dark: false) == .dark)
-        #expect(AirlineLogo.plate(luminance: whiteInk.luminance, coverage: whiteInk.coverage, dark: true) == nil)
-        // A logo with its own background sits on the plate of its tone, on either page.
-        let tile = try #require(BrandArt.make(BrandAsset(data: Self.png(gray: 0.1, opaque: true), format: "png", version: "1")))
+        // Dark ink vanishes on the dark page: white plate. On the light page and card it reads alone.
+        #expect(AirlineLogo.plate(darkInk, surface: page.luminance(dark: true)) == .light)
+        #expect(AirlineLogo.plate(darkInk, surface: page.luminance(dark: false)) == nil)
+        #expect(AirlineLogo.plate(darkInk, surface: card.luminance(dark: false)) == nil)
+        // White ink: dark plate on light surfaces, bare on dark ones.
+        let whiteInk = try art(1)
+        #expect(AirlineLogo.plate(whiteInk, surface: page.luminance(dark: false)) == .dark)
+        #expect(AirlineLogo.plate(whiteInk, surface: card.luminance(dark: false)) == .dark)
+        #expect(AirlineLogo.plate(whiteInk, surface: page.luminance(dark: true)) == nil)
+        // The surface decides: mid grey ink reads on the white card but not on the dark red delay page.
+        let mid = try art(0.35)
+        #expect(AirlineLogo.plate(mid, surface: LogoSurface.fixed(0xFFFFFF).luminance(dark: false)) == nil)
+        #expect(AirlineLogo.plate(mid, surface: LogoSurface.fixed(0x330D0F).luminance(dark: true)) == .light)
+        // A logo with its own background sits on the plate of its tone in both schemes.
+        let tile = try art(0.1, opaque: true)
         #expect(tile.coverage > 0.95)
-        #expect(AirlineLogo.plate(luminance: tile.luminance, coverage: tile.coverage, dark: true) == .dark)
-        let box = try #require(BrandArt.make(BrandAsset(data: Self.png(gray: 1, opaque: true), format: "png", version: "1")))
-        #expect(AirlineLogo.plate(luminance: box.luminance, coverage: box.coverage, dark: true) == .light)
-        #expect(AirlineLogo.plate(luminance: box.luminance, coverage: box.coverage, dark: false) == .light)
-        // Mid green ink (Frontier's) is under 4.5:1 on the dark page.
-        #expect(AirlineLogo.plate(luminance: 0.15, coverage: 0.3, dark: true) == .light)
+        #expect(AirlineLogo.plate(tile, surface: page.luminance(dark: true)) == .dark)
+        #expect(AirlineLogo.plate(tile, surface: page.luminance(dark: false)) == .dark)
+        let box = try art(1, opaque: true)
+        #expect(AirlineLogo.plate(box, surface: page.luminance(dark: true)) == .light)
+        #expect(AirlineLogo.plate(box, surface: page.luminance(dark: false)) == .light)
+        // Two tones: half the ink white, half dark. The white half is faint on the light page, so it gets
+        // the plate that keeps the most ink readable (dark).
+        var split = [Double](repeating: 0, count: BrandArt.bins)
+        split[0] = 0.5; split[BrandArt.bins - 1] = 0.5
+        #expect(AirlineLogo.plate(histogram: split, coverage: 0.3, border: 0, surface: page.luminance(dark: false)) != nil)
+        // Mid green ink (Frontier's) is faint on the dark page.
+        var green = [Double](repeating: 0, count: BrandArt.bins)
+        green[Int(0.15 * Double(BrandArt.bins))] = 1
+        #expect(AirlineLogo.plate(histogram: green, coverage: 0.3, border: 0, surface: page.luminance(dark: true)) == .light)
+    }
+
+    @Test func decodeIsAThumbnailAtDisplaySize() throws {
+        let big = BrandAsset(data: Self.png(gray: 0.1, side: 1200), format: "png", version: "1")
+        let art = try #require(BrandArt.make(big, maxPixel: 102))
+        #expect(art.pixelSize <= 102)
+        #expect(max(art.image.width, art.image.height) <= 102)
+        // Headers only: a truncated file is refused without a decode.
+        #expect(!BrandAsset(data: big.data.prefix(big.data.count / 2), format: "png", version: "1").decodes)
+    }
+
+    // MARK: Fix round 1
+
+    @Test func staleFileReturnsAtOnceOnASlowLink() async throws {
+        let t = await transport()
+        let svc = SupabaseBrandAssetService(transport: t, cacheDir: dir, clock: { [clock] in clock.now },
+                                            limit: .milliseconds(300))
+        let cached = try #require(await svc.asset("UAL", .logo))
+        await t.slow(.seconds(5))
+        clock.advance(SupabaseBrandAssetService.revalidateAfter + 1)
+        let started = ContinuousClock.now
+        // Many callers, one background request; none waits for the link.
+        for _ in 0..<5 { #expect(await svc.asset("UAL", .logo) == cached) }
+        #expect(ContinuousClock.now - started < .milliseconds(250))
+        await svc.settle()
+        // The time limit gave up on the slow call: counted as a failure, the file kept.
+        #expect(await t.metaCalls == 2)
+        #expect(await svc.asset("UAL", .logo) == cached)
+        #expect(ContinuousClock.now - started < .seconds(3))
+    }
+
+    @Test func cacheStaysUnderItsByteCap() async throws {
+        let one = Self.png(gray: 0.1).count
+        let t = Transport(.success(Self.meta("v1")))
+        await t.serve(Self.meta("v1").smallUrl!, Self.png(gray: 0.1))
+        // Room for two files.
+        let svc = SupabaseBrandAssetService(transport: t, cacheDir: dir, clock: { [clock] in clock.now },
+                                            maxBytes: one * 2 + one / 2)
+        for icao in ["UAL", "DAL"] { _ = await svc.asset(icao, .logo); clock.advance(60) }
+        // UAL used again: DAL is now the least recently used.
+        _ = await svc.asset("UAL", .logo)
+        clock.advance(60)
+        _ = await svc.asset("AAL", .logo)
+        let kept = Set(await svc.savedIndex().entries.keys)
+        #expect(kept == ["UAL/logo", "AAL/logo"])
+        #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "DAL/logo-v1.png").path))
+        // Files the index does not name are swept by the next run.
+        let stray = dir.appending(path: "UAL/logo-v0.png")
+        try Self.png().write(to: stray)
+        _ = await service(t).asset("UAL", .logo)
+        #expect(!FileManager.default.fileExists(atPath: stray.path))
+        #expect(FileManager.default.fileExists(atPath: dir.appending(path: "UAL/logo-v1.png").path))
+    }
+
+    @Test func unwritableCacheDoesNotDownloadAgain() async throws {
+        // The cache directory is a file: nothing can be written under it.
+        let blocked = dir.appendingPathExtension("blocked")
+        try Data("x".utf8).write(to: blocked)
+        let t = await transport()
+        let svc = SupabaseBrandAssetService(transport: t, cacheDir: blocked, clock: { [clock] in clock.now })
+        let first = try #require(await svc.asset("UAL", .logo))
+        #expect(await svc.asset("UAL", .logo) == first)
+        #expect(await t.downloads == 1)
+        #expect(await t.metaCalls == 1)
+    }
+
+    @Test func redirectOffTheProjectHostIsRefused() async throws {
+        let project = URL(string: "https://proj.supabase.co")!
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [RedirectStub.self]
+        let downloader = BrandDownloader(projectURL: project, configuration: config, maxBytes: 64)
+        RedirectStub.reset()
+        // Same host redirect: followed.
+        let same = try await downloader.download(URL(string: "https://proj.supabase.co/storage/v1/object/sign/a?to=same")!)
+        #expect(same == Data("ok".utf8))
+        // Off host: refused, the other host never asked.
+        await #expect(throws: APIError.self) {
+            try await downloader.download(URL(string: "https://proj.supabase.co/storage/v1/object/sign/a?to=evil")!)
+        }
+        #expect(!RedirectStub.hosts().contains("evil.example"))
+        // A first URL off host, or http to an https project, never leaves.
+        await #expect(throws: APIError.self) { try await downloader.download(URL(string: "https://evil.example/x")!) }
+        await #expect(throws: APIError.self) { try await downloader.download(URL(string: "http://proj.supabase.co/x")!) }
+        // Bigger than the cap while streaming: refused.
+        await #expect(throws: APIError.self) {
+            try await downloader.download(URL(string: "https://proj.supabase.co/storage/v1/object/sign/big")!)
+        }
     }
 
     @Test func bundledFakesCoverTheFakeHistory() async {
@@ -304,4 +425,37 @@ struct BrandAssetTests {
             #expect(icao.map(FakeBrandAssetService.bundledAirlines.contains) == true, "\(name)")
         }
     }
+}
+
+/// Answers for the redirect test: `?to=same` redirects on the project host, `?to=evil` to another host,
+/// `/big` sends 1 KB with no length, anything else "ok". Records every host asked.
+final class RedirectStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) private static var seen: [String] = []
+    private static let lock = NSLock()
+    static func reset() { lock.withLock { seen = [] } }
+    static func hosts() -> [String] { lock.withLock { seen } }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url, let client else { return }
+        Self.lock.withLock { Self.seen.append(url.host() ?? "") }
+        let query = url.query() ?? ""
+        if query.contains("to=") {
+            let target = query.contains("to=evil") ? "https://evil.example/stolen" : "https://proj.supabase.co/storage/v1/object/sign/b"
+            let response = HTTPURLResponse(url: url, statusCode: 302, httpVersion: "HTTP/1.1", headerFields: ["Location": target])!
+            client.urlProtocol(self, wasRedirectedTo: URLRequest(url: URL(string: target)!), redirectResponse: response)
+            client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client.urlProtocolDidFinishLoading(self)
+            return
+        }
+        let body = url.path().hasSuffix("/big") ? Data(repeating: 1, count: 1024) : Data("ok".utf8)
+        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [:])!
+        client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client.urlProtocol(self, didLoad: body)
+        client.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

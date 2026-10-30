@@ -265,7 +265,7 @@ struct ResultRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             let code = flight.operator.map(AirportFacts.airlineCode) ?? TravelFacts.airlineCode(ident: flight.ident)
-            AirlineMark(code: code, key: flight.operator ?? code)
+            AirlineMark(code: code, key: flight.operator ?? code, decorative: true)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(Format.ident(flight.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.secondary)

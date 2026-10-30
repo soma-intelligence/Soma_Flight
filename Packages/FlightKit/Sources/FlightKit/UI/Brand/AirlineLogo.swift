@@ -8,6 +8,33 @@ private struct BrandAssetsKey: EnvironmentKey {
     static var defaultValue: any BrandAssetService { FakeBrandAssetService() }
 }
 
+/// The colour an airline mark sits on, light and dark, for its contrast check. Containers that are not the
+/// page (cards, the delay page's red) set theirs with `.environment(\.logoSurface, ...)`.
+public struct LogoSurface: Sendable, Equatable {
+    public var light: UInt32
+    public var dark: UInt32
+
+    public init(light: UInt32, dark: UInt32) { self.light = light; self.dark = dark }
+
+    /// `Theme.background`.
+    public static let page = LogoSurface(light: 0xF2F2F7, dark: 0x18181A)
+    /// `Theme.card`.
+    public static let card = LogoSurface(light: 0xFFFFFF, dark: 0x202023)
+    /// One colour in both schemes.
+    public static func fixed(_ rgb: UInt32) -> LogoSurface { LogoSurface(light: rgb, dark: rgb) }
+
+    /// Relative luminance of the surface in a scheme.
+    func luminance(dark isDark: Bool) -> Double {
+        let v = isDark ? dark : light
+        return BrandArt.relativeLuminance(r: Double(v >> 16 & 0xFF) / 255, g: Double(v >> 8 & 0xFF) / 255,
+                                          b: Double(v & 0xFF) / 255)
+    }
+}
+
+private struct LogoSurfaceKey: EnvironmentKey {
+    static let defaultValue = LogoSurface.page
+}
+
 public extension EnvironmentValues {
     /// Where airline logos come from. The shells set the environment's `brand`; the default answers
     /// nothing, so previews and renders draw monograms unless they set one.
@@ -15,33 +42,53 @@ public extension EnvironmentValues {
         get { self[BrandAssetsKey.self] }
         set { self[BrandAssetsKey.self] = newValue }
     }
+
+    /// The surface airline marks sit on; the page unless a container says otherwise.
+    var logoSurface: LogoSurface {
+        get { self[LogoSurfaceKey.self] }
+        set { self[LogoSurfaceKey.self] = newValue }
+    }
 }
 
 // MARK: - Decoded logo
 
-/// A logo decoded once, with what its pixels say: the mean luminance of its inked pixels and how much
-/// of the square it covers. Kept with the version it came from.
+/// A logo decoded once at display size, with what its pixels say: how its ink spreads over luminance, how
+/// much of the square it covers, and the tone of its border (its own background, when it has one). Kept
+/// with the version it came from.
 struct BrandArt: @unchecked Sendable {
     // CGImage is immutable; it only crosses actors here.
     var image: CGImage
     var version: String
-    /// Relative luminance (0 black, 1 white) averaged over the inked pixels, weighted by alpha.
-    var luminance: Double
+    /// The largest side it was decoded at, in pixels.
+    var pixelSize: Int
+    /// Ink (alpha-weighted) per luminance bin, `bins` bins from black to white, summing to 1.
+    var histogram: [Double]
     /// Share of the image's area that is inked (alpha-weighted), 0 to 1.
     var coverage: Double
+    /// Mean luminance of the outermost pixels.
+    var borderLuminance: Double
 
+    static let bins = 32
     var aspect: CGFloat { CGFloat(image.width) / CGFloat(max(image.height, 1)) }
 
-    /// Decodes the asset and reads its pixels; nil when it does not decode.
-    static func make(_ asset: BrandAsset) -> BrandArt? {
-        guard asset.decodes, let source = CGImageSourceCreateWithData(asset.data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        let (luminance, coverage) = measure(image)
-        return BrandArt(image: image, version: asset.version, luminance: luminance, coverage: coverage)
+    /// Decodes a thumbnail no larger than `maxPixel` on its long side and reads its pixels; nil when the
+    /// bytes are not a usable image.
+    static func make(_ asset: BrandAsset, maxPixel: Int) -> BrandArt? {
+        guard asset.decodes, let source = CGImageSourceCreateWithData(asset.data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 16),
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        let m = measure(image)
+        return BrandArt(image: image, version: asset.version, pixelSize: max(image.width, image.height),
+                        histogram: m.histogram, coverage: m.coverage, borderLuminance: m.border)
     }
 
-    /// Draws the image into a 48 x 48 sRGB bitmap and averages it.
-    static func measure(_ image: CGImage) -> (luminance: Double, coverage: Double) {
+    /// Draws the image into a 48 x 48 sRGB bitmap and reads it.
+    static func measure(_ image: CGImage) -> (histogram: [Double], coverage: Double, border: Double) {
         let side = 48
         var pixels = [UInt8](repeating: 0, count: side * side * 4)
         let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
@@ -53,18 +100,26 @@ struct BrandArt: @unchecked Sendable {
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
             return true
         }
-        guard drawn else { return (0, 0) }
-        var weight = 0.0, sum = 0.0
-        for i in stride(from: 0, to: pixels.count, by: 4) {
-            let a = Double(pixels[i + 3]) / 255
-            guard a > 0.02 else { continue }
-            // Premultiplied: divide the alpha back out.
-            let r = Double(pixels[i]) / 255 / a, g = Double(pixels[i + 1]) / 255 / a, b = Double(pixels[i + 2]) / 255 / a
-            sum += a * relativeLuminance(r: min(r, 1), g: min(g, 1), b: min(b, 1))
-            weight += a
+        var histogram = [Double](repeating: 0, count: bins)
+        guard drawn else { return (histogram, 0, 0) }
+        var weight = 0.0, borderSum = 0.0, borderWeight = 0.0
+        for y in 0..<side {
+            for x in 0..<side {
+                let i = (y * side + x) * 4
+                let a = Double(pixels[i + 3]) / 255
+                guard a > 0.02 else { continue }
+                // Premultiplied: divide the alpha back out.
+                let r = min(Double(pixels[i]) / 255 / a, 1), g = min(Double(pixels[i + 1]) / 255 / a, 1)
+                let b = min(Double(pixels[i + 2]) / 255 / a, 1)
+                let lum = relativeLuminance(r: r, g: g, b: b)
+                histogram[min(Int(lum * Double(bins)), bins - 1)] += a
+                weight += a
+                if x == 0 || y == 0 || x == side - 1 || y == side - 1 { borderSum += a * lum; borderWeight += a }
+            }
         }
-        guard weight > 0 else { return (0, 0) }
-        return (sum / weight, weight / Double(side * side))
+        guard weight > 0 else { return (histogram, 0, 0) }
+        return (histogram.map { $0 / weight }, weight / Double(side * side),
+                borderWeight > 0 ? borderSum / borderWeight : 0)
     }
 
     /// WCAG relative luminance of an sRGB colour (components 0 to 1).
@@ -72,10 +127,21 @@ struct BrandArt: @unchecked Sendable {
         func lin(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
         return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
     }
+
+    static func contrast(_ a: Double, _ b: Double) -> Double { (max(a, b) + 0.05) / (min(a, b) + 0.05) }
+
+    /// Share of the ink under `minimum` contrast against a surface of luminance `surface`.
+    static func faintShare(_ histogram: [Double], surface: Double, minimum: Double) -> Double {
+        histogram.indices.reduce(0) { sum, i in
+            let lum = (Double(i) + 0.5) / Double(histogram.count)
+            return contrast(lum, surface) < minimum ? sum + histogram[i] : sum
+        }
+    }
 }
 
 /// The logos decoded this run, by airline and kind, so a row drawn again (or rendered by ImageRenderer)
-/// shows its logo at once. A miss is remembered as `.none` until the service says otherwise.
+/// shows its logo at once. `.none` is a known absence; a failed request stores nothing, so the next view
+/// asks again.
 @MainActor
 final class BrandArtMemo {
     static let shared = BrandArtMemo()
@@ -85,8 +151,6 @@ final class BrandArtMemo {
     static func key(_ icao: String, _ kind: BrandAssetKind) -> String { "\(icao.uppercased())/\(kind.rawValue)" }
 
     func slot(_ icao: String, _ kind: BrandAssetKind) -> Slot? { slots[Self.key(icao, kind)] }
-
-    /// Stores what the service answered; a file with the version already held is not measured again.
     func set(_ icao: String, _ kind: BrandAssetKind, _ slot: Slot) { slots[Self.key(icao, kind)] = slot }
 
     func art(_ icao: String, _ kind: BrandAssetKind) -> BrandArt? {
@@ -102,16 +166,19 @@ final class BrandArtMemo {
 /// The airline's logo in a rounded square of `size`: the dark variant in dark mode when there is one,
 /// else the logo, else the monogram (IATA code, white and bold, on the brand colour).
 ///
-/// A logo whose ink is too close to the background (contrast under 4.5:1, measured once per file) sits
-/// on a plate: white for a dark logo, near black for a light one. A logo with its own opaque background
-/// sits on the plate of its tone. Wide wordmarks are fitted inside the square
-/// with padding.
+/// The logo sits on a plate when more than a quarter of its ink is under 4.5:1 against the surface it is
+/// drawn on (`logoSurface`): white or near black, whichever leaves less ink faint. A logo with its own
+/// opaque background always sits on the plate of that background's tone, in both schemes.
 public struct AirlineLogo: View {
     var airline: Airline?
     var code: String
     var size: CGFloat
+    /// True next to text that already names the airline: VoiceOver skips the mark.
+    var decorative: Bool
     @Environment(\.brandAssets) private var service
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.logoSurface) private var surface
+    @Environment(\.displayScale) private var displayScale
     /// Bumped when the task stores a new logo, so the body reads the memo again.
     @State private var revision = 0
 
@@ -122,15 +189,18 @@ public struct AirlineLogo: View {
     /// Inset of the logo inside the square, as a share of the side: on a plate, and with no plate.
     nonisolated static let platePadding: CGFloat = 0.14
     nonisolated static let barePadding: CGFloat = 0.06
-    /// Below this contrast against the page the logo gets a plate (WCAG's 4.5:1 for text: most logos
-    /// are wordmarks).
+    /// Ink under this contrast against its surface counts as faint (WCAG's 4.5:1: most logos are wordmarks).
     nonisolated static let minContrast = 4.5
-    /// A logo inking more than this share of its square carries its own background: it always sits on
-    /// the plate of that background's tone, so a white box reads as a white tile.
+    /// More faint ink than this share puts the logo on a plate.
+    nonisolated static let maxFaint = 0.25
+    /// A logo inking more than this share of its square carries its own background.
     nonisolated static let selfBacked = 0.9
+    /// The plates' luminance: white, and the near black (white 0.11) one.
+    nonisolated static let lightPlate = 1.0
+    nonisolated static let darkPlate = BrandArt.relativeLuminance(r: 0.11, g: 0.11, b: 0.11)
 
-    public init(airline: Airline?, code: String, size: CGFloat) {
-        self.airline = airline; self.code = code; self.size = size
+    public init(airline: Airline?, code: String, size: CGFloat, decorative: Bool = false) {
+        self.airline = airline; self.code = code; self.size = size; self.decorative = decorative
     }
 
     /// The letters of the fallback: the IATA code, else the first two letters of `code`.
@@ -157,50 +227,59 @@ public struct AirlineLogo: View {
         }
     }
 
-    /// The kinds to try for a scheme, best first.
+    /// The kinds to try for a scheme, best first. Square slots never take the wide `.wordmark`.
     nonisolated static func kinds(dark: Bool) -> [BrandAssetKind] { dark ? [.logoDark, .logo] : [.logo] }
 
-    /// The plate behind a logo of `luminance` and `coverage` on a light or dark page; nil when it reads
-    /// on its own.
     enum Plate: Equatable, Sendable { case light, dark }
-    nonisolated static func plate(luminance: Double, coverage: Double, dark: Bool) -> Plate? {
-        if coverage > selfBacked { return luminance < 0.5 ? .dark : .light }
-        let page = dark ? BrandArt.relativeLuminance(r: 0x18 / 255, g: 0x18 / 255, b: 0x1A / 255)
-            : BrandArt.relativeLuminance(r: 0xF2 / 255, g: 0xF2 / 255, b: 0xF7 / 255)
-        let contrast = (max(luminance, page) + 0.05) / (min(luminance, page) + 0.05)
-        if contrast >= minContrast { return nil }
-        return luminance < 0.5 ? .light : .dark
+
+    /// The plate behind a logo on a surface of luminance `surface`; nil when it reads on its own.
+    nonisolated static func plate(histogram: [Double], coverage: Double, border: Double, surface: Double) -> Plate? {
+        if coverage > selfBacked { return border < 0.5 ? .dark : .light }
+        let faint = BrandArt.faintShare(histogram, surface: surface, minimum: minContrast)
+        guard faint > maxFaint else { return nil }
+        let onLight = BrandArt.faintShare(histogram, surface: lightPlate, minimum: minContrast)
+        let onDark = BrandArt.faintShare(histogram, surface: darkPlate, minimum: minContrast)
+        return onLight <= onDark ? .light : .dark
     }
 
-    /// Asks the service for the kinds the scheme wants and decodes the answers into the memo. Returns the
-    /// art to draw (the first kind that has one).
+    nonisolated static func plate(_ art: BrandArt, surface: Double) -> Plate? {
+        plate(histogram: art.histogram, coverage: art.coverage, border: art.borderLuminance, surface: surface)
+    }
+
+    /// Asks the service for the kinds the scheme wants and decodes the answers at `maxPixel` into the memo.
+    /// Returns the art to draw (the first kind that has one). A failed request leaves the memo as it was.
     @discardableResult
-    static func load(icao: String, dark: Bool, service: any BrandAssetService) async -> BrandArt? {
+    static func load(icao: String, dark: Bool, service: any BrandAssetService, maxPixel: Int = 192) async -> BrandArt? {
         var best: BrandArt?
         for kind in kinds(dark: dark) {
             let memo = BrandArtMemo.shared
-            guard let asset = await service.asset(icao, kind) else {
+            switch await service.lookup(icao, kind, type: nil) {
+            case .unavailable:
+                if best == nil, let held = memo.art(icao, kind) { best = held }
+            case .missing:
                 memo.set(icao, kind, .none)
-                continue
+            case .found(let asset):
+                let art: BrandArt?
+                if let held = memo.art(icao, kind), held.version == asset.version, held.pixelSize >= maxPixel {
+                    art = held
+                } else {
+                    art = await decode(asset, maxPixel: maxPixel)
+                }
+                memo.set(icao, kind, art.map { .art($0) } ?? .none)
+                if best == nil, let art { best = art }
             }
-            let art: BrandArt?
-            if let held = memo.art(icao, kind), held.version == asset.version {
-                art = held
-            } else {
-                art = await decode(asset)
-            }
-            memo.set(icao, kind, art.map { .art($0) } ?? .none)
-            if best == nil, let art { best = art }
         }
         return best
     }
 
-    @concurrent private static func decode(_ asset: BrandAsset) async -> BrandArt? { BrandArt.make(asset) }
+    @concurrent private static func decode(_ asset: BrandAsset, maxPixel: Int) async -> BrandArt? {
+        BrandArt.make(asset, maxPixel: maxPixel)
+    }
 
     /// Fills the memo for these airlines in both schemes (renders that cannot wait for a task).
-    public static func preload(_ icaos: [String], service: any BrandAssetService) async {
+    public static func preload(_ icaos: [String], service: any BrandAssetService, maxPixel: Int = 192) async {
         for icao in Set(icaos.map { $0.uppercased() }) {
-            await load(icao: icao, dark: true, service: service)
+            await load(icao: icao, dark: true, service: service, maxPixel: maxPixel)
         }
     }
 
@@ -213,6 +292,7 @@ public struct AirlineLogo: View {
     public var body: some View {
         let dark = scheme == .dark
         let icao = airline?.id
+        let pixels = Int((size * displayScale).rounded(.up))
         // Read so a stored logo redraws the view.
         let _ = revision
         let art = icao.flatMap { Self.held(icao: $0, dark: dark) }
@@ -224,12 +304,15 @@ public struct AirlineLogo: View {
             }
         }
         .frame(width: size, height: size)
-        .accessibilityHidden(true)
-        .task(id: icao.map { "\($0)-\(dark)" }) {
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(airline?.name ?? code)
+        .accessibilityAddTraits(.isImage)
+        .accessibilityHidden(decorative)
+        .task(id: icao.map { "\($0)-\(dark)-\(pixels)" }) {
             guard let icao else { return }
-            let before = Self.held(icao: icao, dark: dark)?.version
-            let after = await Self.load(icao: icao, dark: dark, service: service)
-            if after?.version != before || (after == nil) != (before == nil) { revision += 1 }
+            let before = Self.held(icao: icao, dark: dark)
+            let after = await Self.load(icao: icao, dark: dark, service: service, maxPixel: pixels)
+            if after?.version != before?.version || after?.pixelSize != before?.pixelSize { revision += 1 }
         }
     }
 
@@ -247,7 +330,7 @@ public struct AirlineLogo: View {
     }
 
     @ViewBuilder private func logo(_ art: BrandArt, dark: Bool) -> some View {
-        let plate = Self.plate(luminance: art.luminance, coverage: art.coverage, dark: dark)
+        let plate = Self.plate(art, surface: surface.luminance(dark: dark))
         let inset = size * (plate == nil ? Self.barePadding : Self.platePadding)
         let image = Image(decorative: art.image, scale: 1)
             .resizable()
@@ -271,25 +354,26 @@ public struct AirlineLogo: View {
 // MARK: - AirlineMark
 
 /// An airline's logo from a name or code (`key`) and a flight designator (`code`), resolved through the
-/// reference list. `size` nil keeps 34 pt under Dynamic Type.
+/// reference list. `size` nil keeps 34 pt under Dynamic Type. `decorative` when the row already names it.
 struct AirlineMark: View {
     var code: String
     var key: String
     var size: CGFloat?
+    var decorative: Bool
     @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = 34
     @Environment(\.reference) private var reference
 
-    init(code: String, key: String, size: CGFloat? = nil) {
-        self.code = code; self.key = key; self.size = size
+    init(code: String, key: String, size: CGFloat? = nil, decorative: Bool = false) {
+        self.code = code; self.key = key; self.size = size; self.decorative = decorative
     }
 
     /// From an airline name or code alone (Passport rankings, tails).
-    init(airline: String, size: CGFloat) {
-        self.code = airline; self.key = airline; self.size = size
+    init(airline: String, size: CGFloat, decorative: Bool = false) {
+        self.code = airline; self.key = airline; self.size = size; self.decorative = decorative
     }
 
     var body: some View {
         let airline = TravelFacts.badgeAirline(code: code, key: key, reference: reference)
-        AirlineLogo(airline: airline, code: airline?.iata ?? code, size: size ?? scaled)
+        AirlineLogo(airline: airline, code: airline?.iata ?? code, size: size ?? scaled, decorative: decorative)
     }
 }

@@ -96,7 +96,9 @@ struct DelayedFlightRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident)
+            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident, decorative: true)
+                // The page's own red, for the mark's contrast check.
+                .environment(\.logoSurface, .fixed(0x330D0F))
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 7) {
                     Text(Format.ident(flight.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)

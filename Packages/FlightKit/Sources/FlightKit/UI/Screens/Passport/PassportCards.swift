@@ -362,7 +362,7 @@ struct PastFlightRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident)
+            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident, decorative: true)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(Format.ident(flight.ident)).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
