@@ -7,11 +7,12 @@ public struct FlightScreen: View {
     @State private var store: FlightDetailStore
     var onAirport: (String) -> Void
     var onClose: () -> Void
-    var onStopTracking: ((Flight) -> Void)?
+    var onStopTracking: ((Flight.ID) async -> APIError?)?
 
-    /// - Parameter onStopTracking: unfollows the flight (the menu's "Stop Tracking"); nil leaves it out.
+    /// - Parameter onStopTracking: unfollows the flight (the menu's "Stop Tracking") and returns the error, nil
+    ///   on success; nil lets the store ask the service. The sheet closes once it worked.
     public init(env: AppEnvironment, id: Flight.ID, owner: UUID?, onAirport: @escaping (String) -> Void,
-                onClose: @escaping () -> Void, onStopTracking: ((Flight) -> Void)? = nil) {
+                onClose: @escaping () -> Void, onStopTracking: ((Flight.ID) async -> APIError?)? = nil) {
         _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
         self.onAirport = onAirport; self.onClose = onClose; self.onStopTracking = onStopTracking
     }
@@ -58,11 +59,13 @@ public struct HomeDestination: View {
         switch route {
         case .flight(let id):
             FlightScreen(env: home.env, id: id, owner: home.owner, onAirport: home.open(airport:),
-                         onClose: home.shell.close) { flight in
-                Task {
-                    await home.myFlights.unfollow(flight)
-                    if home.myFlights.error == nil { home.shell.close() }
+                         onClose: home.shell.close) { id in
+                // Through My Flights so its list drops the flight at once.
+                guard let flight = home.followed.first(where: { $0.id == id }) else {
+                    do throws(APIError) { try await home.env.flights.unfollow(id); return nil } catch { return error }
                 }
+                await home.myFlights.unfollow(flight)
+                return home.myFlights.error
             }
         case .airport(let code):
             AirportScreen(env: home.env, code: code, onClose: home.shell.close)

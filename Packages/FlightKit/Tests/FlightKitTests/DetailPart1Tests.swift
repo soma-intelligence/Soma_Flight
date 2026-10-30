@@ -202,4 +202,140 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         await store.saveDetails(FollowDetails(seat: "12A"))
         #expect(store.details == nil && store.detailsError == nil)
     }
+
+    // MARK: Fix round 1
+
+    @Test func dayMarkerOnClockChangeDays() {
+        let la = Self.sfo.timeZone, paris = Self.cdg.timeZone
+        let london = TimeZone(identifier: "Europe/London")!
+        // US fall back, 1 November 2026: SFO 23:30 PDT Saturday to LAX 01:30 PST Sunday.
+        #expect(DetailFacts.dayMarker(departure: date("2026-11-01T06:30:00Z"), depTz: la,
+                                      arrival: date("2026-11-01T09:30:00Z"), arrTz: la) == "+1")
+        // The repeated hour: 01:30 PDT to 01:10 PST, same local date.
+        #expect(DetailFacts.dayMarker(departure: date("2026-11-01T08:30:00Z"), depTz: la,
+                                      arrival: date("2026-11-01T09:10:00Z"), arrTz: la) == nil)
+        // Europe falls back on 25 October 2026: CDG 23:00 CEST Saturday to LHR 00:30 BST Sunday.
+        #expect(DetailFacts.dayMarker(departure: date("2026-10-24T21:00:00Z"), depTz: paris,
+                                      arrival: date("2026-10-24T23:30:00Z"), arrTz: london) == "+1")
+        // CDG 01:30 CEST to LHR 01:45 GMT, both Sunday.
+        #expect(DetailFacts.dayMarker(departure: date("2026-10-24T23:30:00Z"), depTz: paris,
+                                      arrival: date("2026-10-25T01:45:00Z"), arrTz: london) == nil)
+    }
+
+    @Test func editValidation() {
+        let draft = FollowDetails(seatClass: .business)
+        #expect(DetailEditModel.validated(field: .seat, text: " 23a", draft: draft)
+                == .success(FollowDetails(seatClass: .business, seat: "23A")))
+        #expect(DetailEditModel.validated(field: .seat, text: "ZZ", draft: draft)
+                == .failure(.init("Use a row and a letter, like 23A")))
+        #expect(DetailEditModel.validated(field: .bookingCode, text: "ab", draft: draft)
+                == .failure(.init("Use 5 to 8 letters or digits")))
+        #expect(DetailEditModel.validated(field: .bookingCode, text: "", draft: FollowDetails(bookingCode: "ABC123"))
+                == .success(.empty))
+        #expect(DetailEditModel.validated(field: .notes, text: String(repeating: "a", count: 2001), draft: draft)
+                == .failure(.init("Use at most 2000 characters")))
+    }
+
+    @Test func pastedBookingCode() {
+        #expect(DetailFacts.pastedBookingCode(" k7pq2x\n") == "K7PQ2X")
+        #expect(DetailFacts.pastedBookingCode("hello world") == nil)
+        #expect(DetailFacts.pastedBookingCode("") == nil)
+    }
+
+    /// The sheet's model: an offline save keeps the typed text and says why under the field, the store
+    /// rolls back, and trying again stores it.
+    @Test func editSheetKeepsTextWhenOffline() async throws {
+        let (store, flights, flight) = try await followedStore()
+        let model = DetailEditModel(field: .seat, details: store.details ?? .empty)
+        model.text = "14c"
+        await flights.setNextError(.offline)
+        #expect(await model.save(to: store) == false)
+        #expect(model.text == "14c")
+        #expect(model.error == APIError.offline.message)
+        #expect(store.details == .empty)
+        #expect(try await flights.followDetails(flight.id) == .empty)
+
+        #expect(await model.save(to: store))
+        #expect(model.error == nil)
+        #expect(store.details?.seat == "14C")
+        #expect(store.detailsError == nil)
+    }
+
+    @Test func editSheetInvalidTextSendsNothing() async throws {
+        let (store, flights, _) = try await followedStore()
+        let model = DetailEditModel(field: .bookingCode, details: store.details ?? .empty)
+        model.text = "AB"
+        await flights.setNextError(.offline)
+        #expect(await model.save(to: store) == false)
+        #expect(model.error == DetailFacts.bookingCodeError)
+        #expect(await flights.nextError == .offline)
+    }
+
+    /// Two edits close together: both are sent in order (or the older skipped) and the newer one stays.
+    @Test func concurrentEditsLatestWins() async throws {
+        let (store, flights, flight) = try await followedStore()
+        async let first = store.saveDetails(FollowDetails(seat: "1A"))
+        async let second = store.saveDetails(FollowDetails(seat: "2B"))
+        let results = await [first, second]
+        #expect(results == [true, true])
+        #expect(store.details == FollowDetails(seat: "2B"))
+        #expect(try await flights.followDetails(flight.id) == FollowDetails(seat: "2B"))
+        #expect(!store.isSavingDetails)
+    }
+
+    @Test func staleErrorClearedOnNewAttempt() async throws {
+        let (store, flights, _) = try await followedStore()
+        await flights.setNextError(.offline)
+        await store.saveDetails(FollowDetails(seat: "3C"))
+        #expect(store.detailsError == .offline)
+        store.clearDetailsError()
+        #expect(store.detailsError == nil)
+        await flights.setNextError(.offline)
+        await store.saveDetails(FollowDetails(seat: "3C"))
+        #expect(store.detailsError == .offline)
+        // A new attempt clears it even when nothing changed since.
+        #expect(await store.saveDetails(.empty))
+        #expect(store.detailsError == nil)
+    }
+
+    @Test func stopTrackingSucceeds() async throws {
+        let (store, flights, flight) = try await followedStore()
+        #expect(store.isFollowed)
+        #expect(await store.stopTracking())
+        #expect(!store.isFollowed && store.notify == nil && store.trackingError == nil)
+        #expect(try await flights.followed().contains { $0.id == flight.id } == false)
+    }
+
+    @Test func stopTrackingFailureKeepsSheet() async throws {
+        let (store, flights, flight) = try await followedStore()
+        await flights.setNextError(.offline)
+        #expect(await store.stopTracking() == false)
+        #expect(store.trackingError == .offline)
+        #expect(store.isFollowed)
+        #expect(try await flights.followed().contains { $0.id == flight.id })
+        store.clearTrackingError()
+        #expect(store.trackingError == nil)
+    }
+
+    @Test func stopTrackingThroughTheShell() async throws {
+        let (store, _, flight) = try await followedStore()
+        var asked: [Flight.ID] = []
+        #expect(await store.stopTracking(via: { id in asked.append(id); return .rateLimited }) == false)
+        #expect(store.trackingError == .rateLimited && store.isFollowed)
+        #expect(await store.stopTracking(via: { id in asked.append(id); return nil }))
+        #expect(asked == [flight.id, flight.id])
+        #expect(!store.isFollowed && store.trackingError == nil)
+    }
+
+    /// Stop Tracking follows the followed state, not the alert switch: a failed alerts fetch keeps it.
+    @Test func stopTrackingGatedOnFollowed() async throws {
+        let flights = FakeFlightService(now: FakeSeed.reference)
+        let flight = try #require(try await flights.followed().first)
+        try await flights.unfollow(flight.id)
+        let store = FlightDetailStore(id: flight.id, flights: flights, airports: FakeAirportService(now: FakeSeed.reference))
+        await store.load()
+        #expect(!store.isFollowed)
+        #expect(await store.stopTracking() == false)
+        #expect(store.trackingError == nil)
+    }
 }

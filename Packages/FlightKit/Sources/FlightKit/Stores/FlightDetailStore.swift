@@ -17,8 +17,19 @@ public final class FlightDetailStore {
     public private(set) var details: FollowDetails?
     /// A details change is on its way to the server.
     public private(set) var isSavingDetails = false
-    /// Why the last details change did not stick; cleared by the next successful one.
+    /// Why the last details change did not stick; cleared when the user tries again or opens an editor.
     public private(set) var detailsError: APIError?
+    /// Why "Stop Tracking" did not work; the sheet shows it until dismissed.
+    public private(set) var trackingError: APIError?
+    /// True while the user follows the flight, as far as this screen knows.
+    public var isFollowed: Bool { details != nil }
+
+    /// What the server holds, to go back to when a save fails.
+    private var confirmedDetails: FollowDetails?
+    /// Bumped by every save; only the newest one may roll back or report an error.
+    private var detailsGeneration = 0
+    /// Saves run one after another, in the order the user made them.
+    private var detailsChain: Task<Bool, Never>?
 
     private let id: Flight.ID
     private let flights: any FlightService
@@ -45,7 +56,10 @@ public final class FlightDetailStore {
         // The switch only: a failure hides it rather than covering the flight with an error.
         if !isSavingNotify, let n = try? await flights.notifies(id), !isSavingNotify { notify = n }
         // The tiles likewise: a failure keeps what they show.
-        if !isSavingDetails, let d = try? await flights.followDetails(id), !isSavingDetails { details = d }
+        if !isSavingDetails, let d = try? await flights.followDetails(id), !isSavingDetails {
+            details = d
+            confirmedDetails = d
+        }
 
         var eventsFailed = false
         do { events = try await flights.events(id) } catch { note(error); eventsFailed = true }
@@ -104,22 +118,75 @@ public final class FlightDetailStore {
     }
 
     /// Stores the booking code, seat and notes of the followed flight. Each field is normalised first
-    /// (`FollowDetails.normalized()`); a value that does not normalise sends nothing. The tiles change at
-    /// once and go back, with `detailsError` set, when the server refuses.
-    public func saveDetails(_ new: FollowDetails) async {
-        guard let before = details, !isSavingDetails, let clean = new.normalized() else { return }
-        guard clean != before else { return }
+    /// (`FollowDetails.normalized()`); a value that does not normalise sends nothing and returns false.
+    /// The tiles change at once. Saves are sent one after another and the latest wins: a save that a newer
+    /// one replaced before it left is skipped, and only the newest one rolls the tiles back to what the
+    /// server holds and sets `detailsError` when refused. Returns whether this edit is now stored (or
+    /// superseded by a newer one).
+    @discardableResult
+    public func saveDetails(_ new: FollowDetails) async -> Bool {
+        guard details != nil, let clean = new.normalized() else { return false }
+        detailsError = nil
+        guard clean != details || clean != confirmedDetails else { return true }
+        detailsGeneration += 1
+        let generation = detailsGeneration
         details = clean
         isSavingDetails = true
-        defer { isSavingDetails = false }
+        let previous = detailsChain
+        let work = Task { @MainActor [weak self] () -> Bool in
+            _ = await previous?.value
+            guard let self else { return false }
+            return await self.send(clean, generation: generation)
+        }
+        detailsChain = work
+        let stored = await work.value
+        if generation == detailsGeneration { isSavingDetails = false }
+        return stored
+    }
+
+    private func send(_ value: FollowDetails, generation: Int) async -> Bool {
+        // A newer edit is queued behind this one: only the newest goes to the server.
+        guard generation == detailsGeneration else { return true }
         do {
-            try await flights.saveFollowDetails(id, clean)
-            detailsError = nil
+            try await flights.saveFollowDetails(id, value)
+            confirmedDetails = value
+            return true
         } catch {
-            details = before
-            detailsError = error
+            if generation == detailsGeneration {
+                details = confirmedDetails
+                detailsError = error
+            }
+            return false
         }
     }
+
+    /// Forgets the last details error (the user opened an editor or dismissed it).
+    public func clearDetailsError() { detailsError = nil }
+
+    /// Unfollows the flight. `unfollow` does the work when the screen sits in a shell that keeps its own
+    /// list (it returns the error, nil on success); else the service is asked directly. On failure the
+    /// sheet stays and `trackingError` says why.
+    @discardableResult
+    public func stopTracking(via unfollow: ((Flight.ID) async -> APIError?)? = nil) async -> Bool {
+        guard isFollowed else { return false }
+        trackingError = nil
+        let failure: APIError?
+        if let unfollow {
+            failure = await unfollow(id)
+        } else {
+            do { try await flights.unfollow(id); failure = nil } catch { failure = error }
+        }
+        if let failure {
+            trackingError = failure
+            return false
+        }
+        details = nil
+        confirmedDetails = nil
+        notify = nil
+        return true
+    }
+
+    public func clearTrackingError() { trackingError = nil }
 }
 
 extension FollowDetails {

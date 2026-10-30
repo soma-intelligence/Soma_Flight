@@ -9,7 +9,14 @@ enum DetailField: String, Identifiable, Sendable {
 extension DetailFacts {
     static let bookingCodeError = "Use 5 to 8 letters or digits"
     static let seatError = "Use a row and a letter, like 23A"
-    static let notesError = "Keep notes under \(FollowDetails.maxNotes) characters"
+    static let notesError = "Use at most \(FollowDetails.maxNotes) characters"
+    static let pasteHint = "That is not a booking code"
+
+    /// The booking code in pasted text, or nil when the text is not one (empty text is not one either).
+    static func pastedBookingCode(_ text: String) -> String? {
+        guard case let code?? = FollowDetails.normalizedBookingCode(text) else { return nil }
+        return code
+    }
 
     /// The seat tile's line: "23A · Business", the class alone, or nil when neither is set.
     static func seatLine(_ d: FollowDetails) -> String? {
@@ -26,11 +33,27 @@ struct DetailTiles: View {
     var details: FollowDetails
     var onEdit: (DetailField) -> Void
     var onPaste: ((String) -> Void)?
+    /// A short line under the tiles, such as why a paste was not kept.
+    var hint: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            tile(icon: "ticket", title: "Booking Code", value: details.bookingCode, field: .bookingCode)
-            tile(icon: "carseat.right", title: "Seat", value: DetailFacts.seatLine(details), field: .seat)
+        VStack(alignment: .leading, spacing: 8) {
+            // Side by side, stacked at accessibility sizes so "23A · Business" keeps its room.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            layout {
+                tile(icon: "ticket", title: "Booking Code", value: details.bookingCode, field: .bookingCode)
+                tile(icon: "carseat.right", title: "Seat", value: DetailFacts.seatLine(details), field: .seat)
+            }
+            if let hint {
+                Text(hint)
+                    .scaledFont(14)
+                    .foregroundStyle(Theme.veryLate)
+                    .scaledPadding(.leading, 4)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
         }
     }
 
@@ -46,13 +69,13 @@ struct DetailTiles: View {
                 Text(title)
                     .scaledFont(17, weight: .semibold)
                     .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(value ?? "Tap to edit")
                     .scaledFont(15)
                     .foregroundStyle(value == nil ? Theme.secondary : Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .scaledPadding(.horizontal, 16)
@@ -121,29 +144,79 @@ struct NotesCard: View {
 
 // MARK: - Edit sheet
 
-/// One sheet per field: the booking code; the seat with its class and the trip's reason; the notes.
-/// Save checks the text first and says what is wrong under the field rather than sending it.
-struct DetailEditSheet: View {
-    var field: DetailField
-    var onSave: (FollowDetails) -> Void
-    @State private var draft: FollowDetails
-    @State private var text: String
-    @State private var error: String?
-    @Environment(\.dismiss) private var dismiss
+/// What an edit sheet holds while open: the typed text, the class and reason, the inline error. Save
+/// checks the text, sends it through the store, and on a refusal keeps everything typed and says why.
+@MainActor @Observable
+final class DetailEditModel {
+    let field: DetailField
+    var draft: FollowDetails
+    var text: String
+    var error: String?
+    private(set) var isSaving = false
 
-    init(field: DetailField, details: FollowDetails, onSave: @escaping (FollowDetails) -> Void) {
-        self.field = field; self.onSave = onSave
-        _draft = State(initialValue: details)
-        let start: String = switch field {
+    init(field: DetailField, details: FollowDetails) {
+        self.field = field
+        draft = details
+        text = switch field {
         case .bookingCode: details.bookingCode ?? ""
         case .seat: details.seat ?? ""
         case .notes: details.notes ?? ""
         }
-        _text = State(initialValue: start)
+    }
+
+    /// The details with `text` put in `field`, or the line to show under the field when it is not valid.
+    static func validated(field: DetailField, text: String, draft: FollowDetails) -> Result<FollowDetails, InputError> {
+        var next = draft
+        switch field {
+        case .bookingCode:
+            guard let v = FollowDetails.normalizedBookingCode(text) else { return .failure(InputError(DetailFacts.bookingCodeError)) }
+            next.bookingCode = v
+        case .seat:
+            guard let v = FollowDetails.normalizedSeat(text) else { return .failure(InputError(DetailFacts.seatError)) }
+            next.seat = v
+        case .notes:
+            guard let v = FollowDetails.normalizedNotes(text) else { return .failure(InputError(DetailFacts.notesError)) }
+            next.notes = v
+        }
+        return .success(next)
+    }
+
+    struct InputError: Error, Equatable {
+        var message: String
+        init(_ message: String) { self.message = message }
+    }
+
+    /// Saves through the store; true once stored (close the sheet), false with `error` set otherwise.
+    func save(to store: FlightDetailStore) async -> Bool {
+        guard !isSaving else { return false }
+        let next: FollowDetails
+        switch Self.validated(field: field, text: text, draft: draft) {
+        case .failure(let e): error = e.message; return false
+        case .success(let v): next = v
+        }
+        error = nil
+        isSaving = true
+        defer { isSaving = false }
+        if await store.saveDetails(next) { return true }
+        error = store.detailsError?.message ?? "This flight is no longer in My Flights."
+        return false
+    }
+}
+
+/// One sheet per field: the booking code; the seat with its class and the trip's reason; the notes.
+/// It closes only once the store has the change; a refusal shows under the field with the text kept.
+struct DetailEditSheet: View {
+    var store: FlightDetailStore
+    @State private var model: DetailEditModel
+    @Environment(\.dismiss) private var dismiss
+
+    init(field: DetailField, store: FlightDetailStore) {
+        self.store = store
+        _model = State(initialValue: DetailEditModel(field: field, details: store.details ?? .empty))
     }
 
     private var title: String {
-        switch field {
+        switch model.field {
         case .bookingCode: "Booking Code"
         case .seat: "Seat"
         case .notes: "Notes"
@@ -151,12 +224,13 @@ struct DetailEditSheet: View {
     }
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack {
             Form {
-                switch field {
+                switch model.field {
                 case .bookingCode:
                     Section {
-                        TextField("ABC123", text: $text)
+                        TextField("ABC123", text: $model.text)
                             .autocorrectionDisabled()
                             #if os(iOS)
                             .textInputAutocapitalization(.characters)
@@ -165,7 +239,7 @@ struct DetailEditSheet: View {
                     } footer: { footer }
                 case .seat:
                     Section {
-                        TextField("23A", text: $text)
+                        TextField("23A", text: $model.text)
                             .autocorrectionDisabled()
                             #if os(iOS)
                             .textInputAutocapitalization(.characters)
@@ -173,7 +247,8 @@ struct DetailEditSheet: View {
                             .accessibilityLabel("Seat")
                     } footer: { footer }
                     Section("Class") {
-                        Picker("Class", selection: $draft.seatClass) {
+                        Picker("Class", selection: $model.draft.seatClass) {
+                            Text("None").tag(SeatClass?.none)
                             ForEach(SeatClass.allCases, id: \.self) { c in
                                 Text(c == .premiumEconomy ? "Premium" : c.title).tag(Optional(c))
                             }
@@ -182,7 +257,8 @@ struct DetailEditSheet: View {
                         .labelsHidden()
                     }
                     Section("Reason") {
-                        Picker("Reason", selection: $draft.reason) {
+                        Picker("Reason", selection: $model.draft.reason) {
+                            Text("None").tag(TripReason?.none)
                             ForEach(TripReason.allCases, id: \.self) { r in Text(r.title).tag(Optional(r)) }
                         }
                         .pickerStyle(.segmented)
@@ -190,13 +266,13 @@ struct DetailEditSheet: View {
                     }
                 case .notes:
                     Section {
-                        TextEditor(text: $text)
+                        TextEditor(text: $model.text)
                             .frame(minHeight: 180)
                             .accessibilityLabel("Notes")
                     } footer: {
                         VStack(alignment: .leading, spacing: 4) {
                             footer
-                            Text("\(text.unicodeScalars.count) of \(FollowDetails.maxNotes)")
+                            Text("\(model.text.unicodeScalars.count) of \(FollowDetails.maxNotes)")
                                 .monospacedDigit()
                         }
                     }
@@ -208,32 +284,25 @@ struct DetailEditSheet: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).bold() }
+                ToolbarItem(placement: .confirmationAction) {
+                    if model.isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Save") { Task { if await model.save(to: store) { dismiss() } } }.bold()
+                    }
+                }
             }
-            .onChange(of: text) { error = nil }
+            .interactiveDismissDisabled(model.isSaving)
+            .onChange(of: model.text) { model.error = nil }
         }
+        .onAppear { store.clearDetailsError() }
     }
 
     @ViewBuilder private var footer: some View {
-        if let error {
-            Text(error).foregroundStyle(Theme.veryLate)
+        if let error = model.error {
+            Text(error)
+                .foregroundStyle(Theme.veryLate)
+                .accessibilityLabel("Error: \(error)")
         }
-    }
-
-    private func save() {
-        var next = draft
-        switch field {
-        case .bookingCode:
-            guard let v = FollowDetails.normalizedBookingCode(text) else { error = DetailFacts.bookingCodeError; return }
-            next.bookingCode = v
-        case .seat:
-            guard let v = FollowDetails.normalizedSeat(text) else { error = DetailFacts.seatError; return }
-            next.seat = v
-        case .notes:
-            guard let v = FollowDetails.normalizedNotes(text) else { error = DetailFacts.notesError; return }
-            next.notes = v
-        }
-        onSave(next)
-        dismiss()
     }
 }

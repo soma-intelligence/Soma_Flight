@@ -9,10 +9,12 @@ public struct FlightDetailView: View {
     var store: FlightDetailStore
     var onAirport: (String) -> Void
     var onClose: (() -> Void)?
-    var onStopTracking: ((Flight) -> Void)?
+    var onStopTracking: ((Flight.ID) async -> APIError?)?
     var fixedNow: Date?
     var scrolls: Bool
     @State private var editing: DetailField?
+    @State private var pasteHint: String?
+    @State private var pasteFailures = 0
     @Environment(\.reference) private var reference
     @Environment(\.units) private var units
     @Environment(\.openURL) private var openURL
@@ -20,16 +22,17 @@ public struct FlightDetailView: View {
     /// - Parameters:
     ///   - onAirport: opens the airport sheet for an ICAO code.
     ///   - onClose: closes the sheet; nil hides the close button.
-    ///   - onStopTracking: unfollows the flight; nil leaves "Stop Tracking" out of the menu.
+    ///   - onStopTracking: unfollows the flight through the shell's list and returns the error, nil on
+    ///     success; when nil the store asks the service. The sheet closes (`onClose`) once it worked.
     ///   - now: a fixed clock for previews; nil follows the real time.
     public init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, onClose: (() -> Void)? = nil,
-                onStopTracking: ((Flight) -> Void)? = nil, now: Date? = nil) {
+                onStopTracking: ((Flight.ID) async -> APIError?)? = nil, now: Date? = nil) {
         self.init(store: store, onAirport: onAirport, onClose: onClose, onStopTracking: onStopTracking,
                   now: now, scrolls: true)
     }
 
     init(store: FlightDetailStore, onAirport: @escaping (String) -> Void, onClose: (() -> Void)? = nil,
-         onStopTracking: ((Flight) -> Void)? = nil, now: Date?, scrolls: Bool) {
+         onStopTracking: ((Flight.ID) async -> APIError?)? = nil, now: Date?, scrolls: Bool) {
         self.store = store; self.onAirport = onAirport; self.onClose = onClose
         self.onStopTracking = onStopTracking; self.fixedNow = now; self.scrolls = scrolls
     }
@@ -73,11 +76,17 @@ public struct FlightDetailView: View {
             }
         }
         .sheet(item: $editing) { field in
-            DetailEditSheet(field: field, details: store.details ?? .empty) { new in
-                Task { await store.saveDetails(new) }
-            }
-            .environment(\.units, units)
+            DetailEditSheet(field: field, store: store)
+                .environment(\.units, units)
         }
+        .alert("Could Not Stop Tracking", isPresented: Binding(
+            get: { store.trackingError != nil },
+            set: { if !$0 { store.clearTrackingError() } })) {
+            Button("OK", role: .cancel) { store.clearTrackingError() }
+        } message: {
+            Text(store.trackingError?.message ?? "")
+        }
+        .sensoryFeedback(.error, trigger: pasteFailures)
     }
 
     private func reload() { Task { await store.load() } }
@@ -117,7 +126,7 @@ public struct FlightDetailView: View {
                              onAirport: onAirport)
                     .scaledPadding(.top, 16)
                 if let details = store.details {
-                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste)
+                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste, hint: pasteHint)
                         .scaledPadding(.top, 12)
                 }
             }
@@ -166,17 +175,35 @@ public struct FlightDetailView: View {
                                                          destination: plannedDestination(flight), clock: units.clock),
                         notify: DetailFacts.takesAlerts(flight) ? store.notify : nil,
                         onNotify: { on in Task { await store.setNotify(on) } }) {
-            if store.notify != nil, let onStopTracking {
-                Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { onStopTracking(flight) }
+            if store.isFollowed {
+                Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { stopTracking() }
             }
             Button("Copy Flight Number", systemImage: "doc.on.doc") { Pasteboard.copy(Format.ident(flight.ident)) }
             Button("Report a Data Issue", systemImage: "exclamationmark.bubble") { openURL(SettingsView.supportURL) }
         }
     }
 
-    /// Keeps pasted text only when it reads as a booking code.
+    private func stopTracking() {
+        Task {
+            if await store.stopTracking(via: onStopTracking) { onClose?() }
+        }
+    }
+
+    /// Keeps pasted text only when it reads as a booking code; anything else says so under the tiles
+    /// for a few seconds.
     private func paste(_ text: String) {
-        guard case let code?? = FollowDetails.normalizedBookingCode(text), var next = store.details else { return }
+        guard var next = store.details else { return }
+        guard let code = DetailFacts.pastedBookingCode(text) else {
+            pasteFailures += 1
+            let attempt = pasteFailures
+            pasteHint = DetailFacts.pasteHint
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                if pasteFailures == attempt { pasteHint = nil }
+            }
+            return
+        }
+        pasteHint = nil
         next.bookingCode = code
         Task { await store.saveDetails(next) }
     }

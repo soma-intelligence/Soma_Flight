@@ -94,12 +94,13 @@ struct DepartArrive: View {
     var now: Date
     var onAirport: (String) -> Void = { _ in }
     @Environment(\.units) private var units
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let out = DetailFacts.bestOut(flight), arr = DetailFacts.bestIn(flight)
-        let marker: String? = if let out, let arr {
-            DetailFacts.dayMarker(departure: out, depTz: origin?.timeZone ?? .current,
-                                  arrival: arr, arrTz: destination?.timeZone ?? .current)
+        // Both zones must be known: a guess from the phone's zone could show a wrong day.
+        let marker: String? = if let out, let arr, let o = origin, let d = destination {
+            DetailFacts.dayMarker(departure: out, depTz: o.timeZone, arrival: arr, arrTz: d.timeZone)
         } else { nil }
         VStack(alignment: .leading, spacing: 0) {
             side(arriving: false, code: flight.originCode, icao: flight.originIcao, airport: origin, time: out,
@@ -160,6 +161,12 @@ struct DepartArrive: View {
             .accessibilityValue(airport?.name ?? code)
             .accessibilityHint("Opens the airport")
 
+            // Time and gate side by side; at accessibility sizes the gate and terminal go under the time
+            // so the time keeps its size.
+            let stacked = typeSize.isAccessibilitySize
+            let terminalText = arriving && flight.baggageBelt != nil
+                ? "Terminal \(terminal ?? "--") · Belt \(flight.baggageBelt ?? "")"
+                : "Terminal \(terminal ?? "--")"
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center) {
                     HStack(alignment: .top, spacing: 2) {
@@ -168,7 +175,7 @@ struct DepartArrive: View {
                             .monospacedDigit()
                             .foregroundStyle(time == nil ? Theme.secondary : Theme.primary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.6)
+                            .minimumScaleFactor(stacked ? 0.9 : 0.6)
                         if let marker {
                             Text(marker)
                                 .scaledFont(15, weight: .semibold)
@@ -176,20 +183,26 @@ struct DepartArrive: View {
                                 .accessibilityLabel(marker.hasPrefix("-") ? "previous day" : "\(marker) day")
                         }
                     }
-                    Spacer(minLength: 12)
-                    GateBadge(gate: gate, arriving: arriving)
+                    if !stacked {
+                        Spacer(minLength: 12)
+                        GateBadge(gate: gate, arriving: arriving)
+                    }
                 }
-                HStack(alignment: .firstTextBaseline) {
-                    Text(word)
-                        .scaledFont(14)
-                        .foregroundStyle(Theme.secondary)
-                    Spacer(minLength: 12)
-                    Text(arriving && flight.baggageBelt != nil
-                         ? "Terminal \(terminal ?? "--") · Belt \(flight.baggageBelt ?? "")"
-                         : "Terminal \(terminal ?? "--")")
-                        .scaledFont(14)
-                        .foregroundStyle(Theme.secondary)
-                        .lineLimit(1)
+                if stacked {
+                    Text(word).scaledFont(14).foregroundStyle(Theme.secondary)
+                    GateBadge(gate: gate, arriving: arriving).scaledPadding(.top, 6)
+                    Text(terminalText).scaledFont(14).foregroundStyle(Theme.secondary)
+                } else {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(word)
+                            .scaledFont(14)
+                            .foregroundStyle(Theme.secondary)
+                        Spacer(minLength: 12)
+                        Text(terminalText)
+                            .scaledFont(14)
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
             .accessibilityElement(children: .combine)
