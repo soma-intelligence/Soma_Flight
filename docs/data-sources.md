@@ -92,12 +92,17 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
 
 - Files: `assets/logos/commons/<ICAO>.svg` (as published on Commons) or `<ICAO>.png` (PNG sources, scaled to
   192 px on the longest side), `assets/logos/commons/png/<ICAO>.png` (every logo rendered at 192 px on the
-  longest side, transparent), `manifest.json` (per ICAO: file, sha256, Wikidata item, source page, licence short
-  name and URL, author, credit, attribution text, retrieval date) and `rejected.json` (every airline without a
-  usable logo, with the reason). The app's credit list `Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json`
-  is written from the manifest and shown in Acknowledgements under "Airline logos (Wikimedia Commons)".
-- Built by `python3 -I Scripts/logos/fetch_commons.py`; review sheet `docs/logos/library.png` by
-  `python3 -I Scripts/logos/build_sheets.py` (which also draws `docs/logos/flags.png`, the 251 bundled flags).
+  longest side, transparent), `assets/logos/commons/symbol/<ICAO>.svg|png` and `symbol/png/<ICAO>.png` (the
+  airline's compact symbol mark, same rules), `manifest.json` (`logos` = wordmarks, kind `wordmark`; `symbols` =
+  symbol marks, kind `symbol`, with `symbol_source`; per ICAO: file, sha256, Wikidata item, source page, licence
+  short name and URL, author, credit, attribution text, retrieval date), `rejected.json` (every airline without a
+  usable wordmark, with the reason) and `symbols-report.json` (every symbol candidate and its verdict). The app's
+  credit list `Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json` is written from the
+  manifest (one entry per airline for the wordmark, a nested `symbol` credit when a symbol ships) and shown in
+  Acknowledgements under "Airline logos (Wikimedia Commons)".
+- Built by `python3 -I Scripts/logos/fetch_commons.py`; review sheets `docs/logos/library.png` (symbol and
+  wordmark side by side, dark and light) and `docs/logos/symbols-at-size.png` (every symbol at 24, 34 and 64 pt)
+  by `python3 -I Scripts/logos/build_sheets.py` (which also draws `docs/logos/flags.png`, the 251 bundled flags).
 - Retrieved: 2026-10-29.
 - Method: for each of the 138 airlines in `supabase/seed/airlines.csv`, the Wikidata item with that ICAO airline
   code (P230) is chosen by the reference seed rule (not dissolved, matching IATA code, most sitelinks), and its
@@ -111,11 +116,22 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   `ROT` TAROM, CC BY-SA 3.0). 29 without a usable logo: 26 whose Wikidata item has no logo image (usually
   because the logo is non-free and lives only on a Wikipedia as fair use; `KAL` and `ARG` were found), 3 whose
   only logo is a JPEG (`ASH`, `MEA`, `RJA`). No file was rejected for its licence: Commons hosts free files only.
+  Since the symbol pass, `AAL`'s wordmark is "American Airlines wordmark (2013).svg" (its item lists two logos;
+  the "AA Symbol" now ships as its symbol).
+- Symbols (Task 8c, same day): looked up in this order: Wikidata P8972 (small logo or icon), P2910 (icon), a P154
+  logo named as a symbol, then the files of the airline's Commons category (P373 and its "logos" subcategories)
+  whose names say symbol, tail, icon, emblem, crown and similar. Wikidata answers are taken as the airline's mark;
+  a name match ships only when the script's reviewed table (`SYMBOL_REVIEW`) accepts that file as the mark of the
+  airline's current branding. Nothing is cropped or edited. 6 symbols: `DLH` crane and `NOZ` avatar (P8972),
+  `KAL` taegeuk (P2910), `AAL` flight symbol (P154, symbol-named), `DAL` widget and `KLM` crown (Commons
+  category). Licences: 5 public domain, 1 CC BY-SA 3.0 (`KLM`, by 京市). 103 airlines keep their wordmark only.
+  Rejected candidates and why are in `symbols-report.json`. About 80 KB.
 - Size: about 1.9 MB for `assets/logos` (SVGs 1.3 MB, 192 px PNGs 0.8 MB).
 - Use: `LOGO_PROVIDER=commons` makes `brand-assets-sync` load this library into the private `brand-assets`
   bucket (`supabase/functions/_shared/brand/commons.ts`), from `COMMONS_LOGO_BASE` when set (an http URL
-  serving this folder, since the edge runtime cannot read the repo), else the repo copy. Main logo only:
-  no dark variant, no tail, no brand colours.
+  serving this folder, since the edge runtime cannot read the repo), else the repo copy. Kind `logo` is the
+  symbol when there is one, else the wordmark; kind `wordmark` (provider only, not yet a sync kind) is the
+  wordmark for wide slots. No dark variant, no tail, no brand colours.
 - Trademark: a copyright licence (or public domain status) does not grant trademark rights. Airline names and
   logos remain the airlines' trademarks, and 104 of the files carry the Commons "trademarked" notice. The Airhex
   licence replaces this library once signed; until then the legal note of the v1.1 spec (section 4) applies.

@@ -1,0 +1,143 @@
+{
+  "AAL": {
+    "candidates": [
+      {
+        "file": "AA Symbol.svg",
+        "source": "wikidata P154 (symbol-named)",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "American Airlines",
+    "symbol_named_in_category": [
+      "AA Symbol.svg",
+      "Black AA Symbol.svg"
+    ]
+  },
+  "DAL": {
+    "candidates": [
+      {
+        "file": "Delta Air Lines 2007 symbol.svg",
+        "source": "commons category (Delta Air Lines)",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "Delta Air Lines",
+    "symbol_named_in_category": [
+      "Delta Air Lines 2007 symbol.svg",
+      "Delta Air Lines rotated symbol.svg"
+    ]
+  },
+  "DLH": {
+    "candidates": [
+      {
+        "file": "Lufthansa Logo 2018 crane.svg",
+        "source": "wikidata P8972",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "Lufthansa",
+    "symbol_named_in_category": []
+  },
+  "FIN": {
+    "candidates": [
+      {
+        "file": "Finnair F emblem.svg",
+        "source": "commons category (Finnair)",
+        "verdict": "reject: not confirmed as a mark of Finnair's current branding, and as wide as a wordmark (4.2:1)"
+      }
+    ],
+    "name": "Finnair",
+    "symbol_named_in_category": [
+      "Finnair F emblem.svg"
+    ]
+  },
+  "JAL": {
+    "candidates": [
+      {
+        "file": "ZIPAIR Tokyo Monogram with corporate colour.svg",
+        "source": "commons category (Japan Airlines)",
+        "verdict": "reject: ZIPAIR, a different airline"
+      },
+      {
+        "file": "ZIPAIR Tokyo Monogram.svg",
+        "source": "commons category (Japan Airlines)",
+        "verdict": "reject: ZIPAIR, a different airline"
+      }
+    ],
+    "name": "Japan Airlines",
+    "symbol_named_in_category": [
+      "ZIPAIR Tokyo Monogram with corporate colour.svg",
+      "ZIPAIR Tokyo Monogram.svg"
+    ]
+  },
+  "KAL": {
+    "candidates": [
+      {
+        "file": "Korean Air 2025 (Taegeuk).svg",
+        "source": "wikidata P2910",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "Korean Air",
+    "symbol_named_in_category": []
+  },
+  "KLM": {
+    "candidates": [
+      {
+        "file": "KLM crown logo.svg",
+        "source": "commons category (KLM)",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "KLM Royal Dutch Airlines",
+    "symbol_named_in_category": [
+      "KLM crown logo.svg"
+    ]
+  },
+  "NOZ": {
+    "candidates": [
+      {
+        "file": "Norwegian Avatar logo (2024-).png",
+        "source": "wikidata P8972",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "Norwegian Air Shuttle",
+    "symbol_named_in_category": [
+      "Norwegian Avatar logo (2024-).png"
+    ]
+  },
+  "RAM": {
+    "candidates": [
+      {
+        "file": "Queue royal air maroc.png",
+        "source": "commons category (Royal Air Maroc)",
+        "verdict": "reject: user-drawn tail on an opaque white square, not the official artwork"
+      },
+      {
+        "file": "Royal Air Maroc Motif.png",
+        "source": "commons category (Royal Air Maroc)",
+        "verdict": "reject: brand pattern, not the symbol"
+      }
+    ],
+    "name": "Royal Air Maroc",
+    "symbol_named_in_category": [
+      "Queue royal air maroc.png",
+      "Royal Air Maroc Motif.png"
+    ]
+  },
+  "ROT": {
+    "candidates": [
+      {
+        "file": "TAROM Logo tail.svg",
+        "source": "commons category (TAROM)",
+        "verdict": "reject: ROT's P154 logo is already the compact tail mark (TAROM Logo tail (blue).svg); this tricolour variant would only add an unverified second version"
+      }
+    ],
+    "name": "TAROM",
+    "symbol_named_in_category": [
+      "TAROM Logo tail (blue).svg",
+      "TAROM Logo tail.svg"
+    ]
+  }
+}

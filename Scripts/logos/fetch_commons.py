@@ -7,6 +7,19 @@ For every airline in supabase/seed/airlines.csv: find its Wikidata item by ICAO 
 read its logo image (P154), ask the Commons API for the file's URL, type and licence metadata, and
 keep only free licences (public domain, CC0, CC BY, CC BY-SA). SVG is preferred over raster.
 
+Symbol pass (Task 8c): wide wordmarks are unreadable at 24 to 34 pt, so the script also looks for the
+airline's compact symbol mark, in this order:
+    1. Wikidata P8972 (small logo or icon)
+    2. Wikidata P2910 (icon)
+    3. a P154 logo whose file name says it is the symbol (when the item lists several logos)
+    4. a file of the airline's Commons category (P373, and its "... logos" subcategories) whose name
+       says symbol, tail logo, icon, emblem, crown...
+Wikidata answers (1, 2) are trusted as the airline's mark. A name match (3, 4) is only a candidate: it
+ships when SYMBOL_REVIEW below accepts that exact file (checked by eye to be the mark of the airline's
+current branding), and every other candidate is recorded with its verdict, never shipped. Same licence
+filter, same download checks. Nothing is cropped or edited: a symbol that only exists inside a wordmark
+stays a candidate for the owner.
+
 Downloads land in <work>/download first. They are untrusted data: nothing in them is run, the SHA-1
 Commons reports is checked, the bytes must look like the declared type, and rendering goes through an
 <img> element (no script, no external loads). Accepted files are copied to assets/logos/commons/:
@@ -14,11 +27,16 @@ Commons reports is checked, the bytes must look like the declared type, and rend
     <ICAO>.svg            the Commons file as published
     <ICAO>.png            PNG sources only, scaled to 192 px on the longest side (sips)
     png/<ICAO>.png        every logo at 192 px on the longest side, transparent background
-    manifest.json         per ICAO: file, sha256, source page, licence, author, attribution, date
+    symbol/<ICAO>.svg     the airline's symbol mark (or symbol/<ICAO>.png for PNG sources, 192 px)
+    symbol/png/<ICAO>.png every symbol at 192 px on the longest side, transparent background
+    manifest.json         "logos" (kind wordmark) and "symbols" (kind symbol), per ICAO: file, sha256,
+                          source page, licence, author, attribution, date, and for symbols the source
     rejected.json         every airline without a usable logo, with the reason
+    symbols-report.json   the symbol search: what was found where, every candidate and its verdict
 
 It also writes the attribution list the app shows in Acknowledgements:
 Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json
+(one entry per airline for its wordmark, with a nested "symbol" credit when a symbol ships).
 
 Polite client: descriptive User-Agent, at most one network request per second, every API answer and
 download cached under <work>/cache so a rerun costs nothing (--offline refuses any network call).
@@ -50,6 +68,29 @@ COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 PX = 192
 MAX_BYTES = 8 * 1024 * 1024
 CHROME_GLOB = "chromium_headless_shell-*/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+
+# A file name that may be a symbol mark rather than a wordmark. Only a hint: see SYMBOL_REVIEW.
+SYMBOL_NAME = re.compile(
+    r"\b(symbol|tail|icon|emblem|roundel|monogram|avatar|signet|insignia|isotype|crown|crane|motif|queue)\b",
+    re.I)
+NOT_SYMBOL = re.compile(r"wordmark|livery|liveries|destination|stamp|badge|medal|map|route", re.I)
+
+# Verdicts on name-matched candidates (sources 3 and 4), by Commons file name. "accept" ships the file
+# as the airline's symbol; anything else is the reason it does not. Looked at 2026-10-29.
+SYMBOL_REVIEW = {
+    "AA Symbol.svg": "accept",
+    "Black AA Symbol.svg": "reject: one-colour variant of AA Symbol.svg",
+    "Delta Air Lines 2007 symbol.svg": "accept",
+    "Delta Air Lines rotated symbol.svg": "reject: rotated variant, not the mark as used",
+    "KLM crown logo.svg": "accept",
+    "TAROM Logo tail.svg": "reject: ROT's P154 logo is already the compact tail mark (TAROM Logo tail (blue).svg); this tricolour variant would only add an unverified second version",
+    "TAROM Logo tail (blue).svg": "reject: already ROT's P154 logo",
+    "Finnair F emblem.svg": "reject: not confirmed as a mark of Finnair's current branding, and as wide as a wordmark (4.2:1)",
+    "Queue royal air maroc.png": "reject: user-drawn tail on an opaque white square, not the official artwork",
+    "Royal Air Maroc Motif.png": "reject: brand pattern, not the symbol",
+    "ZIPAIR Tokyo Monogram.svg": "reject: ZIPAIR, a different airline",
+    "ZIPAIR Tokyo Monogram with corporate colour.svg": "reject: ZIPAIR, a different airline",
+}
 
 
 class Net:
@@ -99,13 +140,16 @@ def read_airlines():
 def wikidata_items(net: Net, icaos):
     """ICAO -> list of candidate items with iata, sitelinks, dissolved flag and logo file names."""
     values = " ".join(f'"{c}"' for c in icaos)
-    query = f"""SELECT ?icao ?a ?iata ?links ?dissolved ?logo WHERE {{
+    query = f"""SELECT ?icao ?a ?iata ?links ?dissolved ?logo ?small ?icon ?cat WHERE {{
   VALUES ?icao {{ {values} }}
   ?a wdt:P230 ?icao .
   OPTIONAL {{ ?a wdt:P229 ?iata }}
   OPTIONAL {{ ?a wikibase:sitelinks ?links }}
   OPTIONAL {{ ?a wdt:P576 ?dissolved }}
   OPTIONAL {{ ?a wdt:P154 ?logo }}
+  OPTIONAL {{ ?a wdt:P8972 ?small }}
+  OPTIONAL {{ ?a wdt:P2910 ?icon }}
+  OPTIONAL {{ ?a wdt:P373 ?cat }}
 }}"""
     url = SPARQL + "?" + urllib.parse.urlencode({"query": query, "format": "json"})
     rows = json.loads(net.get(url))["results"]["bindings"]
@@ -114,17 +158,44 @@ def wikidata_items(net: Net, icaos):
         icao = r["icao"]["value"]
         qid = r["a"]["value"].rsplit("/", 1)[-1]
         it = items.setdefault(icao, {}).setdefault(
-            qid, {"qid": qid, "iata": set(), "links": 0, "dissolved": False, "logos": set()})
+            qid, {"qid": qid, "iata": set(), "links": 0, "dissolved": False, "logos": set(),
+                  "small": set(), "icons": set(), "category": None})
         if "iata" in r:
             it["iata"].add(r["iata"]["value"])
         if "links" in r:
             it["links"] = int(r["links"]["value"])
         if "dissolved" in r:
             it["dissolved"] = True
-        if "logo" in r:
-            name = urllib.parse.unquote(r["logo"]["value"].rsplit("/", 1)[-1])
-            it["logos"].add(name.replace("_", " "))
+        for col, key in (("logo", "logos"), ("small", "small"), ("icon", "icons")):
+            if col in r:
+                it[key].add(file_name(r[col]["value"]))
+        if "cat" in r:
+            it["category"] = r["cat"]["value"]
     return items
+
+
+def file_name(commons_url: str) -> str:
+    return urllib.parse.unquote(commons_url.rsplit("/", 1)[-1]).replace("_", " ")
+
+
+def symbol_named(name: str) -> bool:
+    return bool(SYMBOL_NAME.search(name)) and not NOT_SYMBOL.search(name)
+
+
+def category_files(net: Net, category: str):
+    """Image files of a Commons category and of its logo subcategories (one level down)."""
+    def members(title):
+        url = COMMONS_API + "?" + urllib.parse.urlencode({
+            "action": "query", "format": "json", "formatversion": "2", "list": "categorymembers",
+            "cmtitle": title, "cmtype": "file|subcat", "cmlimit": "500",
+        })
+        return [m["title"] for m in json.loads(net.get(url))["query"]["categorymembers"]]
+
+    top = members("Category:" + category)
+    files = [t for t in top if t.startswith("File:")]
+    for sub in sorted(t for t in top if t.startswith("Category:") and re.search(r"\blogos?\b", t, re.I)):
+        files += [t for t in members(sub) if t.startswith("File:")]
+    return sorted({t.split(":", 1)[1] for t in files if t.lower().endswith((".svg", ".png"))})
 
 
 def pick_item(cands, iata):
@@ -270,14 +341,94 @@ def attribution(kind, title, author, short, page):
     return f"{title} by {who}, {short}, via Wikimedia Commons ({page})"
 
 
+def take(net: Net, work: Path, icao: str, a, item, name: str, ii, folder: Path, prefix: str, today: str):
+    """Checks one Commons file and stores it under folder. (entry, None) or (None, (reason, detail))."""
+    if ii is None:
+        return None, ("not on Commons", f"{name}: not hosted on Commons (local or non-free upload)")
+    mime = ii.get("mime", "")
+    if mime not in ("image/svg+xml", "image/png"):
+        return None, ("unsupported type", f"{name}: {mime}")
+    kind, why = classify(ii)
+    if not kind:
+        return None, (why.split(" (")[0], f"{name}: {why}")
+    data = net.get(ii["url"])
+    if hashlib.sha1(data).hexdigest() != ii.get("sha1"):
+        return None, ("checksum mismatch", f"{name}: SHA-1 differs from Commons")
+    if not looks_like(data, mime):
+        return None, ("bad file", f"{name}: bytes are not {mime}")
+    ext = "svg" if mime == "image/svg+xml" else "png"
+    download = work / "download" / (prefix.strip("/") or "wordmark")
+    download.mkdir(parents=True, exist_ok=True)
+    raw = download / f"{icao}.{ext}"
+    raw.write_bytes(data)
+    dest = folder / f"{icao}.{ext}"
+    small = folder / "png" / f"{icao}.png"
+    if ext == "svg":
+        shutil.copyfile(raw, dest)
+        render_svg(dest, small, work)
+    else:
+        scale_png(raw, dest)
+        shutil.copyfile(dest, small)
+    stored = dest.read_bytes()
+    page = ii.get("descriptionurl") or ("https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote(name.replace(" ", "_")))
+    author = meta(ii, "Artist")
+    short = meta(ii, "LicenseShortName")
+    title = meta(ii, "ObjectName") or name.rsplit(".", 1)[0]
+    pw, ph = png_size(small.read_bytes())
+    return {
+        "name": a["name"],
+        "iata": a["iata"] or None,
+        "wikidata": item["qid"],
+        "file": prefix + dest.name,
+        "format": ext,
+        "sha256": hashlib.sha256(stored).hexdigest(),
+        "bytes": len(stored),
+        "png": f"{prefix}png/{icao}.png",
+        "png_sha256": hashlib.sha256(small.read_bytes()).hexdigest(),
+        "png_size": [pw, ph],
+        "source_file": name,
+        "source_page": page,
+        "source_sha1": ii["sha1"],
+        "resized_from_source": ext == "png" and stored != data,
+        "license_kind": kind,
+        "license": short,
+        "license_url": meta(ii, "LicenseUrl") or None,
+        "attribution_required": meta(ii, "AttributionRequired").lower() == "true",
+        "author": author or None,
+        "credit": meta(ii, "Credit") or None,
+        "trademarked": "trademark" in meta(ii, "Restrictions").lower(),
+        "attribution": attribution(kind, title, author, short, page),
+        "retrieved": today,
+    }, None
+
+
+def symbol_candidates(net: Net, item, wordmark_file):
+    """Ordered (source, file name, reviewed) candidates for the airline's symbol, and the name-matched
+    files seen in its category (for the report)."""
+    out = []
+    for source, names in (("wikidata P8972", item["small"]), ("wikidata P2910", item["icons"])):
+        for n in sorted(names, key=lambda n: (not n.lower().endswith(".svg"), n)):
+            out.append((source, n, False))
+    if len(item["logos"]) > 1:
+        for n in sorted(item["logos"], key=lambda n: (not n.lower().endswith(".svg"), n)):
+            if n != wordmark_file and symbol_named(n):
+                out.append(("wikidata P154 (symbol-named)", n, True))
+    seen = []
+    if item["category"]:
+        seen = [n for n in category_files(net, item["category"]) if symbol_named(n)]
+        for n in sorted(seen, key=lambda n: (not n.lower().endswith(".svg"), n)):
+            if n != wordmark_file:
+                out.append((f"commons category ({item['category']})", n, True))
+    return out, seen
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), "soma-flight-logos"))
     ap.add_argument("--offline", action="store_true")
     args = ap.parse_args()
     work = Path(args.work)
-    download = work / "download"
-    download.mkdir(parents=True, exist_ok=True)
+    (work / "download").mkdir(parents=True, exist_ok=True)
     net = Net(work / "cache", args.offline)
     today = datetime.date.today().isoformat()
 
@@ -295,109 +446,107 @@ def main() -> int:
         if not item["logos"]:
             rejected[icao] = {"name": a["name"], "reason": "not found", "detail": f"{item['qid']} has no logo image (P154)",
                               "wikidata": item["qid"]}
+            chosen[icao] = (a, item, [])
             continue
-        # SVG first, then by name for a stable order.
-        logos = sorted(item["logos"], key=lambda n: (not n.lower().endswith(".svg"), n))
+        # The wordmark: SVG first, a file named as a symbol last (when the item lists several logos),
+        # then by name for a stable order.
+        several = len(item["logos"]) > 1
+        logos = sorted(item["logos"], key=lambda n: (several and symbol_named(n), not n.lower().endswith(".svg"), n))
         chosen[icao] = (a, item, logos)
 
+    symbol_dir = OUT / "symbol"
+    for folder in (OUT, symbol_dir):
+        (folder / "png").mkdir(parents=True, exist_ok=True)
+        for old in list(folder.glob("*.svg")) + list(folder.glob("*.png")) + list((folder / "png").glob("*.png")):
+            old.unlink()
+
+    # Wordmarks (kind "wordmark"): the Task 8b library.
     info = commons_info(net, [n for _, _, logos in chosen.values() for n in logos])
-
-    (OUT / "png").mkdir(parents=True, exist_ok=True)
-    for old in list(OUT.glob("*.svg")) + list(OUT.glob("*.png")) + list((OUT / "png").glob("*.png")):
-        old.unlink()
-
     manifest = {}
     for icao, (a, item, logos) in sorted(chosen.items()):
+        if not logos:
+            continue
         reasons = []
         for name in logos:
-            ii = info.get(name)
-            if ii is None:
-                reasons.append(("not on Commons", f"{name}: not hosted on Commons (local or non-free upload)"))
-                continue
-            mime = ii.get("mime", "")
-            if mime not in ("image/svg+xml", "image/png"):
-                reasons.append(("unsupported type", f"{name}: {mime}"))
-                continue
-            kind, why = classify(ii)
-            if not kind:
-                reasons.append((why.split(" (")[0], f"{name}: {why}"))
-                continue
-            data = net.get(ii["url"])
-            if hashlib.sha1(data).hexdigest() != ii.get("sha1"):
-                reasons.append(("checksum mismatch", f"{name}: SHA-1 differs from Commons"))
-                continue
-            if not looks_like(data, mime):
-                reasons.append(("bad file", f"{name}: bytes are not {mime}"))
-                continue
-            ext = "svg" if mime == "image/svg+xml" else "png"
-            raw = download / f"{icao}.{ext}"
-            raw.write_bytes(data)
-            dest = OUT / f"{icao}.{ext}"
-            small = OUT / "png" / f"{icao}.png"
-            if ext == "svg":
-                shutil.copyfile(raw, dest)
-                render_svg(dest, small, work)
-            else:
-                scale_png(raw, dest)
-                shutil.copyfile(dest, small)
-            stored = dest.read_bytes()
-            page = ii.get("descriptionurl") or ("https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote(name.replace(" ", "_")))
-            author = meta(ii, "Artist")
-            credit = meta(ii, "Credit")
-            short = meta(ii, "LicenseShortName")
-            title = meta(ii, "ObjectName") or name.rsplit(".", 1)[0]
-            pw, ph = png_size(small.read_bytes())
-            manifest[icao] = {
-                "name": a["name"],
-                "iata": a["iata"] or None,
-                "wikidata": item["qid"],
-                "file": dest.name,
-                "format": ext,
-                "sha256": hashlib.sha256(stored).hexdigest(),
-                "bytes": len(stored),
-                "png": f"png/{icao}.png",
-                "png_sha256": hashlib.sha256(small.read_bytes()).hexdigest(),
-                "png_size": [pw, ph],
-                "source_file": name,
-                "source_page": page,
-                "source_sha1": ii["sha1"],
-                "resized_from_source": ext == "png" and stored != data,
-                "license_kind": kind,
-                "license": short,
-                "license_url": meta(ii, "LicenseUrl") or None,
-                "attribution_required": meta(ii, "AttributionRequired").lower() == "true",
-                "author": author or None,
-                "credit": credit or None,
-                "trademarked": "trademark" in meta(ii, "Restrictions").lower(),
-                "attribution": attribution(kind, title, author, short, page),
-                "retrieved": today,
-            }
-            break
+            entry, why = take(net, work, icao, a, item, name, info.get(name), OUT, "", today)
+            if entry:
+                manifest[icao] = {"kind": "wordmark", **entry}
+                break
+            reasons.append(why)
         else:
             reason, detail = reasons[0] if reasons else ("not found", "no candidate")
             rejected[icao] = {"name": a["name"], "reason": reason, "detail": "; ".join(d for _, d in reasons),
                               "wikidata": item["qid"]}
-            continue
+
+    # Symbols (kind "symbol").
+    plans = {}
+    for icao, (a, item, logos) in sorted(chosen.items()):
+        wordmark_file = manifest[icao]["source_file"] if icao in manifest else None
+        plans[icao] = symbol_candidates(net, item, wordmark_file)
+    sinfo = commons_info(net, [n for cands, _ in plans.values() for _, n, _ in cands])
+    symbols = {}
+    report = {}
+    for icao, (cands, seen) in sorted(plans.items()):
+        a, item, _ = chosen[icao]
+        tried = []
+        for source, name, reviewed in cands:
+            if reviewed:
+                verdict = SYMBOL_REVIEW.get(name, "unreviewed: not shipped until checked and added to SYMBOL_REVIEW")
+                if verdict != "accept":
+                    tried.append({"file": name, "source": source, "verdict": verdict})
+                    continue
+            entry, why = take(net, work, icao, a, item, name, sinfo.get(name), symbol_dir, "symbol/", today)
+            if entry:
+                symbols[icao] = {"kind": "symbol", "symbol_source": source, **entry}
+                tried.append({"file": name, "source": source, "verdict": "shipped"})
+                break
+            tried.append({"file": name, "source": source, "verdict": f"refused: {why[1]}"})
+        if tried or seen:
+            report[icao] = {"name": a["name"], "candidates": tried, "symbol_named_in_category": seen}
 
     dump = lambda obj: json.dumps(obj, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     (OUT / "manifest.json").write_text(dump({
-        "source": "Wikimedia Commons via Wikidata P230 (ICAO airline code) and P154 (logo image)",
+        "source": "Wikimedia Commons via Wikidata P230 (ICAO airline code); wordmarks from P154 (logo image), "
+                  "symbols from P8972 (small logo or icon), P2910 (icon) or reviewed symbol files",
         "generated_by": "Scripts/logos/fetch_commons.py",
         "retrieved": today,
         "logos": manifest,
+        "symbols": symbols,
     }))
     (OUT / "rejected.json").write_text(dump(rejected))
-    APP_ATTRIBUTION.write_text(dump([
-        {"icao": k, "name": v["name"], "author": v["author"] or "Unknown author", "license": v["license"],
-         "license_url": v["license_url"], "source": v["source_page"], "attribution": v["attribution"]}
-        for k, v in sorted(manifest.items())
-    ]))
+    (OUT / "symbols-report.json").write_text(dump(report))
+
+    def credit(v):
+        return {"author": v["author"] or "Unknown author", "license": v["license"],
+                "license_url": v["license_url"], "source": v["source_page"], "attribution": v["attribution"]}
+
+    credits = []
+    for k, v in sorted(manifest.items()):
+        c = {"icao": k, "name": v["name"], "kind": "wordmark", **credit(v)}
+        if k in symbols:
+            s = symbols[k]
+            c["symbol"] = {"kind": "symbol", **credit(s)}
+            c["attribution"] = f"Wordmark: {v['attribution']}; symbol: {s['attribution']}"
+        credits.append(c)
+    # A symbol without a wordmark still gets its own credit line.
+    for k, s in sorted(symbols.items()):
+        if k not in manifest:
+            credits.append({"icao": k, "name": s["name"], "kind": "symbol", **credit(s)})
+    credits.sort(key=lambda c: c["icao"])
+    APP_ATTRIBUTION.write_text(dump(credits))
 
     counts = {}
     for r in rejected.values():
         counts[r["reason"]] = counts.get(r["reason"], 0) + 1
-    print(f"accepted {len(manifest)} of {len(airlines)}")
+    print(f"wordmarks: accepted {len(manifest)} of {len(airlines)}")
     for k, v in sorted(counts.items()):
+        print(f"  {k}: {v}")
+    by_source = {}
+    for s in symbols.values():
+        src = s["symbol_source"].split(" (")[0]
+        by_source[src] = by_source.get(src, 0) + 1
+    print(f"symbols: {len(symbols)}")
+    for k, v in sorted(by_source.items()):
         print(f"  {k}: {v}")
     return 0
 

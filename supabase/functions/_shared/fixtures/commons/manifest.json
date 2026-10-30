@@ -10,6 +10,7 @@
       "file": "DAL.svg",
       "format": "svg",
       "iata": "DL",
+      "kind": "wordmark",
       "license": "Public domain",
       "license_kind": "public-domain",
       "license_url": null,
@@ -38,6 +39,7 @@
       "file": "OMA.png",
       "format": "png",
       "iata": "WY",
+      "kind": "wordmark",
       "license": "CC BY-SA 4.0",
       "license_kind": "cc-by-sa",
       "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
@@ -66,6 +68,7 @@
       "file": "UAL.svg",
       "format": "svg",
       "iata": "UA",
+      "kind": "wordmark",
       "license": "Public domain",
       "license_kind": "public-domain",
       "license_url": null,
@@ -87,5 +90,37 @@
     }
   },
   "retrieved": "2026-10-29",
-  "source": "Wikimedia Commons via Wikidata P230 (ICAO airline code) and P154 (logo image)"
+  "source": "Wikimedia Commons via Wikidata P230 (ICAO airline code) and P154 (logo image)",
+  "symbols": {
+    "DAL": {
+      "attribution": "Delta Air Lines 2007 symbol by Delta Air Lines, Inc., public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_2007_symbol.svg)",
+      "attribution_required": false,
+      "author": "Delta Air Lines, Inc.",
+      "bytes": 1260,
+      "credit": "https://logos.fandom.com/wiki/File:Delta_2007-symbol.svg",
+      "file": "symbol/DAL.svg",
+      "format": "svg",
+      "iata": "DL",
+      "kind": "symbol",
+      "license": "Public domain",
+      "license_kind": "public-domain",
+      "license_url": null,
+      "name": "Delta Air Lines",
+      "png": "symbol/png/DAL.png",
+      "png_sha256": "805ecb91918d6de74895853ad9d72162ca461ee2a06d69db9d84b70b1edd8b9c",
+      "png_size": [
+        192,
+        153
+      ],
+      "resized_from_source": false,
+      "retrieved": "2026-10-29",
+      "sha256": "a70bf28d7c0cc875551f52cd60b19de07ab4cbdacb8dd58852c08ea8a5e5571d",
+      "source_file": "Delta Air Lines 2007 symbol.svg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_2007_symbol.svg",
+      "source_sha1": "e7cf7b82961256289b1d1ae61aaea5b619d43327",
+      "symbol_source": "commons category (Delta Air Lines)",
+      "trademarked": true,
+      "wikidata": "Q188920"
+    }
+  }
 }

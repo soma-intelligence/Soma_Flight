@@ -5,8 +5,10 @@ import {
   type ProviderFile,
   ProviderUnavailable,
 } from "./logo_provider.ts";
+import { validateFile } from "./validate.ts";
 
-// Three real entries (UAL, DAL as SVG, OMA as a 192 px PNG) copied from assets/logos/commons.
+// Three real entries (UAL, DAL as SVG, OMA as a 192 px PNG) copied from assets/logos/commons, plus
+// the Delta symbol (symbols.DAL, symbol/DAL.svg).
 const FIXTURE = new URL("../fixtures/commons/", import.meta.url);
 
 Deno.test("commons: lists the manifest's airlines in ICAO order", async () => {
@@ -45,6 +47,86 @@ Deno.test("commons: no dark logo, no tail, no colours, unknown airline is null",
   assertEquals(await p.logo("UAL", "tail_logo"), null);
   assertEquals(await p.logo("ZZZ", "logo"), null);
   assertEquals(await p.colors("UAL"), null);
+});
+
+Deno.test("commons: 'logo' is the symbol when there is one, 'wordmark' is always the wordmark", async () => {
+  const p = new CommonsLogoProvider(FIXTURE);
+  const read = (n: string) => Deno.readFile(new URL(n, FIXTURE));
+  const logo = (await p.logo("DAL", "logo")) as ProviderFile;
+  assertEquals(logo.bytes, await read("symbol/DAL.svg"));
+  assertEquals(
+    logo.version,
+    await contentVersion(await read("symbol/DAL.svg")),
+  );
+  const word = (await p.logo("DAL", "wordmark")) as ProviderFile;
+  assertEquals(word.bytes, await read("DAL.svg"));
+  assert(logo.version !== word.version);
+  // No symbol: both kinds are the wordmark.
+  const ual = await read("UAL.svg");
+  assertEquals(((await p.logo("UAL", "logo")) as ProviderFile).bytes, ual);
+  assertEquals(((await p.logo("UAL", "wordmark")) as ProviderFile).bytes, ual);
+  assertEquals(await p.logo("ZZZ", "wordmark"), null);
+  // The port's kind list is unchanged: the sync asks for 'logo' only.
+  assertEquals(p.kinds, ["logo"]);
+});
+
+Deno.test("commons: the unchanged check follows the served mark", async () => {
+  const p = new CommonsLogoProvider(FIXTURE);
+  const symbol = (await p.logo("DAL", "logo")) as ProviderFile;
+  const word = (await p.logo("DAL", "wordmark")) as ProviderFile;
+  const known = (version: string) => ({
+    known: { etag: null, version, format: "svg" },
+  });
+  assertEquals(await p.logo("DAL", "logo", known(symbol.version)), "unchanged");
+  // A row that still holds the wordmark is replaced by the symbol.
+  const next = await p.logo("DAL", "logo", known(word.version));
+  assert(next && next !== "unchanged");
+  assertEquals(next.version, symbol.version);
+});
+
+Deno.test("commons: a symbol entry must name its own file under symbol/", async () => {
+  const manifest = JSON.parse(
+    await Deno.readTextFile(new URL("manifest.json", FIXTURE)),
+  );
+  for (
+    const file of [
+      "DAL.svg",
+      "symbol/UAL.svg",
+      "../DAL.svg",
+      "symbol/png/DAL.png",
+    ]
+  ) {
+    const m = structuredClone(manifest);
+    m.symbols.DAL.file = file;
+    const fetchFn = ((input: string | URL | Request) =>
+      String(input).endsWith("manifest.json")
+        ? Promise.resolve(new Response(JSON.stringify(m)))
+        : fetch(input)) as typeof fetch;
+    const p = new CommonsLogoProvider(FIXTURE, fetchFn);
+    await assertRejects(
+      () =>
+        p.logo("DAL", "logo"),
+      Error,
+      "names",
+    );
+    // The wordmark is unaffected.
+    assert(await p.logo("DAL", "wordmark"));
+  }
+});
+
+Deno.test("commons: a manifest without symbols serves wordmarks (8b layout)", async () => {
+  const manifest = JSON.parse(
+    await Deno.readTextFile(new URL("manifest.json", FIXTURE)),
+  );
+  delete manifest.symbols;
+  const fetchFn =
+    ((input: string | URL | Request) =>
+      String(input).endsWith("manifest.json")
+        ? Promise.resolve(new Response(JSON.stringify(manifest)))
+        : fetch(input)) as typeof fetch;
+  const p = new CommonsLogoProvider(FIXTURE, fetchFn);
+  const f = (await p.logo("DAL", "logo")) as ProviderFile;
+  assertEquals(f.bytes, await Deno.readFile(new URL("DAL.svg", FIXTURE)));
 });
 
 Deno.test("commons: bytes that differ from the manifest are refused", async () => {
@@ -101,6 +183,29 @@ Deno.test("commons: the repo library loads and every file matches the manifest",
   for (const a of list) {
     const f = (await p.logo(a.icao, "logo")) as ProviderFile | null;
     assert(f, `no file for ${a.icao}`);
+  }
+});
+
+Deno.test("commons: every repo symbol is served as 'logo' and passes the sync's validation", async () => {
+  const manifest = JSON.parse(
+    await Deno.readTextFile(new URL("manifest.json", DEFAULT_COMMONS_BASE)),
+  );
+  const symbols = Object.entries(manifest.symbols ?? {}) as [
+    string,
+    { kind: string; sha256: string; license: string; author: string | null },
+  ][];
+  assert(symbols.length >= 6, `only ${symbols.length} symbols`);
+  const p = new CommonsLogoProvider(DEFAULT_COMMONS_BASE);
+  for (const [icao, e] of symbols) {
+    assertEquals(e.kind, "symbol");
+    assert(e.license && e.author, `${icao} symbol has no licence or author`);
+    const f = (await p.logo(icao, "logo")) as ProviderFile;
+    assertEquals(f.version, e.sha256.slice(0, 16), icao);
+    const v = await validateFile(f);
+    assert(v.ok, `${icao} symbol: ${!v.ok && v.reason}`);
+  }
+  for (const e of Object.values(manifest.logos) as { kind: string }[]) {
+    assertEquals(e.kind, "wordmark");
   }
 });
 

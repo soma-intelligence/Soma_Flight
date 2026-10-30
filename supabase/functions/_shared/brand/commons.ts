@@ -4,7 +4,10 @@
 // the Airhex licence is signed: LOGO_PROVIDER=commons selects it, Airhex replaces it once licensed.
 // The base is a URL: file:// for the repo copy (the default) or http(s):// when the edge runtime
 // cannot see the repo (serve assets/logos/commons and set COMMONS_LOGO_BASE).
-// Only the main logo exists here: no dark variant, no tail, no brand colours.
+// Two marks per airline (Task 8c): the wordmark (manifest "logos", kind "wordmark") and, when Commons
+// has one, the compact symbol (manifest "symbols", kind "symbol", files under symbol/). Kind 'logo' is
+// the symbol when present, else the wordmark: wordmarks are unreadable at 24 to 34 pt. Kind 'wordmark'
+// asks for the wordmark explicitly, for wide slots. No dark variant, no tail, no brand colours.
 import {
   type AssetKind,
   type BrandColors,
@@ -24,7 +27,11 @@ export const DEFAULT_COMMONS_BASE = new URL(
   import.meta.url,
 );
 
+/** What this provider can answer: the port's kinds plus the explicit wordmark. */
+export type CommonsKind = AssetKind | "wordmark";
+
 export interface CommonsEntry {
+  kind?: "wordmark" | "symbol";
   name: string;
   iata: string | null;
   file: string;
@@ -38,6 +45,7 @@ export interface CommonsEntry {
 
 interface Manifest {
   logos: Record<string, CommonsEntry>;
+  symbols?: Record<string, CommonsEntry>;
 }
 
 export class CommonsLogoProvider implements LogoProvider {
@@ -79,6 +87,9 @@ export class CommonsLogoProvider implements LogoProvider {
       if (!body || typeof body.logos !== "object") {
         throw new ProviderUnavailable("commons manifest has no logos");
       }
+      if (body.symbols != null && typeof body.symbols !== "object") {
+        throw new ProviderUnavailable("commons manifest symbols is not a map");
+      }
       return body as Manifest;
     })().catch((e) => {
       this.manifest = undefined;
@@ -87,24 +98,37 @@ export class CommonsLogoProvider implements LogoProvider {
   }
 
   async list(): Promise<ProviderAirline[]> {
-    const { logos } = await this.load();
-    return Object.entries(logos).filter(([icao]) => /^[A-Z]{3}$/.test(icao))
+    const { logos, symbols = {} } = await this.load();
+    const all = new Map<string, CommonsEntry>();
+    for (
+      const [icao, e] of [...Object.entries(symbols), ...Object.entries(logos)]
+    ) {
+      all.set(icao, e);
+    }
+    return [...all].filter(([icao]) => /^[A-Z]{3}$/.test(icao))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([icao, e]) => ({ icao, iata: e.iata ?? null, name: e.name }));
   }
 
+  /**
+   * 'logo' serves the symbol when the airline has one, else the wordmark; 'wordmark' serves the
+   * wordmark only. Other kinds are not in this library.
+   */
   async logo(
     icao: string,
-    kind: AssetKind,
+    kind: CommonsKind,
     opts: FetchOpts = {},
   ): Promise<ProviderFile | "unchanged" | null> {
-    if (kind !== "logo") return null;
-    const { logos } = await this.load();
-    const e = logos[icao];
+    if (kind !== "logo" && kind !== "wordmark") return null;
+    const { logos, symbols = {} } = await this.load();
+    const symbol = kind === "logo" ? symbols[icao] : undefined;
+    const e = symbol ?? logos[icao];
     if (!e) return null;
-    // The manifest only names files in its own folder.
+    // The manifest only names files in its own folder: <ICAO>.<ext> or symbol/<ICAO>.<ext>.
+    const dir = symbol ? "symbol/" : "";
     if (
-      !/^[A-Z]{3}\.(svg|png)$/.test(e.file) || e.file !== `${icao}.${e.format}`
+      !/^(symbol\/)?[A-Z]{3}\.(svg|png)$/.test(e.file) ||
+      e.file !== `${dir}${icao}.${e.format}`
     ) {
       throw new Error(`commons manifest entry ${icao} names ${e.file}`);
     }
