@@ -118,22 +118,34 @@ public struct FakeBrandAssetService: BrandAssetService {
         return type.map { "\(base)-\($0.uppercased())" } ?? base
     }
 
-    /// The airlines whose logo ships with the package for the fakes (Resources/Fakes/Logos): the fake
-    /// history's and boards' airlines, plus three wide or tall shapes. Copied from
-    /// assets/logos/commons/png, all public domain; the full library never ships in the app.
+    /// The airlines whose marks ship with the package for the fakes (Resources/Fakes/Logos): the fake
+    /// history's and boards' airlines, plus three wide or tall shapes. Copied from assets/logos/commons
+    /// (all public domain except the KLM crown, CC BY-SA 3.0, credited in Acknowledgements); the full
+    /// library never ships in the app.
     public static let bundledAirlines = ["AAL", "ACA", "AFR", "AMX", "ASA", "BAW", "DAL", "FFT", "JBU", "NKS",
                                          "SWA", "UAL", "DLH", "KLM", "UAE"]
 
-    /// The version the bundled logos carry (the Commons fetch day).
-    public static let bundledVersion = "commons-2026-10-29"
+    /// The bundled airlines whose `.logo` is a cropped or Commons symbol (192 px render); the others
+    /// ship their wordmark as `.logo`, as the backend serves it when an airline has no symbol.
+    public static let bundledSymbols: Set<String> = ["AAL", "ACA", "AFR", "DAL", "SWA", "DLH", "KLM"]
 
-    /// The bundled logos as `.logo` assets.
+    /// The version the bundled marks carry (the symbol pass day).
+    public static let bundledVersion = "commons-2026-10-29-symbols"
+
+    /// The bundled marks: `.logo` (symbol when the airline has one, else its wordmark) and `.wordmark`.
     public static func bundled() -> FakeBrandAssetService {
-        let seeded: [(icao: String, kind: BrandAssetKind, asset: BrandAsset)] = bundledAirlines.compactMap { icao in
-            guard let url = Bundle.module.url(forResource: "logo-\(icao)", withExtension: "png", subdirectory: "Logos")
-                    ?? Bundle.module.url(forResource: "logo-\(icao)", withExtension: "png"),
-                  let data = try? Data(contentsOf: url) else { return nil }
-            return (icao, .logo, BrandAsset(data: data, format: "png", version: bundledVersion))
+        func load(_ name: String) -> Data? {
+            (Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Logos")
+                ?? Bundle.module.url(forResource: name, withExtension: "png"))
+                .flatMap { try? Data(contentsOf: $0) }
+        }
+        var seeded: [(icao: String, kind: BrandAssetKind, asset: BrandAsset)] = []
+        for icao in bundledAirlines {
+            guard let logo = load("logo-\(icao)") else { continue }
+            seeded.append((icao, .logo, BrandAsset(data: logo, format: "png", version: bundledVersion)))
+            // Without a separate wordmark file the logo is the wordmark.
+            let word = load("wordmark-\(icao)") ?? logo
+            seeded.append((icao, .wordmark, BrandAsset(data: word, format: "png", version: bundledVersion)))
         }
         return FakeBrandAssetService(seeded: seeded)
     }

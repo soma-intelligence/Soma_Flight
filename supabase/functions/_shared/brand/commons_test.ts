@@ -67,7 +67,7 @@ Deno.test("commons: 'logo' is the symbol when there is one, 'wordmark' is always
   assertEquals(((await p.logo("UAL", "wordmark")) as ProviderFile).bytes, ual);
   assertEquals(await p.logo("ZZZ", "wordmark"), null);
   // The port's kind list is unchanged: the sync asks for 'logo' only.
-  assertEquals(p.kinds, ["logo"]);
+  assertEquals(p.kinds, ["logo", "wordmark"]);
 });
 
 Deno.test("commons: the unchanged check follows the served mark", async () => {

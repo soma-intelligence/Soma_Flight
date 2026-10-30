@@ -5,14 +5,19 @@
  * What a provider can serve. `tail_logo` is stored as the `tail` kind of airline_assets;
  * `side_view` is keyed by airline and aircraft type.
  */
-export type AssetKind = "logo" | "logo_dark" | "tail_logo" | "side_view";
+export type AssetKind =
+  | "logo"
+  | "logo_dark"
+  | "tail_logo"
+  | "side_view"
+  | "wordmark";
 /** Old name of AssetKind, kept for the adapters. */
 export type LogoKind = AssetKind;
 
 /** airline_assets.kind for a port kind. */
 export function dbKind(
   kind: AssetKind,
-): "logo" | "logo_dark" | "tail" | "side_view" {
+): "logo" | "logo_dark" | "tail" | "side_view" | "wordmark" {
   return kind === "tail_logo" ? "tail" : kind;
 }
 

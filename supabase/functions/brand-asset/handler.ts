@@ -1,4 +1,4 @@
-// GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|tail|side_view[&type=<ICAO type>]
+// GET /brand-asset?airline=<ICAO>&kind=logo|logo_dark|wordmark|tail|side_view[&type=<ICAO type>]
 //   -> { version, format, width, url, smallUrl, expiresAt }
 // Reads airline_assets and signs the object in the private brand-assets bucket for 3600 s. The app
 // only ever sees our bucket; the provider licence key stays with the sync job. No row is 404
@@ -12,7 +12,13 @@ import { checkRate } from "../_shared/limits.ts";
 export const BRAND_ASSET_MAX_PER_HOUR = 600;
 export const SIGNED_URL_SECONDS = 3600;
 const BUCKET = "brand-assets";
-const KINDS = new Set(["logo", "logo_dark", "tail", "side_view"]);
+const KINDS = new Set([
+  "logo",
+  "logo_dark",
+  "wordmark",
+  "tail",
+  "side_view",
+]);
 const ICAO_AIRLINE = /^[A-Z]{3}$/;
 const ICAO_TYPE = /^[A-Z0-9]{2,4}$/;
 

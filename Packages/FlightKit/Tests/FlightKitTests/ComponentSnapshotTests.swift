@@ -185,8 +185,8 @@ struct ComponentSnapshotTests {
         }
     }
 
-    /// Twelve airlines at 44 pt, light page then dark page: monograms, then the bundled Commons logos
-    /// (plates where the ink does not read on the page).
+    /// Twelve airlines at 44 pt, light page then dark page: monograms, then the bundled marks (symbols where
+    /// the airline has one, else the wordmark; plates where the ink does not read on the page), then wordmarks.
     @Test func airlineLogos() async throws {
         let codes = ["AFR", "UAL", "DAL", "AAL", "BAW", "ACA", "AMX", "ASA", "JBU", "SWA", "NKS", "FFT"]
         let ref = ReferenceData.bundled()
@@ -210,10 +210,22 @@ struct ComponentSnapshotTests {
                 }
             }
         }
+        // Wordmarks for the wide slots (the airline card), 30 pt high; the last one has none and shows its name.
+        func wordmarks() -> some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Wordmarks").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), spacing: 10) {
+                    ForEach(Array(airlines.prefix(5))) { a in AirlineWordmark(airline: a, code: a.iata ?? a.id, height: 30) }
+                    AirlineWordmark(airline: Airline(id: "-ZZZ", iata: nil, name: "Unknown Air", colorPrimary: "#555555"),
+                                    code: "ZZ", height: 30)
+                }
+            }
+        }
         func half(_ scheme: ColorScheme) -> some View {
             VStack(alignment: .leading, spacing: 14) {
                 grid("Monograms", logos: false)
                 grid("Logos", logos: true)
+                wordmarks()
             }
             .padding(16)
             .background(scheme == .dark ? Color(red: 0x18 / 255, green: 0x18 / 255, blue: 0x1A / 255)

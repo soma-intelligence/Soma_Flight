@@ -411,6 +411,13 @@ struct BrandAssetTests {
         }
     }
 
+    @Test func wordmarkFallsBackToTheName() {
+        let ual = Airline(id: "UAL", iata: "UA", name: "United Airlines", colorPrimary: "#0033A0")
+        #expect(AirlineWordmark.fallbackText(airline: ual, code: "UA") == "United Airlines")
+        #expect(AirlineWordmark.fallbackText(airline: nil, code: "ZZ") == "ZZ")
+        #expect(AirlineLogo.kinds(dark: false) == [.logo] && AirlineLogo.kinds(dark: true) == [.logoDark, .logo])
+    }
+
     @Test func bundledFakesCoverTheFakeHistory() async {
         let fake = FakeBrandAssetService.bundled()
         for icao in FakeBrandAssetService.bundledAirlines {
@@ -419,6 +426,17 @@ struct BrandAssetTests {
         }
         #expect(await FakeBrandAssetService().asset("UAL", .logo) == nil)
         #expect(await fake.asset("UAL", .logoDark) == nil)
+        // Wide slots: every bundled airline has a wordmark; a symbol airline's logo is a different, smaller file.
+        for icao in FakeBrandAssetService.bundledAirlines {
+            let word = await fake.asset(icao, .wordmark)
+            #expect(word?.decodes == true, "\(icao) wordmark")
+            let logo = await fake.asset(icao, .logo)
+            if FakeBrandAssetService.bundledSymbols.contains(icao) {
+                #expect(logo?.data != word?.data, "\(icao) symbol is not the wordmark")
+            } else {
+                #expect(logo?.data == word?.data, "\(icao) has no symbol: logo is the wordmark")
+            }
+        }
         let ref = ReferenceData.bundled()
         for name in Set(FakeSeed.load("past_flights", as: [PastFlight].self).compactMap(\.airline)) {
             let icao = ref.airline(name)?.id

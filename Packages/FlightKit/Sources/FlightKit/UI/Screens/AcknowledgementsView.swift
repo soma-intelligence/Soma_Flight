@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The open data and software Soma Flight builds on, with the full licence text of the one that
-/// asks for it (circle-flags, MIT) and a credit line for every airline logo taken from Wikimedia Commons.
+/// asks for it (circle-flags, MIT) and a credit line for every airline wordmark and symbol taken from
+/// Wikimedia Commons, with the source file a symbol was cropped from.
 public struct AcknowledgementsView: View {
     var scrolls: Bool
     /// Shows a Done button in the header row; nil leaves it out (a pushed screen has its own back button).
@@ -32,7 +33,32 @@ public struct AcknowledgementsView: View {
         var license_url: String?
         var source: String
         var attribution: String
+        /// The airline's compact symbol, when it has one: a separate Commons file or a crop of the wordmark's.
+        var symbol: SymbolCredit?
         var id: String { icao }
+    }
+
+    /// The credit of an airline's symbol. `method` is "crop" when the symbol was cut out of a Commons
+    /// logo, `derived_from` then names that source file.
+    struct SymbolCredit: Decodable, Equatable {
+        var author: String
+        var license: String
+        var license_url: String?
+        var source: String
+        var attribution: String
+        var method: String?
+        var derived_from: String?
+
+        var isCrop: Bool { method == "crop" }
+
+        /// "Symbol: author, licence".
+        var creditLine: String { "Symbol: \(author), \(license)" }
+
+        /// "Cropped from <source file>" for a crop; nil for a symbol that is a Commons file of its own.
+        var provenanceLine: String? {
+            guard isCrop else { return nil }
+            return "Cropped from \(derived_from ?? "the wordmark's file")"
+        }
     }
 
     static let logoCredits: [LogoCredit] = {
@@ -44,7 +70,7 @@ public struct AcknowledgementsView: View {
 
     /// The licences the logos are under, public domain first (for the summary row).
     static var logoLicenses: String {
-        let all = Set(logoCredits.map(\.license))
+        let all = Set(logoCredits.map(\.license) + logoCredits.compactMap { $0.symbol?.license })
         return all.sorted { ($0 == "Public domain" ? 0 : 1, $0) < ($1 == "Public domain" ? 0 : 1, $1) }
             .joined(separator: ", ")
     }
@@ -52,7 +78,7 @@ public struct AcknowledgementsView: View {
     static let entries = [
         Entry(name: "circle-flags", detail: "Round country flags by HatScripts", license: "MIT"),
         Entry(name: "Airline logos (Wikimedia Commons)",
-              detail: "Credited one by one below. Logos are the airlines' trademarks.", license: logoLicenses),
+              detail: "Wordmarks and symbols, credited one by one below. Logos are the airlines' trademarks.", license: logoLicenses),
         Entry(name: "OurAirports", detail: "Airport and runway reference data", license: "Public domain"),
         Entry(name: "Wikidata", detail: "Country and aircraft reference data", license: "CC0"),
         Entry(name: "Natural Earth", detail: "Country borders and map data", license: "Public domain"),
@@ -167,6 +193,21 @@ public struct AcknowledgementsView: View {
                     Text("Source on Wikimedia Commons").scaledFont(13).foregroundStyle(Theme.accent)
                 }
                 .accessibilityHint(credit.source)
+            }
+            if let symbol = credit.symbol {
+                Text(symbol.creditLine).scaledFont(13).foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .scaledPadding(.top, 4)
+                if let line = symbol.provenanceLine {
+                    Text(line).scaledFont(13).foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !symbol.isCrop, let url = URL(string: symbol.source) {
+                    Link(destination: url) {
+                        Text("Symbol source on Wikimedia Commons").scaledFont(13).foregroundStyle(Theme.accent)
+                    }
+                    .accessibilityHint(symbol.source)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

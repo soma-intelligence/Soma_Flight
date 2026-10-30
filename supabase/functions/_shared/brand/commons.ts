@@ -27,8 +27,8 @@ export const DEFAULT_COMMONS_BASE = new URL(
   import.meta.url,
 );
 
-/** What this provider can answer: the port's kinds plus the explicit wordmark. */
-export type CommonsKind = AssetKind | "wordmark";
+/** What this provider can answer (the port's kinds include the explicit wordmark). */
+export type CommonsKind = AssetKind;
 
 export interface CommonsEntry {
   kind?: "wordmark" | "symbol";
@@ -51,7 +51,7 @@ interface Manifest {
 export class CommonsLogoProvider implements LogoProvider {
   readonly name = "commons";
   readonly rank = 1;
-  readonly kinds = ["logo"] as const;
+  readonly kinds = ["logo", "wordmark"] as const;
   readonly hasColors = false;
   private readonly base: URL;
   private manifest?: Promise<Manifest>;

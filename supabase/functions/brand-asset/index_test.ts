@@ -217,3 +217,24 @@ test(db, "returnsSmallUrlWhenARenditionExists", async () => {
     await db.storage.from(BUCKET).remove([path, small]);
   }
 });
+
+test(db, "servesTheWordmarkKind", async () => {
+  const user = await makeUser(db);
+  const path = `logos/UAL/wordmark-t${TAG}.svg`;
+  const undo = await seed(
+    "wordmark",
+    "",
+    path,
+    "<svg xmlns='http://www.w3.org/2000/svg'/>",
+  );
+  try {
+    const res = await handler(get(user, "airline=UAL&kind=wordmark"), {
+      db,
+      verifier: fakeVerifier,
+    });
+    assertEquals(res.status, 200);
+    assert((await res.json()).url.includes(`wordmark-t${TAG}.svg`));
+  } finally {
+    await undo();
+  }
+});

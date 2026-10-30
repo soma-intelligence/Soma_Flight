@@ -68,6 +68,50 @@ struct AcknowledgementsTests {
         #expect(entry.license.hasPrefix("Public domain"))
     }
 
+    /// Every symbol kept in assets/logos/commons/symbol has a credit line next to its airline's, and every
+    /// crop says which Commons file it was cropped from; so does every wordmark, shipped or not.
+    @Test func everyCommonsSymbolHasAnAttributionLine() throws {
+        struct Entry: Decodable {
+            let license: String; let source_page: String; let author: String
+            let method: String?; let source_file: String?
+        }
+        struct Manifest: Decodable { let logos: [String: Entry]; let symbols: [String: Entry] }
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "assets/logos/commons/manifest.json")
+        let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
+        #expect(manifest.symbols.count >= 37)
+        let credits = Dictionary(uniqueKeysWithValues: AcknowledgementsView.logoCredits.map { ($0.icao, $0) })
+        // Wordmarks: a line each (the other test checks the fields).
+        for icao in manifest.logos.keys { #expect(credits[icao] != nil, "no wordmark credit for \(icao)") }
+        // Symbols: a nested credit with author, licence, source, and the provenance of a crop.
+        var crops = 0
+        for (icao, entry) in manifest.symbols {
+            let credit = try #require(credits[icao], "no credit for \(icao)")
+            let symbol = try #require(credit.symbol, "no symbol credit for \(icao)")
+            #expect(symbol.author == entry.author && !symbol.author.isEmpty)
+            #expect(symbol.license == entry.license)
+            #expect(symbol.source == entry.source_page && symbol.source.hasPrefix("https://commons.wikimedia.org/wiki/File:"))
+            #expect(symbol.attribution.contains("via Wikimedia Commons"))
+            #expect(symbol.creditLine == "Symbol: \(entry.author), \(entry.license)")
+            if entry.method == "crop" {
+                crops += 1
+                #expect(symbol.isCrop)
+                let line = try #require(symbol.provenanceLine, "no provenance for \(icao)")
+                #expect(line.hasPrefix("Cropped from ") && line.count > "Cropped from ".count + 3, "\(icao)")
+                #expect(line.contains(try #require(entry.source_file ?? symbol.derived_from)))
+            } else {
+                #expect(!symbol.isCrop && symbol.provenanceLine == nil)
+            }
+        }
+        #expect(crops >= 31)
+        // No credit for a symbol that is not shipped.
+        #expect(credits.values.filter { $0.symbol != nil }.count == manifest.symbols.count)
+        // The summary row lists the symbols' licences too (KLM crown, CC BY-SA 3.0).
+        let licenses = AcknowledgementsView.logoLicenses
+        for entry in manifest.symbols.values { #expect(licenses.contains(entry.license)) }
+    }
+
     @Test func flagLabelsNameTheCountry() {
         #expect(CountryFlag.accessibilityName("fr") == "France")
         #expect(CountryFlag.accessibilityName("ZZ") == "Unknown country")

@@ -8,7 +8,7 @@ select is((select count(*) from pg_policies where schemaname = 'storage' and tab
   'no client storage policy mentions brand-assets');
 select is((select array_agg(e.enumlabel::text order by e.enumsortorder) from pg_enum e
   join pg_type t on t.oid = e.enumtypid where t.typname = 'brand_asset_kind'),
-  array['logo', 'logo_dark', 'tail', 'side_view'], 'brand_asset_kind labels');
+  array['logo', 'logo_dark', 'tail', 'side_view', 'wordmark'], 'brand_asset_kind labels');
 
 insert into airline_assets (icao, kind, path, format, width, version, provider, fetched_at, checked_at)
 values ('UAL', 'logo', 'logos/UAL/logo-v1.svg', 'svg', 512, 'v1', 'test', now(), now());

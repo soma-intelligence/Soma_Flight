@@ -653,3 +653,27 @@ guarded("failureStampBackOnlyForBadData", async () => {
   const { body } = await run(p, NOW1);
   assertEquals([body.failed, body.stoppedBy], [1, "done"]);
 });
+
+guarded("wordmarkKindIsStoredBesideTheLogo", async () => {
+  const p = fake("ZQA");
+  p.kinds = ["logo", "wordmark"];
+  p.hasColors = false;
+  for (const kind of ["logo", "wordmark"]) {
+    p.files.set(`ZQA/${kind}`, {
+      bytes: svg(`ZQA${kind}`),
+      version: `w${kind}`,
+    });
+  }
+  const { body } = await run(p, NOW1);
+  assertEquals(body.changed, 2);
+  const rows = await db.from("airline_assets").select("kind,path").eq(
+    "icao",
+    "ZQA",
+  );
+  assertEquals(rows.data!.map((r) => r.kind).sort(), ["logo", "wordmark"]);
+  assert(
+    rows.data!.find((r) => r.kind === "wordmark")!.path.startsWith(
+      "logos/ZQA/wordmark-",
+    ),
+  );
+});

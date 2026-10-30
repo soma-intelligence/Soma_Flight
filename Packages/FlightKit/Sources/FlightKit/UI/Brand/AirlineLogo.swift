@@ -250,8 +250,15 @@ public struct AirlineLogo: View {
     /// Returns the art to draw (the first kind that has one). A failed request leaves the memo as it was.
     @discardableResult
     static func load(icao: String, dark: Bool, service: any BrandAssetService, maxPixel: Int = 192) async -> BrandArt? {
+        await load(icao: icao, kinds: kinds(dark: dark), service: service, maxPixel: maxPixel)
+    }
+
+    /// `load` for an explicit list of kinds, best first.
+    @discardableResult
+    static func load(icao: String, kinds: [BrandAssetKind], service: any BrandAssetService,
+                     maxPixel: Int = 192) async -> BrandArt? {
         var best: BrandArt?
-        for kind in kinds(dark: dark) {
+        for kind in kinds {
             let memo = BrandArtMemo.shared
             switch await service.lookup(icao, kind, type: nil) {
             case .unavailable:
@@ -280,6 +287,7 @@ public struct AirlineLogo: View {
     public static func preload(_ icaos: [String], service: any BrandAssetService, maxPixel: Int = 192) async {
         for icao in Set(icaos.map { $0.uppercased() }) {
             await load(icao: icao, dark: true, service: service, maxPixel: maxPixel)
+            await load(icao: icao, kinds: [.wordmark], service: service, maxPixel: maxPixel)
         }
     }
 
@@ -339,6 +347,83 @@ public struct AirlineLogo: View {
             .aspectRatio(art.aspect, contentMode: .fit)
             .padding(inset)
             .frame(width: size, height: size)
+        switch plate {
+        case .light:
+            image.background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color.white))
+                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.separator, lineWidth: 0.5))
+        case .dark:
+            image.background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11)))
+        case nil:
+            image
+        }
+    }
+}
+
+// MARK: - AirlineWordmark
+
+/// The airline's wordmark (its full logo, set wide) in a slot of `height`, as wide as the mark is: for wide
+/// places such as the airline card. Falls back to the airline's name in text while there is no wordmark or
+/// when the airline has none. Sits on the same plate as `AirlineLogo` when its ink does not read.
+public struct AirlineWordmark: View {
+    var airline: Airline?
+    var code: String
+    var height: CGFloat
+    @Environment(\.brandAssets) private var service
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.logoSurface) private var surface
+    @Environment(\.displayScale) private var displayScale
+    @State private var revision = 0
+
+    /// The widest a wordmark gets, in heights (a very wide mark is fitted, not stretched).
+    nonisolated static let maxAspect: CGFloat = 5
+
+    public init(airline: Airline?, code: String, height: CGFloat) {
+        self.airline = airline; self.code = code; self.height = height
+    }
+
+    /// The text shown when there is no wordmark: the airline's name, else the code.
+    public nonisolated static func fallbackText(airline: Airline?, code: String) -> String { airline?.name ?? code }
+
+    public var body: some View {
+        let dark = scheme == .dark
+        let icao = airline?.id
+        let pixels = Int((height * 4 * displayScale).rounded(.up))
+        let _ = revision
+        let art = icao.flatMap { BrandArtMemo.shared.art($0, .wordmark) }
+        Group {
+            if let art {
+                wordmark(art, dark: dark)
+            } else {
+                Text(Self.fallbackText(airline: airline, code: code))
+                    .font(.system(size: height * 0.5, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(Theme.primary)
+                    .frame(height: height)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(airline?.name ?? code)
+        .accessibilityAddTraits(.isImage)
+        .task(id: icao.map { "\($0)-\(pixels)" }) {
+            guard let icao else { return }
+            let before = BrandArtMemo.shared.art(icao, .wordmark)
+            let after = await AirlineLogo.load(icao: icao, kinds: [.wordmark], service: service, maxPixel: pixels)
+            if after?.version != before?.version || after?.pixelSize != before?.pixelSize { revision += 1 }
+        }
+    }
+
+    @ViewBuilder private func wordmark(_ art: BrandArt, dark: Bool) -> some View {
+        let plate = AirlineLogo.plate(art, surface: surface.luminance(dark: dark))
+        let pad = height * (plate == nil ? AirlineLogo.barePadding : AirlineLogo.platePadding)
+        let radius = height * AirlineLogo.cornerRatio
+        let image = Image(decorative: art.image, scale: 1)
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .aspectRatio(min(art.aspect, Self.maxAspect), contentMode: .fit)
+            .padding(pad)
+            .frame(height: height)
         switch plate {
         case .light:
             image.background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color.white))
