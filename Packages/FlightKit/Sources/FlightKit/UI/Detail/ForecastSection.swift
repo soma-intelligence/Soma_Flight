@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The arrival forecast card: how this flight number arrived over the last 60 days, three figures and a
-/// bar per bucket. Paid data, so only screenshot runs on the fakes have it; nothing draws without one.
+/// bar per bucket. Paid data, so only builds with insights on (and screenshot runs on the fakes) have it;
+/// nothing draws without one.
 struct ForecastSection: View {
     var forecast: ArrivalForecast?
     @Environment(\.dynamicTypeSize) private var typeSize

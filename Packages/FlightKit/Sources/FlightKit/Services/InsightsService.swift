@@ -1,9 +1,10 @@
 import Foundation
 
 /// The flight sheet's paid insights: the arrival forecast of a flight number and the flights the
-/// aircraft flies before this one. Both come from AeroAPI, which costs money per call, so live builds use
-/// `UnavailableInsightsService` (no calls, no sample data) until the owner approves the cost; screenshot
-/// runs (`-useFakes`) use `FakeInsightsService`.
+/// aircraft flies before this one. Both come from AeroAPI, which costs money per call: live builds use
+/// `SupabaseInsightsService` (edge function `flight-insights`, cached and under the backend's daily spend
+/// cap) when Info.plist turns them on (`INSIGHTS_ENABLED`, YES in Debug), else `UnavailableInsightsService`
+/// (no calls, no sample data); screenshot runs (`-useFakes`) use `FakeInsightsService`.
 public protocol InsightsService: Sendable {
     /// nil when there is no forecast for the flight number.
     func arrivalForecast(ident: String) async throws(APIError) -> ArrivalForecast?
@@ -11,7 +12,7 @@ public protocol InsightsService: Sendable {
     func inbound(_ id: Flight.ID) async throws(APIError) -> [InboundLeg]
 }
 
-/// Live builds: nothing, and no network call.
+/// Live builds with insights turned off (`INSIGHTS_ENABLED` NO): nothing, and no network call.
 public struct UnavailableInsightsService: InsightsService {
     public init() {}
     public func arrivalForecast(ident: String) async throws(APIError) -> ArrivalForecast? { nil }
