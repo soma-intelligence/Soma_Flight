@@ -25,6 +25,21 @@ extension DetailFacts {
     }
 }
 
+extension DetailFacts {
+    /// A contact button's caps title as a menu item: "PHONE" as "Phone", "X / TWITTER" as "X / Twitter".
+    static func menuTitle(_ caps: String) -> String {
+        caps.split(separator: " ").map { w in w.count == 1 ? String(w) : w.prefix(1) + w.dropFirst().lowercased() }
+            .joined(separator: " ")
+    }
+
+    /// Apple Maps at the airport, labelled with its name.
+    static func mapsURL(_ a: Airport) -> URL? {
+        var c = URLComponents(string: "https://maps.apple.com/")
+        c?.queryItems = [URLQueryItem(name: "ll", value: "\(a.lat),\(a.lon)"), URLQueryItem(name: "q", value: a.name)]
+        return c?.url
+    }
+}
+
 // MARK: - Tiles
 
 /// "Booking Code" and "Seat" side by side, "Tap to edit" until set. The booking tile offers a paste
@@ -157,7 +172,11 @@ extension View {
             popover(isPresented: Binding(get: { editing.wrappedValue == field },
                                          set: { if !$0, editing.wrappedValue == field { editing.wrappedValue = nil } }),
                     arrowEdge: .bottom) {
-                DetailEditSheet(field: field, store: store)
+                if field == .notes {
+                    DetailEditSheet(field: field, store: store)
+                } else {
+                    BookingDetailsSheet(field: field, store: store)
+                }
             }
         } else {
             self

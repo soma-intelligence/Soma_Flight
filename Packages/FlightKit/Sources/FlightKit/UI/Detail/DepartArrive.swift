@@ -39,6 +39,22 @@ extension DetailFacts {
         return "Scheduled"
     }
 
+    /// How a side runs against its schedule, in whole minutes (positive late), from the actual time
+    /// else the estimate; nil while only the schedule is known.
+    static func offsetMinutes(scheduled: Date?, estimated: Date?, actual: Date?) -> Int? {
+        guard let scheduled, let best = actual ?? estimated else { return nil }
+        return Int((best.timeIntervalSince(scheduled) / 60).rounded())
+    }
+
+    /// The word under a big time once there is an estimate or an actual: "3m Late", "32m Early",
+    /// "On Time"; nil while only the schedule is known (the view then says `timeWord`).
+    static func offsetWord(_ minutes: Int?) -> String? {
+        guard let minutes else { return nil }
+        if minutes >= 1 { return "\(span(minutes: minutes)) Late" }
+        if minutes <= -1 { return "\(span(minutes: -minutes)) Early" }
+        return "On Time"
+    }
+
     /// "SFO · San Francisco Intl.": the code and a shortened airport name.
     static func airportLine(code: String, airport: Airport?) -> String {
         guard let airport else { return code }
@@ -106,14 +122,21 @@ struct DepartArrive: View {
             side(arriving: false, code: flight.originCode, icao: flight.originIcao, airport: origin, time: out,
                  word: DetailFacts.timeWord(scheduled: flight.scheduledOut, estimated: flight.estimatedOut,
                                             actual: flight.actualOut),
-                 gate: flight.gateOrigin, terminal: flight.terminalOrigin, marker: nil)
+                 scheduled: flight.scheduledOut,
+                 offset: DetailFacts.offsetMinutes(scheduled: flight.scheduledOut, estimated: flight.estimatedOut,
+                                                   actual: flight.actualOut),
+                 gate: flight.gateOrigin, terminal: flight.terminalOrigin, belt: nil, marker: nil)
             middle
                 .scaledPadding(.vertical, 18)
             side(arriving: true, code: flight.destinationCode, icao: flight.destinationIcao, airport: destination,
                  time: arr,
                  word: DetailFacts.timeWord(scheduled: flight.scheduledIn, estimated: flight.estimatedIn,
                                             actual: flight.actualIn),
-                 gate: flight.gateDestination, terminal: flight.terminalDestination, marker: marker)
+                 scheduled: flight.scheduledIn,
+                 offset: DetailFacts.offsetMinutes(scheduled: flight.scheduledIn, estimated: flight.estimatedIn,
+                                                   actual: flight.actualIn ?? flight.actualOn),
+                 gate: flight.gateDestination, terminal: flight.terminalDestination, belt: flight.baggageBelt,
+                 marker: marker)
         }
     }
 
@@ -138,8 +161,21 @@ struct DepartArrive: View {
     }
 
     private func side(arriving: Bool, code: String, icao: String, airport: Airport?, time: Date?, word: String,
-                      gate: String?, terminal: String?, marker: String?) -> some View {
+                      scheduled: Date?, offset: Int?, gate: String?, terminal: String?, belt: String?,
+                      marker: String?) -> some View {
         let tz = airport?.timeZone ?? .current
+        // Late in red, early or on time in green, white while only the schedule is known.
+        let tone: Color = switch offset {
+        case nil: Theme.primary
+        case let m? where m >= 1: Theme.veryLate
+        default: Theme.onTime
+        }
+        let status = DetailFacts.offsetWord(offset) ?? word
+        let statusTone = offset == nil ? Theme.secondary : tone
+        // The schedule, struck through beside the time, once the best time moved off it.
+        let struck: String? = if let scheduled, let offset, offset != 0 {
+            Format.clock(scheduled, tz, units.clock)
+        } else { nil }
         return VStack(alignment: .leading, spacing: 4) {
             Button { onAirport(airport?.id ?? icao) } label: {
                 HStack(spacing: 6) {
@@ -164,39 +200,48 @@ struct DepartArrive: View {
             // Time and gate side by side; at accessibility sizes the gate and terminal go under the time
             // so the time keeps its size.
             let stacked = typeSize.isAccessibilitySize
-            let terminalText = arriving && flight.baggageBelt != nil
-                ? "Terminal \(terminal ?? "--") · Belt \(flight.baggageBelt ?? "")"
-                : "Terminal \(terminal ?? "--")"
+            let terminalText = "Terminal \(terminal ?? "--")"
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center) {
-                    HStack(alignment: .top, spacing: 2) {
-                        Text(time.map { Format.clock($0, tz, units.clock) } ?? "--:--")
-                            .scaledFont(40, weight: .semibold)
-                            .monospacedDigit()
-                            .foregroundStyle(time == nil ? Theme.secondary : Theme.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(stacked ? 0.9 : 0.6)
-                        if let marker {
-                            Text(marker)
-                                .scaledFont(15, weight: .semibold)
-                                .foregroundStyle(Theme.primary)
-                                .accessibilityLabel(marker.hasPrefix("-") ? "previous day" : "\(marker) day")
+                    HStack(alignment: .lastTextBaseline, spacing: 6) {
+                        HStack(alignment: .top, spacing: 2) {
+                            Text(time.map { Format.clock($0, tz, units.clock) } ?? "--:--")
+                                .scaledFont(40, weight: .semibold)
+                                .monospacedDigit()
+                                .foregroundStyle(time == nil ? Theme.secondary : tone)
+                                .lineLimit(1)
+                                .minimumScaleFactor(stacked ? 0.9 : 0.6)
+                            if let marker {
+                                Text(marker)
+                                    .scaledFont(15, weight: .semibold)
+                                    .foregroundStyle(tone)
+                                    .accessibilityLabel(marker.hasPrefix("-") ? "previous day" : "\(marker) day")
+                            }
+                        }
+                        if let struck {
+                            Text(struck)
+                                .scaledFont(15, weight: .medium)
+                                .monospacedDigit()
+                                .strikethrough()
+                                .foregroundStyle(Theme.secondary)
+                                .lineLimit(1)
+                                .accessibilityLabel("scheduled \(struck)")
                         }
                     }
                     if !stacked {
                         Spacer(minLength: 12)
-                        GateBadge(gate: gate, arriving: arriving)
+                        badges(gate: gate, belt: belt, arriving: arriving)
                     }
                 }
                 if stacked {
-                    Text(word).scaledFont(14).foregroundStyle(Theme.secondary)
-                    GateBadge(gate: gate, arriving: arriving).scaledPadding(.top, 6)
+                    Text(status).scaledFont(14, weight: .medium).foregroundStyle(statusTone)
+                    badges(gate: gate, belt: belt, arriving: arriving).scaledPadding(.top, 6)
                     Text(terminalText).scaledFont(14).foregroundStyle(Theme.secondary)
                 } else {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(word)
-                            .scaledFont(14)
-                            .foregroundStyle(Theme.secondary)
+                        Text(status)
+                            .scaledFont(14, weight: offset == nil ? .regular : .medium)
+                            .foregroundStyle(statusTone)
                         Spacer(minLength: 12)
                         Text(terminalText)
                             .scaledFont(14)
@@ -207,6 +252,34 @@ struct DepartArrive: View {
             }
             .accessibilityElement(children: .combine)
         }
+    }
+
+    /// The arrival's baggage belt (once known) beside the gate.
+    private func badges(gate: String?, belt: String?, arriving: Bool) -> some View {
+        HStack(spacing: 6) {
+            if let belt { BeltBadge(belt: belt) }
+            GateBadge(gate: gate, arriving: arriving)
+        }
+    }
+}
+
+/// The baggage belt: a suitcase and the belt on the gate's yellow.
+struct BeltBadge: View {
+    var belt: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "suitcase.rolling.fill")
+                .scaledFont(14, weight: .bold)
+            Text(belt).scaledFont(18, weight: .bold)
+        }
+        .foregroundStyle(.black)
+        .scaledPadding(.horizontal, 10)
+        .scaledPadding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(GateBadge.yellow))
+        .lineLimit(1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Baggage belt \(belt)")
     }
 }
 

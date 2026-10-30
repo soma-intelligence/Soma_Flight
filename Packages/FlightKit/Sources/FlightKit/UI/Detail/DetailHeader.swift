@@ -77,6 +77,35 @@ extension DetailFacts {
         return "\(name) · \(status)"
     }
 
+    /// The status card once the flight is down: "Arrived 32m Early", "Landed 3m Late", "Arrived On Time";
+    /// nil before landing, or when the arrival cannot be set against its schedule.
+    static func landedTitle(_ f: Flight) -> String? {
+        guard f.status == .landed || f.status == .arrived,
+              let offset = offsetMinutes(scheduled: f.scheduledIn, estimated: f.estimatedIn,
+                                         actual: f.actualIn ?? f.actualOn),
+              let word = offsetWord(offset) else { return nil }
+        return "\(f.status == .arrived ? "Arrived" : "Landed") \(word)"
+    }
+
+    /// "Total 10h 50m · 8,965 km": gate to gate and the distance, for a flight that is down.
+    static func landedCaption(_ f: Flight, origin: Airport?, destination: Airport?, unit: DistanceUnit) -> String? {
+        var parts: [String] = []
+        if let out = bestOut(f), let arr = bestIn(f), arr > out {
+            parts.append("Total \(span(minutes: Int(arr.timeIntervalSince(out) / 60)))")
+        }
+        if let km = distanceKm(origin: origin, destination: destination) { parts.append(TravelFacts.distance(km, unit)) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// The status card's tint: green early or on time, red late, none until there is an estimate or
+    /// an actual arrival, and none before departure or when canceled or diverted.
+    static func statusTone(_ f: Flight) -> Color? {
+        guard [.departed, .enRoute, .landed, .arrived].contains(f.status),
+              let offset = offsetMinutes(scheduled: f.scheduledIn, estimated: f.estimatedIn,
+                                         actual: f.actualIn ?? f.actualOn) else { return nil }
+        return offset >= 1 ? Theme.veryLate : Theme.onTime
+    }
+
     /// "UA 990 San Francisco to Paris, departs Fri 30 Oct 15:20 SFO".
     static func shareText(_ f: Flight, origin: Airport?, destination: Airport?, clock: TimeStyle = .h24) -> String {
         let route = ScreenFormat.route(origin?.city ?? f.originCode, destination?.city ?? f.destinationCode)
@@ -134,31 +163,34 @@ struct DetailHeader: View {
 struct CountdownCard: View {
     var title: String
     var caption: String
+    /// Green or red once the arrival can be set against its schedule; nil keeps the grey card.
+    var tone: Color?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .scaledFont(18, weight: .semibold)
-                .foregroundStyle(Theme.primary)
+                .foregroundStyle(tone ?? Theme.primary)
             Text(caption)
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
+                .scaledFont(15, weight: tone == nil ? .regular : .medium)
+                .foregroundStyle(tone.map { $0.opacity(0.85) } ?? Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .scaledPadding(.horizontal, 16)
         .scaledPadding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.card))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.separator, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tone.map { $0.opacity(0.16) } ?? Theme.card))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(tone.map { $0.opacity(0.35) } ?? Theme.separator, lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - Bottom bar
 
-/// The floating bar at the bottom of the flight sheet: share, the flight's alert bell (followed flights
-/// only) and a menu of the rarer actions. `compact` is the Mac panel's form: the same three buttons,
-/// smaller and without the glass capsule, in the header.
+/// The floating controls at the bottom of the flight sheet: the menu of rarer actions and the flight's
+/// alert bell (followed flights only) as glass circles on the left, a blue Share capsule on the right.
+/// `compact` is the Mac panel's form: share, bell and menu as small circles in the header.
 struct DetailBottomBar<Menu: View>: View {
     var shareText: String
     /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts).
@@ -170,52 +202,74 @@ struct DetailBottomBar<Menu: View>: View {
 
     var body: some View {
         if compact {
-            buttons.buttonStyle(.plain)
+            HStack(spacing: 6) {
+                ShareLink(item: shareText) { icon("square.and.arrow.up") }
+                    .accessibilityLabel("Share Flight")
+                bell
+                more
+            }
+            .buttonStyle(.plain)
         } else {
-            buttons
-                .buttonStyle(.plain)
-                .scaledPadding(.horizontal, 8)
-                .glassEffect(.regular.tint(HomeTabPill.tint), in: .capsule)
+            HStack(spacing: 10) {
+                more
+                    .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .circle)
+                if notify != nil {
+                    bell
+                        .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .circle)
+                }
+                Spacer(minLength: 12)
+                ShareLink(item: shareText) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.system(size: Theme.fontSize(18, scale), weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Theme.metric(22, scale))
+                        .frame(height: Theme.metric(52, scale))
+                        .contentShape(Capsule())
+                }
+                .glassEffect(.regular.tint(Theme.accent).interactive(), in: .capsule)
+                .accessibilityLabel("Share Flight")
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private var buttons: some View {
-        HStack(spacing: compact ? 6 : 0) {
-            ShareLink(item: shareText) {
-                icon("square.and.arrow.up")
+    @ViewBuilder private var bell: some View {
+        if let notify {
+            Button { onNotify(!notify) } label: {
+                icon(notify ? "bell.fill" : "bell.slash")
             }
-            .accessibilityLabel("Share Flight")
-            if let notify {
-                Button { onNotify(!notify) } label: {
-                    icon(notify ? "bell.fill" : "bell.slash")
-                }
-                .accessibilityLabel(notify ? "Turn Off Alerts" : "Turn On Alerts")
-                .accessibilityValue(notify ? "On" : "Off")
-            }
-            SwiftUI.Menu {
-                menu()
-            } label: {
-                icon("ellipsis")
-            }
-            .menuIndicator(.hidden)
-            #if os(macOS)
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            // The borderless menu drops its label's background: the circle goes behind the menu instead.
-            .frame(width: compact ? Theme.metric(34, scale) : nil, height: compact ? Theme.metric(34, scale) : nil)
-            .background { if compact { Circle().fill(Theme.pill) } }
-            #endif
-            .accessibilityLabel("More")
+            .accessibilityLabel(notify ? "Turn Off Alerts" : "Turn On Alerts")
+            .accessibilityValue(notify ? "On" : "Off")
         }
+    }
+
+    private var more: some View {
+        SwiftUI.Menu {
+            menu()
+        } label: {
+            icon("ellipsis")
+        }
+        .menuIndicator(.hidden)
+        // Share stays on top even when the menu opens upward from the bottom bar.
+        .menuOrder(.fixed)
+        #if os(macOS)
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        // The borderless menu drops its label's background: the circle goes behind the menu instead.
+        .frame(width: compact ? Theme.metric(34, scale) : nil, height: compact ? Theme.metric(34, scale) : nil)
+        .background { if compact { Circle().fill(Theme.pill) } }
+        #endif
+        .accessibilityLabel("More")
     }
 
     private func icon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: Theme.fontSize(compact ? 15 : 19, scale), weight: .medium))
+        let side = Theme.metric(compact ? 34 : 52, scale)
+        return Image(systemName: name)
+            .font(.system(size: Theme.fontSize(compact ? 15 : 19, scale), weight: .semibold))
             .foregroundStyle(Theme.primary)
-            .frame(width: Theme.metric(compact ? 34 : 54, scale), height: Theme.metric(compact ? 34 : 50, scale))
+            .frame(width: side, height: side)
             .background { if compact { Circle().fill(Theme.pill) } }
-            .contentShape(Rectangle())
+            .contentShape(Circle())
             .help(name == "ellipsis" ? "More" : name == "square.and.arrow.up" ? "Share Flight" : "Alerts")
     }
 }

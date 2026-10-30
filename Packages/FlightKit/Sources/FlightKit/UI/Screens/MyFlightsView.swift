@@ -98,7 +98,7 @@ public struct MyFlightsView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) {
+                            Button("Delete Flight", systemImage: "trash", role: .destructive) {
                                 Task { await store.unfollow(flight) }
                             }
                         }

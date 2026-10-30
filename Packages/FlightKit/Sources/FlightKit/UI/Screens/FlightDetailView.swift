@@ -76,15 +76,20 @@ public struct FlightDetailView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if let flight = store.flight, !Self.barInHeader {
                 bottomBar(flight)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .scaledPadding(.leading, Theme.gutter)
+                    .scaledPadding(.horizontal, Theme.gutter)
                     .scaledPadding(.bottom, 6)
             }
         }
         // The Mac shows the editors as popovers on their tile (`detailEditor`); iOS as sheets.
         .sheet(item: Self.barInHeader ? .constant(nil) : $editing) { field in
-            DetailEditSheet(field: field, store: store)
-                .environment(\.units, units)
+            Group {
+                if field == .notes {
+                    DetailEditSheet(field: field, store: store)
+                } else {
+                    BookingDetailsSheet(field: field, store: store)
+                }
+            }
+            .environment(\.units, units)
         }
         .alert("Could Not Stop Tracking", isPresented: Binding(
             get: { store.trackingError != nil },
@@ -140,8 +145,13 @@ public struct FlightDetailView: View {
                 }
                 SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
                 if let notice = notice(flight) { notice }
-                CountdownCard(title: DetailFacts.countdown(flight, destination: store.destination, now: now),
-                              caption: DetailFacts.countdownCaption(flight, airline: airline(flight)))
+                CountdownCard(title: DetailFacts.landedTitle(flight)
+                                ?? DetailFacts.countdown(flight, destination: store.destination, now: now),
+                              caption: DetailFacts.landedTitle(flight) == nil ? DetailFacts.countdownCaption(flight, airline: airline(flight))
+                                : DetailFacts.landedCaption(flight, origin: store.origin,
+                                                            destination: plannedDestination(flight), unit: units.distance)
+                                  ?? DetailFacts.countdownCaption(flight, airline: airline(flight)),
+                              tone: DetailFacts.statusTone(flight))
                 DepartArrive(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now,
                              onAirport: onAirport)
                     .scaledPadding(.top, 16)
@@ -223,15 +233,47 @@ public struct FlightDetailView: View {
                                                          destination: plannedDestination(flight), clock: units.clock),
                         notify: DetailFacts.takesAlerts(flight) ? store.notify : nil,
                         onNotify: { on in Task { await store.setNotify(on) } }, compact: compact) {
-            if store.isFollowed {
-                Button("Stop Tracking", systemImage: "minus.circle", role: .destructive) { stopTracking() }
+            ShareLink(item: DetailFacts.shareText(flight, origin: store.origin, destination: plannedDestination(flight),
+                                                  clock: units.clock)) {
+                Label("Share", systemImage: "square.and.arrow.up")
             }
-            Button("Copy Flight Number", systemImage: "doc.on.doc") { Pasteboard.copy(Format.ident(flight.ident)) }
+            Divider()
+            if let a = airline(flight) {
+                let links = AirlineCard.buttons(a)
+                if !links.isEmpty {
+                    Menu {
+                        ForEach(links, id: \.self) { link in
+                            Button(DetailFacts.menuTitle(link.title)) { openURL(link.url) }
+                        }
+                    } label: {
+                        Label("Contact Airline", systemImage: "phone")
+                    }
+                }
+            }
+            let places = [store.origin, plannedDestination(flight)].compactMap { $0 }
+            if !places.isEmpty {
+                Menu {
+                    ForEach(places, id: \.id) { airport in
+                        if let url = DetailFacts.mapsURL(airport) {
+                            Button("\(airport.iata ?? airport.id) · \(DetailFacts.shortName(airport.name))") { openURL(url) }
+                        }
+                    }
+                } label: {
+                    Label("Open In Maps", systemImage: "map")
+                }
+            }
+            Divider()
+            if store.details != nil {
+                Button("Edit Flight Record", systemImage: "pencil") { editing = .bookingCode }
+            }
             Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {
                 // No mail app: the address goes to the pasteboard, as under the report link.
                 openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt)) { accepted in
                     if !accepted { Pasteboard.copy(DetailFacts.supportAddress) }
                 }
+            }
+            if store.isFollowed {
+                Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
             }
         }
     }
