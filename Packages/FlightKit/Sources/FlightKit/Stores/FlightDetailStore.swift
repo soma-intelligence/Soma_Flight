@@ -34,6 +34,10 @@ public final class FlightDetailStore {
     public private(set) var destinationWeather: Weather?
     /// The user's past flights between the two airports, both ways; nil when none or not loaded.
     private(set) var routeHistory: RouteHistory?
+    /// How this flight number arrived lately (paid data: fakes only, nil in live builds).
+    public private(set) var forecast: ArrivalForecast?
+    /// The aircraft's earlier flights, newest first (paid data: fakes only, empty in live builds).
+    public private(set) var inbound: [InboundLeg] = []
 
     /// What the server holds, to go back to when a save fails.
     private var confirmedDetails: FollowDetails?
@@ -46,12 +50,17 @@ public final class FlightDetailStore {
     private let flights: any FlightService
     private let airports: any AirportService
     private let history: (any HistoryService)?
+    private let insights: any InsightsService
     private let cache: (any FlightListCache)?
 
-    /// - Parameter history: the user's past flights, for the history card; nil shows none.
+    /// - Parameters:
+    ///   - history: the user's past flights, for the history card; nil shows none.
+    ///   - insights: the arrival forecast and inbound chain; the default asks nothing and shows nothing.
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
-                history: (any HistoryService)? = nil, cache: (any FlightListCache)? = nil) {
-        self.id = id; self.flights = flights; self.airports = airports; self.history = history; self.cache = cache
+                history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
+                cache: (any FlightListCache)? = nil) {
+        self.id = id; self.flights = flights; self.airports = airports; self.history = history
+        self.insights = insights; self.cache = cache
     }
 
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
@@ -97,7 +106,7 @@ public final class FlightDetailStore {
 
     /// Fills Good to Know (each airport's delays and weather) and the history card, after `load()`.
     /// Calls run one after another (origin stats, destination stats, origin weather, destination
-    /// weather, history); each failure leaves only its own value nil.
+    /// weather, history, forecast, inbound chain); each failure leaves only its own value nil or empty.
     public func loadExtras() async {
         guard let f = flight else { return }
         let originCode = f.originIcao
@@ -111,6 +120,8 @@ public final class FlightDetailStore {
         } else {
             routeHistory = nil
         }
+        forecast = try? await insights.arrivalForecast(ident: f.ident)
+        inbound = (try? await insights.inbound(id)) ?? []
     }
 
     /// How often an open detail asks for the live position while the flight is in the air: the

@@ -2,7 +2,8 @@ import SwiftUI
 
 /// One followed flight in full: the airline, flight number and route pinned at the top; then the
 /// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
-/// code and seat tiles, Good to Know, the aircraft, the detailed timetable, the airline, the user's
+/// code and seat tiles, Good to Know, the arrival forecast and where the plane is (fakes only for
+/// now), the detailed timetable, the airline, the user's
 /// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
 /// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
 /// belong to the shell.
@@ -107,7 +108,7 @@ public struct FlightDetailView: View {
         #endif
     }
 
-    /// Screenshot runs: `-detailScroll goodToKnow|timetable|airline` opens the sheet with that card at
+    /// Screenshot runs: `-detailScroll goodToKnow|forecast|plane|timetable|airline` opens the sheet with that card at
     /// the top, once the extras are in.
     private func jumpForScreenshots(_ proxy: ScrollViewProxy) async {
         #if DEBUG
@@ -158,10 +159,18 @@ public struct FlightDetailView: View {
                            timeZone: timeZoneChange(flight),
                            onAirport: onAirport)
                     .id("goodToKnow")
-                DetailCard {
-                    CardTitle("Aircraft")
-                        .scaledPadding(.bottom, 12)
-                    AircraftRow(type: flight.aircraftType, registration: flight.registration)
+                ForecastSection(forecast: store.forecast)
+                    .id("forecast")
+                let type = flight.aircraftType.flatMap { reference.type($0) }
+                if PlaneSection.isShown(type: type, inbound: store.inbound) {
+                    PlaneSection(flight: flight, type: type, airline: airline(flight), inbound: store.inbound)
+                        .id("plane")
+                } else {
+                    DetailCard {
+                        CardTitle("Aircraft")
+                            .scaledPadding(.bottom, 12)
+                        AircraftRow(type: flight.aircraftType, registration: flight.registration)
+                    }
                 }
                 TimetableCard(rows: Timetable.rows(flight, originTz: store.origin?.timeZone ?? .gmt,
                                                    destinationTz: plannedDestination(flight)?.timeZone ?? .gmt,
@@ -589,7 +598,8 @@ struct FlightDetailPreview: View {
         case .diverted: PreviewData.diverted
         default: PreviewData.enRoute
         }
-        let s = FlightDetailStore(id: flight.id, flights: flights, airports: airports, history: FakeHistoryService())
+        let s = FlightDetailStore(id: flight.id, flights: flights, airports: airports, history: FakeHistoryService(),
+                                  insights: FakeInsightsService(flights: flights))
         if mode == .failed { await flights.setNextError(.providerUnavailable) }
         await s.load()
         await s.loadExtras()

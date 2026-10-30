@@ -13,6 +13,9 @@ public struct AppEnvironment: Sendable {
     public var aircraftFacts: (any AircraftFactsService)?
     /// Airline logos (versioned disk cache over `brand-asset`); the shells put it in `\.brandAssets`.
     public var brand: any BrandAssetService
+    /// The flight sheet's paid insights (arrival forecast, inbound chain): the fakes with `-useFakes`,
+    /// nothing in live builds until the owner approves the AeroAPI cost.
+    public var insights: any InsightsService
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -28,9 +31,10 @@ public struct AppEnvironment: Sendable {
                 directory: AirportDirectory = .bundled(), reference: ReferenceData = .bundled(),
                 recents: RecentsStorage = .memory, requiresSignIn: Bool = false,
                 aircraftFacts: (any AircraftFactsService)? = nil,
-                brand: any BrandAssetService = FakeBrandAssetService()) {
+                brand: any BrandAssetService = FakeBrandAssetService(),
+                insights: any InsightsService = UnavailableInsightsService()) {
         self.flights = flights; self.airports = airports; self.auth = auth
-        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.cache = cache
+        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
@@ -38,9 +42,11 @@ public struct AppEnvironment: Sendable {
     /// Async because the SwiftData cache must be built off the main thread.
     /// - Parameter pastLimit: keeps only the newest flights of the past history (`-fakePast <n>`).
     @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil) async throws -> AppEnvironment {
-        AppEnvironment(flights: FakeFlightService(now: now), airports: FakeAirportService(now: now), auth: FakeAuthService(),
-                       history: FakeHistoryService(limit: pastLimit), push: FakePushService(), cache: try CacheStore.inMemory(),
-                       aircraftFacts: FakeAircraftFactsService(), brand: FakeBrandAssetService.bundled())
+        let flights = FakeFlightService(now: now)
+        return AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
+                              history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
+                              cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
+                              brand: FakeBrandAssetService.bundled(), insights: FakeInsightsService(flights: flights))
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -120,7 +126,8 @@ public struct AppEnvironment: Sendable {
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
-        FlightDetailStore(id: id, flights: flights, airports: airports, history: history, cache: cache.scoped(for: owner))
+        FlightDetailStore(id: id, flights: flights, airports: airports, history: history, insights: insights,
+                          cache: cache.scoped(for: owner))
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.

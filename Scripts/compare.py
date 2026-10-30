@@ -136,6 +136,10 @@ V2_REFS: dict[str, list] = {
     "detail-good-to-know": ["34", "33"],
     "detail-timetable": ["32", "31"],
     "detail-airline": ["30"],
+    # Flight sheet, part 3 (Task 17, fakes only), `-detailScroll forecast|plane`: the arrival forecast beside
+    # 33, where the plane is beside 33 and 32.
+    "detail-forecast": ["33"],
+    "detail-plane": ["33", "32"],
 }
 
 
