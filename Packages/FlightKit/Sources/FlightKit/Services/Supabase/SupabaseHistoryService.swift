@@ -9,7 +9,7 @@ public final class SupabaseHistoryService: HistoryService {
 
     static let columns = "id, date, ident, origin_icao, destination_icao, airline, aircraft_type, registration, seat, "
         + "distance_km, block_minutes, delay_minutes, status, origin_tz, seat_class, reason, booking_code, notes, "
-        + "origin_country, destination_country, air_minutes"
+        + "origin_country, destination_country, air_minutes, seat_position"
 
     static func decode(_ data: Data) throws -> [PastFlight] {
         try FlightJSON.decoder.decode([PastFlight].self, from: data)

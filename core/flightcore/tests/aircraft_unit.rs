@@ -25,6 +25,7 @@ fn f(departed_at: i64, ty: Option<&str>, reg: Option<&str>) -> PastFlight {
         seat_class: None,
         seat: None,
         reason: None,
+        seat_position: None,
     }
 }
 

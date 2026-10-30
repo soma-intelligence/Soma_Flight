@@ -1783,10 +1783,11 @@ public struct PastFlight: Equatable, Hashable {
     public var seatClass: SeatClass?
     public var seat: String?
     public var reason: TripReason?
+    public var seatPosition: SeatPosition?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(departedAt: Int64, tz: String, ident: String, originIcao: String, destinationIcao: String, airline: String?, aircraftType: String?, distanceKm: UInt32, blockMinutes: UInt32?, delayMinutes: UInt32, status: PastFlightStatus, originCountry: String? = nil, destinationCountry: String? = nil, airMinutes: UInt32? = nil, registration: String? = nil, seatClass: SeatClass? = nil, seat: String? = nil, reason: TripReason? = nil) {
+    public init(departedAt: Int64, tz: String, ident: String, originIcao: String, destinationIcao: String, airline: String?, aircraftType: String?, distanceKm: UInt32, blockMinutes: UInt32?, delayMinutes: UInt32, status: PastFlightStatus, originCountry: String? = nil, destinationCountry: String? = nil, airMinutes: UInt32? = nil, registration: String? = nil, seatClass: SeatClass? = nil, seat: String? = nil, reason: TripReason? = nil, seatPosition: SeatPosition? = nil) {
         self.departedAt = departedAt
         self.tz = tz
         self.ident = ident
@@ -1805,6 +1806,7 @@ public struct PastFlight: Equatable, Hashable {
         self.seatClass = seatClass
         self.seat = seat
         self.reason = reason
+        self.seatPosition = seatPosition
     }
 
     
@@ -1840,7 +1842,8 @@ public struct FfiConverterTypePastFlight: FfiConverterRustBuffer {
                 registration: FfiConverterOptionString.read(from: &buf), 
                 seatClass: FfiConverterOptionTypeSeatClass.read(from: &buf), 
                 seat: FfiConverterOptionString.read(from: &buf), 
-                reason: FfiConverterOptionTypeTripReason.read(from: &buf)
+                reason: FfiConverterOptionTypeTripReason.read(from: &buf), 
+                seatPosition: FfiConverterOptionTypeSeatPosition.read(from: &buf)
         )
     }
 
@@ -1863,6 +1866,7 @@ public struct FfiConverterTypePastFlight: FfiConverterRustBuffer {
         FfiConverterOptionTypeSeatClass.write(value.seatClass, into: &buf)
         FfiConverterOptionString.write(value.seat, into: &buf)
         FfiConverterOptionTypeTripReason.write(value.reason, into: &buf)
+        FfiConverterOptionTypeSeatPosition.write(value.seatPosition, into: &buf)
     }
 }
 
@@ -1886,13 +1890,19 @@ public struct PositionCounts: Equatable, Hashable {
     public var window: UInt32
     public var middle: UInt32
     public var aisle: UInt32
+    public var pilot: UInt32
+    public var captain: UInt32
+    public var jumpseat: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(window: UInt32, middle: UInt32, aisle: UInt32) {
+    public init(window: UInt32, middle: UInt32, aisle: UInt32, pilot: UInt32, captain: UInt32, jumpseat: UInt32) {
         self.window = window
         self.middle = middle
         self.aisle = aisle
+        self.pilot = pilot
+        self.captain = captain
+        self.jumpseat = jumpseat
     }
 
     
@@ -1913,7 +1923,10 @@ public struct FfiConverterTypePositionCounts: FfiConverterRustBuffer {
             try PositionCounts(
                 window: FfiConverterUInt32.read(from: &buf), 
                 middle: FfiConverterUInt32.read(from: &buf), 
-                aisle: FfiConverterUInt32.read(from: &buf)
+                aisle: FfiConverterUInt32.read(from: &buf), 
+                pilot: FfiConverterUInt32.read(from: &buf), 
+                captain: FfiConverterUInt32.read(from: &buf), 
+                jumpseat: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -1921,6 +1934,9 @@ public struct FfiConverterTypePositionCounts: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.window, into: &buf)
         FfiConverterUInt32.write(value.middle, into: &buf)
         FfiConverterUInt32.write(value.aisle, into: &buf)
+        FfiConverterUInt32.write(value.pilot, into: &buf)
+        FfiConverterUInt32.write(value.captain, into: &buf)
+        FfiConverterUInt32.write(value.jumpseat, into: &buf)
     }
 }
 
@@ -1943,12 +1959,14 @@ public func FfiConverterTypePositionCounts_lower(_ value: PositionCounts) -> Rus
 public struct ReasonCounts: Equatable, Hashable {
     public var personal: UInt32
     public var business: UInt32
+    public var crew: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(personal: UInt32, business: UInt32) {
+    public init(personal: UInt32, business: UInt32, crew: UInt32) {
         self.personal = personal
         self.business = business
+        self.crew = crew
     }
 
     
@@ -1968,13 +1986,15 @@ public struct FfiConverterTypeReasonCounts: FfiConverterRustBuffer {
         return
             try ReasonCounts(
                 personal: FfiConverterUInt32.read(from: &buf), 
-                business: FfiConverterUInt32.read(from: &buf)
+                business: FfiConverterUInt32.read(from: &buf), 
+                crew: FfiConverterUInt32.read(from: &buf)
         )
     }
 
     public static func write(_ value: ReasonCounts, into buf: inout [UInt8]) {
         FfiConverterUInt32.write(value.personal, into: &buf)
         FfiConverterUInt32.write(value.business, into: &buf)
+        FfiConverterUInt32.write(value.crew, into: &buf)
     }
 }
 
@@ -2172,14 +2192,16 @@ public struct SeatClassCounts: Equatable, Hashable {
     public var premiumEconomy: UInt32
     public var business: UInt32
     public var first: UInt32
+    public var `private`: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(economy: UInt32, premiumEconomy: UInt32, business: UInt32, first: UInt32) {
+    public init(economy: UInt32, premiumEconomy: UInt32, business: UInt32, first: UInt32, `private`: UInt32) {
         self.economy = economy
         self.premiumEconomy = premiumEconomy
         self.business = business
         self.first = first
+        self.`private` = `private`
     }
 
     
@@ -2201,7 +2223,8 @@ public struct FfiConverterTypeSeatClassCounts: FfiConverterRustBuffer {
                 economy: FfiConverterUInt32.read(from: &buf), 
                 premiumEconomy: FfiConverterUInt32.read(from: &buf), 
                 business: FfiConverterUInt32.read(from: &buf), 
-                first: FfiConverterUInt32.read(from: &buf)
+                first: FfiConverterUInt32.read(from: &buf), 
+                private: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -2210,6 +2233,7 @@ public struct FfiConverterTypeSeatClassCounts: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.premiumEconomy, into: &buf)
         FfiConverterUInt32.write(value.business, into: &buf)
         FfiConverterUInt32.write(value.first, into: &buf)
+        FfiConverterUInt32.write(value.`private`, into: &buf)
     }
 }
 
@@ -3022,6 +3046,7 @@ public enum SeatClass: Equatable, Hashable {
     case premiumEconomy
     case business
     case first
+    case `private`
 
 
 
@@ -3051,6 +3076,8 @@ public struct FfiConverterTypeSeatClass: FfiConverterRustBuffer {
         
         case 4: return .first
         
+        case 5: return .`private`
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -3073,6 +3100,10 @@ public struct FfiConverterTypeSeatClass: FfiConverterRustBuffer {
         
         case .first:
             writeInt(&buf, Int32(4))
+        
+        
+        case .`private`:
+            writeInt(&buf, Int32(5))
         
         }
     }
@@ -3101,6 +3132,9 @@ public enum SeatPosition: Equatable, Hashable {
     case window
     case middle
     case aisle
+    case pilot
+    case captain
+    case jumpseat
 
 
 
@@ -3128,6 +3162,12 @@ public struct FfiConverterTypeSeatPosition: FfiConverterRustBuffer {
         
         case 3: return .aisle
         
+        case 4: return .pilot
+        
+        case 5: return .captain
+        
+        case 6: return .jumpseat
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -3146,6 +3186,18 @@ public struct FfiConverterTypeSeatPosition: FfiConverterRustBuffer {
         
         case .aisle:
             writeInt(&buf, Int32(3))
+        
+        
+        case .pilot:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .captain:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .jumpseat:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -3246,6 +3298,7 @@ public enum TripReason: Equatable, Hashable {
     
     case personal
     case business
+    case crew
 
 
 
@@ -3271,6 +3324,8 @@ public struct FfiConverterTypeTripReason: FfiConverterRustBuffer {
         
         case 2: return .business
         
+        case 3: return .crew
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -3285,6 +3340,10 @@ public struct FfiConverterTypeTripReason: FfiConverterRustBuffer {
         
         case .business:
             writeInt(&buf, Int32(2))
+        
+        
+        case .crew:
+            writeInt(&buf, Int32(3))
         
         }
     }

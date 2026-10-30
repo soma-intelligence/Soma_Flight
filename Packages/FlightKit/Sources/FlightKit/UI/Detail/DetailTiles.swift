@@ -18,9 +18,10 @@ extension DetailFacts {
         return code
     }
 
-    /// The seat tile's line: "23A · Business", the class alone, or nil when neither is set.
+    /// The seat tile's line: "23A · Business", "Captain · Private" (the position stands in for a missing
+    /// seat), the class alone, or nil when none is set.
     static func seatLine(_ d: FollowDetails) -> String? {
-        let parts = [d.seat, d.seatClass?.title].compactMap { $0 }
+        let parts = [d.seat ?? d.seatPosition?.title, d.seatClass?.title].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

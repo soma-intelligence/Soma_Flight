@@ -29,6 +29,8 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var destinationCountry: String?
     /// Wheels up to wheels down; nil when the times are not known.
     public var airMinutes: Int?
+    /// Where the traveller says they sat; nil leaves it to the seat number.
+    public var seatPosition: SeatPosition?
 
     public init(
         id: UUID = UUID(), date: Date, ident: String, originIcao: String, destinationIcao: String,
@@ -36,7 +38,7 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         distanceKm: Int, blockMinutes: Int? = nil, delayMinutes: Int = 0, status: PastFlightStatus = .completed,
         originTz: String? = nil, seatClass: SeatClass? = nil, reason: TripReason? = nil,
         bookingCode: String? = nil, notes: String? = nil, originCountry: String? = nil,
-        destinationCountry: String? = nil, airMinutes: Int? = nil
+        destinationCountry: String? = nil, airMinutes: Int? = nil, seatPosition: SeatPosition? = nil
     ) {
         self.id = id; self.date = date; self.ident = ident
         self.originIcao = originIcao; self.destinationIcao = destinationIcao
@@ -45,5 +47,6 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         self.delayMinutes = delayMinutes; self.status = status; self.originTz = originTz
         self.seatClass = seatClass; self.reason = reason; self.bookingCode = bookingCode; self.notes = notes
         self.originCountry = originCountry; self.destinationCountry = destinationCountry; self.airMinutes = airMinutes
+        self.seatPosition = seatPosition
     }
 }

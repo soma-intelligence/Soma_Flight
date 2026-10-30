@@ -52,12 +52,13 @@ def ts(s):
 
 
 def fl(utc, ac="A320", reg=None, airline="AAL", km=1000, block=None, tz="UTC", status="completed",
-       seat_class=None, seat=None, reason=None, ident="XX1"):
+       seat_class=None, seat=None, reason=None, ident="XX1", seat_position=None):
     return {"departed_at": ts(utc), "tz": tz, "ident": ident, "origin_icao": "AAAA",
             "destination_icao": "BBBB", "airline": airline, "aircraft_type": ac, "distance_km": km,
             "block_minutes": block, "delay_minutes": 0, "status": status,
             "origin_country": None, "destination_country": None, "air_minutes": None,
-            "registration": reg, "seat_class": seat_class, "seat": seat, "reason": reason}
+            "registration": reg, "seat_class": seat_class, "seat": seat, "reason": reason,
+            "seat_position": seat_position}
 
 
 def code(v):
@@ -140,8 +141,9 @@ def stats(flights, year, types, facts, as_of):
     classes = Counter(f["seat_class"] for f in kept if f["seat_class"])
     positions = Counter()
     for f in kept:
+        # The position the traveller picked wins; else it comes from the seat and the cabin layout.
         t = ref.get(code(f["aircraft_type"]))
-        p = seat_position(f["seat"], t["family"]) if t else None
+        p = f.get("seat_position") or (seat_position(f["seat"], t["family"]) if t else None)
         if p:
             positions[p] += 1
     seats = Counter(code(f["seat"]) for f in kept if code(f["seat"]))
@@ -177,11 +179,14 @@ def stats(flights, year, types, facts, as_of):
         "mostFlown": by_flights[0] if by_flights else None,
         "tails": tails,
         "seatClasses": {"economy": classes["economy"], "premiumEconomy": classes["premium_economy"],
-                        "business": classes["business"], "first": classes["first"]},
+                        "business": classes["business"], "first": classes["first"],
+                        "private": classes["private"]},
         "seatPositions": {"window": positions["window"], "middle": positions["middle"],
-                          "aisle": positions["aisle"]},
+                          "aisle": positions["aisle"], "pilot": positions["pilot"],
+                          "captain": positions["captain"], "jumpseat": positions["jumpseat"]},
         "favouriteSeat": {"seat": fav[0][0], "flights": fav[0][1]} if fav else None,
-        "reasons": {"personal": reasons["personal"], "business": reasons["business"]},
+        "reasons": {"personal": reasons["personal"], "business": reasons["business"],
+                    "crew": reasons["crew"]},
         "decades": decades,
         "medianAgeMonths": median,
         "newest": newest,
@@ -340,6 +345,16 @@ case("year_filter",
      facts=[fact("N401UA", "1994-02-01"), fact("N26902", "2013-08-30"), fact("N402UA", "1994-03-01"),
             fact("N8701Q", "2017-11-01"), fact("A6-EDA", "2008-07-28")])
 
+case("picked_positions_private_crew",
+     # A picked position wins over the seat's layout (14A on an A320 is a window, counted as aisle here);
+     # cockpit positions count without a seat; an unknown type still counts a picked position.
+     [fl("2025-09-01T10:00", ac="A320", seat="14A", seat_position="aisle", seat_class="private",
+         reason="crew"),
+      fl("2025-09-02T10:00", ac="B738", seat_position="pilot", reason="crew"),
+      fl("2025-09-03T10:00", ac="B738", seat_position="captain", reason="crew"),
+      fl("2025-09-04T10:00", ac="ZZZZ", seat_position="jumpseat", seat_class="private", reason="personal"),
+      fl("2025-09-05T10:00", ac="A320", seat="14A", seat_class="economy", reason="business")])
+
 case("sparse",
      # No registrations, no seats, no classes, no reasons, types unknown to the reference.
      [fl("2025-08-01T10:00", ac="ZZZZ", airline=None),
@@ -371,7 +386,7 @@ meta = {
         "most_flown": "first of types_by_flights, null when none",
         "tails": "one row per known registration; icao_type and airline from the latest kept flight on that tail that has one; name from the fact; sorted flights desc then registration asc",
         "seat_position": "seat trimmed, upper case, 1 to 3 digits then one letter; economy cabin of the family; other families, letters or shapes give null",
-        "seat_positions": "kept flights whose type is in the reference and whose seat has a position",
+        "seat_positions": "kept flights with a picked seat_position (counted as picked), else whose type is in the reference and whose seat has a position",
         "favourite_seat": "most flown seat (trimmed, upper case, any shape), ties seat asc; null when none",
         "aged_aircraft": "distinct registrations over kept flights with a fact that has delivered_at",
         "age_months": "whole calendar months from delivered_at to as_of in UTC (a month counts once day and time of day are reached), 0 when delivered after as_of",

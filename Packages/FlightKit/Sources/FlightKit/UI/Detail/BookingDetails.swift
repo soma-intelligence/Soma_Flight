@@ -65,7 +65,8 @@ final class BookingDetailsModel {
     }
 }
 
-/// The booking code (with a paste button), the seat, then the class and the trip's reason as chips.
+/// The booking code (with a paste button), the seat and where it is (cabin or cockpit chips), then the
+/// class and the trip's reason as chips.
 /// Done saves both fields and the chips at once; it closes only once the store has the change.
 struct BookingDetailsSheet: View {
     var store: FlightDetailStore
@@ -144,6 +145,14 @@ struct BookingDetailsSheet: View {
                 EmptyView()
             }
             .onChange(of: model.seat) { model.seatError = nil }
+            ChipFlow {
+                ForEach(SeatPosition.allCases, id: \.self) { p in
+                    Chip(title: p.title, symbol: Self.positionSymbol(p), selected: model.draft.seatPosition == p) {
+                        model.draft.seatPosition = model.draft.seatPosition == p ? nil : p
+                    }
+                }
+            }
+            .scaledPadding(.top, 12)
 
             heading("Class").scaledPadding(.top, 24)
             ChipFlow {
@@ -158,7 +167,7 @@ struct BookingDetailsSheet: View {
             heading("Reason").scaledPadding(.top, 24)
             ChipFlow {
                 ForEach(TripReason.allCases, id: \.self) { r in
-                    Chip(title: r.title, symbol: r == .personal ? "beach.umbrella.fill" : "briefcase.fill",
+                    Chip(title: r.title, symbol: Self.reasonSymbol(r),
                          selected: model.draft.reason == r) {
                         model.draft.reason = model.draft.reason == r ? nil : r
                     }
@@ -167,13 +176,33 @@ struct BookingDetailsSheet: View {
         }
     }
 
-    /// The letter in the class chip's circle: E, E+, B, F.
+    /// The letter in the class chip's circle: E, E+, B, F, P.
     static func classBadge(_ c: SeatClass) -> String {
         switch c {
         case .economy: "E"
         case .premiumEconomy: "E+"
         case .business: "B"
         case .first: "F"
+        case .private: "P"
+        }
+    }
+
+    static func reasonSymbol(_ r: TripReason) -> String {
+        switch r {
+        case .personal: "beach.umbrella.fill"
+        case .business: "briefcase.fill"
+        case .crew: "airplane"
+        }
+    }
+
+    static func positionSymbol(_ p: SeatPosition) -> String {
+        switch p {
+        case .aisle: "figure.walk"
+        case .middle: "person.2.fill"
+        case .window: "window.vertical.closed"
+        case .pilot: "person.fill"
+        case .captain: "star.fill"
+        case .jumpseat: "chair.fill"
         }
     }
 

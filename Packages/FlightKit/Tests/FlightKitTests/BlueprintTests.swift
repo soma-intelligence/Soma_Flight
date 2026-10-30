@@ -202,15 +202,15 @@ struct BlueprintTests {
                 .frame(width: 300).background(Theme.blueprint)))
             #expect(side.count(differingFrom: Self.panel) > 300)
         }
-        let plan = try #require(Bitmap(CabinPlan(classes: SeatClassCounts(economy: 22, premiumEconomy: 4, business: 3, first: 4),
-                                                 positions: PositionCounts(window: 17, middle: 1, aisle: 20),
+        let plan = try #require(Bitmap(CabinPlan(classes: SeatClassCounts(economy: 22, premiumEconomy: 4, business: 3, first: 4, private: 0),
+                                                 positions: PositionCounts(window: 17, middle: 1, aisle: 20, pilot: 0, captain: 0, jumpseat: 0),
                                                  favourite: ("Favorite seat", "12A (1 time)"))
             .frame(width: 393).background(Theme.blueprint)))
         #expect(plan.count(differingFrom: Self.panel) > 1000)
         // Nothing to show: no class bar, no seats.
-        let empty = SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0)
+        let empty = SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0, private: 0)
         #expect(!CabinPlan.hasClasses(empty))
-        #expect(!CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), hasFavourite: false))
-        #expect(CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0), hasFavourite: true))
+        #expect(!CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0, pilot: 0, captain: 0, jumpseat: 0), hasFavourite: false))
+        #expect(CabinPlan.hasSeats(PositionCounts(window: 0, middle: 0, aisle: 0, pilot: 0, captain: 0, jumpseat: 0), hasFavourite: true))
     }
 }

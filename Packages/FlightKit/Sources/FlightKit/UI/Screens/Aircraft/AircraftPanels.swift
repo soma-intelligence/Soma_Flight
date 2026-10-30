@@ -115,6 +115,15 @@ enum AircraftStatsCopy {
     static let orange = Color(red: 0xEA / 255, green: 0x99 / 255, blue: 0x3A / 255)
     /// The page's blue: type and age bars, First, Window and Business slices.
     static let blue = first
+    static let purple = Color(red: 0x8E / 255, green: 0x6C / 255, blue: 0xE0 / 255)
+    static let teal = Color(red: 0x4C / 255, green: 0xC2 / 255, blue: 0xC4 / 255)
+    static let gray = Color(red: 0x9A / 255, green: 0x9A / 255, blue: 0xA0 / 255)
+
+    /// Rare picks (Private, Crew, cockpit seats) join a donut only once flown, so most legends keep their
+    /// usual slices.
+    private static func extra(_ rows: [(String, UInt32, Color)]) -> [(String, UInt32, Color)] {
+        rows.filter { $0.1 > 0 }
+    }
 
     private static func donut(_ title: String, _ rows: [(String, UInt32, Color)], value: String? = nil) -> Donut {
         let total = rows.reduce(0) { $0 + $1.1 }
@@ -127,18 +136,22 @@ enum AircraftStatsCopy {
     static func classDonut(_ s: AircraftStats) -> Donut {
         let c = s.seatClasses
         return donut("Top class", [("Economy", c.economy, economy), ("Premium Economy", c.premiumEconomy, premium),
-                                   ("Business", c.business, business), ("First", c.first, first)])
+                                   ("Business", c.business, business), ("First", c.first, first)]
+                                  + extra([("Private", c.private, purple)]))
     }
 
     /// Centered on the favorite seat ("20D") when there is one, else the top position.
     static func seatDonut(_ s: AircraftStats) -> Donut {
         let p = s.seatPositions
-        return donut("Top seat", [("Aisle", p.aisle, green), ("Middle", p.middle, orange), ("Window", p.window, blue)],
+        return donut("Top seat", [("Aisle", p.aisle, green), ("Middle", p.middle, orange), ("Window", p.window, blue)]
+                                 + extra([("Captain", p.captain, purple), ("Pilot", p.pilot, teal),
+                                          ("Jumpseat", p.jumpseat, gray)]),
                      value: s.favouriteSeat?.seat)
     }
 
     static func reasonDonut(_ s: AircraftStats) -> Donut {
-        donut("Top reason", [("Personal", s.reasons.personal, green), ("Business", s.reasons.business, blue)])
+        donut("Top reason", [("Personal", s.reasons.personal, green), ("Business", s.reasons.business, blue)]
+                            + extra([("Crew", s.reasons.crew, orange)]))
     }
 
     /// "Favorite seat", "20D (2 times)".

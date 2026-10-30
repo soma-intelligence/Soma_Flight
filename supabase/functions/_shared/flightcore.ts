@@ -69,9 +69,11 @@ export type FlightCategory = "VFR" | "MVFR" | "IFR" | "LIFR";
 
 export type PastFlightStatus = "completed" | "canceled" | "diverted";
 
-export type SeatClass = "economy" | "premium_economy" | "business" | "first";
+export type SeatClass = "economy" | "premium_economy" | "business" | "first" | "private";
 
-export type TripReason = "personal" | "business";
+export type TripReason = "personal" | "business" | "crew";
+
+export type SeatPosition = "window" | "middle" | "aisle" | "pilot" | "captain" | "jumpseat";
 
 /** A member's past flight. Input keys are snake_case. */
 export interface PastFlight {
@@ -97,6 +99,8 @@ export interface PastFlight {
   seat_class?: SeatClass | null;
   seat?: string | null;
   reason?: TripReason | null;
+  /** Where the traveller says they sat; wins over the position read from `seat`. */
+  seat_position?: SeatPosition | null;
 }
 
 export interface AircraftCount {
@@ -252,12 +256,16 @@ export interface SeatClassCounts {
   premiumEconomy: number;
   business: number;
   first: number;
+  private: number;
 }
 
 export interface PositionCounts {
   window: number;
   middle: number;
   aisle: number;
+  pilot: number;
+  captain: number;
+  jumpseat: number;
 }
 
 export interface SeatTally {
@@ -268,6 +276,7 @@ export interface SeatTally {
 export interface ReasonCounts {
   personal: number;
   business: number;
+  crew: number;
 }
 
 export interface DecadeCount {

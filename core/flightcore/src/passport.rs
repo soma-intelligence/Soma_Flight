@@ -1,5 +1,6 @@
 //! Passport statistics over a member's past flights. Pure: no clock, no I/O.
 
+use crate::aircraft::SeatPosition;
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,7 @@ pub enum SeatClass {
     PremiumEconomy,
     Business,
     First,
+    Private,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,6 +35,7 @@ pub enum SeatClass {
 pub enum TripReason {
     Personal,
     Business,
+    Crew,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -66,6 +69,9 @@ pub struct PastFlight {
     pub seat: Option<String>,
     #[serde(default)]
     pub reason: Option<TripReason>,
+    /// Where the traveller says they sat; wins over the position read from `seat`.
+    #[serde(default)]
+    pub seat_position: Option<SeatPosition>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

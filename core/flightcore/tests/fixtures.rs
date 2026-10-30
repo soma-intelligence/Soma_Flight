@@ -335,6 +335,7 @@ fn aircraft_fixture_cases() {
         "manufacturer_percent_rounding",
         "no_facts",
         "year_filter",
+        "picked_positions_private_crew",
     ] {
         assert!(names.contains(&required), "missing case {required}");
     }

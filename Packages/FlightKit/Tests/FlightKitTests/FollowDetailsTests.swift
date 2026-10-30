@@ -32,21 +32,31 @@ import Testing
         #expect(FollowDetails.normalizedNotes(String(repeating: "\u{1F600}", count: 2000)) != nil)
     }
 
-    @Test func patchSendsAllFiveKeys() throws {
+    @Test func patchSendsAllSixKeys() throws {
+        let keys: Set<String> = ["seat_class", "seat", "reason", "booking_code", "notes", "seat_position"]
         let full = try JSONEncoder().encode(SupabaseFlightService.DetailsPatch(
-            details: FollowDetails(seatClass: .premiumEconomy, seat: "12A", reason: .business, bookingCode: "ABC123", notes: "n")))
+            details: FollowDetails(seatClass: .premiumEconomy, seat: "12A", reason: .business, bookingCode: "ABC123", notes: "n",
+                                   seatPosition: .window)))
         let a = try #require(try JSONSerialization.jsonObject(with: full) as? [String: Any])
-        #expect(Set(a.keys) == ["seat_class", "seat", "reason", "booking_code", "notes"])
+        #expect(Set(a.keys) == keys)
         #expect(a["seat_class"] as? String == "premium_economy" && a["booking_code"] as? String == "ABC123")
+        #expect(a["seat_position"] as? String == "window")
+        let crew = try JSONEncoder().encode(SupabaseFlightService.DetailsPatch(
+            details: FollowDetails(seatClass: .private, reason: .crew, seatPosition: .jumpseat)))
+        let c = try #require(try JSONSerialization.jsonObject(with: crew) as? [String: Any])
+        #expect(c["seat_class"] as? String == "private" && c["reason"] as? String == "crew")
+        #expect(c["seat_position"] as? String == "jumpseat")
         let empty = try JSONEncoder().encode(SupabaseFlightService.DetailsPatch(details: .empty))
         let b = try #require(try JSONSerialization.jsonObject(with: empty) as? [String: Any])
-        #expect(Set(b.keys) == ["seat_class", "seat", "reason", "booking_code", "notes"])
+        #expect(Set(b.keys) == keys)
         #expect(b.values.allSatisfy { $0 is NSNull })
     }
 
     @Test func titles() {
-        #expect(SeatClass.allCases.map(\.title) == ["Economy", "Premium Economy", "Business", "First"])
-        #expect(TripReason.allCases.map(\.title) == ["Personal", "Business"])
+        #expect(SeatClass.allCases.map(\.title) == ["Economy", "Premium Economy", "Business", "First", "Private"])
+        #expect(TripReason.allCases.map(\.title) == ["Personal", "Business", "Crew"])
+        #expect(SeatPosition.allCases.map(\.title) == ["Aisle", "Middle", "Window", "Pilot", "Captain", "Jumpseat"])
+        #expect(SeatPosition.allCases.filter(\.isCockpit) == [.pilot, .captain, .jumpseat])
         #expect(Alliance.allCases.map(\.title) == ["Star Alliance", "oneworld", "SkyTeam"])
     }
 
@@ -73,5 +83,25 @@ import Testing
         let d = try #require(try SupabaseFlightService.decodeDetails(Data(json.utf8)))
         #expect(d == FollowDetails(seatClass: .premiumEconomy, seat: "12A", bookingCode: "ABC123"))
         #expect(try SupabaseFlightService.decodeDetails(Data("[]".utf8)) == nil)
+        let cockpit = #"[{"seat_class":"private","seat":null,"reason":"crew","booking_code":null,"notes":null,"seat_position":"captain"}]"#
+        #expect(try SupabaseFlightService.decodeDetails(Data(cockpit.utf8))
+                == FollowDetails(seatClass: .private, reason: .crew, seatPosition: .captain))
+    }
+
+    /// The position the traveller picked reaches the core, and wins over the seat's layout there.
+    @Test func pickedPositionReachesTheCore() {
+        let base = PastFlight(date: Date(timeIntervalSince1970: 1_750_000_000), ident: "AF1", originIcao: "LFPG",
+                              destinationIcao: "KJFK", aircraftType: "A320", seat: "14A", distanceKm: 5800,
+                              seatClass: .private, reason: .crew, seatPosition: .aisle)
+        let core = base.coreFlight
+        #expect(core.seatPosition == .aisle && core.seatClass == .private && core.reason == .crew)
+        #expect(PastFlight(date: base.date, ident: "AF1", originIcao: "LFPG", destinationIcao: "KJFK", distanceKm: 1)
+            .coreFlight.seatPosition == nil)
+    }
+
+    @Test func seatLineUsesThePositionWithoutASeat() {
+        #expect(DetailFacts.seatLine(FollowDetails(seatClass: .business, seat: "23A", seatPosition: .window)) == "23A · Business")
+        #expect(DetailFacts.seatLine(FollowDetails(seatClass: .private, seatPosition: .captain)) == "Captain · Private")
+        #expect(DetailFacts.seatLine(FollowDetails(seatPosition: .jumpseat)) == "Jumpseat")
     }
 }

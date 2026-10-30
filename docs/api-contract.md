@@ -23,15 +23,16 @@ shared data.
 
 Written by `follow-flight` and `delete-account` (service role). Clients get `select` on their own rows
 and exactly one write: a PostgREST `update` of the five user fields, through a column-level grant
-`update (seat_class, seat, reason, booking_code, notes)` and the owner policy `user_flights_owner`.
+`update (seat_class, seat, reason, booking_code, notes, seat_position)` and the owner policy `user_flights_owner`.
 Updating any other column (`user_id`, `flight_id`, `notify`, `created_at`), inserting a row or deleting
 one is refused with 42501; updating a row of another user touches 0 rows.
 
 | Column | Type | Rule |
 | --- | --- | --- |
-| `seat_class` | enum | `economy`, `premium_economy`, `business`, `first`, or null |
+| `seat_class` | enum | `economy`, `premium_economy`, `business`, `first`, `private`, or null |
 | `seat` | text | `^[0-9]{1,3}[A-K]$` (for example `12A`), or null |
-| `reason` | enum | `personal`, `business`, or null |
+| `reason` | enum | `personal`, `business`, `crew`, or null |
+| `seat_position` | enum | `aisle`, `middle`, `window`, `pilot`, `captain`, `jumpseat`, or null; wins over the position read from `seat` |
 | `booking_code` | text | `^[A-Z0-9]{5,8}$`, or null |
 | `notes` | text | at most 2000 characters, or null |
 
@@ -51,7 +52,7 @@ set) and adds:
 
 | Column | Type | Meaning |
 | --- | --- | --- |
-| `seat_class`, `reason`, `booking_code`, `notes` | as in `user_flights` | copied from the follow |
+| `seat_class`, `reason`, `seat_position`, `booking_code`, `notes` | as in `user_flights` | copied from the follow |
 | `origin_country`, `destination_country` | text | ISO 3166-1 alpha-2 from `airports.country`; null when the airport is unknown |
 | `air_minutes` | int | `actual_on - actual_off` in minutes when both exist and on is after off, else null |
 

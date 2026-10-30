@@ -235,6 +235,7 @@ private enum FixtureError: Error {
     case unknownStatus(String)
     case unknownSeatClass(String)
     case unknownReason(String)
+    case unknownPosition(String)
     case unknownRegion(String)
 }
 
@@ -245,6 +246,7 @@ private func seatClass(_ v: Any?) throws -> SeatClass? {
     case "premium_economy": return .premiumEconomy
     case "business": return .business
     case "first": return .first
+    case "private": return .private
     default: throw FixtureError.unknownSeatClass(s)
     }
 }
@@ -254,7 +256,21 @@ private func tripReason(_ v: Any?) throws -> TripReason? {
     switch s {
     case "personal": return .personal
     case "business": return .business
+    case "crew": return .crew
     default: throw FixtureError.unknownReason(s)
+    }
+}
+
+private func seatPositionValue(_ v: Any?) throws -> SeatPosition? {
+    guard let s = string(v) else { return nil }
+    switch s {
+    case "window": return .window
+    case "middle": return .middle
+    case "aisle": return .aisle
+    case "pilot": return .pilot
+    case "captain": return .captain
+    case "jumpseat": return .jumpseat
+    default: throw FixtureError.unknownPosition(s)
     }
 }
 
@@ -277,7 +293,8 @@ private func pastFlight(_ v: [String: Any]) throws -> PastFlight {
         registration: string(v["registration"]),
         seatClass: try seatClass(v["seat_class"]),
         seat: string(v["seat"]),
-        reason: try tripReason(v["reason"])
+        reason: try tripReason(v["reason"]),
+        seatPosition: try seatPositionValue(v["seat_position"])
     )
 }
 
@@ -423,6 +440,9 @@ private func positionName(_ p: SeatPosition?) -> Any {
     case .window: "window"
     case .middle: "middle"
     case .aisle: "aisle"
+    case .pilot: "pilot"
+    case .captain: "captain"
+    case .jumpseat: "jumpseat"
     case nil: NSNull()
     }
 }
@@ -459,13 +479,15 @@ private func aircraftJSON(_ s: AircraftStats) -> [String: Any] {
         "seatClasses": [
             "economy": s.seatClasses.economy, "premiumEconomy": s.seatClasses.premiumEconomy,
             "business": s.seatClasses.business, "first": s.seatClasses.first,
+            "private": s.seatClasses.private,
         ],
         "seatPositions": [
             "window": s.seatPositions.window, "middle": s.seatPositions.middle, "aisle": s.seatPositions.aisle,
+            "pilot": s.seatPositions.pilot, "captain": s.seatPositions.captain, "jumpseat": s.seatPositions.jumpseat,
         ],
         "favouriteSeat": s.favouriteSeat.map { ["seat": $0.seat, "flights": $0.flights] as [String: Any] }
             ?? NSNull(),
-        "reasons": ["personal": s.reasons.personal, "business": s.reasons.business],
+        "reasons": ["personal": s.reasons.personal, "business": s.reasons.business, "crew": s.reasons.crew],
         "decades": s.decades.map { ["decade": $0.decade, "aircraft": $0.aircraft] as [String: Any] },
         "medianAgeMonths": orNull(s.medianAgeMonths),
         "newest": agedJSON(s.newest),
@@ -490,6 +512,7 @@ private func aircraftJSON(_ s: AircraftStats) -> [String: Any] {
     for required in [
         "empty", "single_flight", "sparse", "single_aircraft", "seat_positions_every_layout",
         "unknown_family_seat", "decades_with_gap", "manufacturer_percent_rounding", "no_facts", "year_filter",
+        "picked_positions_private_crew",
     ] {
         #expect(names.contains(required), "missing case \(required)")
     }

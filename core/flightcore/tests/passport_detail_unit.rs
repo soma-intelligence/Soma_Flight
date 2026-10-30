@@ -23,6 +23,7 @@ fn f(departed_at: i64, o: &str, d: &str, block: Option<u32>) -> PastFlight {
         seat_class: None,
         seat: None,
         reason: None,
+        seat_position: None,
     }
 }
 

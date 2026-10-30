@@ -27,6 +27,7 @@ fn f(
         seat_class: None,
         seat: None,
         reason: None,
+        seat_position: None,
     }
 }
 

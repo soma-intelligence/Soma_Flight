@@ -30,6 +30,11 @@ pub enum SeatPosition {
     Window,
     Middle,
     Aisle,
+    /// Cockpit, right seat.
+    Pilot,
+    /// Cockpit, left seat.
+    Captain,
+    Jumpseat,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +71,7 @@ pub struct SeatClassCounts {
     pub premium_economy: u32,
     pub business: u32,
     pub first: u32,
+    pub private: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +80,9 @@ pub struct PositionCounts {
     pub window: u32,
     pub middle: u32,
     pub aisle: u32,
+    pub pilot: u32,
+    pub captain: u32,
+    pub jumpseat: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,6 +97,7 @@ pub struct SeatTally {
 pub struct ReasonCounts {
     pub personal: u32,
     pub business: u32,
+    pub crew: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -274,20 +284,31 @@ pub fn compute_aircraft_stats(
             Some(SeatClass::PremiumEconomy) => classes.premium_economy += 1,
             Some(SeatClass::Business) => classes.business += 1,
             Some(SeatClass::First) => classes.first += 1,
+            Some(SeatClass::Private) => classes.private += 1,
             None => {}
         }
         match f.reason {
             Some(TripReason::Personal) => reasons.personal += 1,
             Some(TripReason::Business) => reasons.business += 1,
+            Some(TripReason::Crew) => reasons.crew += 1,
             None => {}
         }
-        if let Some(seat) = code(f.seat.as_deref()) {
-            match info.and_then(|i| seat_position(&seat, &i.family)) {
-                Some(SeatPosition::Window) => positions.window += 1,
-                Some(SeatPosition::Middle) => positions.middle += 1,
-                Some(SeatPosition::Aisle) => positions.aisle += 1,
-                None => {}
-            }
+        let seat = code(f.seat.as_deref());
+        // The position the traveller picked wins; else it comes from the seat and the cabin layout.
+        let position = f.seat_position.or_else(|| {
+            let (seat, info) = (seat.as_ref()?, info?);
+            seat_position(seat, &info.family)
+        });
+        match position {
+            Some(SeatPosition::Window) => positions.window += 1,
+            Some(SeatPosition::Middle) => positions.middle += 1,
+            Some(SeatPosition::Aisle) => positions.aisle += 1,
+            Some(SeatPosition::Pilot) => positions.pilot += 1,
+            Some(SeatPosition::Captain) => positions.captain += 1,
+            Some(SeatPosition::Jumpseat) => positions.jumpseat += 1,
+            None => {}
+        }
+        if let Some(seat) = seat {
             *seats.entry(seat).or_insert(0) += 1;
         }
     }

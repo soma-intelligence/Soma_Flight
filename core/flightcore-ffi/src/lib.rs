@@ -301,6 +301,7 @@ pub enum SeatClass {
     PremiumEconomy,
     Business,
     First,
+    Private,
 }
 
 impl From<SeatClass> for passport::SeatClass {
@@ -310,6 +311,7 @@ impl From<SeatClass> for passport::SeatClass {
             SeatClass::PremiumEconomy => Self::PremiumEconomy,
             SeatClass::Business => Self::Business,
             SeatClass::First => Self::First,
+            SeatClass::Private => Self::Private,
         }
     }
 }
@@ -318,6 +320,7 @@ impl From<SeatClass> for passport::SeatClass {
 pub enum TripReason {
     Personal,
     Business,
+    Crew,
 }
 
 impl From<TripReason> for passport::TripReason {
@@ -325,6 +328,7 @@ impl From<TripReason> for passport::TripReason {
         match r {
             TripReason::Personal => Self::Personal,
             TripReason::Business => Self::Business,
+            TripReason::Crew => Self::Crew,
         }
     }
 }
@@ -356,6 +360,8 @@ pub struct PastFlight {
     pub seat: Option<String>,
     #[uniffi(default)]
     pub reason: Option<TripReason>,
+    #[uniffi(default)]
+    pub seat_position: Option<SeatPosition>,
 }
 
 impl From<PastFlight> for passport::PastFlight {
@@ -380,6 +386,7 @@ impl From<PastFlight> for passport::PastFlight {
             seat_class: f.seat_class.map(Into::into),
             seat: f.seat,
             reason: f.reason.map(Into::into),
+            seat_position: f.seat_position.map(Into::into),
         }
     }
 }
@@ -818,6 +825,9 @@ pub enum SeatPosition {
     Window,
     Middle,
     Aisle,
+    Pilot,
+    Captain,
+    Jumpseat,
 }
 
 impl From<aircraft::SeatPosition> for SeatPosition {
@@ -826,6 +836,22 @@ impl From<aircraft::SeatPosition> for SeatPosition {
             aircraft::SeatPosition::Window => Self::Window,
             aircraft::SeatPosition::Middle => Self::Middle,
             aircraft::SeatPosition::Aisle => Self::Aisle,
+            aircraft::SeatPosition::Pilot => Self::Pilot,
+            aircraft::SeatPosition::Captain => Self::Captain,
+            aircraft::SeatPosition::Jumpseat => Self::Jumpseat,
+        }
+    }
+}
+
+impl From<SeatPosition> for aircraft::SeatPosition {
+    fn from(p: SeatPosition) -> Self {
+        match p {
+            SeatPosition::Window => Self::Window,
+            SeatPosition::Middle => Self::Middle,
+            SeatPosition::Aisle => Self::Aisle,
+            SeatPosition::Pilot => Self::Pilot,
+            SeatPosition::Captain => Self::Captain,
+            SeatPosition::Jumpseat => Self::Jumpseat,
         }
     }
 }
@@ -914,6 +940,7 @@ pub struct SeatClassCounts {
     pub premium_economy: u32,
     pub business: u32,
     pub first: u32,
+    pub private: u32,
 }
 
 impl From<aircraft::SeatClassCounts> for SeatClassCounts {
@@ -923,6 +950,7 @@ impl From<aircraft::SeatClassCounts> for SeatClassCounts {
             premium_economy,
             business,
             first,
+            private,
         }: aircraft::SeatClassCounts,
     ) -> Self {
         Self {
@@ -930,6 +958,7 @@ impl From<aircraft::SeatClassCounts> for SeatClassCounts {
             premium_economy,
             business,
             first,
+            private,
         }
     }
 }
@@ -939,6 +968,9 @@ pub struct PositionCounts {
     pub window: u32,
     pub middle: u32,
     pub aisle: u32,
+    pub pilot: u32,
+    pub captain: u32,
+    pub jumpseat: u32,
 }
 
 impl From<aircraft::PositionCounts> for PositionCounts {
@@ -947,12 +979,18 @@ impl From<aircraft::PositionCounts> for PositionCounts {
             window,
             middle,
             aisle,
+            pilot,
+            captain,
+            jumpseat,
         }: aircraft::PositionCounts,
     ) -> Self {
         Self {
             window,
             middle,
             aisle,
+            pilot,
+            captain,
+            jumpseat,
         }
     }
 }
@@ -973,11 +1011,22 @@ impl From<aircraft::SeatTally> for SeatTally {
 pub struct ReasonCounts {
     pub personal: u32,
     pub business: u32,
+    pub crew: u32,
 }
 
 impl From<aircraft::ReasonCounts> for ReasonCounts {
-    fn from(aircraft::ReasonCounts { personal, business }: aircraft::ReasonCounts) -> Self {
-        Self { personal, business }
+    fn from(
+        aircraft::ReasonCounts {
+            personal,
+            business,
+            crew,
+        }: aircraft::ReasonCounts,
+    ) -> Self {
+        Self {
+            personal,
+            business,
+            crew,
+        }
     }
 }
 
@@ -1129,6 +1178,7 @@ mod tests {
             seat_class: None,
             seat: None,
             reason: None,
+            seat_position: None,
         };
         let p = compute_passport(vec![f("KSFO", "KLAX"), f("KLAX", "KSFO")], None);
         assert_eq!(

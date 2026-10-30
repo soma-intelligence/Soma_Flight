@@ -145,12 +145,14 @@ public final class SupabaseFlightService: FlightService {
         var reason: TripReason?
         var bookingCode: String?
         var notes: String?
+        var seatPosition: SeatPosition?
     }
 
-    /// The five writable columns; every one is sent, null included, so a cleared field clears the column.
+    /// The six writable columns; every one is sent, null included, so a cleared field clears the column.
     struct DetailsPatch: Encodable, Sendable {
         var details: FollowDetails
-        private enum CodingKeys: String, CodingKey { case seatClass = "seat_class", seat, reason, bookingCode = "booking_code", notes }
+        private enum CodingKeys: String, CodingKey { case seatClass = "seat_class", seat, reason, bookingCode = "booking_code", notes
+            case seatPosition = "seat_position" }
         func encode(to encoder: any Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
             try c.encode(details.seatClass, forKey: .seatClass)
@@ -158,19 +160,21 @@ public final class SupabaseFlightService: FlightService {
             try c.encode(details.reason, forKey: .reason)
             try c.encode(details.bookingCode, forKey: .bookingCode)
             try c.encode(details.notes, forKey: .notes)
+            try c.encode(details.seatPosition, forKey: .seatPosition)
         }
     }
 
     static func decodeDetails(_ data: Data) throws -> FollowDetails? {
         try FlightJSON.decoder.decode([DetailsRow].self, from: data).first.map {
-            FollowDetails(seatClass: $0.seatClass, seat: $0.seat, reason: $0.reason, bookingCode: $0.bookingCode, notes: $0.notes)
+            FollowDetails(seatClass: $0.seatClass, seat: $0.seat, reason: $0.reason, bookingCode: $0.bookingCode, notes: $0.notes,
+                          seatPosition: $0.seatPosition)
         }
     }
 
     public func followDetails(_ id: Flight.ID) async throws(APIError) -> FollowDetails? {
         let real = try await resolve(id)
         let data = try await backend.rows {
-            $0.from("user_flights").select("seat_class, seat, reason, booking_code, notes")
+            $0.from("user_flights").select("seat_class, seat, reason, booking_code, notes, seat_position")
                 .eq("flight_id", value: real.uuidString.lowercased()).limit(1)
         }
         do { return try Self.decodeDetails(data) } catch { throw SupabaseBackend.map(error) }

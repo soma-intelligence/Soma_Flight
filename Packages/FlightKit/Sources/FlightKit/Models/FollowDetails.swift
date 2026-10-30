@@ -5,6 +5,7 @@ public enum SeatClass: String, Codable, Sendable, CaseIterable {
     case premiumEconomy = "premium_economy"
     case business
     case first
+    case `private`
 
     public var title: String {
         switch self {
@@ -12,33 +13,56 @@ public enum SeatClass: String, Codable, Sendable, CaseIterable {
         case .premiumEconomy: "Premium Economy"
         case .business: "Business"
         case .first: "First"
+        case .private: "Private"
         }
     }
 }
 
 public enum TripReason: String, Codable, Sendable, CaseIterable {
-    case personal, business
+    case personal, business, crew
 
     public var title: String {
         switch self {
         case .personal: "Personal"
         case .business: "Business"
+        case .crew: "Crew"
         }
     }
 }
 
-/// What the traveller notes on a followed flight: the five `user_flights` fields they can write.
+/// Where the traveller sat: a cabin seat, or a cockpit seat for crew. Picked on the booking sheet; wins over
+/// the position the core reads from the seat number and the cabin layout.
+public enum SeatPosition: String, Codable, Sendable, CaseIterable {
+    case aisle, middle, window, pilot, captain, jumpseat
+
+    public var title: String {
+        switch self {
+        case .aisle: "Aisle"
+        case .middle: "Middle"
+        case .window: "Window"
+        case .pilot: "Pilot"
+        case .captain: "Captain"
+        case .jumpseat: "Jumpseat"
+        }
+    }
+
+    /// Cockpit positions, which need no seat number.
+    public var isCockpit: Bool { self == .pilot || self == .captain || self == .jumpseat }
+}
+
+/// What the traveller notes on a followed flight: the six `user_flights` fields they can write.
 public struct FollowDetails: Codable, Sendable, Hashable {
     public var seatClass: SeatClass?
     public var seat: String?
     public var reason: TripReason?
     public var bookingCode: String?
     public var notes: String?
+    public var seatPosition: SeatPosition?
 
     public init(seatClass: SeatClass? = nil, seat: String? = nil, reason: TripReason? = nil,
-                bookingCode: String? = nil, notes: String? = nil) {
+                bookingCode: String? = nil, notes: String? = nil, seatPosition: SeatPosition? = nil) {
         self.seatClass = seatClass; self.seat = seat; self.reason = reason
-        self.bookingCode = bookingCode; self.notes = notes
+        self.bookingCode = bookingCode; self.notes = notes; self.seatPosition = seatPosition
     }
 
     public static let empty = FollowDetails()

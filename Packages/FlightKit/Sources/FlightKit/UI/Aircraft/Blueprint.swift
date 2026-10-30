@@ -148,23 +148,44 @@ public struct CabinPlan: View {
         self.classes = classes; self.positions = positions; self.favourite = favourite
     }
 
-    static func hasClasses(_ c: SeatClassCounts) -> Bool { c.economy + c.premiumEconomy + c.business + c.first > 0 }
+    static func hasClasses(_ c: SeatClassCounts) -> Bool {
+        c.economy + c.premiumEconomy + c.business + c.first + c.private > 0
+    }
     static func hasSeats(_ p: PositionCounts, hasFavourite: Bool) -> Bool {
-        hasFavourite || p.aisle + p.middle + p.window > 0
+        hasFavourite || p.aisle + p.middle + p.window > 0 || hasCockpit(p)
+    }
+    static func hasCockpit(_ p: PositionCounts) -> Bool { p.captain + p.pilot + p.jumpseat > 0 }
+
+    /// "Captain 2 · Pilot 1": the cockpit seats flown, nil when none.
+    static func cockpitLine(_ p: PositionCounts) -> String? {
+        let parts = [("Captain", p.captain), ("Pilot", p.pilot), ("Jumpseat", p.jumpseat)]
+            .filter { $0.1 > 0 }.map { "\($0.0) \(PassportFacts.count($0.1))" }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// The class bar turns into a row per class from this size: four segments of at least `cellMinimum`
+    /// The class bar turns into a row per class from this size: four or five segments of at least `cellMinimum`
     /// no longer fit a 375 pt phone.
     static func stacksClasses(_ size: DynamicTypeSize) -> Bool { size >= .xxxLarge }
 
     private var rows: [(String, UInt32)] {
+        // Private joins the bar only once flown, so most bars keep their four segments.
         [("Eco", classes.economy), ("Eco+", classes.premiumEconomy), ("Business", classes.business), ("First", classes.first)]
+            + (classes.private > 0 ? [("Private", classes.private)] : [])
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if Self.hasClasses(classes) { classBar }
             if Self.hasSeats(positions, hasFavourite: favourite != nil) { seats }
+            if let cockpit = Self.cockpitLine(positions) {
+                HStack(spacing: 8) {
+                    Image(systemName: "airplane").scaledFont(13, weight: .semibold)
+                    Text("Cockpit").scaledFont(14, weight: .semibold)
+                    Text(cockpit).scaledFont(14).monospacedDigit()
+                }
+                .scaledPadding(.horizontal, 20)
+                .accessibilityElement(children: .combine)
+            }
         }
         .foregroundStyle(Theme.blueprintInk)
     }
@@ -203,7 +224,8 @@ public struct CabinPlan: View {
         let total = max(rows.reduce(0) { $0 + $1.1 }, 1)
         return GeometryReader { geo in
             let gap: CGFloat = 3
-            let spare = max(geo.size.width - cellMinimum * 4 - gap * 3, 0)
+            let n = CGFloat(rows.count)
+            let spare = max(geo.size.width - cellMinimum * n - gap * (n - 1), 0)
             HStack(alignment: .bottom, spacing: gap) {
                 ForEach(rows, id: \.0) { name, count in
                     VStack(alignment: .leading, spacing: 6) {
@@ -400,8 +422,8 @@ struct CabinOutline: Shape {
         VStack(spacing: 20) {
             BlueprintTail(type: nil, registration: "F-GSQI").aspectRatio(1.8, contentMode: .fit)
             AircraftSideView(type: nil, style: .blueprint).frame(height: 60)
-            CabinPlan(classes: SeatClassCounts(economy: 54, premiumEconomy: 0, business: 2, first: 0),
-                      positions: PositionCounts(window: 5, middle: 6, aisle: 24), favourite: ("Favorite seat", "20D (2 times)"))
+            CabinPlan(classes: SeatClassCounts(economy: 54, premiumEconomy: 0, business: 2, first: 0, private: 0),
+                      positions: PositionCounts(window: 5, middle: 6, aisle: 24, pilot: 0, captain: 0, jumpseat: 0), favourite: ("Favorite seat", "20D (2 times)"))
         }
         .padding(.vertical)
     }

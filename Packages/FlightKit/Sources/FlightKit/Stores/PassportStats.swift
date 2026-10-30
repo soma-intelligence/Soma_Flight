@@ -74,12 +74,24 @@ extension PastFlight {
             case .premiumEconomy: .premiumEconomy
             case .business: .business
             case .first: .first
+            case .private: .private
             }
         }
         let reason: FlightCore.TripReason? = self.reason.map {
             switch $0 {
             case .personal: .personal
             case .business: .business
+            case .crew: .crew
+            }
+        }
+        let position: FlightCore.SeatPosition? = self.seatPosition.map {
+            switch $0 {
+            case .aisle: .aisle
+            case .middle: .middle
+            case .window: .window
+            case .pilot: .pilot
+            case .captain: .captain
+            case .jumpseat: .jumpseat
             }
         }
         return FlightCore.PastFlight(
@@ -90,7 +102,7 @@ extension PastFlight {
             delayMinutes: UInt32(max(0, delayMinutes)), status: status,
             originCountry: originCountry, destinationCountry: destinationCountry,
             airMinutes: airMinutes.map { UInt32(max(0, $0)) }, registration: registration,
-            seatClass: seatClass, seat: seat, reason: reason)
+            seatClass: seatClass, seat: seat, reason: reason, seatPosition: position)
     }
 
     /// Local departure year in the origin's zone, matching the core's bucketing.

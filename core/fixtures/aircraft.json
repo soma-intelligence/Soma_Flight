@@ -15,7 +15,7 @@
       "most_flown": "first of types_by_flights, null when none",
       "tails": "one row per known registration; icao_type and airline from the latest kept flight on that tail that has one; name from the fact; sorted flights desc then registration asc",
       "seat_position": "seat trimmed, upper case, 1 to 3 digits then one letter; economy cabin of the family; other families, letters or shapes give null",
-      "seat_positions": "kept flights whose type is in the reference and whose seat has a position",
+      "seat_positions": "kept flights with a picked seat_position (counted as picked), else whose type is in the reference and whose seat has a position",
       "favourite_seat": "most flown seat (trimmed, upper case, any shape), ties seat asc; null when none",
       "aged_aircraft": "distinct registrations over kept flights with a fact that has delivered_at",
       "age_months": "whole calendar months from delivered_at to as_of in UTC (a month counts once day and time of day are reached), 0 when delivered after as_of",
@@ -1262,17 +1262,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -1397,7 +1402,8 @@
           "registration": "F-HTYA",
           "seat_class": "business",
           "seat": "7A",
-          "reason": "business"
+          "reason": "business",
+          "seat_position": null
         }
       ],
       "expected": {
@@ -1452,12 +1458,16 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 1,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 1,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "7A",
@@ -1465,7 +1475,8 @@
         },
         "reasons": {
           "personal": 0,
-          "business": 1
+          "business": 1,
+          "crew": 0
         },
         "decades": [
           {
@@ -1605,7 +1616,8 @@
           "registration": "N8701Q",
           "seat_class": null,
           "seat": "14C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1715335200,
@@ -1625,7 +1637,8 @@
           "registration": "N8701Q",
           "seat_class": null,
           "seat": "14C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739181600,
@@ -1645,7 +1658,8 @@
           "registration": "n8701q ",
           "seat_class": null,
           "seat": "22F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -1700,12 +1714,16 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 1,
           "middle": 0,
-          "aisle": 2
+          "aisle": 2,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "14C",
@@ -1713,7 +1731,8 @@
         },
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [
           {
@@ -1847,7 +1866,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "11A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735869600,
@@ -1867,7 +1887,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735959600,
@@ -1887,7 +1908,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "13C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736049600,
@@ -1907,7 +1929,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "14D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736139600,
@@ -1927,7 +1950,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "15E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736229600,
@@ -1947,7 +1971,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "16F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736319600,
@@ -1967,7 +1992,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "17G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736409600,
@@ -1987,7 +2013,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "18H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736499600,
@@ -2007,7 +2034,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "19J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736589600,
@@ -2027,7 +2055,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "20K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739358000,
@@ -2047,7 +2076,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "21A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739448000,
@@ -2067,7 +2097,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "22B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739538000,
@@ -2087,7 +2118,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "23C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739628000,
@@ -2107,7 +2139,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "24D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739718000,
@@ -2127,7 +2160,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "25E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739808000,
@@ -2147,7 +2181,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "26F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739898000,
@@ -2167,7 +2202,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "27G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739988000,
@@ -2187,7 +2223,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "28H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740078000,
@@ -2207,7 +2244,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "29J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740168000,
@@ -2227,7 +2265,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "30K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742677200,
@@ -2247,7 +2286,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "31A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742767200,
@@ -2267,7 +2307,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "32B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742857200,
@@ -2287,7 +2328,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "33C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742860800,
@@ -2307,7 +2349,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "34D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742950800,
@@ -2327,7 +2370,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "35E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743040800,
@@ -2347,7 +2391,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "36F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743130800,
@@ -2367,7 +2412,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "37G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740801600,
@@ -2387,7 +2433,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "38H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740891600,
@@ -2407,7 +2454,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "39J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740981600,
@@ -2427,7 +2475,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "40K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743750000,
@@ -2447,7 +2496,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "41A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743840000,
@@ -2467,7 +2517,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "42B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743930000,
@@ -2487,7 +2538,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "43C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744020000,
@@ -2507,7 +2559,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "44D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744110000,
@@ -2527,7 +2580,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "45E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744200000,
@@ -2547,7 +2601,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "46F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744290000,
@@ -2567,7 +2622,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "47G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744380000,
@@ -2587,7 +2643,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "48H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744470000,
@@ -2607,7 +2664,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "49J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744560000,
@@ -2627,7 +2685,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "10K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747242000,
@@ -2647,7 +2706,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "11A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747332000,
@@ -2667,7 +2727,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747422000,
@@ -2687,7 +2748,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "13C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747512000,
@@ -2707,7 +2769,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "14D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747602000,
@@ -2727,7 +2790,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "15E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747692000,
@@ -2747,7 +2811,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "16F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747782000,
@@ -2767,7 +2832,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "17G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747785600,
@@ -2787,7 +2853,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "18H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747875600,
@@ -2807,7 +2874,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "19J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747965600,
@@ -2827,7 +2895,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "20K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1750734000,
@@ -2847,7 +2916,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "21A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1750824000,
@@ -2867,7 +2937,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "22B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1750914000,
@@ -2887,7 +2958,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "23C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1751004000,
@@ -2907,7 +2979,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "24D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1751094000,
@@ -2927,7 +3000,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "25E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748764800,
@@ -2947,7 +3021,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "26F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748854800,
@@ -2967,7 +3042,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "27G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748944800,
@@ -2987,7 +3063,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "28H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1749034800,
@@ -3007,7 +3084,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "29J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1749124800,
@@ -3027,7 +3105,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "30K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1751806800,
@@ -3047,7 +3126,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "31A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1751896800,
@@ -3067,7 +3147,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "32B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1751986800,
@@ -3087,7 +3168,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "33C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752076800,
@@ -3107,7 +3189,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "34D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752166800,
@@ -3127,7 +3210,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "35E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752256800,
@@ -3147,7 +3231,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "36F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752346800,
@@ -3167,7 +3252,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "37G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752436800,
@@ -3187,7 +3273,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "38H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752526800,
@@ -3207,7 +3294,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "39J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1752616800,
@@ -3227,7 +3315,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "40K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755385200,
@@ -3247,7 +3336,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "41A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755388800,
@@ -3267,7 +3357,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "42B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755478800,
@@ -3287,7 +3378,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "43C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755568800,
@@ -3307,7 +3399,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "44D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755658800,
@@ -3327,7 +3420,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "45E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755748800,
@@ -3347,7 +3441,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "46F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755838800,
@@ -3367,7 +3462,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "47G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1755928800,
@@ -3387,7 +3483,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "48H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756018800,
@@ -3407,7 +3504,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "49J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756108800,
@@ -3427,7 +3525,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "10K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1758877200,
@@ -3447,7 +3546,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "11A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1758967200,
@@ -3467,7 +3567,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1759057200,
@@ -3487,7 +3588,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "13C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756728000,
@@ -3507,7 +3609,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "14D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756818000,
@@ -3527,7 +3630,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "15E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756908000,
@@ -3547,7 +3651,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "16F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1756998000,
@@ -3567,7 +3672,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "17G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1757088000,
@@ -3587,7 +3693,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "18H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1757178000,
@@ -3607,7 +3714,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "19J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1757268000,
@@ -3627,7 +3735,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "20K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1759950000,
@@ -3647,7 +3756,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "21A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760040000,
@@ -3667,7 +3777,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "22B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760130000,
@@ -3687,7 +3798,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "23C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760220000,
@@ -3707,7 +3819,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "24D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760310000,
@@ -3727,7 +3840,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "25E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760313600,
@@ -3747,7 +3861,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "26F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760403600,
@@ -3767,7 +3882,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "27G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760493600,
@@ -3787,7 +3903,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "28H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760583600,
@@ -3807,7 +3924,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "29J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1760673600,
@@ -3827,7 +3945,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "30K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763442000,
@@ -3847,7 +3966,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "31A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763532000,
@@ -3867,7 +3987,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "32B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763622000,
@@ -3887,7 +4008,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "33C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763712000,
@@ -3907,7 +4029,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "34D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763802000,
@@ -3927,7 +4050,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "35E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763892000,
@@ -3947,7 +4071,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "36F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1763982000,
@@ -3967,7 +4092,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "37G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764072000,
@@ -3987,7 +4113,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "38H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764162000,
@@ -4007,7 +4134,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "39J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764252000,
@@ -4027,7 +4155,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "40K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1766934000,
@@ -4047,7 +4176,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "41A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764604800,
@@ -4067,7 +4197,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "42B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764694800,
@@ -4087,7 +4218,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "43C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764784800,
@@ -4107,7 +4239,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "44D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764874800,
@@ -4127,7 +4260,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "45E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1764964800,
@@ -4147,7 +4281,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "46F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1765054800,
@@ -4167,7 +4302,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "47G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1765144800,
@@ -4187,7 +4323,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "48H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1765234800,
@@ -4207,7 +4344,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "49J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1765238400,
@@ -4227,7 +4365,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "10K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736470800,
@@ -4247,7 +4386,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "11A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736560800,
@@ -4267,7 +4407,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736650800,
@@ -4287,7 +4428,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "13C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736740800,
@@ -4307,7 +4449,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "14D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736830800,
@@ -4327,7 +4470,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "15E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736920800,
@@ -4347,7 +4491,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "16F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1737010800,
@@ -4367,7 +4512,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "17G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1737100800,
@@ -4387,7 +4533,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "18H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1737190800,
@@ -4407,7 +4554,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "19J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1737280800,
@@ -4427,7 +4575,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "20K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740049200,
@@ -4447,7 +4596,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "21A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740139200,
@@ -4467,7 +4617,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "22B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740229200,
@@ -4487,7 +4638,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "23C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740319200,
@@ -4507,7 +4659,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "24D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740409200,
@@ -4527,7 +4680,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "25E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740499200,
@@ -4547,7 +4701,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "26F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740589200,
@@ -4567,7 +4722,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "27G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740679200,
@@ -4587,7 +4743,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "28H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740769200,
@@ -4607,7 +4764,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "29J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738440000,
@@ -4627,7 +4785,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "30K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1740949200,
@@ -4647,7 +4806,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "31A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741039200,
@@ -4667,7 +4827,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "32B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741129200,
@@ -4687,7 +4848,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "33C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741132800,
@@ -4707,7 +4869,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "34D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741222800,
@@ -4727,7 +4890,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "35E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741312800,
@@ -4747,7 +4911,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "36F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741402800,
@@ -4767,7 +4932,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "37G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741492800,
@@ -4787,7 +4953,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "38H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741582800,
@@ -4807,7 +4974,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "39J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741672800,
@@ -4827,7 +4995,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "40K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744441200,
@@ -4847,7 +5016,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "41A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744531200,
@@ -4867,7 +5037,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "42B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744621200,
@@ -4887,7 +5058,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "43C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744711200,
@@ -4907,7 +5079,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "44D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744801200,
@@ -4927,7 +5100,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "45E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744891200,
@@ -4947,7 +5121,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "46F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1744981200,
@@ -4967,7 +5142,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "47G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1745071200,
@@ -4987,7 +5163,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "48H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1745161200,
@@ -5007,7 +5184,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "49J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1745251200,
@@ -5027,7 +5205,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "10K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1747933200,
@@ -5047,7 +5226,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "11A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748023200,
@@ -5067,7 +5247,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12B",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748113200,
@@ -5087,7 +5268,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "13C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748203200,
@@ -5107,7 +5289,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "14D",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748293200,
@@ -5127,7 +5310,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "15E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748383200,
@@ -5147,7 +5331,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "16F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748473200,
@@ -5167,7 +5352,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "17G",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1746057600,
@@ -5187,7 +5373,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "18H",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1746147600,
@@ -5207,7 +5394,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "19J",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1746237600,
@@ -5227,7 +5415,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "20K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -5582,12 +5771,16 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 32,
           "middle": 32,
-          "aisle": 46
+          "aisle": 46,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "11A",
@@ -5595,7 +5788,8 @@
         },
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -5714,7 +5908,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735812000,
@@ -5734,7 +5929,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "1A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735898400,
@@ -5754,7 +5950,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "12K",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735984800,
@@ -5774,7 +5971,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "aisle",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736071200,
@@ -5794,7 +5992,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736157600,
@@ -5814,7 +6013,8 @@
           "registration": null,
           "seat_class": null,
           "seat": " 12a ",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736244000,
@@ -5834,7 +6034,8 @@
           "registration": null,
           "seat_class": null,
           "seat": "3E",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -5945,12 +6146,16 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 1,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "12A",
@@ -5958,7 +6163,8 @@
         },
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -6113,7 +6319,8 @@
           "registration": "G-CIVA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1706781600,
@@ -6133,7 +6340,8 @@
           "registration": "G-CIVB",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1709287200,
@@ -6153,7 +6361,8 @@
           "registration": "N171DN",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1711965600,
@@ -6173,7 +6382,8 @@
           "registration": "D-AIEA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1714557600,
@@ -6193,7 +6403,8 @@
           "registration": "D-AIEB",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1717236000,
@@ -6213,7 +6424,8 @@
           "registration": "D-AIEA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1719828000,
@@ -6233,7 +6445,8 @@
           "registration": "F-GKXA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -6382,17 +6595,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [
           {
@@ -6542,7 +6760,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735812000,
@@ -6562,7 +6781,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735898400,
@@ -6582,7 +6802,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1735984800,
@@ -6602,7 +6823,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736071200,
@@ -6622,7 +6844,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736157600,
@@ -6642,7 +6865,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736244000,
@@ -6662,7 +6886,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736330400,
@@ -6682,7 +6907,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736416800,
@@ -6702,7 +6928,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1736503200,
@@ -6722,7 +6949,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -6892,17 +7120,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -7021,7 +7254,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738490400,
@@ -7041,7 +7275,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738576800,
@@ -7061,7 +7296,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738663200,
@@ -7081,7 +7317,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738749600,
@@ -7101,7 +7338,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738836000,
@@ -7121,7 +7359,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1738922400,
@@ -7141,7 +7380,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1739008800,
@@ -7161,7 +7401,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -7277,17 +7518,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -7422,7 +7668,8 @@
           "registration": "F-HTYA",
           "seat_class": "economy",
           "seat": "31A",
-          "reason": "personal"
+          "reason": "personal",
+          "seat_position": null
         },
         {
           "departed_at": 1741168800,
@@ -7442,7 +7689,8 @@
           "registration": "F-HTYA",
           "seat_class": "premium_economy",
           "seat": "31A",
-          "reason": "business"
+          "reason": "business",
+          "seat_position": null
         },
         {
           "departed_at": 1741514400,
@@ -7462,7 +7710,8 @@
           "registration": "F-HTYA",
           "seat_class": "business",
           "seat": "2A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1741773600,
@@ -7482,7 +7731,8 @@
           "registration": "F-GSQA",
           "seat_class": "first",
           "seat": "1A",
-          "reason": "personal"
+          "reason": "personal",
+          "seat_position": null
         },
         {
           "departed_at": 1742032800,
@@ -7502,7 +7752,8 @@
           "registration": "F-GSQA",
           "seat_class": "economy",
           "seat": "40K",
-          "reason": "personal"
+          "reason": "personal",
+          "seat_position": null
         },
         {
           "departed_at": 1742292000,
@@ -7522,7 +7773,8 @@
           "registration": "",
           "seat_class": "economy",
           "seat": "12C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1742464800,
@@ -7542,7 +7794,8 @@
           "registration": "F-GKXA",
           "seat_class": null,
           "seat": "31A",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -7645,12 +7898,16 @@
           "economy": 3,
           "premiumEconomy": 1,
           "business": 1,
-          "first": 1
+          "first": 1,
+          "private": 0
         },
         "seatPositions": {
           "window": 4,
           "middle": 0,
-          "aisle": 1
+          "aisle": 1,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "31A",
@@ -7658,7 +7915,8 @@
         },
         "reasons": {
           "personal": 3,
-          "business": 1
+          "business": 1,
+          "crew": 0
         },
         "decades": [
           {
@@ -7827,7 +8085,8 @@
           "registration": "C-FAAA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743588000,
@@ -7847,7 +8106,8 @@
           "registration": "C-FBBB",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743674400,
@@ -7867,7 +8127,8 @@
           "registration": "C-FCCC",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743760800,
@@ -7887,7 +8148,8 @@
           "registration": "C-FDDD",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743847200,
@@ -7907,7 +8169,8 @@
           "registration": "C-FEEE",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1743933600,
@@ -7927,7 +8190,8 @@
           "registration": "C-FFFF",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -8017,17 +8281,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [
           {
@@ -8173,7 +8442,8 @@
           "registration": "N401UA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1746180000,
@@ -8193,7 +8463,8 @@
           "registration": "N26902",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -8278,17 +8549,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,
@@ -8433,7 +8709,8 @@
           "registration": "N401UA",
           "seat_class": "economy",
           "seat": "12A",
-          "reason": "personal"
+          "reason": "personal",
+          "seat_position": null
         },
         {
           "departed_at": 1709287200,
@@ -8453,7 +8730,8 @@
           "registration": "N26902",
           "seat_class": "business",
           "seat": "4A",
-          "reason": "business"
+          "reason": "business",
+          "seat_position": null
         },
         {
           "departed_at": 1725184800,
@@ -8473,7 +8751,8 @@
           "registration": "N26902",
           "seat_class": "business",
           "seat": "4A",
-          "reason": "business"
+          "reason": "business",
+          "seat_position": null
         },
         {
           "departed_at": 1735716600,
@@ -8493,7 +8772,8 @@
           "registration": "N402UA",
           "seat_class": null,
           "seat": "20F",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1748772000,
@@ -8513,7 +8793,8 @@
           "registration": "N8701Q",
           "seat_class": null,
           "seat": "14C",
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1727776800,
@@ -8533,7 +8814,8 @@
           "registration": "A6-EDA",
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -8618,12 +8900,16 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 2,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 3,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": {
           "seat": "4A",
@@ -8631,7 +8917,8 @@
         },
         "reasons": {
           "personal": 0,
-          "business": 2
+          "business": 2,
+          "crew": 0
         },
         "decades": [
           {
@@ -8663,6 +8950,316 @@
       }
     },
     {
+      "name": "picked_positions_private_crew",
+      "year": null,
+      "as_of": 1793275200,
+      "types": [
+        {
+          "icao_type": "A320",
+          "family": "a320",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "A21N",
+          "family": "a320",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "BCS3",
+          "family": "a220",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "A333",
+          "family": "a330",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "A359",
+          "family": "a350",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "A388",
+          "family": "a380",
+          "manufacturer": "Airbus"
+        },
+        {
+          "icao_type": "B738",
+          "family": "b737",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B38M",
+          "family": "b737max",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B744",
+          "family": "b747",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B752",
+          "family": "b757",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B763",
+          "family": "b767",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B77W",
+          "family": "b777",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "B789",
+          "family": "b787",
+          "manufacturer": "Boeing"
+        },
+        {
+          "icao_type": "E175",
+          "family": "ejet",
+          "manufacturer": "Embraer"
+        },
+        {
+          "icao_type": "CRJ9",
+          "family": "crj",
+          "manufacturer": "Bombardier"
+        },
+        {
+          "icao_type": "AT76",
+          "family": "atr",
+          "manufacturer": "ATR"
+        },
+        {
+          "icao_type": "B712",
+          "family": "other",
+          "manufacturer": "Boeing"
+        }
+      ],
+      "facts": [],
+      "flights": [
+        {
+          "departed_at": 1756720800,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AAL",
+          "aircraft_type": "A320",
+          "distance_km": 1000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": null,
+          "destination_country": null,
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": "private",
+          "seat": "14A",
+          "reason": "crew",
+          "seat_position": "aisle"
+        },
+        {
+          "departed_at": 1756807200,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 1000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": null,
+          "destination_country": null,
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": "crew",
+          "seat_position": "pilot"
+        },
+        {
+          "departed_at": 1756893600,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AAL",
+          "aircraft_type": "B738",
+          "distance_km": 1000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": null,
+          "destination_country": null,
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": null,
+          "seat": null,
+          "reason": "crew",
+          "seat_position": "captain"
+        },
+        {
+          "departed_at": 1756980000,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AAL",
+          "aircraft_type": "ZZZZ",
+          "distance_km": 1000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": null,
+          "destination_country": null,
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": "private",
+          "seat": null,
+          "reason": "personal",
+          "seat_position": "jumpseat"
+        },
+        {
+          "departed_at": 1757066400,
+          "tz": "UTC",
+          "ident": "XX1",
+          "origin_icao": "AAAA",
+          "destination_icao": "BBBB",
+          "airline": "AAL",
+          "aircraft_type": "A320",
+          "distance_km": 1000,
+          "block_minutes": null,
+          "delay_minutes": 0,
+          "status": "completed",
+          "origin_country": null,
+          "destination_country": null,
+          "air_minutes": null,
+          "registration": null,
+          "seat_class": "economy",
+          "seat": "14A",
+          "reason": "business",
+          "seat_position": null
+        }
+      ],
+      "expected": {
+        "totalTypes": 3,
+        "manufacturers": [
+          {
+            "key": "Airbus",
+            "flights": 2,
+            "percent": 50
+          },
+          {
+            "key": "Boeing",
+            "flights": 2,
+            "percent": 50
+          }
+        ],
+        "typesByFlights": [
+          {
+            "icaoType": "A320",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "B738",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "ZZZZ",
+            "flights": 1,
+            "minutes": 0,
+            "distanceKm": 1000
+          }
+        ],
+        "typesByMinutes": [
+          {
+            "icaoType": "A320",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "B738",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "ZZZZ",
+            "flights": 1,
+            "minutes": 0,
+            "distanceKm": 1000
+          }
+        ],
+        "typesByDistance": [
+          {
+            "icaoType": "A320",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "B738",
+            "flights": 2,
+            "minutes": 0,
+            "distanceKm": 2000
+          },
+          {
+            "icaoType": "ZZZZ",
+            "flights": 1,
+            "minutes": 0,
+            "distanceKm": 1000
+          }
+        ],
+        "mostFlown": {
+          "icaoType": "A320",
+          "flights": 2,
+          "minutes": 0,
+          "distanceKm": 2000
+        },
+        "tails": [],
+        "seatClasses": {
+          "economy": 1,
+          "premiumEconomy": 0,
+          "business": 0,
+          "first": 0,
+          "private": 2
+        },
+        "seatPositions": {
+          "window": 1,
+          "middle": 0,
+          "aisle": 1,
+          "pilot": 1,
+          "captain": 1,
+          "jumpseat": 1
+        },
+        "favouriteSeat": {
+          "seat": "14A",
+          "flights": 2
+        },
+        "reasons": {
+          "personal": 1,
+          "business": 1,
+          "crew": 3
+        },
+        "decades": [],
+        "medianAgeMonths": null,
+        "newest": null,
+        "oldest": null
+      }
+    },
+    {
       "name": "sparse",
       "year": null,
       "as_of": 1793275200,
@@ -8687,7 +9284,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         },
         {
           "departed_at": 1754215200,
@@ -8707,7 +9305,8 @@
           "registration": null,
           "seat_class": null,
           "seat": null,
-          "reason": null
+          "reason": null,
+          "seat_position": null
         }
       ],
       "expected": {
@@ -8748,17 +9347,22 @@
           "economy": 0,
           "premiumEconomy": 0,
           "business": 0,
-          "first": 0
+          "first": 0,
+          "private": 0
         },
         "seatPositions": {
           "window": 0,
           "middle": 0,
-          "aisle": 0
+          "aisle": 0,
+          "pilot": 0,
+          "captain": 0,
+          "jumpseat": 0
         },
         "favouriteSeat": null,
         "reasons": {
           "personal": 0,
-          "business": 0
+          "business": 0,
+          "crew": 0
         },
         "decades": [],
         "medianAgeMonths": null,

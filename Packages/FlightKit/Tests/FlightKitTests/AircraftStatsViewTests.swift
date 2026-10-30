@@ -5,9 +5,9 @@ import CoreGraphics
 import FlightCore
 @testable import FlightKit
 
-private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0),
-                   positions: PositionCounts = PositionCounts(window: 0, middle: 0, aisle: 0),
-                   reasons: ReasonCounts = ReasonCounts(personal: 0, business: 0),
+private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0, private: 0),
+                   positions: PositionCounts = PositionCounts(window: 0, middle: 0, aisle: 0, pilot: 0, captain: 0, jumpseat: 0),
+                   reasons: ReasonCounts = ReasonCounts(personal: 0, business: 0, crew: 0),
                    favourite: SeatTally? = nil) -> AircraftStats {
     var s = AircraftStats.empty
     s.seatClasses = classes
@@ -18,6 +18,29 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
 }
 
 @Suite struct AircraftStatsViewTests {
+    /// Private, Crew and cockpit seats join their donuts only once flown; the cabin plan adds a cockpit line.
+    @MainActor @Test func rarePicksJoinOnlyOnceFlown() {
+        let usual = stats(classes: SeatClassCounts(economy: 3, premiumEconomy: 0, business: 1, first: 0, private: 0),
+                          positions: PositionCounts(window: 2, middle: 0, aisle: 1, pilot: 0, captain: 0, jumpseat: 0),
+                          reasons: ReasonCounts(personal: 2, business: 1, crew: 0))
+        #expect(AircraftStatsCopy.classDonut(usual).slices.map(\.label) == ["Economy", "Premium Economy", "Business", "First"])
+        #expect(AircraftStatsCopy.seatDonut(usual).slices.map(\.label) == ["Aisle", "Middle", "Window"])
+        #expect(AircraftStatsCopy.reasonDonut(usual).slices.map(\.label) == ["Personal", "Business"])
+        #expect(CabinPlan.cockpitLine(usual.seatPositions) == nil)
+
+        let crew = stats(classes: SeatClassCounts(economy: 0, premiumEconomy: 0, business: 0, first: 0, private: 2),
+                         positions: PositionCounts(window: 0, middle: 0, aisle: 0, pilot: 1, captain: 2, jumpseat: 0),
+                         reasons: ReasonCounts(personal: 0, business: 0, crew: 3))
+        #expect(AircraftStatsCopy.classDonut(crew).slices.last?.label == "Private")
+        #expect(AircraftStatsCopy.classDonut(crew).centerValue == "Private")
+        #expect(AircraftStatsCopy.seatDonut(crew).slices.map(\.label) == ["Aisle", "Middle", "Window", "Captain", "Pilot"])
+        #expect(AircraftStatsCopy.seatDonut(crew).centerValue == "Captain")
+        #expect(AircraftStatsCopy.reasonDonut(crew).centerValue == "Crew")
+        #expect(CabinPlan.hasClasses(crew.seatClasses))
+        #expect(CabinPlan.hasSeats(crew.seatPositions, hasFavourite: false))
+        #expect(CabinPlan.cockpitLine(crew.seatPositions) == "Captain 2 · Pilot 1")
+    }
+
     @Test func ageCopy() {
         #expect(AircraftStatsCopy.ageCopy(months: 0) == "0 months")
         #expect(AircraftStatsCopy.ageCopy(months: 1) == "1 month")
@@ -42,9 +65,9 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
         #expect(AircraftStatsCopy.seatDonut(empty).isHidden)
         #expect(AircraftStatsCopy.reasonDonut(empty).isHidden)
 
-        let some = stats(classes: SeatClassCounts(economy: 54, premiumEconomy: 0, business: 2, first: 0),
-                         positions: PositionCounts(window: 5, middle: 6, aisle: 24),
-                         reasons: ReasonCounts(personal: 33, business: 20),
+        let some = stats(classes: SeatClassCounts(economy: 54, premiumEconomy: 0, business: 2, first: 0, private: 0),
+                         positions: PositionCounts(window: 5, middle: 6, aisle: 24, pilot: 0, captain: 0, jumpseat: 0),
+                         reasons: ReasonCounts(personal: 33, business: 20, crew: 0),
                          favourite: SeatTally(seat: "20D", flights: 2))
         let cls = AircraftStatsCopy.classDonut(some)
         #expect(!cls.isHidden)
@@ -61,7 +84,7 @@ private func stats(classes: SeatClassCounts = SeatClassCounts(economy: 0, premiu
         #expect(AircraftStatsCopy.favoriteSeat(some)?.value == "20D (2 times)")
 
         // Only reasons known: the class and seat donuts still hide.
-        let reasonsOnly = stats(reasons: ReasonCounts(personal: 1, business: 0))
+        let reasonsOnly = stats(reasons: ReasonCounts(personal: 1, business: 0, crew: 0))
         #expect(AircraftStatsCopy.classDonut(reasonsOnly).isHidden)
         #expect(!AircraftStatsCopy.reasonDonut(reasonsOnly).isHidden)
     }
