@@ -211,7 +211,10 @@ public struct FlightDetailView: View {
             }
             Button("Copy Flight Number", systemImage: "doc.on.doc") { Pasteboard.copy(Format.ident(flight.ident)) }
             Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {
-                openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
+                // No mail app: the address goes to the pasteboard, as under the report link.
+                openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt)) { accepted in
+                    if !accepted { Pasteboard.copy(DetailFacts.supportAddress) }
+                }
             }
         }
     }
@@ -414,7 +417,8 @@ struct EventRow: View {
 }
 
 /// Every change the backend saw on the flight, newest first, along a thin line; never blurred.
-/// Draws nothing until there is one.
+/// Draws nothing until there is one. "Every event" means every event a person can read: live position
+/// samples (`position`, `eventText` nil) are left out, and the count line counts the rows shown.
 struct UpdatesCard: View {
     var events: [FlightEvent]
     var timeZone: TimeZone
@@ -461,22 +465,38 @@ struct UpdatesCard: View {
     }
 }
 
-/// "Report a Data Issue", centred under the last card; opens a mail to support about this flight.
+/// "Report a Data Issue", centred under the last card; opens a mail to support about this flight. With no
+/// mail app to take it, the address goes to the pasteboard and a line under the link says so.
 struct ReportLink: View {
     var url: URL
     @Environment(\.openURL) private var openURL
+    @State private var copied = false
 
     var body: some View {
-        Button { openURL(url) } label: {
-            Label(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble")
-                .scaledFont(18)
-                .foregroundStyle(Theme.secondary)
-                .frame(maxWidth: .infinity)
-                .scaledPadding(.vertical, 12)
-                .contentShape(Rectangle())
+        VStack(spacing: 4) {
+            Button {
+                openURL(url) { accepted in
+                    guard !accepted else { return }
+                    Pasteboard.copy(DetailFacts.supportAddress)
+                    copied = true
+                }
+            } label: {
+                Label(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble")
+                    .scaledFont(18)
+                    .foregroundStyle(Theme.secondary)
+                    .frame(maxWidth: .infinity)
+                    .scaledPadding(.vertical, 12)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Writes to support about this flight")
+            if copied {
+                Text(DetailFacts.reportCopied)
+                    .scaledFont(14)
+                    .foregroundStyle(Theme.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityHint("Writes to support about this flight")
     }
 }
 
@@ -484,6 +504,9 @@ struct ReportLink: View {
 
 enum DetailFacts {
     static let reportLabel = "Report a Data Issue"
+    static let supportAddress = "support@somalabs.me"
+    /// Shown when no mail app opened the report.
+    static let reportCopied = "No mail app found. We copied support@somalabs.me for you."
 
     /// "3 updates for this flight".
     static func updatesLine(_ count: Int) -> String {
@@ -503,7 +526,7 @@ enum DetailFacts {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")
         let encoded = subject.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
-        return URL(string: "mailto:support@somalabs.me?subject=\(encoded)")!
+        return URL(string: "mailto:\(supportAddress)?subject=\(encoded)")!
     }
 
     /// "Air France  ·  In the air" style caption under the title.

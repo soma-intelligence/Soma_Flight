@@ -12,17 +12,27 @@ struct RouteHistory: Equatable, Sendable {
 
     static let title = "Your history on this route"
 
-    /// nil when the user never flew the route.
-    static func compute(_ past: [PastFlight], origin: String, destination: String) -> RouteHistory? {
+    /// nil when the user never flew the route. `excluding` is the flight on screen: once it is in the
+    /// user's past (same flight number, leaving within 24 hours of its schedule) it does not count, so the
+    /// card stays about the other times.
+    static func compute(_ past: [PastFlight], origin: String, destination: String,
+                        excluding current: Flight? = nil) -> RouteHistory? {
         let ends: Set = [origin, destination]
         let route = past.filter {
             $0.status != .canceled && Set([$0.originIcao, $0.destinationIcao]) == ends && $0.originIcao != $0.destinationIcao
+                && !isSameFlight($0, current)
         }
         guard !route.isEmpty else { return nil }
         return RouteHistory(flights: route.count,
                             distanceKm: route.reduce(0) { $0 + $1.distanceKm },
                             minutes: route.reduce(0) { $0 + ($1.blockMinutes ?? 0) },
                             recent: Array(route.sorted { $0.date > $1.date }.prefix(2)))
+    }
+
+    private static func isSameFlight(_ p: PastFlight, _ f: Flight?) -> Bool {
+        guard let f, p.ident.uppercased() == f.ident.uppercased(),
+              let out = f.scheduledOut ?? f.estimatedOut ?? f.actualOut else { return false }
+        return abs(p.date.timeIntervalSince(out)) < 86_400
     }
 
     /// "SFO → CDG", in the direction of the flight on screen.

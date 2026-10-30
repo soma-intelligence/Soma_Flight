@@ -104,24 +104,37 @@ public final class FlightDetailStore {
         error = firstError
     }
 
-    /// Fills Good to Know (each airport's delays and weather) and the history card, after `load()`.
-    /// Calls run one after another (origin stats, destination stats, origin weather, destination
-    /// weather, history, forecast, inbound chain); each failure leaves only its own value nil or empty.
+    /// Fills Good to Know (each airport's delays and weather), the history card and the paid insights,
+    /// after `load()`. The seven calls run at once; each failure leaves only its own value nil or empty.
+    /// A cancelled load (the sheet closed or the flight changed) assigns nothing.
     public func loadExtras() async {
         guard let f = flight else { return }
+        let airports = airports, insights = insights, history = history, id = id
         let originCode = f.originIcao
         let destinationCode = destination?.id ?? f.destinationIcao
-        originStats = (try? await airports.stats(originCode))?.departures
-        destinationStats = (try? await airports.stats(destinationCode))?.arrivals
-        originWeather = (try? await airports.weather(originCode))?.weather
-        destinationWeather = (try? await airports.weather(destinationCode))?.weather
-        if let history, let past = try? await history.pastFlights() {
-            routeHistory = RouteHistory.compute(past, origin: f.originIcao, destination: f.destinationIcao)
-        } else {
-            routeHistory = nil
+        async let oStats = try? airports.stats(originCode)
+        async let dStats = try? airports.stats(destinationCode)
+        async let oWeather = try? airports.weather(originCode)
+        async let dWeather = try? airports.weather(destinationCode)
+        async let past = Self.pastFlights(history)
+        async let forecastValue = try? insights.arrivalForecast(ident: f.ident)
+        async let inboundValue = try? insights.inbound(id)
+        let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue)
+        guard !Task.isCancelled else { return }
+        originStats = results.0?.departures
+        destinationStats = results.1?.arrivals
+        originWeather = results.2?.weather
+        destinationWeather = results.3?.weather
+        routeHistory = results.4.flatMap {
+            RouteHistory.compute($0, origin: f.originIcao, destination: f.destinationIcao, excluding: f)
         }
-        forecast = try? await insights.arrivalForecast(ident: f.ident)
-        inbound = (try? await insights.inbound(id)) ?? []
+        forecast = results.5
+        inbound = results.6 ?? []
+    }
+
+    private nonisolated static func pastFlights(_ history: (any HistoryService)?) async -> [PastFlight]? {
+        guard let history else { return nil }
+        return try? await history.pastFlights()
     }
 
     /// How often an open detail asks for the live position while the flight is in the air: the

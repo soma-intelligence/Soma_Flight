@@ -7,7 +7,11 @@ public struct AppEnvironment: Sendable {
     public var flights: any FlightService
     public var airports: any AirportService
     public var auth: any AuthService
-    public var history: any HistoryService
+    public var history: any HistoryService {
+        didSet { detailHistory = CachedHistoryService(history) }
+    }
+    /// `history` kept for ten minutes, for the flight sheets' history card.
+    private var detailHistory: CachedHistoryService
     public var push: any PushService
     /// Airframe delivery dates and names for the Passport's ages; nil shows no ages.
     public var aircraftFacts: (any AircraftFactsService)?
@@ -34,7 +38,7 @@ public struct AppEnvironment: Sendable {
                 brand: any BrandAssetService = FakeBrandAssetService(),
                 insights: any InsightsService = UnavailableInsightsService()) {
         self.flights = flights; self.airports = airports; self.auth = auth
-        self.history = history; self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
+        self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
@@ -126,7 +130,7 @@ public struct AppEnvironment: Sendable {
     @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
-        FlightDetailStore(id: id, flights: flights, airports: airports, history: history, insights: insights,
+        FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
                           cache: cache.scoped(for: owner))
     }
 

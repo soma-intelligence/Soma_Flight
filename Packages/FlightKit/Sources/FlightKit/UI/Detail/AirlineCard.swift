@@ -11,17 +11,28 @@ struct AirlineCard: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// The buttons in order; a missing value leaves its button out.
+    /// The buttons in order; a missing or unsafe value leaves its button out. The reference data holds X
+    /// and Facebook as bare handles ("AlaskaAir"); the links are built here on the two sites' https hosts.
     static func buttons(_ a: Airline) -> [Link] {
         var out: [Link] = []
-        if let phone = a.phone {
-            let digits = phone.filter { $0.isNumber || $0 == "+" }
-            if !digits.isEmpty, let url = URL(string: "tel:\(digits)") { out.append(Link(title: "PHONE", url: url)) }
+        if let phone = a.phone, let url = phoneURL(phone) { out.append(Link(title: "PHONE", url: url)) }
+        if let w = SafeLink.web(a.website) { out.append(Link(title: "WEBSITE", url: w)) }
+        if let h = SafeLink.handle(a.x), let url = URL(string: "https://x.com/\(h)") {
+            out.append(Link(title: "X", url: url))
         }
-        if let w = a.website { out.append(Link(title: "WEBSITE", url: w)) }
-        if let x = a.x { out.append(Link(title: "X", url: x)) }
-        if let f = a.facebook { out.append(Link(title: "FACEBOOK", url: f)) }
+        if let h = SafeLink.handle(a.facebook), let url = URL(string: "https://www.facebook.com/\(h)") {
+            out.append(Link(title: "FACEBOOK", url: url))
+        }
         return out
+    }
+
+    /// `tel:` with the digits and a leading "+"; nil for a vanity number ("1-800-UNITED"), whose letters
+    /// would dial something else, or one without digits.
+    static func phoneURL(_ phone: String) -> URL? {
+        guard !phone.contains(where: \.isLetter) else { return nil }
+        let digits = phone.filter { $0.isNumber || $0 == "+" }
+        guard digits.contains(where: \.isNumber) else { return nil }
+        return URL(string: "tel:\(digits)")
     }
 
     static func codes(_ a: Airline) -> [Code] {
@@ -81,5 +92,36 @@ struct AirlineCard: View {
             }
             .scaledPadding(.top, 18)
         }
+    }
+}
+
+/// The only links the flight sheet opens from data: web pages on http or https (as the data has them) with
+/// no query, fragment or credentials, and social handles made of letters, digits, "_" and ".".
+enum SafeLink {
+    static func web(_ url: URL?) -> URL? {
+        guard let url, var c = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let scheme = c.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              let host = c.host, !host.isEmpty else { return nil }
+        c.scheme = scheme
+        c.query = nil
+        c.fragment = nil
+        c.user = nil
+        c.password = nil
+        return c.url
+    }
+
+    /// The handle in a bare value ("AlaskaAir", "@AlaskaAir") or a profile link ("https://x.com/AlaskaAir").
+    static func handle(_ raw: URL?) -> String? {
+        guard let raw else { return nil }
+        var text = raw.absoluteString
+        if raw.scheme != nil || text.contains("/") {
+            text = raw.path.split(separator: "/").first.map(String.init) ?? ""
+        }
+        if text.hasPrefix("@") { text.removeFirst() }
+        guard !text.isEmpty, text.count <= 64,
+              text.unicodeScalars.allSatisfy({ ("a"..."z").contains($0) || ("A"..."Z").contains($0)
+                  || ("0"..."9").contains($0) || $0 == "_" || $0 == "." }),
+              text.contains(where: { $0 != "." }) else { return nil }
+        return text
     }
 }

@@ -195,6 +195,82 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         let bare = Airline(id: "ZZZ", name: "Nowhere Air", colorPrimary: "#000000")
         #expect(AirlineCard.buttons(bare).isEmpty)
         #expect(AirlineCard.codes(bare).map(\.value) == ["--", "ZZZ", "--"])
+        // A vanity number would dial something else: no button.
+        #expect(AirlineCard.phoneURL("1-800-UNITED") == nil)
+        #expect(AirlineCard.phoneURL("--") == nil)
+    }
+
+    /// Review round 1, Important 1: the bundled data holds bare handles; the buttons open the real profiles.
+    @Test func socialButtonsFromRealHandles() throws {
+        let ref = ReferenceData.bundled()
+        let alaska = try #require(ref.airline("ASA"))
+        let links = AirlineCard.buttons(alaska)
+        #expect(links.map(\.title) == ["WEBSITE", "X", "FACEBOOK"])
+        #expect(links[1].url.absoluteString == "https://x.com/AlaskaAir")
+        #expect(links[2].url.absoluteString == "https://www.facebook.com/alaskaairlines")
+        let nz = try #require(ref.airline("ANZ"))
+        #expect(AirlineCard.buttons(nz).map(\.url.absoluteString)
+                == ["https://www.airnewzealand.com", "https://x.com/FlyAirNZ", "https://www.facebook.com/AirNewZealand"])
+        // Cathay has Facebook only.
+        let cathay = try #require(ref.airline("CPA"))
+        #expect(AirlineCard.buttons(cathay).map(\.title) == ["WEBSITE", "FACEBOOK"])
+        // Every handle in the bundled data builds a link.
+        for a in ref.airlines {
+            if a.x != nil { #expect(AirlineCard.buttons(a).contains { $0.title == "X" }, "\(a.id) X") }
+            if a.facebook != nil { #expect(AirlineCard.buttons(a).contains { $0.title == "FACEBOOK" }, "\(a.id) Facebook") }
+            for link in AirlineCard.buttons(a) where link.title != "PHONE" {
+                #expect(link.url.scheme == "https")
+                #expect(link.url.query == nil && link.url.fragment == nil)
+            }
+        }
+    }
+
+    /// Review round 1, Important 2: only web pages, never another scheme; tracking bits dropped.
+    @Test func linksAreSafe() {
+        #expect(SafeLink.web(URL(string: "https://www.united.com/en/us?utm_source=x#top"))?.absoluteString
+                == "https://www.united.com/en/us")
+        #expect(SafeLink.web(URL(string: "http://www.airwis.com"))?.absoluteString == "http://www.airwis.com")
+        #expect(SafeLink.web(URL(string: "HTTPS://user:pw@example.com/a"))?.absoluteString == "https://example.com/a")
+        #expect(SafeLink.web(URL(string: "javascript:alert(1)")) == nil)
+        #expect(SafeLink.web(URL(string: "tel:123")) == nil)
+        #expect(SafeLink.web(URL(string: "file:///etc/passwd")) == nil)
+        #expect(SafeLink.web(URL(string: "www.united.com")) == nil)
+        #expect(SafeLink.handle(URL(string: "@AlaskaAir")) == "AlaskaAir")
+        #expect(SafeLink.handle(URL(string: "https://x.com/AlaskaAir?s=20")) == "AlaskaAir")
+        #expect(SafeLink.handle(URL(string: "air.baltic_1")) == "air.baltic_1")
+        #expect(SafeLink.handle(URL(string: "bad%20handle")) == nil)
+        #expect(SafeLink.handle(URL(string: "...")) == nil)
+        #expect(SafeLink.handle(nil) == nil)
+        let x = Airline(id: "QQQ", name: "Q", colorPrimary: "#000000", website: URL(string: "ftp://q.example"),
+                        x: URL(string: "javascript:alert(1)"))
+        #expect(AirlineCard.buttons(x).isEmpty)
+    }
+
+    @Test func routeHistoryExcludesTheFlightOnScreen() {
+        let f = DetailPart1Tests.ua990
+        let flights = [
+            PastFlight(date: f.scheduledOut!, ident: "UA990", originIcao: "KSFO", destinationIcao: "LFPG", distanceKm: 8965,
+                       blockMinutes: 655),
+            Self.past("2024-12-16T18:00:00Z", "AF83", from: "KSFO", to: "LFPG", minutes: 622),
+        ]
+        let h = RouteHistory.compute(flights, origin: "KSFO", destination: "LFPG", excluding: f)
+        #expect(h?.flights == 1)
+        #expect(h?.recent.map(\.ident) == ["AF83"])
+        #expect(RouteHistory.compute(flights, origin: "KSFO", destination: "LFPG")?.flights == 2)
+        #expect(RouteHistory.compute([flights[0]], origin: "KSFO", destination: "LFPG", excluding: f) == nil)
+    }
+
+    @Test func cachedHistoryFetchesOnceWithinTTL() async throws {
+        let base = FakeHistoryService()
+        let clock = TestClock(date("2026-10-30T00:00:00Z"))
+        let cached = CachedHistoryService(base, ttl: .seconds(600), now: { clock.now })
+        let first = try await cached.pastFlights()
+        await base.setNextError(.offline)
+        // Within the window the copy answers; the failing base is not asked.
+        #expect(try await cached.pastFlights() == first)
+        clock.now = clock.now.addingTimeInterval(601)
+        await #expect(throws: APIError.self) { try await cached.pastFlights() }
+        #expect(try await cached.pastFlights() == first)
     }
 
     // MARK: Store
@@ -212,15 +288,14 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(store.originStats != nil)
         #expect(store.routeHistory != nil)
 
-        // The first extras call (the origin's stats) fails: only that row goes.
+        // One airport call fails (they run at once, so which one is not fixed): only that row goes.
         let again = FlightDetailStore(id: flight.id, flights: flights, airports: airports, history: FakeHistoryService())
         await again.load()
         await airports.setNextError(.providerUnavailable)
         await again.loadExtras()
-        #expect(again.originStats == nil)
-        #expect(again.destinationStats != nil)
-        #expect(again.originWeather != nil)
-        #expect(again.destinationWeather != nil)
+        let rows: [Bool] = [again.originStats != nil, again.destinationStats != nil,
+                            again.originWeather != nil, again.destinationWeather != nil]
+        #expect(rows.filter { !$0 }.count == 1)
         #expect(again.routeHistory != nil)
         #expect(again.error == nil)
 
