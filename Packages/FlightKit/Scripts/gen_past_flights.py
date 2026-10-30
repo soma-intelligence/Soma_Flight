@@ -60,6 +60,14 @@ EXTRA = [
 REGISTRATION = {"A359": "F-HTYM", "B39M": "N47280", "B739": "N37522", "A321": "N370DN", "B77W": "N2135U",
                 "B38M": "N8710M", "B738": "N905NN", "B789": "G-ZBKD", "A320": "N4901U", "B737": "N7718B",
                 "A220": "N3044J", "E175": "N625QX"}
+# Airlines that fly a type with another carrier's registration above get their own, so a tail never
+# changes airline between flights.
+OWN_REGISTRATION = {("JetBlue", "A321"): "N988JB", ("Air Canada", "A321"): "C-GJTA",
+                    ("Alaska", "B39M"): "N915AK", ("Alaska", "B739"): "N284AK",
+                    ("Aeromexico", "B38M"): "XA-MAT", ("United", "B789"): "N29975"}
+
+# A few seats come back often, so the favourite seat is a real favourite.
+SEATS = ["12A", "20D", "12A", "31F", "23B", "12A", "8C", "23A", "12A", "20E", "41K"]
 
 
 SEAT_CLASSES = ["economy", "economy", "premium_economy", "economy", "business", "economy", "first", "economy"]
@@ -94,8 +102,8 @@ def main() -> None:
             "destination_icao": d,
             "airline": airline,
             "aircraft_type": ac,
-            "registration": REGISTRATION[ac],
-            "seat": f"{12 + i % 30}{'ACDF'[i % 4]}",
+            "registration": OWN_REGISTRATION.get((airline, ac), REGISTRATION[ac]),
+            "seat": SEATS[i % len(SEATS)],
             "distance_km": km,
             "block_minutes": round(km / 780 * 60) + 35,
             "delay_minutes": delay,

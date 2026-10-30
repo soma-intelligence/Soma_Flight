@@ -239,7 +239,7 @@ struct FrequentTailsSection: View {
 
     private func marks(_ t: TailTally) -> some View {
         HStack(spacing: 14) {
-            if let airline = t.airline { AirlineMark(airline: airline, size: 26) }
+            if let airline = t.airline { AirlineTailMark(airline: airline, size: 30) }
             CountryFlag(code: AircraftStatsCopy.tailCountry(t, reference: reference), size: 24)
         }
     }
@@ -256,13 +256,17 @@ struct FrequentTailsSection: View {
             .scaledPadding(.top, 10)
         }
         .scaledPadding(.bottom, 18)
-        .background(alignment: .trailing) {
+        // Faint, at the bottom right and kept inside the lead block, so it never runs into the section's
+        // title or its Share button.
+        .background(alignment: .bottomTrailing) {
             BlueprintTail(type: t.icaoType.flatMap(reference.type), registration: t.registration, ink: Theme.secondary,
                           showsRegistration: false)
-                .aspectRatio(1.8, contentMode: .fit)
-                .frame(height: 150)
-                .opacity(0.45)
+                .aspectRatio(2.4, contentMode: .fit)
+                .frame(height: 96)
+                .opacity(0.3)
+                .scaledPadding(.bottom, 52)
         }
+        .clipped()
         .accessibilityElement(children: .combine)
     }
 
@@ -303,13 +307,22 @@ struct AircraftAgeSection: View {
                 let cards = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12))
                     : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
                 cards {
-                    if let newest = stats.newest { AgedCard(title: "Newest aircraft", aircraft: newest) }
-                    if let oldest = stats.oldest { AgedCard(title: "Oldest aircraft", aircraft: oldest) }
+                    if let newest = stats.newest {
+                        AgedCard(title: "Newest aircraft", aircraft: newest, airline: Self.airline(of: newest, in: stats))
+                    }
+                    if let oldest = stats.oldest {
+                        AgedCard(title: "Oldest aircraft", aircraft: oldest, airline: Self.airline(of: oldest, in: stats))
+                    }
                 }
                 .scaledPadding(.top, 24)
             }
             .environment(\.colorScheme, .dark)
         }
+    }
+
+    /// The airline that flies this airframe: the one its tail row carries (the latest flight's airline).
+    static func airline(of aircraft: AgedAircraft, in stats: AircraftStats) -> String? {
+        stats.tails.first { $0.registration == aircraft.registration }?.airline
     }
 
     private var chart: some View {
@@ -333,10 +346,13 @@ struct AircraftAgeSection: View {
     }
 }
 
-/// "Newest aircraft, 7 months old, 6/9/2022", the type's side view and "B78X / PH-BKL".
+/// "Newest aircraft, 7 months old, 6/9/2022", the airframe's side view in its airline's livery and
+/// "B78X / PH-BKL".
 private struct AgedCard: View {
     var title: String
     var aircraft: AgedAircraft
+    /// The airline's name or code as the tail row has it; nil draws the plain aircraft.
+    var airline: String?
     @Environment(\.reference) private var reference
 
     var body: some View {
@@ -347,7 +363,9 @@ private struct AgedCard: View {
                 .foregroundStyle(Theme.primary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(AircraftStatsCopy.deliveryDay(aircraft.deliveredAt)).scaledFont(13).foregroundStyle(Theme.secondary)
-            AircraftImage(type: aircraft.icaoType.flatMap { reference.type($0) }, airline: nil, height: 34)
+            AircraftImage(type: aircraft.icaoType.flatMap { reference.type($0) },
+                          airline: airline.flatMap { TravelFacts.badgeAirline(code: $0, key: $0, reference: reference) },
+                          height: 46)
                 .frame(maxWidth: .infinity)
                 .scaledPadding(.vertical, 18)
             Text([aircraft.icaoType, aircraft.registration].compactMap { $0 }.joined(separator: " / "))

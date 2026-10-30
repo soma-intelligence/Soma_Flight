@@ -335,7 +335,7 @@ struct FrequentedTailPanel: View {
                 Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30)
                 HStack(spacing: 10) {
                     CountryFlag(code: AircraftStatsCopy.tailCountry(tail, reference: reference), size: 22)
-                    if let airline = tail.airline { AirlineMark(airline: airline, size: 24) }
+                    if let airline = tail.airline { AirlineTailMark(airline: airline, size: 30) }
                 }
                 .scaledPadding(.top, 8)
                 Text(tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)

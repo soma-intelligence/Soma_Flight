@@ -66,6 +66,9 @@ public struct BlueprintTail: View {
     /// How much closer than a side view of the same width.
     public static let zoom: CGFloat = 2.5
 
+    /// What the tail drawing strokes.
+    static let drawnLayers: Set<AircraftLayer> = [.fuselage, .windows, .doors, .tail]
+
     public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk, showsRegistration: Bool = true) {
         self.type = type; self.registration = registration; self.ink = ink; self.showsRegistration = showsRegistration
     }
@@ -81,8 +84,10 @@ public struct BlueprintTail: View {
         let letter = max(least, min(diameter * 0.2, size.width * 0.055))
         let centre = registrationCentre(g, size: size).applying(t)
         let textWidth = CGFloat(registration.count) * letter * 0.6
-        let box = CGRect(x: centre.x - textWidth / 2 - letter * 0.5, y: centre.y - letter * 0.95,
-                         width: textWidth + letter, height: letter * 1.9)
+        // Held inside the frame: on a short barrel the centre can sit so far left the box would be cut.
+        let width = textWidth + letter
+        let x = max(centre.x - width / 2, 2)
+        let box = CGRect(x: x, y: centre.y - letter * 0.95, width: width, height: letter * 1.9)
         return (letter, box)
     }
 
@@ -124,9 +129,10 @@ public struct BlueprintTail: View {
                 outside.addPath(placard)
                 ctx.clip(to: outside, style: FillStyle(eoFill: true))
             }
-            // One path, one stroke call.
+            // One path, one stroke call. Only the barrel, its windows and doors, and the tail: at this zoom
+            // the wing and engines are cut by the frame's left edge into stray pieces.
             var lines = Path()
-            for shape in g.shapes where shape.layer != .gear && shape.layer != .gearFar { lines.addPath(shape.path) }
+            for shape in g.shapes where Self.drawnLayers.contains(shape.layer) { lines.addPath(shape.path) }
             ctx.stroke(lines.applying(toView), with: .color(ink), lineWidth: 1)
         }
         .accessibilityHidden(true)
