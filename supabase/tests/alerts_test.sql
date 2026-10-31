@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -31,6 +31,12 @@ select lives_ok(
   $$update notification_preferences set gates = false, updated_at = now()$$,
   'A updates own row');
 select is((select gates from notification_preferences), false, 'the update is stored');
+select lives_ok(
+  $$insert into notification_preferences (user_id, delays, gates)
+    values ('a2a2a2a2-0000-0000-0000-000000000001', false, true)
+    on conflict (user_id) do update set user_id = excluded.user_id, delays = excluded.delays,
+      gates = excluded.gates$$,
+  'A saves with an upsert on user_id, as the app does');
 select throws_ok(
   $$insert into notification_preferences (user_id) values ('b2b2b2b2-0000-0000-0000-000000000002')$$,
   '42501', null, 'A cannot insert a row for B');

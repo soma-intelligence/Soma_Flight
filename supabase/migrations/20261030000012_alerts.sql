@@ -52,9 +52,10 @@ create table public.notification_preferences (
 alter table public.notification_preferences enable row level security;
 create policy notification_preferences_owner on public.notification_preferences for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
-grant select, insert, delete on public.notification_preferences to authenticated;
-grant update (delays, gates, takeoff_landing, baggage, cancellations, reminders, updated_at)
-  on public.notification_preferences to authenticated;
+-- Full update, user_id included: the app saves with an upsert on user_id, which PostgREST turns into
+-- an update of every column it sends. The policy's with check still refuses moving a row to another
+-- user (42501).
+grant select, insert, update, delete on public.notification_preferences to authenticated;
 
 -- process_alert. Changes from 20261029000006:
 --   * inbound_provider_id is kept from the delivery (p_fields->>'inbound_provider_id').

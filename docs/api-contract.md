@@ -76,9 +76,9 @@ for the inbound late alert, and only when that leg is in `flights` too.
 
 ### notification_preferences
 
-One row per user, the alert categories they want. Clients have `select`, `insert` and `delete` on
-their own row and `update` of the category columns and `updated_at` (owner policy
-`notification_preferences_owner`, 42501 for another user's row on insert, 0 rows touched on update).
+One row per user, the alert categories they want. Clients have `select`, `insert`, `update` and
+`delete` on their own row (owner policy `notification_preferences_owner`: 42501 for inserting another
+user's row or moving one's own to another user, 0 rows touched when updating someone else's).
 No row means every category is on, so the app writes the row the first time something changes
 (an upsert on `user_id`).
 

@@ -2,8 +2,14 @@
 // baseline, the inbound aircraft and the Live Activity priority of update events.
 import { assertEquals } from "jsr:@std/assert@1";
 import { exportPKCS8, generateKeyPair } from "npm:jose@5";
-import { makeUser, test, testDb, trackFlightId } from "../_shared/test_util.ts";
-import { type ApnsConfig, handler } from "./handler.ts";
+import {
+  makeUser,
+  test,
+  testDb,
+  trackFlightId,
+  userClient,
+} from "../_shared/test_util.ts";
+import { type ApnsConfig, handler, mutedBy } from "./handler.ts";
 
 const db = await testDb();
 const { privateKey } = await generateKeyPair("ES256", { extractable: true });
@@ -317,5 +323,43 @@ test(
     );
     assertEquals(est.out.kinds, []);
     assertEquals(la(est.apns.calls).headers["apns-priority"], "5");
+  },
+);
+
+test(
+  db,
+  "the app's upsert saves preferences, only for its own user",
+  async () => {
+    const [a, b] = [await makeUser(db), await makeUser(db)];
+    const ca = await userClient(db, a);
+    const cb = await userClient(db, b);
+    for (const gates of [false, true, false]) {
+      const r = await ca.from("notification_preferences").upsert(
+        {
+          user_id: a,
+          gates,
+          delays: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      assertEquals(r.error, null);
+    }
+    const mine = await ca.from("notification_preferences").select(
+      "gates, baggage",
+    );
+    assertEquals(mine.data, [{ gates: false, baggage: true }]);
+    assertEquals(
+      (await cb.from("notification_preferences").select("*")).data,
+      [],
+    );
+    const steal = await cb.from("notification_preferences").upsert(
+      { user_id: a, gates: true },
+      { onConflict: "user_id" },
+    );
+    assertEquals(steal.error?.code, "42501");
+    const muted = await mutedBy(db, new Set([a, b]));
+    assertEquals([...muted.get("gates")!], [a]);
+    assertEquals(muted.get("delays")!.size, 0);
   },
 );
