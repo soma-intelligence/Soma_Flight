@@ -149,3 +149,40 @@ struct FullPageChrome<Hero: View, Content: View>: View {
         shareImage = renderer.cgImage.map { Image(decorative: $0, scale: renderer.scale) }
     }
 }
+
+// MARK: - Zoom from the card
+
+public extension EnvironmentValues {
+    /// The namespace the shell's full page cover zooms in, from the Passport card that opened it; nil
+    /// presents without the zoom (the Mac's sheet, previews).
+    @Entry var fullPageZoom: Namespace.ID?
+}
+
+extension View {
+    /// Marks a Passport card as where its page zooms out of, when the shell set `fullPageZoom`.
+    @ViewBuilder func fullPageSource(_ page: FullPage) -> some View {
+        modifier(FullPageSource(page: page))
+    }
+
+    /// The cover's side of the zoom: the page grows out of its card.
+    @ViewBuilder public func fullPageZoom(_ page: FullPage, in namespace: Namespace.ID?) -> some View {
+        #if os(iOS)
+        if let namespace { navigationTransition(.zoom(sourceID: page, in: namespace)) } else { self }
+        #else
+        self
+        #endif
+    }
+}
+
+private struct FullPageSource: ViewModifier {
+    var page: FullPage
+    @Environment(\.fullPageZoom) private var namespace
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if let namespace { content.matchedTransitionSource(id: page, in: namespace) } else { content }
+        #else
+        content
+        #endif
+    }
+}

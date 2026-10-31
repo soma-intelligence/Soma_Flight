@@ -98,7 +98,11 @@ public struct GlobeMap: View {
     var focus: GlobeFocus?
     var recenter: Int
     var labels: Bool
+    /// Tilts the camera for a 3D view; nil leaves the pitch to MapKit's own toggle (the Mac).
+    var threeD: Bool?
     @State private var position: MapCameraPosition
+    /// Where the camera settled last, so the 3D switch tilts the view the user is looking at.
+    @State private var settled: MapCamera?
     @State private var viewport = GlobeViewport.phone
 
     /// - Parameters:
@@ -106,14 +110,17 @@ public struct GlobeMap: View {
     ///   - recenter: bump it to move the camera back onto the same focus after the user panned away.
     ///   - labels: place names over the imagery.
     public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>,
-                focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false) {
+                focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false, threeD: Bool? = nil) {
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
-        self.focus = focus; self.recenter = recenter; self.labels = labels
+        self.focus = focus; self.recenter = recenter; self.labels = labels; self.threeD = threeD
         // Cheap on purpose: SwiftUI evaluates this on every parent update that rebuilds the view, though
         // only the first value is kept. A focus present from the start is fitted once, on appear.
         _position = State(initialValue: .camera(Self.camera(routes: routes, planes: planes, airports: airports)))
     }
+
+    /// The tilt of the 3D view, degrees from straight down.
+    static let threeDPitch: Double = 60
 
     /// MapKit's vertical field of view across the whole map view, measured on the iPhone 17 Pro simulator
     /// from where San Francisco and Paris land (a focal length of about 980 pt for a 495 pt tall map).
@@ -339,9 +346,17 @@ public struct GlobeMap: View {
                         position = .camera(Self.camera(for: focus, in: new))
             }
         }
+        .onMapCameraChange(frequency: .onEnd) { settled = $0.camera }
+        .onChange(of: threeD) { _, on in
+            guard let on, let c = settled else { return }
+            withAnimation(.smooth(duration: 0.8)) {
+                position = .camera(MapCamera(centerCoordinate: c.centerCoordinate, distance: c.distance,
+                                             heading: c.heading, pitch: on ? Self.threeDPitch : 0))
+            }
+        }
         .mapControls {
             MapCompass()
-            MapPitchToggle()
+            if threeD == nil { MapPitchToggle() }
         }
     }
 }

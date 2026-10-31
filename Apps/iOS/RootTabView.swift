@@ -9,7 +9,10 @@ struct RootTabView: View {
     @State private var home: HomeModel
     @State private var selection: GlobeSelection?
     @State private var labels = true
+    @State private var threeD = false
     @State private var showSearch = false
+    /// Where a Passport card zooms into its full page.
+    @Namespace private var pageZoom
     @State private var showSettings = false
     @State private var screenHeight: CGFloat = 874
     @StoredUnits private var units: Units
@@ -24,7 +27,7 @@ struct RootTabView: View {
     var body: some View {
         let content = home.globe
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
-                 focus: home.focus, recenter: shell.recenter, labels: labels)
+                 focus: home.focus, recenter: shell.recenter, labels: labels, threeD: threeD)
             // The map draws under the status bar on its own and keeps its controls clear of it. It ends just
             // under the sheet's settled top (its rounded corners still show the globe), not at the screen's
             // bottom: MapKit scales the globe to the map's height, so a map no taller than what shows lets
@@ -82,6 +85,7 @@ struct RootTabView: View {
                         .toolbar(.hidden, for: .navigationBar)
                 }
         }
+        .environment(\.fullPageZoom, pageZoom)
         .presentationDetents(ShellModel.detents, selection: $shell.detent)
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
@@ -96,6 +100,7 @@ struct RootTabView: View {
         .fullScreenCover(item: $home.fullPage) { page in
             FullPageView(page: page, store: home.passport, lookup: env.lookup) { home.fullPage = nil }
                 .environment(\.units, units)
+                .fullPageZoom(page, in: pageZoom)
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
@@ -136,21 +141,32 @@ struct RootTabView: View {
 
     // MARK: Map controls
 
-    /// MapKit stacks its compass and 3D toggle at the top right, one 44 pt control plus spacing below the
-    /// safe area; the place-name button sits under that stack.
-    static let mapControlStackHeight: CGFloat = 58
-
+    /// The 3D switch over the place-name switch in one glass capsule, as Maps groups its controls. MapKit's
+    /// compass shows under it only while the globe is turned.
     private var mapButtons: some View {
-        Button { labels.toggle() } label: {
-            Image(systemName: labels ? "map.fill" : "map")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
+        VStack(spacing: 0) {
+            Button { threeD.toggle() } label: {
+                Text(threeD ? "2D" : "3D")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(threeD ? "Flat View" : "3D View")
+            Rectangle().fill(.white.opacity(0.18)).frame(width: 24, height: 1)
+            Button { labels.toggle() } label: {
+                Image(systemName: labels ? "map.fill" : "map")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
         }
-        .glassEffect(.regular.interactive(), in: .circle)
-        .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
         .padding(.trailing, 12)
-        .padding(.top, Self.mapControlStackHeight)
+        .padding(.top, 8)
     }
 }
 
@@ -200,11 +216,15 @@ private struct SettingsSheet: View {
 
     var body: some View {
         // Signed out, the gate shows Sign In instead of the home, so this sheet closes with it.
-        SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
-                     notifications: notifications)
-            .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
-            .presentationDetents([.large])
-            .presentationBackground(Theme.background)
-            .presentationCornerRadius(Theme.sheetRadius)
+        // A stack so Notifications and Acknowledgements slide in inside this sheet.
+        NavigationStack {
+            SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
+                         notifications: notifications)
+                .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
+                .toolbar(.hidden, for: .navigationBar)
+        }
+        .presentationDetents([.large])
+        .presentationBackground(Theme.background)
+        .presentationCornerRadius(Theme.sheetRadius)
     }
 }

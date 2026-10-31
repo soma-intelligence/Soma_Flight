@@ -74,11 +74,15 @@ public struct FlightDetailView: View {
         }
         .background(Theme.background)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let flight = store.flight, !Self.barInHeader {
+            if let flight = store.flight, !Self.barInHeader, Self.showsBar(height: height) {
                 bottomBar(flight)
                     .scaledPadding(.horizontal, Theme.gutter)
                     .scaledPadding(.bottom, 6)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { new in
+            withAnimation(.snappy) { height = new }
         }
         // The Mac shows the editors as popovers on their tile (`detailEditor`); iOS as sheets.
         .sheet(item: Self.barInHeader ? .constant(nil) : $editing) { field in
@@ -105,6 +109,14 @@ public struct FlightDetailView: View {
     }
 
     private func reload() { Task { await store.load() } }
+
+    /// The sheet's height, so the floating bar leaves when the sheet is pulled down to its header.
+    @State private var height: CGFloat = .infinity
+
+    /// Below this the sheet shows little more than its header: the bar would sit on the first card.
+    static let barMinimumHeight: CGFloat = 300
+
+    static func showsBar(height: CGFloat) -> Bool { height >= barMinimumHeight }
 
     /// Where the sheet opens: the top, or the bottom for screenshot runs (`-detailScroll bottom`).
     private static var startAnchor: UnitPoint? {

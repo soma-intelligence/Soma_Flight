@@ -59,3 +59,13 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(m.code == "XK92LM" && m.codeError == nil)
     }
 }
+
+/// The floating bar leaves when the sheet is pulled down to its header.
+@Suite struct DetailBarTests {
+    @Test func barHidesOnTheCollapsedSheet() {
+        #expect(!FlightDetailView.showsBar(height: 120))
+        #expect(!FlightDetailView.showsBar(height: 299))
+        #expect(FlightDetailView.showsBar(height: 300))
+        #expect(FlightDetailView.showsBar(height: .infinity))
+    }
+}

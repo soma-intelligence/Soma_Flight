@@ -163,20 +163,27 @@ public struct SettingsView: View {
             case .deleteAccount: Text(Self.deleteMessage)
             }
         }
+        #if os(iOS)
+        // On the phone the two pages slide in inside the Settings sheet (its NavigationStack), with a round
+        // back button, rather than stacking a second sheet over it.
+        .navigationDestination(isPresented: $showingAcknowledgements) {
+            PushedPage { AcknowledgementsView() }
+        }
+        .navigationDestination(isPresented: $showingNotifications) {
+            if let notifications { PushedPage { NotificationSettingsView(store: notifications) } }
+        }
+        #else
         .sheet(isPresented: $showingAcknowledgements) {
             AcknowledgementsView(onDone: { showingAcknowledgements = false })
-                #if os(macOS)
                 .frame(minWidth: 420, minHeight: 520)
-                #endif
         }
         .sheet(isPresented: $showingNotifications) {
             if let notifications {
                 NotificationSettingsView(store: notifications, onDone: { showingNotifications = false })
-                    #if os(macOS)
                     .frame(minWidth: 420, minHeight: 560)
-                    #endif
             }
         }
+        #endif
         .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteFailure != nil },
                                                                    set: { if !$0 { deleteFailure = nil } }),
                presenting: deleteFailure) { _ in
@@ -405,4 +412,25 @@ struct SettingsPreview: View {
 #Preview("Pro, light, all rows") { SettingsPreview(plan: .pro, full: true).preferredColorScheme(.light) }
 #Preview("Signed out") { SettingsPreview(plan: nil).preferredColorScheme(.dark) }
 #Preview("Delete failed") { SettingsPreview(failDelete: true, full: true).preferredColorScheme(.dark) }
+#endif
+
+#if os(iOS)
+/// A page pushed inside a sheet: no navigation bar, a round back button at the top left, the sheet's
+/// background, and the edge swipe back.
+struct PushedPage<Content: View>: View {
+    @ViewBuilder var content: Content
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        content
+            .scaledPadding(.top, 44)
+            .overlay(alignment: .topLeading) {
+                RoundButton(systemImage: "chevron.left", label: "Back") { dismiss() }
+                    .scaledPadding(.leading, 16)
+                    .scaledPadding(.top, 8)
+            }
+            .background(Theme.background)
+            .toolbar(.hidden, for: .navigationBar)
+    }
+}
 #endif
