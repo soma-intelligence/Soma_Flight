@@ -304,8 +304,44 @@ import Testing
         let (first, second) = try await (a, b)
         #expect(first == second)
         let third = try await store.shareInviteURL()
-        #expect(third != first, "each share after that gets its own single-use link")
+        #expect(third == first, "a later share reuses the invitation while it has time left")
         #expect(third.absoluteString.hasPrefix("https://somalabs.me/i/"))
+    }
+
+    @Test func theQRSheetSaysHowLongTheInvitationLasts() {
+        let now = Self.now
+        #expect(FriendFacts.qrBlurb(expiresAt: now.addingTimeInterval(7 * 86_400), now: now).hasSuffix("works once, for 7 more days."))
+        #expect(FriendFacts.qrBlurb(expiresAt: now.addingTimeInterval(3600), now: now).hasSuffix("for 1 more day."))
+        #expect(FriendFacts.qrBlurb(expiresAt: now.addingTimeInterval(-5), now: now).hasSuffix("it has expired."))
+        #expect(FriendFacts.qrBlurb(expiresAt: nil, now: now).hasSuffix("works once."))
+        #expect(!FriendFacts.qrBlurb(expiresAt: nil, now: now).contains("\u{2014}"))
+    }
+
+    @Test func aFailedMakeDoesNotLeaveAStaleError() async {
+        let service = FakeFriendsService(now: Self.now)
+        let store = await loaded(service)
+        await service.setNextError(.offline)
+        _ = try? await store.shareInviteURL()
+        #expect(store.error == .offline)
+        #expect(store.invite == nil)
+        #expect((try? await store.shareInviteURL()) != nil, "the next try makes one and clears the error")
+        #expect(store.error == nil)
+    }
+
+    @Test func aNearlyExpiredInvitationIsReplaced() async throws {
+        let service = FakeFriendsService(now: Self.now)
+        let clock = Clock(Self.now)
+        let store = FriendsStore(service: service, clock: { clock.value })
+        await store.load()
+        let first = try await store.shareInviteURL()
+        clock.value = Self.now.addingTimeInterval(7 * 86_400 - 600)
+        let second = try await store.shareInviteURL()
+        #expect(second != first, "with less than an hour left a new link is made")
+    }
+
+    final class Clock: @unchecked Sendable {
+        var value: Date
+        init(_ value: Date) { self.value = value }
     }
 
     @Test func aFailedInvitationThrowsItsError() async {

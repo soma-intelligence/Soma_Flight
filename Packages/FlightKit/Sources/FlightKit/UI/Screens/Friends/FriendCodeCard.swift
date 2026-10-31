@@ -1,30 +1,6 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
-import CoreTransferable
 import SwiftUI
-
-// MARK: - Invitation share item
-
-/// What Invite a Friend and the code card's Share hand to the share sheet: a new single-use invitation link,
-/// made only when a receiver asks for it (`FriendsStore.shareInviteURL`), and the invitation in words, with
-/// the friend code, for receivers that take text or when no link could be made.
-struct FriendInviteItem: Transferable, Sendable {
-    /// The title the share sheet shows.
-    static let title = "Soma Flight invitation"
-    var text: String
-    var link: @Sendable () async throws -> URL
-
-    /// The share item of the store's user: their code in the words, a new link from the store.
-    @MainActor static func of(_ store: FriendsStore) -> FriendInviteItem {
-        FriendInviteItem(text: FriendFacts.inviteMessage(code: store.me?.friendCode),
-                         link: { @Sendable in try await store.shareInviteURL() })
-    }
-
-    static var transferRepresentation: some TransferRepresentation {
-        ProxyRepresentation(exporting: { (item: FriendInviteItem) async throws -> URL in try await item.link() })
-        ProxyRepresentation(exporting: { (item: FriendInviteItem) in item.text })
-    }
-}
 
 // MARK: - QR code
 
@@ -48,6 +24,7 @@ struct FriendCodeCard: View {
     var store: FriendsStore
     var onShowQR: () -> Void
     @State private var copied = false
+    @State private var resetCopied: Task<Void, Never>?
 
     var body: some View {
         let code = store.me?.friendCode
@@ -83,11 +60,10 @@ struct FriendCodeCard: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(code == nil)
-                ShareLink(item: FriendInviteItem.of(store), preview: SharePreview(FriendInviteItem.title)) {
+                InviteShareButton(store: store) {
                     pill("Share", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.plain)
-                .disabled(code == nil)
             }
             .scaledPadding(.top, 14)
 
@@ -97,6 +73,7 @@ struct FriendCodeCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.top, 12)
         }
+        .onDisappear { resetCopied?.cancel(); resetCopied = nil }
     }
 
     private var menu: some View {
@@ -131,10 +108,12 @@ struct FriendCodeCard: View {
 
     private func copy() {
         guard let code = store.me?.friendCode else { return }
-        Pasteboard.copy(code)
+        Pasteboard.copy(code, sensitive: true)
         copied = true
-        Task {
+        resetCopied?.cancel()
+        resetCopied = Task {
             try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
             copied = false
         }
     }
@@ -149,6 +128,7 @@ struct FriendQRSheet: View {
     var onClose: () -> Void
     @State private var url: URL?
     @State private var failure: APIError?
+    @State private var making: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -157,7 +137,7 @@ struct FriendQRSheet: View {
                 .scaledFont(24, weight: .bold)
                 .foregroundStyle(Theme.primary)
                 .scaledPadding(.top, 4)
-            Text("Point another phone's camera here. The invitation works once, for 7 days.")
+            Text(blurb)
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .multilineTextAlignment(.center)
@@ -166,16 +146,16 @@ struct FriendQRSheet: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 28, style: .continuous).fill(.white)
                 if let url, let image = FriendQR.image(url.absoluteString) {
-                    Image(decorative: image, scale: 1)
+                    Image(image, scale: 1, label: Text("QR code of your invitation"))
                         .interpolation(.none)
                         .resizable()
                         .scaledToFit()
                         .scaledPadding(.all, 20)
-                        .accessibilityLabel("QR code of your invitation")
                 } else if failure == nil {
                     ProgressView().tint(.black)
                 } else {
                     Image(systemName: "wifi.exclamationmark").font(.system(size: 34)).foregroundStyle(.gray)
+                        .accessibilityLabel("The invitation could not be made")
                 }
             }
             .frame(width: 260, height: 260)
@@ -199,12 +179,22 @@ struct FriendQRSheet: View {
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
         .task { if url == nil { make() } }
+        .onDisappear { making?.cancel(); making = nil }
+    }
+
+    /// What the sheet says about the invitation, with its end taken from the invitation itself.
+    private var blurb: String {
+        FriendFacts.qrBlurb(expiresAt: store.invite?.expiresAt, now: .now)
     }
 
     private func make() {
+        guard making == nil else { return }
         failure = nil
-        Task {
-            do throws(APIError) { url = try await store.shareInviteURL() } catch { failure = error }
+        making = Task {
+            defer { making = nil }
+            do throws(APIError) { url = try await store.shareInviteURL() } catch {
+                if !Task.isCancelled { failure = error }
+            }
         }
     }
 }

@@ -90,7 +90,7 @@ public struct FriendsView: View {
                 if !store.hasLoaded {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 200).accessibilityLabel("Loading your friends")
                 } else if store.error == nil {
-                    FriendsEmptyState(invite: FriendInviteItem.of(store))
+                    FriendsEmptyState(store: store)
                 }
             } else {
                 ForEach(store.sections(), id: \.section) { group in
@@ -289,7 +289,7 @@ struct AddFriendSheet: View {
                             .textSelection(.enabled)
                         Spacer()
                         if let me = store.me {
-                            Button { Pasteboard.copy(me.friendCode) } label: {
+                            Button { Pasteboard.copy(me.friendCode, sensitive: true) } label: {
                                 Image(systemName: "doc.on.doc").scaledFont(17, weight: .medium)
                             }
                             .buttonStyle(.plain)
