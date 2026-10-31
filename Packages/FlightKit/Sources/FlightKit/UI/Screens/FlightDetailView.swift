@@ -156,7 +156,8 @@ public struct FlightDetailView: View {
                              onAirport: onAirport)
                     .scaledPadding(.top, 16)
                 if let details = store.details {
-                    DetailTiles(details: details, onEdit: { editing = $0 }, onPaste: paste, hint: pasteHint,
+                    DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } }, onPaste: paste,
+                                hint: pasteHint,
                                 editing: $editing, store: store)
                         .scaledPadding(.top, 12)
                 }
@@ -207,7 +208,7 @@ public struct FlightDetailView: View {
                     }
                 }
                 if let details = store.details {
-                    NotesCard(notes: details.notes) { editing = .notes }
+                    NotesCard(notes: details.notes) { if !store.isArchived { editing = .notes } }
                         .detailEditor(.notes, editing: $editing, store: store)
                 }
                 ReportLink(url: DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
@@ -231,7 +232,7 @@ public struct FlightDetailView: View {
     private func bottomBar(_ flight: Flight, compact: Bool = false) -> some View {
         DetailBottomBar(shareText: DetailFacts.shareText(flight, origin: store.origin,
                                                          destination: plannedDestination(flight), clock: units.clock),
-                        notify: DetailFacts.takesAlerts(flight) ? store.notify : nil,
+                        notify: DetailFacts.takesAlerts(flight) && !store.isArchived ? store.notify : nil,
                         onNotify: { on in Task { await store.setNotify(on) } }, compact: compact) {
             ShareLink(item: DetailFacts.shareText(flight, origin: store.origin, destination: plannedDestination(flight),
                                                   clock: units.clock)) {
@@ -263,7 +264,7 @@ public struct FlightDetailView: View {
                 }
             }
             Divider()
-            if store.details != nil {
+            if store.details != nil, !store.isArchived {
                 Button("Edit Flight Record", systemImage: "pencil") { editing = .bookingCode }
             }
             Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {

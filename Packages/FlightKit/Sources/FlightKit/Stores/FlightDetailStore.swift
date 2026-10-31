@@ -22,7 +22,9 @@ public final class FlightDetailStore {
     /// Why "Stop Tracking" did not work; the sheet shows it until dismissed.
     public private(set) var trackingError: APIError?
     /// True while the user follows the flight, as far as this screen knows.
-    public var isFollowed: Bool { details != nil }
+    public var isFollowed: Bool { details != nil && !isArchived }
+    /// A Passport flight: built from the history row, nothing to follow, refresh or edit here.
+    public let isArchived: Bool
 
     // Good to Know and the history card (`loadExtras()`). Each one is nil until it loads and stays nil
     // when its call fails: a failure hides that row only, never an error banner.
@@ -61,6 +63,18 @@ public final class FlightDetailStore {
                 cache: (any FlightListCache)? = nil) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
         self.insights = insights; self.cache = cache
+        isArchived = false
+    }
+
+    /// A past flight from the history: the flight and the tiles come from the row, only the airports load.
+    public init(past: PastFlight, flights: any FlightService, airports: any AirportService,
+                history: (any HistoryService)? = nil) {
+        id = past.id; self.flights = flights; self.airports = airports; self.history = history
+        insights = UnavailableInsightsService(); cache = nil
+        isArchived = true
+        flight = past.asFlight
+        details = past.details
+        confirmedDetails = details
     }
 
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
@@ -68,6 +82,12 @@ public final class FlightDetailStore {
     public func load() async {
         var firstError: APIError?
         func note(_ e: APIError) { if firstError == nil { firstError = e } }
+        if isArchived, let f = flight {
+            do { origin = try await airports.airport(f.originIcao) } catch { note(error) }
+            do { destination = try await airports.airport(f.destinationIcao) } catch { note(error) }
+            error = firstError
+            return
+        }
         // Last known state first, so the screen is not blank while the network answers or when it is down.
         if flight == nil, let cache {
             let cached = await cache.flights().first { $0.id == id }

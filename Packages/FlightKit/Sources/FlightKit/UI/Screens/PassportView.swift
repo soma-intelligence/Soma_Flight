@@ -12,6 +12,8 @@ public struct PassportView: View {
     var fixedNow: Date?
     var scrolls: Bool
     var onOpen: (FullPage) -> Void
+    /// A past flight was tapped: the shell opens it in the flight sheet.
+    var onFlight: (PastFlight) -> Void
 
     @State private var sort: TravelFacts.Sort = .date
     @Environment(\.units) private var units
@@ -21,13 +23,14 @@ public struct PassportView: View {
     ///   - now: a fixed clock for previews; nil follows the real time.
     ///   - onOpen: a card was tapped; the shell presents that page over the home (`HomeModel.fullPage`).
     public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
-                onOpen: @escaping (FullPage) -> Void = { _ in }) {
-        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen)
+                onOpen: @escaping (FullPage) -> Void = { _ in }, onFlight: @escaping (PastFlight) -> Void = { _ in }) {
+        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onFlight: onFlight)
     }
 
     init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
-         onOpen: @escaping (FullPage) -> Void = { _ in }) {
+         onOpen: @escaping (FullPage) -> Void = { _ in }, onFlight: @escaping (PastFlight) -> Void = { _ in }) {
         self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls; self.onOpen = onOpen
+        self.onFlight = onFlight
     }
 
     /// The offline copy turns amber after a day.
@@ -82,7 +85,7 @@ public struct PassportView: View {
                     AircraftCard(typeCode: most.icaoType, type: store.mostFlownType, airline: store.mostFlownAirline,
                                  count: Int(most.flights)) { onOpen(.aircraftStats) }
                 }
-                PastFlightsSection(flights: flights, lookup: lookup, sort: $sort)
+                PastFlightsSection(flights: flights, lookup: lookup, sort: $sort, onOpen: onFlight)
                     .scaledPadding(.horizontal, -16)
                     .scaledPadding(.top, 14)
             }

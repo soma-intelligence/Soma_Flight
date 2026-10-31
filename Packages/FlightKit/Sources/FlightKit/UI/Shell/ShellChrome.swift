@@ -28,6 +28,25 @@ public struct FlightScreen: View {
     }
 }
 
+/// A Passport flight in the flight sheet: no network call for the flight itself, read only.
+public struct PastFlightScreen: View {
+    @State private var store: FlightDetailStore
+    var onAirport: (String) -> Void
+    var onClose: () -> Void
+
+    public init(env: AppEnvironment, flight: PastFlight, onAirport: @escaping (String) -> Void,
+                onClose: @escaping () -> Void) {
+        _store = State(initialValue: FlightDetailStore(past: flight, flights: env.flights, airports: env.airports,
+                                                       history: env.history))
+        self.onAirport = onAirport; self.onClose = onClose
+    }
+
+    public var body: some View {
+        FlightDetailView(store: store, onAirport: onAirport, onClose: onClose)
+            .task { await store.load() }
+    }
+}
+
 /// Airport sheet with its own store; far-end city names come from the shared airport list.
 public struct AirportScreen: View {
     @State private var store: AirportStore
@@ -67,6 +86,8 @@ public struct HomeDestination: View {
                 await home.myFlights.unfollow(flight)
                 return home.myFlights.error
             }
+        case .pastFlight(let flight):
+            PastFlightScreen(env: home.env, flight: flight, onAirport: home.open(airport:), onClose: home.shell.close)
         case .airport(let code):
             AirportScreen(env: home.env, code: code, onClose: home.shell.close)
         }

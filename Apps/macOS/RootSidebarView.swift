@@ -126,7 +126,8 @@ struct RootSidebarView: View {
                     MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                                   lookup: env.lookup)
                 case .passport:
-                    PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 })
+                    PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
+                                 onFlight: home.open(past:))
                 }
             }
         }

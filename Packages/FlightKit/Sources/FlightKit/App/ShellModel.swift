@@ -4,6 +4,8 @@ import SwiftUI
 /// A screen pushed inside the home sheet.
 public enum SheetRoute: Hashable, Sendable {
     case flight(Flight.ID)
+    /// A flight from the Passport history, shown with the same sheet as a followed flight.
+    case pastFlight(PastFlight)
     case airport(String)
 }
 
@@ -26,6 +28,13 @@ public final class ShellModel {
     public func open(flight id: Flight.ID, route: Route?) {
         if path == [.flight(id)] { recenter += 1 } else { path = [.flight(id)] }
         if let route { lastRoute = (id, route) }
+        raiseIfCollapsed()
+    }
+
+    /// Opens a past flight as the only screen, its arc held for the camera.
+    public func open(past flight: PastFlight, route: Route?) {
+        if path == [.pastFlight(flight)] { recenter += 1 } else { path = [.pastFlight(flight)] }
+        if let route { lastRoute = (flight.id, route) }
         raiseIfCollapsed()
     }
 
@@ -56,6 +65,8 @@ public final class ShellModel {
         switch path.last {
         case .flight(let id):
             (route(id) ?? (lastRoute?.id == id ? lastRoute?.route : nil)).map(GlobeFocus.route)
+        case .pastFlight(let f):
+            (lastRoute?.id == f.id ? lastRoute?.route : nil).map(GlobeFocus.route)
         case .airport(let code):
             airport(code).map(GlobeFocus.airport)
         case nil:

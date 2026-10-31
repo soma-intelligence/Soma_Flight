@@ -301,6 +301,8 @@ struct PastFlightsSection: View {
     var flights: [PastFlight]
     var lookup: (String) -> Airport?
     @Binding var sort: TravelFacts.Sort
+    /// A row was tapped: the shell opens that flight in the flight sheet.
+    var onOpen: (PastFlight) -> Void = { _ in }
     @Environment(\.airportStaticControls) private var staticControls
 
     var body: some View {
@@ -345,7 +347,12 @@ struct PastFlightsSection: View {
                 .accessibilityElement(children: .combine)
                 ForEach(group.flights) { f in
                     Hairline()
-                    PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
+                    Button { onOpen(f) } label: {
+                        PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the flight")
                 }
             }
         }

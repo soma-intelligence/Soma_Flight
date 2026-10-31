@@ -165,6 +165,13 @@ public final class HomeModel {
         shell.open(flight: flight.id, route: GlobeContent.route(for: flight, lookup: env.lookup))
     }
 
+    /// Opens a Passport flight with the flight sheet, its arc drawn as a past route.
+    public func open(past flight: PastFlight) {
+        let route = GlobeContent.route(for: flight.asFlight, lookup: env.lookup)
+            .map { Route(id: $0.id, from: $0.from, to: $0.to, level: .onTime, isPast: true) }
+        shell.open(past: flight, route: route)
+    }
+
     /// Codes arrive as ICAO from the globe and as either code from the screens; the stack keys on ICAO.
     public func open(airport code: String) {
         shell.open(airport: env.lookup(code)?.id ?? code)
