@@ -233,6 +233,11 @@ public struct FlightDetailView: View {
                     .id("timetable")
                 AirlineCard(airline: airline(flight))
                     .id("airline")
+                if !store.isArchived {
+                    TravelDocumentsCard(airline: airline(flight), departure: flight.scheduledOut,
+                                        international: ReminderPlanner.isInternational(
+                                            origin: store.origin, destination: plannedDestination(flight)))
+                }
                 if let history = store.routeHistory {
                     RouteHistoryCard(history: history, from: flight.originCode, to: flight.destinationCode)
                 }

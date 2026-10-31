@@ -58,6 +58,8 @@ targets:
         # breakdown, while the app is in use only).
         INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date. Nothing leaves your device.
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
+        # Settings > Travel Documents: passport, Known Traveler and Redress numbers show after Face ID.
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Soma Flight uses Face ID to show your passport and trusted traveler numbers. They stay on this device.
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
       configs:
         Debug:

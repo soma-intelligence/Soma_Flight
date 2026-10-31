@@ -50,6 +50,7 @@ public final class LeaveTimeEstimator {
     @ObservationIgnored private let precheck: @MainActor () -> Bool
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let now: @Sendable () -> Date
+    @ObservationIgnored private let sizes: AirportSizes
 
     /// - Parameters:
     ///   - precheck: the traveller's PreCheck switch, read at each use.
@@ -57,9 +58,10 @@ public final class LeaveTimeEstimator {
     public init(travel: any TravelTimeProvider, security: any SecurityWaitService,
                 lookup: @escaping @Sendable (String) -> Airport?, reference: ReferenceData,
                 precheck: @escaping @MainActor () -> Bool = { LeaveTimeSettings.precheck() },
-                defaults: UserDefaults? = .standard, now: @escaping @Sendable () -> Date = { .now }) {
+                defaults: UserDefaults? = .standard, now: @escaping @Sendable () -> Date = { .now },
+                sizes: AirportSizes = .bundled) {
         self.travel = travel; self.security = security; self.lookup = lookup; self.reference = reference
-        self.precheck = precheck; self.defaults = defaults; self.now = now
+        self.precheck = precheck; self.defaults = defaults; self.now = now; self.sizes = sizes
         if let data = defaults?.data(forKey: Self.defaultsKey),
            let kept = try? JSONDecoder().decode([Flight.ID: LeaveTimeMeasure].self, from: data) {
             // Measures older than a day belong to flights long gone.
@@ -82,7 +84,15 @@ public final class LeaveTimeEstimator {
     public func leaveTime(for flight: Flight) -> LeaveTime? {
         LeaveTimePlanner.plan(for: flight, origin: lookup(flight.originIcao), destination: lookup(flight.destinationIcao),
                               aircraft: flight.aircraftType.flatMap { reference.type($0) },
-                              measure: measures[flight.id], precheck: precheck())
+                              measure: measures[flight.id], precheck: precheck(), walk: gateWalk(for: flight))
+    }
+
+    /// The walk from security to the flight's gate at its departure airport, from the gate, the terminal,
+    /// the airport's table entry or its size (`GateWalkTable`).
+    public func gateWalk(for flight: Flight) -> GateWalk {
+        GateWalkTable.walk(airport: flight.originIata ?? lookup(flight.originIcao)?.iata, icao: flight.originIcao,
+                           terminal: flight.terminalOrigin, gate: flight.gateOrigin,
+                           size: sizes.size(flight.originIcao))
     }
 
     /// The departure airport's clock, for the times on screen.

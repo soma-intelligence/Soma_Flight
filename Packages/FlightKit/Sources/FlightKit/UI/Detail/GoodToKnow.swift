@@ -171,7 +171,10 @@ struct GoodToKnow: View {
             }
         }
         if side.departures, let security { SecurityWaitRow(data: security) }
-        if side.departures, let leave { LeaveByRow(flight: leave, now: now) }
+        if side.departures, let leave {
+            LeaveByRow(flight: leave, now: now)
+            GateWalkRow(flight: leave)
+        }
         if let w = side.weather {
             DetailCard {
                 InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), multicolor: true,

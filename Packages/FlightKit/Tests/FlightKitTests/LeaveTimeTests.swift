@@ -160,7 +160,11 @@ import Testing
         let t = try #require(e.leaveTime(for: f))
         #expect(t.isComputed)
         let minutes = TimeInterval(try #require(m.standardMinutes) * 60)
-        #expect(t.leaveAt == R.date("2026-11-03T23:30:00Z").addingTimeInterval(-(30 * 60 + minutes + 25 * 60)))
+        // The walk from security to the gate counts too (SFO's table figure for the flight's gate).
+        let walk = e.gateWalk(for: f)
+        #expect(t.breakdown?.walk == walk)
+        let walking = TimeInterval(walk.minutes * 60)
+        #expect(t.leaveAt == R.date("2026-11-03T23:30:00Z").addingTimeInterval(-(30 * 60 + minutes + walking + 25 * 60)))
         #expect(heard == 1)
         // A second look within ten minutes keeps the measure.
         await e.measure(f)

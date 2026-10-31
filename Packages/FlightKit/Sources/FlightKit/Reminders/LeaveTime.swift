@@ -23,6 +23,8 @@ public struct LeaveTime: Sendable, Equatable {
         public var drive: TimeInterval
         /// When the drive and the queue were measured.
         public var measuredAt: Date
+        /// The walk from security to the gate (`GateWalkTable`); nil when none was given.
+        public var walk: GateWalk? = nil
     }
 
     public var leaveAt: Date
@@ -84,8 +86,11 @@ public enum LeaveTimePlanner {
     /// estimate, because a delay can be cut back and the gate closes on the airline's clock. With PreCheck on
     /// and no PreCheck figure, the standard queue counts. Anything missing gives the fixed rule from the
     /// latest estimate, as the leave reminder always did.
+    ///
+    /// `walk` is the walk from security to the gate; it counts in a computed time, between the queue and
+    /// boarding, and never changes the fixed rule.
     public static func plan(for flight: Flight, origin: Airport?, destination: Airport?, aircraft: AircraftType?,
-                            measure: LeaveTimeMeasure?, precheck: Bool) -> LeaveTime? {
+                            measure: LeaveTimeMeasure?, precheck: Bool, walk: GateWalk? = nil) -> LeaveTime? {
         guard flight.actualOut == nil, flight.status == .scheduled || flight.status == .unknown,
               let scheduled = flight.scheduledOut else { return nil }
         let international = ReminderPlanner.isInternational(origin: origin, destination: destination)
@@ -94,12 +99,13 @@ public enum LeaveTimePlanner {
             let lead = wide ? boardingLeadWideBody : boardingLeadNarrowBody
             let bags = international ? bagDropInternational : bagDropDomestic
             let boarding = scheduled.addingTimeInterval(-lead)
-            let leave = boarding.addingTimeInterval(-(bags + TimeInterval(queue.minutes * 60) + measure.drive))
+            let walking = TimeInterval((walk?.minutes ?? 0) * 60)
+            let leave = boarding.addingTimeInterval(-(bags + TimeInterval(queue.minutes * 60) + walking + measure.drive))
             return LeaveTime(leaveAt: leave, departure: scheduled, international: international,
                              breakdown: .init(boardingAt: boarding, boardingLead: lead, wideBody: wide, bagDrop: bags,
                                               securityMinutes: queue.minutes, precheck: queue.precheck,
                                               securityIsLive: measure.securityIsLive, drive: measure.drive,
-                                              measuredAt: measure.measuredAt))
+                                              measuredAt: measure.measuredAt, walk: walk))
         }
         return fixed(flight, scheduled: scheduled, international: international)
     }

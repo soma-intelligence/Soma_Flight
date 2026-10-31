@@ -29,6 +29,9 @@ public struct SettingsView: View {
     @State private var showingAcknowledgements = false
     @State private var showingNotifications = false
     @State private var showingCalendar = false
+    @State private var showingDocuments = false
+    /// The travel documents vault; nil hides its row.
+    @Environment(\.travelDocuments) private var documents
     /// Which security lane the leave time counts (`LeaveTimeSettings`).
     @AppStorage(LeaveTimeSettings.precheckKey) private var precheck = false
     /// The deletion failed and the account is still signed in.
@@ -113,6 +116,11 @@ public struct SettingsView: View {
                     SettingsRow(icon: "calendar", title: "Calendar", subtitle: "Put followed flights in your calendar",
                                 action: { showingCalendar = true }) { RowChevron() }
                 }
+                if documents != nil {
+                    SettingsRow(icon: "person.text.rectangle.fill", title: "Travel Documents",
+                                subtitle: "Loyalty, passport and trusted traveler numbers, on this device only",
+                                action: { showingDocuments = true }) { RowChevron() }
+                }
                 SettingsRow(icon: "person.badge.shield.checkmark", title: "I Have TSA PreCheck",
                             subtitle: "Leave times count the PreCheck lane", last: true) {
                     Toggle("I Have TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
@@ -192,6 +200,9 @@ public struct SettingsView: View {
         .navigationDestination(isPresented: $showingCalendar) {
             if let calendar { PushedPage { CalendarSettingsView(sync: calendar) } }
         }
+        .navigationDestination(isPresented: $showingDocuments) {
+            if let documents { PushedPage { TravelDocumentsView(store: documents) } }
+        }
         #else
         .sheet(isPresented: $showingAcknowledgements) {
             AcknowledgementsView(onDone: { showingAcknowledgements = false })
@@ -206,6 +217,12 @@ public struct SettingsView: View {
         .sheet(isPresented: $showingCalendar) {
             if let calendar {
                 CalendarSettingsView(sync: calendar, onDone: { showingCalendar = false })
+                    .frame(minWidth: 420, minHeight: 560)
+            }
+        }
+        .sheet(isPresented: $showingDocuments) {
+            if let documents {
+                TravelDocumentsView(store: documents, onDone: { showingDocuments = false })
                     .frame(minWidth: 420, minHeight: 560)
             }
         }

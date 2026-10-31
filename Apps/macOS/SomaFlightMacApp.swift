@@ -45,6 +45,8 @@ struct SomaFlightMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var home: HomeModel?
     @State private var failure: String?
+    /// Travel documents live in this device's Keychain, apart from any account.
+    @State private var documents = TravelDocumentsStore.forLaunch()
     /// A sign-in link opened before the home was built, handed over once it is.
     @State private var pendingURL: URL?
     /// Bumped by Try Again, which builds the environment again.
@@ -59,6 +61,7 @@ struct SomaFlightMacApp: App {
                     SignInGate(home: home, showsProgress: true) { RootSidebarView(home: home) }
                         .environment(\.brandAssets, home.env.brand)
                         .environment(\.leaveTimes, home.leaveTimes)
+                        .environment(\.travelDocuments, documents)
                 } else {
                     LaunchPlaceholder(failure: failure, showsProgress: true) { failure = nil; attempt += 1 }
                 }

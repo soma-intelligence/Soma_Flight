@@ -12,9 +12,11 @@ enum LeaveTimeFacts {
     /// The row's grey line: "35m drive · about 20m security · 45m bag drop", or the rule it follows.
     static func summary(_ t: LeaveTime) -> String {
         guard let b = t.breakdown else { return rule(t) }
-        return ["\(Format.minutes(Int(b.drive / 60))) drive",
-                "\(SecurityWaitFacts.amount(b.securityMinutes, live: b.securityIsLive, capital: false)) security",
-                "\(Format.minutes(Int(b.bagDrop / 60))) bag drop"].joined(separator: " · ")
+        var parts = ["\(Format.minutes(Int(b.drive / 60))) drive",
+                     "\(SecurityWaitFacts.amount(b.securityMinutes, live: b.securityIsLive, capital: false)) security",
+                     "\(Format.minutes(Int(b.bagDrop / 60))) bag drop"]
+        if let w = b.walk, w.minutes > 0 { parts.append("\(Format.minutes(w.minutes)) walk") }
+        return parts.joined(separator: " · ")
     }
 
     /// "3 hours before an international flight".
@@ -27,20 +29,25 @@ enum LeaveTimeFacts {
                       clock: TimeStyle) -> [(symbol: String, title: String, text: String)] {
         let lane = b.precheck ? "PreCheck lane" : "Standard lane"
         let queue = SecurityWaitFacts.amount(b.securityMinutes, live: b.securityIsLive)
-        return [
+        var lines: [(symbol: String, title: String, text: String)] = [
             ("car.fill", "\(Format.minutes(Int(b.drive / 60))) drive",
              "From where you were at \(Format.clock(b.measuredAt, tz, clock)), by car"),
             ("suitcase.rolling.fill", "\(Format.minutes(Int(b.bagDrop / 60))) bag drop",
              international ? "For an international flight" : "For a domestic flight"),
             ("person.badge.shield.checkmark", "\(queue) at security",
              "\(lane), \(b.securityIsLive ? "live" : "an estimate") at \(Format.clock(b.measuredAt, tz, clock))"),
+        ]
+        if let w = b.walk, w.minutes > 0 {
+            lines.append(("figure.walk", GateWalkFacts.title(w), GateWalkFacts.basis(w)))
+        }
+        return lines + [
             ("figure.walk.departure", "Boarding at \(Format.clock(b.boardingAt, tz, clock))",
              "\(Format.minutes(Int(b.boardingLead / 60))) before departure on a \(b.wideBody ? "wide-body" : "narrow-body")"),
             ("airplane.departure", "Departs at \(Format.clock(departure, tz, clock))", "As scheduled"),
         ]
     }
 
-    static let computedNote = "Soma Flight aims to have you at the gate when boarding starts. Whether you check bags isn't known, so the bag drop always counts. The drive and the queue update each time you open the flight."
+    static let computedNote = "Soma Flight aims to have you at the gate when boarding starts. Whether you check bags isn't known, so the bag drop always counts. The drive and the queue update each time you open the flight, the walk when the gate is announced."
 
     /// Why the usual rule applies, from what the estimator last found; nil when nothing is known yet.
     static func gapText(_ gap: LeaveTimeGap?) -> String? {
@@ -53,6 +60,26 @@ enum LeaveTimeFacts {
         case .route: "Couldn't get a driving time just now. This updates the next time you open the flight."
         case .airport: "This airport isn't in Soma Flight's list, so the usual rule applies."
         case nil: nil
+        }
+    }
+}
+
+/// The words of the walk from security to the gate. No SwiftUI here, so the tests read the exact text.
+enum GateWalkFacts {
+    /// "About 12m walk to gate B32", or "About 7m walk to the gate" before the gate is known.
+    static func title(_ w: GateWalk) -> String {
+        "About \(Format.minutes(w.minutes)) walk to \(w.gate.map { "gate \($0)" } ?? "the gate")"
+    }
+
+    /// What the figure rests on: "From security to concourse B, a typical walk".
+    static func basis(_ w: GateWalk) -> String {
+        switch w.basis {
+        case .concourse(let c): "From security to concourse \(c), a typical walk"
+        case .gates(let r): "From security to gates \(r.lowerBound) to \(r.upperBound), a typical walk"
+        case .terminal(let t): "From security in terminal \(t), a typical walk. This sharpens once the gate is known"
+        case .airport: w.gate == nil ? "A typical walk at this airport. This sharpens once the gate is known"
+            : "A typical walk at this airport"
+        case .size(let s): "A typical walk at \(s == .large ? "a large" : s == .small ? "a small" : "a mid-size") airport"
         }
     }
 }
@@ -95,6 +122,21 @@ struct LeaveByRow: View {
                     #if os(macOS)
                     .frame(minWidth: 380, minHeight: 460)
                     #endif
+            }
+        }
+    }
+}
+
+/// Good to Know's "About 12m walk to gate B32" row on the departure side, until the flight leaves the gate.
+struct GateWalkRow: View {
+    var flight: Flight
+    @Environment(\.leaveTimes) private var estimator
+
+    var body: some View {
+        if let estimator, flight.actualOut == nil, flight.status == .scheduled || flight.status == .unknown {
+            let w = estimator.gateWalk(for: flight)
+            DetailCard {
+                InfoRow(symbol: "figure.walk", title: GateWalkFacts.title(w), text: GateWalkFacts.basis(w))
             }
         }
     }
