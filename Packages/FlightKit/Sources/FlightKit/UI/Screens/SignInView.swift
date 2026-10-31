@@ -1,8 +1,9 @@
 import AuthenticationServices
+import MapKit
 import SwiftUI
 
-/// First screen without a session: the name, one line on what the app does, Sign in with Apple,
-/// and an email link. Apple sign-in signs into `session` with a nonce; the email link comes back through
+/// First screen without a session: the satellite globe behind, the app's icon and name, one line on what
+/// the app does, Sign in with Apple, and an email link. Apple sign-in signs into `session` with a nonce; the email link comes back through
 /// the app's URL handler (`SessionStore.handle(url:)`).
 public struct SignInView: View {
     var session: SessionStore
@@ -17,7 +18,9 @@ public struct SignInView: View {
     @State private var appleFailed = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.airportStaticControls) private var staticControls
-    @ScaledMetric(relativeTo: .body) private var logo = 68
+    @ScaledMetric(relativeTo: .body) private var logo = 92
+    /// The height of every control in the form, as Apple's own sign-in sheets use.
+    @ScaledMetric(relativeTo: .body) private var controlHeight: CGFloat = 54
 
     /// - Parameters:
     ///   - onEmail: sends a sign-in link to the (trimmed) address and returns whether it went out. The
@@ -55,17 +58,41 @@ public struct SignInView: View {
         }
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity)
-        .background(Theme.background)
+        .background { backdrop }
+    }
+
+    /// The home's satellite globe, still, fading into the page below the intro so the form sits on plain
+    /// dark. Snapshots get the plain page (ImageRenderer cannot draw a map).
+    @ViewBuilder private var backdrop: some View {
+        if staticControls {
+            Theme.background.ignoresSafeArea()
+        } else {
+            ZStack {
+                Color.black
+                Map(initialPosition: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 38, longitude: -40),
+                                                       distance: 24_000_000, heading: 0, pitch: 0)),
+                    interactionModes: [])
+                    .mapStyle(.imagery(elevation: .realistic))
+                    .mapControlVisibility(.hidden)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                LinearGradient(stops: [.init(color: .black.opacity(0.15), location: 0),
+                                       .init(color: .black.opacity(0.55), location: 0.35),
+                                       .init(color: Theme.background, location: 0.62)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .ignoresSafeArea()
+        }
     }
 
     private var intro: some View {
         VStack(spacing: 14) {
-            Image(systemName: "airplane")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Theme.primary)
+            Self.appIcon
+                .resizable()
+                .interpolation(.high)
                 .frame(width: logo, height: logo)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.card))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.separator, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: logo * 0.225, style: .continuous))
+                .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
                 .accessibilityHidden(true)
             Text("Soma Flight")
                 .scaledFont(34, weight: .bold, relativeTo: .largeTitle)
@@ -79,6 +106,19 @@ public struct SignInView: View {
         .scaledPadding(.horizontal, 28)
     }
 
+    /// The app's own icon (Resources/brand-app-icon.png, from assets/icon), so the first screen shows the
+    /// mark the Home Screen does.
+    static var appIcon: Image {
+        #if os(iOS)
+        if let url = Bundle.module.url(forResource: "brand-app-icon", withExtension: "png"),
+           let image = UIImage(contentsOfFile: url.path) { return Image(uiImage: image) }
+        #else
+        if let url = Bundle.module.url(forResource: "brand-app-icon", withExtension: "png"),
+           let image = NSImage(contentsOf: url) { return Image(nsImage: image) }
+        #endif
+        return Image(systemName: "globe.americas.fill")
+    }
+
     private var form: some View {
         VStack(spacing: 12) {
             if let error = session.error {
@@ -86,7 +126,7 @@ public struct SignInView: View {
             }
             appleButton
             if appleFailed {
-                Text("Sign in with Apple didn't finish. Try again.")
+                Text("Sign in with Apple didn't work. You can use your email instead.")
                     .scaledFont(13)
                     .foregroundStyle(Theme.veryLate)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -121,8 +161,8 @@ public struct SignInView: View {
             #endif
             .scaledPadding(.horizontal, 14)
             .scaledPadding(.vertical, 4)
-            .frame(minHeight: 50)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
+            .frame(height: controlHeight)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.pill))
             .onSubmit(sendEmail)
         if emailState == .failed {
             Text("The link didn't go out. Check the address and try again.")
@@ -140,9 +180,8 @@ public struct SignInView: View {
             }
             .foregroundStyle(canSend || emailState == .sending ? Color.white : Theme.secondary)
             .frame(maxWidth: .infinity)
-            .scaledPadding(.vertical, 4)
-            .frame(minHeight: 50)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .frame(height: controlHeight)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(canSend || emailState == .sending ? Theme.accent : Theme.pill))
         }
         .buttonStyle(.plain)
@@ -171,7 +210,7 @@ public struct SignInView: View {
         }
         .frame(maxWidth: .infinity)
         .scaledPadding(.all, 16)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.pill))
         .accessibilityElement(children: .contain)
     }
 
@@ -220,9 +259,8 @@ public struct SignInView: View {
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(scheme == .dark ? Color.black : Color.white)
                 .frame(maxWidth: .infinity)
-                .scaledPadding(.vertical, 4)
-                .frame(minHeight: 50)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(scheme == .dark ? Color.white : Color.black))
+                .frame(height: controlHeight)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(scheme == .dark ? Color.white : Color.black))
         } else {
             SignInWithAppleButton(.signIn) { request in
                 let fresh = AppleNonce.random()
@@ -233,8 +271,9 @@ public struct SignInView: View {
                 completeApple(result)
             }
             .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
-            .frame(minHeight: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // A fixed height: given only a minimum, the system button grows to fill the free space.
+            .frame(height: controlHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 }
