@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<linearGradient id="ember" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#FF8A4C"/><stop offset="1" stop-color="#EE4E2B"/></linearGradient>
+<linearGradient id="emberU" gradientUnits="userSpaceOnUse" x1="200" y1="200" x2="824" y2="824">
+<stop offset="0" stop-color="#FF8A4C"/><stop offset="1" stop-color="#EE4E2B"/></linearGradient>
+<linearGradient id="darkbg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#211C19"/><stop offset="1" stop-color="#0E0C0B"/></linearGradient>
+</defs><rect width="1024" height="1024" fill="#000000"/><circle cx="512" cy="590" r="206" fill="none" stroke="#FFFFFF" stroke-width="64"/><ellipse cx="512" cy="590" rx="78" ry="206" fill="none" stroke="#FFFFFF" stroke-width="52"/><path d="M 213.2 481.2 A 318 318 0 0 1 762.6 394.2" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round" /><circle cx="762.6" cy="394.2" r="64" fill="#FFFFFF"/></svg>
