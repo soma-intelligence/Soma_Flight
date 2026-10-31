@@ -143,7 +143,9 @@ public struct FlightDetailView: View {
                 if let error = store.detailsError {
                     ErrorBanner(error: error)
                 }
-                SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
+                if !store.isArchived {
+                    SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
+                }
                 if let notice = notice(flight) { notice }
                 CountdownCard(title: DetailFacts.landedTitle(flight)
                                 ?? DetailFacts.countdown(flight, destination: store.destination, now: now),
@@ -156,9 +158,9 @@ public struct FlightDetailView: View {
                              onAirport: onAirport)
                     .scaledPadding(.top, 16)
                 if let details = store.details {
-                    DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } }, onPaste: paste,
-                                hint: pasteHint,
-                                editing: $editing, store: store)
+                    DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } },
+                                onPaste: pasteAction, hint: pasteHint,
+                                editing: $editing, store: store, empty: store.isArchived ? "Not noted" : "Tap to edit")
                         .scaledPadding(.top, 12)
                 }
             }
@@ -207,7 +209,7 @@ public struct FlightDetailView: View {
                         }
                     }
                 }
-                if let details = store.details {
+                if let details = store.details, !store.isArchived || details.notes != nil {
                     NotesCard(notes: details.notes) { if !store.isArchived { editing = .notes } }
                         .detailEditor(.notes, editing: $editing, store: store)
                 }
@@ -287,6 +289,11 @@ public struct FlightDetailView: View {
 
     /// Keeps pasted text only when it reads as a booking code; anything else says so under the tiles
     /// for a few seconds.
+    /// The booking tile's paste; none on a Passport flight, which is read only.
+    private var pasteAction: ((String) -> Void)? {
+        store.isArchived ? nil : { paste($0) }
+    }
+
     private func paste(_ text: String) {
         guard var next = store.details else { return }
         guard let code = DetailFacts.pastedBookingCode(text) else {

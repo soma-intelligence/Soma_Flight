@@ -54,6 +54,8 @@ struct DetailTiles: View {
     /// The open editor and the store it saves to: on the Mac the editor shows as a popover on its tile.
     var editing: Binding<DetailField?>?
     var store: FlightDetailStore?
+    /// What an unset tile says: "Tap to edit", or "Not noted" where nothing can be edited.
+    var empty = "Tap to edit"
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -90,7 +92,7 @@ struct DetailTiles: View {
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(value ?? "Tap to edit")
+                Text(value ?? empty)
                     .scaledFont(15)
                     .foregroundStyle(value == nil ? Theme.secondary : Theme.primary)
                     .lineLimit(3)
@@ -130,6 +132,7 @@ struct DetailTiles: View {
 struct NotesCard: View {
     var notes: String?
     var onEdit: () -> Void
+    var empty = "Tap to edit"
 
     var body: some View {
         Button(action: onEdit) {
@@ -140,7 +143,7 @@ struct NotesCard: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.vertical, 14)
                 Hairline()
-                Text(notes ?? "Tap to edit")
+                Text(notes ?? empty)
                     .scaledFont(17)
                     .foregroundStyle(notes == nil ? Theme.secondary.opacity(0.8) : Theme.primary)
                     .multilineTextAlignment(.leading)

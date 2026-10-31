@@ -82,9 +82,12 @@ public final class FlightDetailStore {
     public func load() async {
         var firstError: APIError?
         func note(_ e: APIError) { if firstError == nil { firstError = e } }
-        if isArchived, let f = flight {
+        if isArchived, var f = flight {
             do { origin = try await airports.airport(f.originIcao) } catch { note(error) }
             do { destination = try await airports.airport(f.destinationIcao) } catch { note(error) }
+            // The history row keeps ICAO codes only; the airports give the IATA ones the screen shows.
+            f.originIata = origin?.iata; f.destinationIata = destination?.iata
+            flight = f
             error = firstError
             return
         }
