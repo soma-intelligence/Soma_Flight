@@ -34,6 +34,7 @@ import {
 import { connectionAlert } from "../_shared/connections.ts";
 import { connectionsOf } from "./connections.ts";
 import { readProgramAlert } from "../_shared/faa_nas.ts";
+import { smsHook, type SmsHookDeps } from "../_shared/sms_alerts.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -70,6 +71,11 @@ export interface Deps {
   serviceKey?: () => string | undefined;
   /** What the predicted delay alert reads (`cachesFrom(db)` when unset). */
   caches?: PredictionCaches;
+  /**
+   * Alerts by text (`_shared/sms_alerts.ts`), off: index.ts passes none and the SMS_ALERTS_ENABLED flag
+   * is unset, so the hook returns before reading a row.
+   */
+  sms?: SmsHookDeps;
 }
 
 export function configFromEnv(): ApnsConfig | undefined {
@@ -295,6 +301,8 @@ interface SendCtx {
   expiration: number;
   /** The event that triggered the call, carried in every alert's payload; null for a program alert. */
   eventId: string | null;
+  /** The text message hook's deps; undefined sends nothing. */
+  sms?: SmsHookDeps;
 }
 
 /** The keys already sent for a flight and the newest delay sent per side (alert_log). */
@@ -439,11 +447,14 @@ async function deliver(
   };
   for (const a of won) {
     const off = muted.get(a.category)!;
+    const text = alertText(a, flight, copyCtx);
+    // Texts (off today): the same alert, to followers who verified a number and turned texts on.
+    await smsHook(ctx.sms, a, text, users, muted);
     const to = tokens.filter((t) => !off.has(t.user_id));
     if (to.length === 0) continue;
     const body = {
       aps: {
-        alert: alertText(a, flight, copyCtx),
+        alert: text,
         sound: "default",
         "thread-id": flight.id,
       },
@@ -549,6 +560,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       evict,
       expiration: hour,
       eventId,
+      sms: deps.sms,
     };
     const history = await historyOf(db, flightId);
     const detected = detectAlerts(
@@ -701,6 +713,7 @@ async function sendProgram(
     evict: () => evictApnsJwt(cfg.teamId, cfg.keyId, cfg.p8),
     expiration: nowS + 3600,
     eventId: null,
+    sms: deps.sms,
   };
   const alert: Alert = {
     kind: "airport_program",
