@@ -24,6 +24,11 @@ import {
   inboundLate,
 } from "../_shared/alerts.ts";
 import { alertText, type CopyContext } from "../_shared/alert_copy.ts";
+import {
+  cachesFrom,
+  predictedDelay,
+  type PredictionCaches,
+} from "../_shared/prediction.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -58,6 +63,8 @@ export interface Deps {
   now?: () => Date;
   /** The project's service role key, compared with the bearer token. Defaults to the env. */
   serviceKey?: () => string | undefined;
+  /** What the predicted delay alert reads (`cachesFrom(db)` when unset). */
+  caches?: PredictionCaches;
 }
 
 export function configFromEnv(): ApnsConfig | undefined {
@@ -532,18 +539,34 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const inbound = await inboundOf(db, flight);
     const late = inboundLate(flight, inbound, history);
     if (late) detected.push(late);
+    const caches = deps.caches ?? cachesFrom(db);
+    const predicted = await predictedDelay(
+      flight,
+      inbound,
+      history,
+      detected,
+      caches,
+      nowDate,
+    );
+    if (predicted) detected.push(predicted);
     const alertTally = await deliver(send, flight, detected, inbound);
 
-    // Flights this one brings the aircraft for: their inbound late alert, to their own followers.
+    // Flights this one brings the aircraft for: their inbound late and predicted delay alerts, to
+    // their own followers.
     const dependents = await db.from("flights").select("*")
       .eq("inbound_provider_id", flight.provider_id).limit(MAX_DEPENDENTS);
     if (dependents.error) {
       console.error(`dependents read failed: ${dependents.error.message}`);
     }
     for (const d of (dependents.data ?? []) as Flight[]) {
-      const a = inboundLate(d, flight, await historyOf(db, d.id));
-      if (!a) continue;
-      const t = await deliver(send, d, [a], flight);
+      const h = await historyOf(db, d.id);
+      const found: Alert[] = [];
+      const a = inboundLate(d, flight, h);
+      if (a) found.push(a);
+      const p = await predictedDelay(d, flight, h, found, caches, nowDate);
+      if (p) found.push(p);
+      if (found.length === 0) continue;
+      const t = await deliver(send, d, found, flight);
       alertTally.sent += t.sent;
       alertTally.failed += t.failed;
       alertTally.removed += t.removed;
