@@ -52,6 +52,9 @@ public final class HomeModel {
     }
     /// The Passport page open over the home, if any.
     public var fullPage: FullPage?
+    /// A boarding pass opened in the app (from Mail, Files, an airline app) waiting on the user: looking
+    /// up its flight, offering to follow it, or saying why it cannot be kept (`importPass`).
+    public var passImport: PassImport?
     /// The confirmation over the tab pill after a follow ("Following UA 990"); clears after `toastDuration`.
     public private(set) var toast: String?
     /// How long the toast stays.

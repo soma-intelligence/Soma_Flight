@@ -41,6 +41,11 @@ public final class FlightDetailStore {
     /// The aircraft's earlier flights, newest first (paid data; empty when insights are off or know none).
     public private(set) var inbound: [InboundLeg] = []
 
+    /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
+    public private(set) var boardingPass: BoardingPass?
+    /// True with the fakes: Add to Apple Wallet only pretends (see `AppEnvironment.simulatesWallet`).
+    public let simulatesWallet: Bool
+
     /// What the server holds, to go back to when a save fails.
     private var confirmedDetails: FollowDetails?
     /// Bumped by every save; only the newest one may roll back or report an error.
@@ -54,15 +59,21 @@ public final class FlightDetailStore {
     private let history: (any HistoryService)?
     private let insights: any InsightsService
     private let cache: (any FlightListCache)?
+    private let passes: (any BoardingPassVault)?
+    private let lookup: @Sendable (String) -> Airport?
 
     /// - Parameters:
     ///   - history: the user's past flights, for the history card; nil shows none.
     ///   - insights: the arrival forecast and inbound chain; the default asks nothing and shows nothing.
+    ///   - passes: the account's boarding passes on this device; nil offers none.
+    ///   - lookup: an airport by code, to match a boarding pass's airports and day to the flight.
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
-                cache: (any FlightListCache)? = nil) {
+                cache: (any FlightListCache)? = nil, passes: (any BoardingPassVault)? = nil,
+                lookup: @escaping @Sendable (String) -> Airport? = { _ in nil }, simulatesWallet: Bool = false) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
-        self.insights = insights; self.cache = cache
+        self.insights = insights; self.cache = cache; self.passes = passes; self.lookup = lookup
+        self.simulatesWallet = simulatesWallet
         isArchived = false
     }
 
@@ -70,7 +81,8 @@ public final class FlightDetailStore {
     public init(past: PastFlight, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil) {
         id = past.id; self.flights = flights; self.airports = airports; self.history = history
-        insights = UnavailableInsightsService(); cache = nil
+        insights = UnavailableInsightsService(); cache = nil; passes = nil; lookup = { _ in nil }
+        simulatesWallet = false
         isArchived = true
         flight = past.asFlight
         details = past.details
@@ -88,6 +100,8 @@ public final class FlightDetailStore {
             error = firstError
             return
         }
+        // The boarding pass is on the device: it shows at the gate even with no network.
+        if boardingPass == nil, let passes { boardingPass = await passes.pass(for: id) }
         // Last known state first, so the screen is not blank while the network answers or when it is down.
         if flight == nil, let cache {
             let cached = await cache.flights().first { $0.id == id }
@@ -301,5 +315,49 @@ extension FollowDetails {
             out.notes = v
         }
         return out
+    }
+}
+
+// MARK: - Boarding pass
+
+extension FlightDetailStore {
+    /// What became of a boarding pass offered to this flight.
+    public enum PassResult: Equatable, Sendable {
+        case attached
+        /// The pass is for another flight; the text names it ("AF 83 · SFO to CDG · 25 Oct").
+        case otherFlight(String)
+        /// The pass could not be stored on the device.
+        case failed
+    }
+
+    /// True when the sheet offers to add a boarding pass: a followed flight, with a place to keep one.
+    public var takesBoardingPass: Bool { passes != nil && isFollowed }
+
+    /// Keeps `pass` (and the Wallet file it came from) on this device for the flight, after checking it is
+    /// for this flight, then fills the booking code, seat and class where the user has not set them.
+    public func attach(_ pass: BoardingPass, walletFile: Data?) async -> PassResult {
+        guard let passes, let f = flight else { return .failed }
+        guard BoardingPassMatch.matches(pass, f, lookup: lookup) else {
+            return .otherFlight(BoardingPassMatch.summary(pass))
+        }
+        var kept = pass
+        kept.flightId = id
+        do { try await passes.save(kept, walletFile: walletFile) } catch { return .failed }
+        boardingPass = kept
+        if let d = details, !isArchived, let next = BoardingPassMatch.filled(d, from: kept) {
+            await saveDetails(next)
+        }
+        return .attached
+    }
+
+    /// The Wallet pass file the boarding pass came from; nil for a scanned one.
+    public func walletFile() async -> Data? {
+        await passes?.walletFile(for: id)
+    }
+
+    /// Forgets the boarding pass on this device (a copy added to Wallet stays in Wallet).
+    public func removeBoardingPass() async {
+        await passes?.remove(for: id)
+        boardingPass = nil
     }
 }

@@ -26,6 +26,11 @@ public struct AppEnvironment: Sendable {
     public var reference: ReferenceData
     /// Where recent searches persist.
     public var recents: RecentsStorage
+    /// Boarding passes, one folder per account on this device; never sent to the server (they are
+    /// personal data). The fakes keep them in memory with a pass on AF 84.
+    public var passes: BoardingPassShelf
+    /// True with the fakes: Add to Apple Wallet only pretends (the fake pass has no signed file).
+    public var simulatesWallet: Bool
     /// True when nothing works without an account (the backend): the shells show Sign In until there
     /// is a session. The fakes answer without one, so screenshot runs open straight on the home.
     public var requiresSignIn: Bool
@@ -36,7 +41,9 @@ public struct AppEnvironment: Sendable {
                 recents: RecentsStorage = .memory, requiresSignIn: Bool = false,
                 aircraftFacts: (any AircraftFactsService)? = nil,
                 brand: any BrandAssetService = FakeBrandAssetService(),
-                insights: any InsightsService = UnavailableInsightsService()) {
+                insights: any InsightsService = UnavailableInsightsService(),
+                passes: BoardingPassShelf = .inMemory(), simulatesWallet: Bool = false) {
+        self.passes = passes; self.simulatesWallet = simulatesWallet
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
@@ -50,14 +57,17 @@ public struct AppEnvironment: Sendable {
         return AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
                               history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
                               cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
-                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights))
+                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
+                              passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
     /// recent searches. The backend is the one in Info.plist (`SupabaseConfig.fromBundle()`).
     @concurrent public static func live() async throws -> AppEnvironment {
-        try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
-                     insights: SupabaseInsightsService.isEnabled())
+        var env = try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
+                               insights: SupabaseInsightsService.isEnabled())
+        env.passes = .onDisk()
+        return env
     }
 
     /// The Supabase services over one client, with the bundled airport directory.
@@ -116,6 +126,8 @@ public struct AppEnvironment: Sendable {
         guard await !cache.isOwned(by: user) else { return }
         recentsDefaults?.removeObject(forKey: SearchStore.recentKey)
         HistoryExport.removeTemporaryFiles()
+        // The previous account's boarding passes leave the device with its cache.
+        passes.keepOnly(user)
         try await cache.claim(for: user)
     }
 
@@ -136,7 +148,8 @@ public struct AppEnvironment: Sendable {
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
         FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
-                          cache: cache.scoped(for: owner))
+                          cache: cache.scoped(for: owner), passes: passes.vault(for: owner), lookup: directory.lookup,
+                          simulatesWallet: simulatesWallet)
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.

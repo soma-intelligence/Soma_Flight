@@ -2,7 +2,7 @@ import SwiftUI
 
 /// One followed flight in full: the airline, flight number and route pinned at the top; then the
 /// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
-/// code and seat tiles, Good to Know, the arrival forecast and where the plane is (paid data, when
+/// code and seat tiles, the boarding pass, Good to Know, the arrival forecast and where the plane is (paid data, when
 /// insights are on), the detailed timetable, the airline, the user's
 /// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
 /// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
@@ -160,6 +160,11 @@ public struct FlightDetailView: View {
                                 hint: pasteHint,
                                 editing: $editing, store: store)
                         .scaledPadding(.top, 12)
+                }
+                // The boarding pass, kept on the device; on a followed flight without one, the row to add it.
+                if store.boardingPass != nil || store.takesBoardingPass {
+                    BoardingPassSection(store: store)
+                        .id("boardingPass")
                 }
             }
             .scaledPadding(.horizontal, Theme.gutter)

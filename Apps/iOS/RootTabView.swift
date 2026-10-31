@@ -102,6 +102,8 @@ struct RootTabView: View {
                           onDeleteAccount: { await home.session.deleteAccount() })
                 .environment(\.units, units)
         }
+        // A boarding pass opened from Mail, Files or an airline app.
+        .passImportSheet(home)
         .environment(\.units, units)
     }
 
