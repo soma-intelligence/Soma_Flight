@@ -139,17 +139,17 @@ select results_eq(
 -- past_flights is client-writable for the owner: the same checks apply to manual entries.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"a1a1a1a1-0000-0000-0000-000000000001","role":"authenticated"}';
-select lives_ok($$insert into past_flights (user_id, date, ident, seat, booking_code, notes)
-  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN1', '3C', 'ABCDE', 'manual')$$,
+select lives_ok($$insert into past_flights (user_id, date, ident, origin_icao, destination_icao, seat, booking_code, notes)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN1', 'LFPG', 'KJFK', '3C', 'ABCDE', 'manual')$$,
   'owner inserts a manual past flight with valid fields');
-select throws_ok($$insert into past_flights (user_id, date, ident, seat)
-  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN2', 'Window')$$, '23514', null,
+select throws_ok($$insert into past_flights (user_id, date, ident, origin_icao, destination_icao, seat)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN2', 'LFPG', 'KJFK', 'Window')$$, '23514', null,
   'past_flights seat is checked on new writes');
-select throws_ok($$insert into past_flights (user_id, date, ident, booking_code)
-  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN3', 'abc')$$, '23514', null,
+select throws_ok($$insert into past_flights (user_id, date, ident, origin_icao, destination_icao, booking_code)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN3', 'LFPG', 'KJFK', 'abc')$$, '23514', null,
   'past_flights booking_code is checked');
-select throws_ok($$insert into past_flights (user_id, date, ident, notes)
-  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN4', repeat('x', 2001))$$, '23514', null,
+select throws_ok($$insert into past_flights (user_id, date, ident, origin_icao, destination_icao, notes)
+  values ('a1a1a1a1-0000-0000-0000-000000000001', now(), 'MAN4', 'LFPG', 'KJFK', repeat('x', 2001))$$, '23514', null,
   'past_flights notes are checked');
 reset role;
 select is((select convalidated from pg_constraint where conname = 'past_flights_seat_check'), false,

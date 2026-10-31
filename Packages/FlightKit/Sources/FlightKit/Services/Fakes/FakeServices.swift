@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import Synchronization
 
@@ -350,7 +351,7 @@ public actor FakeAuthService: AuthService {
 
 public actor FakeHistoryService: HistoryService {
     public var nextError: APIError?
-    private let past: [PastFlight]
+    private var past: [PastFlight]
 
     /// - Parameter limit: keeps only the newest `limit` flights (a sparse history for screenshot runs).
     public init(limit: Int? = nil) {
@@ -372,6 +373,55 @@ public actor FakeHistoryService: HistoryService {
     public func export(_ format: ExportFormat) async throws(APIError) -> Data {
         try check()
         return try PastFlightExport.data(past, format: format)
+    }
+
+    /// The flight as the server would store it (a stand-in for `past_flights_fill`): manual unless
+    /// imported, codes as ICAO, the distance, countries and origin zone from the bundled airports.
+    private func stored(_ f: PastFlight) -> PastFlight {
+        var s = f
+        s.source = f.source == .import ? .import : .manual
+        let o = Self.airport(f.originIcao), d = Self.airport(f.destinationIcao)
+        s.originIcao = o?.id ?? f.originIcao
+        s.destinationIcao = d?.id ?? f.destinationIcao
+        if s.distanceKm <= 0 {
+            s.distanceKm = o.flatMap { o in d.map { d in
+                Int(distanceKm(CLLocationCoordinate2D(latitude: o.lat, longitude: o.lon),
+                               CLLocationCoordinate2D(latitude: d.lat, longitude: d.lon)).rounded())
+            } } ?? 0
+        }
+        s.originTz = o?.tz
+        s.originCountry = o?.country
+        s.destinationCountry = d?.country
+        return s
+    }
+
+    private static let airport = AirportDirectory.bundled().lookup
+
+    public func add(_ flight: PastFlight) async throws(APIError) -> PastFlight {
+        try await addAll([flight])[0]
+    }
+
+    public func addAll(_ flights: [PastFlight]) async throws(APIError) -> [PastFlight] {
+        try check()
+        let s = flights.map(stored)
+        past = (past + s).sorted { $0.date > $1.date }
+        return s
+    }
+
+    public func update(_ flight: PastFlight) async throws(APIError) -> PastFlight {
+        try check()
+        guard let i = past.firstIndex(where: { $0.id == flight.id }), past[i].isEditable else { throw .notFound }
+        var s = stored(flight)
+        s.source = past[i].source
+        past[i] = s
+        past.sort { $0.date > $1.date }
+        return s
+    }
+
+    public func delete(_ id: PastFlight.ID) async throws(APIError) {
+        try check()
+        guard let i = past.firstIndex(where: { $0.id == id }), past[i].isEditable else { throw .notFound }
+        past.remove(at: i)
     }
 }
 

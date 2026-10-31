@@ -13,8 +13,8 @@ insert into flights (id, provider_id, ident)
 values ('11111111-1111-1111-1111-111111111111', 'fa-test-1', 'AF84');
 insert into user_flights (user_id, flight_id)
 values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111');
-insert into past_flights (user_id, date, ident)
-values ('aaaaaaaa-0000-0000-0000-000000000001', '2026-01-01', 'AF84');
+insert into past_flights (user_id, date, ident, origin_icao, destination_icao)
+values ('aaaaaaaa-0000-0000-0000-000000000001', '2026-01-01', 'AF84', 'LFPG', 'KJFK');
 insert into push_tokens (user_id, token, kind, platform)
 values ('aaaaaaaa-0000-0000-0000-000000000001', 'tok-a', 'alert', 'ios'),
        ('bbbbbbbb-0000-0000-0000-000000000002', 'tok-b', 'alert', 'ios');
@@ -41,11 +41,11 @@ select throws_ok(
     values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111')$$,
   '42501', null, 'B cannot follow a flight as A');
 select throws_ok(
-  $$insert into past_flights (user_id, date, ident)
-    values ('aaaaaaaa-0000-0000-0000-000000000001', now(), 'X')$$,
+  $$insert into past_flights (user_id, date, ident, origin_icao, destination_icao)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', now(), 'XX1', 'LFPG', 'KJFK')$$,
   '42501', null, 'B cannot add a past flight for A');
-insert into past_flights (user_id, date, ident)
-values ('bbbbbbbb-0000-0000-0000-000000000002', now(), 'B1');
+insert into past_flights (user_id, date, ident, origin_icao, destination_icao)
+values ('bbbbbbbb-0000-0000-0000-000000000002', now(), 'BB1', 'LFPG', 'KJFK');
 select throws_ok(
   $$update past_flights set user_id = 'aaaaaaaa-0000-0000-0000-000000000001'$$,
   '42501', null, 'B cannot hand its past flights to A');

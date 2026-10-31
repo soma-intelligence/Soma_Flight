@@ -12,25 +12,46 @@ public struct PassportView: View {
     var fixedNow: Date?
     var scrolls: Bool
     var onOpen: (FullPage) -> Void
-    /// A past flight was tapped: the shell opens it in the flight sheet.
-    var onFlight: (PastFlight) -> Void
+    var onOpenFlight: ((PastFlight) -> Void)?
 
     @State private var sort: TravelFacts.Sort = .date
+    @State private var editing: EditorTarget?
+    @State private var choosingFile = false
+    @State private var importState: PastFlightImportState?
+    @State private var deleting: PastFlight?
     @Environment(\.units) private var units
+
+    /// The flight the editor sheet opens on: a new one, or one the traveller added.
+    enum EditorTarget: Identifiable {
+        case add
+        case edit(PastFlight)
+        var id: String {
+            switch self {
+            case .add: "add"
+            case .edit(let f): f.id.uuidString
+            }
+        }
+    }
+
+    private var actions: PastFlightActions {
+        PastFlightActions(add: { editing = .add }, importFile: { choosingFile = true },
+                          edit: { editing = .edit($0) }, delete: { deleting = $0 })
+    }
 
     /// - Parameters:
     ///   - lookup: airport by ICAO for city names and local dates in the list.
     ///   - now: a fixed clock for previews; nil follows the real time.
     ///   - onOpen: a card was tapped; the shell presents that page over the home (`HomeModel.fullPage`).
+    ///   - onOpenFlight: a past flight's row was tapped: the shell opens it in the flight sheet; nil leaves rows inert.
     public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
-                onOpen: @escaping (FullPage) -> Void = { _ in }, onFlight: @escaping (PastFlight) -> Void = { _ in }) {
-        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onFlight: onFlight)
+                onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil) {
+        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onOpenFlight: onOpenFlight)
     }
 
     init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
-         onOpen: @escaping (FullPage) -> Void = { _ in }, onFlight: @escaping (PastFlight) -> Void = { _ in }) {
+         onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil) {
         self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls; self.onOpen = onOpen
-        self.onFlight = onFlight
+        self.onOpenFlight = onOpenFlight
     }
 
     /// The offline copy turns amber after a day.
@@ -51,6 +72,38 @@ public struct PassportView: View {
             }
         }
         .background(Theme.background)
+        .sheet(item: $editing) { target in
+            switch target {
+            case .add: PastFlightEditorSheet(store: store)
+            case .edit(let f): PastFlightEditorSheet(store: store, flight: f)
+            }
+        }
+        .fileImporter(isPresented: $choosingFile, allowedContentTypes: PastFlightImportState.contentTypes) { result in
+            guard case .success(let url) = result else { return }
+            importState = PastFlightImportState.read(url, store: store)
+        }
+        .sheet(item: Binding(get: { importState.flatMap { if case .preview(let p) = $0 { p } else { nil } }.map(PreviewItem.init) },
+                             set: { if $0 == nil { importState = nil } })) { item in
+            PastFlightImportSheet(preview: item.preview, store: store, lookup: lookup)
+        }
+        .alert("Can't Import This File", isPresented: Binding(
+            get: { if case .failed = importState { true } else { false } },
+            set: { if !$0 { importState = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if case .failed(let message) = importState { Text(message) }
+        }
+        .confirmationDialog("Delete this flight from your history?", isPresented: Binding(
+            get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible,
+            presenting: deleting) { f in
+            Button("Delete Flight", role: .destructive) { Task { await store.delete(f.id) } }
+        }
+    }
+
+    /// The import preview as a sheet item.
+    private struct PreviewItem: Identifiable {
+        var preview: PastFlightImport.Preview
+        var id: Int { preview.hashValue }
     }
 
     private func content(now: Date) -> some View {
@@ -85,7 +138,7 @@ public struct PassportView: View {
                     AircraftCard(typeCode: most.icaoType, type: store.mostFlownType, airline: store.mostFlownAirline,
                                  count: Int(most.flights)) { onOpen(.aircraftStats) }
                 }
-                PastFlightsSection(flights: flights, lookup: lookup, sort: $sort, onOpen: onFlight)
+                PastFlightsSection(flights: flights, lookup: lookup, sort: $sort, actions: actions, onOpen: onOpenFlight)
                     .scaledPadding(.horizontal, -16)
                     .scaledPadding(.top, 14)
             }
@@ -103,6 +156,11 @@ public struct PassportView: View {
             Text("Flights you follow land here once they're done.")
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary.opacity(0.8))
+            HStack(spacing: 10) {
+                Chip(title: "Add Past Flight", symbol: "plus", selected: false) { editing = .add }
+                Chip(title: "Import CSV", symbol: "square.and.arrow.down", selected: false) { choosingFile = true }
+            }
+            .scaledPadding(.top, 18)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
@@ -119,6 +177,10 @@ public struct PassportView: View {
 struct EmptyHistory: HistoryService {
     func pastFlights() async throws(APIError) -> [PastFlight] { [] }
     func export(_ format: ExportFormat) async throws(APIError) -> Data { Data() }
+    func add(_ flight: PastFlight) async throws(APIError) -> PastFlight { flight }
+    func addAll(_ flights: [PastFlight]) async throws(APIError) -> [PastFlight] { flights }
+    func update(_ flight: PastFlight) async throws(APIError) -> PastFlight { flight }
+    func delete(_ id: PastFlight.ID) async throws(APIError) {}
 }
 
 /// A Passport store from the seed history, optionally failing or offline.

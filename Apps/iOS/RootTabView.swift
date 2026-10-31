@@ -113,7 +113,7 @@ struct RootTabView: View {
                               lookup: env.lookup)
             case .passport:
                 PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                                 onFlight: home.open(past:))
+                                 onOpenFlight: home.open(past:))
             }
         }
         .overlay(alignment: .topTrailing) {
