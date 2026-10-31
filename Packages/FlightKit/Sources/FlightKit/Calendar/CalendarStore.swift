@@ -39,6 +39,8 @@ public struct CalendarInfo: Sendable, Hashable, Identifiable {
     func save(_ draft: CalendarEventDraft, in calendarId: String, replacing id: String?) throws -> String
     /// Deletes the event; nothing when it is already gone.
     func remove(_ id: String) throws
+    /// Every event between the two dates in every calendar, read only (the calendar import). Needs full access.
+    func events(from start: Date, to end: Date) -> [CalendarEventSnapshot]
 }
 
 public enum CalendarStoreError: Error, Equatable {
@@ -117,6 +119,27 @@ public enum CalendarStoreError: Error, Equatable {
     public func remove(_ id: String) throws {
         guard let e = store.event(withIdentifier: id) else { return }
         try store.remove(e, span: .thisEvent, commit: true)
+    }
+
+    public func events(from start: Date, to end: Date) -> [CalendarEventSnapshot] {
+        guard access == .full, start < end else { return [] }
+        // EventKit answers at most four years per predicate: ask a year at a time.
+        var out: [String: CalendarEventSnapshot] = [:]
+        var from = start
+        while from < end {
+            let to = min(end, from.addingTimeInterval(365 * 86_400))
+            let predicate = store.predicateForEvents(withStart: from, end: to, calendars: nil)
+            for e in store.events(matching: predicate) {
+                guard let id = e.eventIdentifier else { continue }
+                let key = "\(id) \(e.startDate.timeIntervalSince1970)"
+                out[key] = CalendarEventSnapshot(id: key, title: e.title ?? "", location: e.location ?? "",
+                                                 notes: e.notes ?? "", url: e.url, start: e.startDate, end: e.endDate,
+                                                 isAllDay: e.isAllDay, timeZone: e.timeZone,
+                                                 calendarId: e.calendar.calendarIdentifier, calendarTitle: e.calendar.title)
+            }
+            from = to
+        }
+        return out.values.sorted { $0.start < $1.start }
     }
 
     private static func info(_ c: EKCalendar) -> CalendarInfo {

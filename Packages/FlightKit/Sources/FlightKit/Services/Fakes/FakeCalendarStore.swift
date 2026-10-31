@@ -58,6 +58,20 @@ import Foundation
         return id
     }
 
+    /// Events the traveller has (airline events, meetings), for the calendar import.
+    public var external: [CalendarEventSnapshot] = []
+
+    /// The external events and the ones Soma Flight wrote, as the import reads them.
+    public func events(from start: Date, to end: Date) -> [CalendarEventSnapshot] {
+        guard access == .full else { return [] }
+        let own = events.map { id, e in
+            CalendarEventSnapshot(id: id, title: e.draft.title, location: e.draft.location, notes: e.draft.notes,
+                                  url: e.draft.url, start: e.draft.start, end: e.draft.end, timeZone: e.draft.timeZone,
+                                  calendarId: e.calendarId, calendarTitle: all.first { $0.id == e.calendarId }?.title ?? "")
+        }
+        return (external + own).filter { $0.start >= start && $0.start < end }.sorted { $0.start < $1.start }
+    }
+
     public func remove(_ id: String) throws {
         if events.removeValue(forKey: id) != nil { removals += 1 }
     }

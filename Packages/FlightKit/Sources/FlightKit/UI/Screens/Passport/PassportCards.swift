@@ -392,18 +392,25 @@ struct PastFlightsSection: View {
 struct PastFlightActions {
     var add: () -> Void
     var importFile: () -> Void
+    /// Opens the Import screen (the export file, the calendar, an email, a CSV); nil offers the CSV only.
+    var importScreen: (() -> Void)? = nil
     var edit: (PastFlight) -> Void
     var delete: (PastFlight) -> Void
 }
 
-/// The plus in the Past Flights header: add one flight by hand, or import a CSV file.
+/// The plus in the Past Flights header: add one flight by hand, or import (the Import screen, or a CSV
+/// file where there is none).
 struct PastFlightAddMenu: View {
     var actions: PastFlightActions
 
     var body: some View {
         Menu {
             Button { actions.add() } label: { Label("Add Past Flight", systemImage: "plus") }
-            Button { actions.importFile() } label: { Label("Import from CSV", systemImage: "square.and.arrow.down") }
+            if let importScreen = actions.importScreen {
+                Button { importScreen() } label: { Label("Import Flights\u{2026}", systemImage: "square.and.arrow.down") }
+            } else {
+                Button { actions.importFile() } label: { Label("Import from CSV", systemImage: "square.and.arrow.down") }
+            }
         } label: {
             Image(systemName: "plus")
                 .scaledFont(17, weight: .semibold)

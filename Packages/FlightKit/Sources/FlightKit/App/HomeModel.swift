@@ -43,6 +43,14 @@ public final class HomeModel {
     public private(set) var myFlights: MyFlightsStore
     /// Past flights for the current owner, replaced on every account change.
     public private(set) var passport: PassportStore
+    /// The Import screen's state (the export file, the calendar, a confirmation email, a CSV), rebuilt on
+    /// every account change with the Passport it adds to.
+    public private(set) var imports: ImportStore
+    /// Imported flights too far ahead to follow yet, for the current owner; followed by `load()` once
+    /// they come within two days.
+    public private(set) var followLater: FollowLaterQueue
+    /// The Import screen is open (from the Passport's add menu, Add Flight, or a shared email).
+    public var showImport = false
     /// Settings > Notifications for the current owner, replaced on every account change. Its Reminders
     /// switch turns the local reminders on and off.
     public private(set) var notificationSettings: NotificationSettingsStore
@@ -108,9 +116,15 @@ public final class HomeModel {
         // Nobody is signed in until the session store publishes an account; the stores are rebuilt then.
         session = env.makeSessionStore()
         myFlights = env.makeMyFlightsStore(owner: nil)
-        passport = env.makePassportStore(owner: nil)
+        let history = env.makePassportStore(owner: nil)
+        passport = history
+        let queue = FollowLaterQueue(owner: nil, defaults: env.recentsDefaults)
+        followLater = queue
+        imports = ImportStore(passport: history, flights: env.flights, queue: queue, calendar: nil, airport: env.lookup,
+                              reference: env.reference)
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
         seenAwaiting = awaitingSession
+        imports = makeImports()
         watchSession()
     }
 
@@ -218,6 +232,8 @@ public final class HomeModel {
         // its own and start never waits for it.
         if let push { Task { await push.refresh() } }
         await processInbox()
+        // A confirmation email shared to the app while it was closed.
+        takeSharedEmails()
         await reconcileActivities()
     }
 
@@ -226,7 +242,10 @@ public final class HomeModel {
         await myFlights.load()
         myFlights.startUpdates()
         await passport.load()
-        if !env.requiresSignIn || owner != nil { await notificationSettings.load() }
+        if !env.requiresSignIn || owner != nil {
+            await notificationSettings.load()
+            await followWaiting()
+        }
     }
 
     /// Runs when the session's user changes (the session watch calls it): clears the panel's stack and
@@ -258,8 +277,18 @@ public final class HomeModel {
         myFlights.onListChange = nil
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
+        followLater.adopt(owner: owner)
+        imports = makeImports()
+        showImport = false
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
         wireListChange()
+    }
+
+    /// The Import screen's store over the Passport and the calendar sync of now.
+    private func makeImports() -> ImportStore {
+        ImportStore(passport: passport, flights: env.flights, queue: followLater, calendar: calendar,
+                    followed: { [weak self] in self?.followed ?? [] }, airport: env.lookup, reference: env.reference,
+                    onFollowed: { [weak self] _ in await self?.didFollow() })
     }
 
     // MARK: Live Activity
@@ -302,6 +331,7 @@ public final class HomeModel {
     /// or removes its events. Call once, before `start()`.
     public func attachCalendar(_ sync: CalendarSync) {
         calendar = sync
+        imports = makeImports()
         wireListChange()
     }
 

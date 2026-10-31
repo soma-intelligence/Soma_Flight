@@ -27,6 +27,7 @@ public struct SearchView: View {
     var alreadyFollowed: FollowedFlights
     var frequent: [FrequentItem]
     var scrolls: Bool
+    var onImport: (() -> Void)?
 
     @State private var followed: Set<Flight.ID> = []
     @State private var pending: Set<Flight.ID> = []
@@ -37,17 +38,20 @@ public struct SearchView: View {
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
     ///   - alreadyFollowed: flights already followed, which show "Following" instead of a second Follow.
     ///   - frequent: the airlines and airports offered before anything is typed (`HomeModel.frequent`).
+    ///   - onImport: opens the Import screen from the "More" rows; nil leaves the row out.
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init(),
-                frequent: [FrequentItem] = []) {
+                frequent: [FrequentItem] = [], onImport: (() -> Void)? = nil) {
         self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
-                  frequent: frequent, scrolls: true)
+                  frequent: frequent, scrolls: true, onImport: onImport)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
-         alreadyFollowed: FollowedFlights = .init(), frequent: [FrequentItem] = [], scrolls: Bool) {
+         alreadyFollowed: FollowedFlights = .init(), frequent: [FrequentItem] = [], scrolls: Bool,
+         onImport: (() -> Void)? = nil) {
         self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
         self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.scrolls = scrolls
+        self.onImport = onImport
     }
 
     public var body: some View {
@@ -181,6 +185,10 @@ public struct SearchView: View {
                 .scaledPadding(.bottom, 4)
             OptionRow(icon: Self.routeIcon, title: "Find by route", subtitle: nil) {
                 focused = true
+            }
+            if let onImport {
+                OptionRow(icon: "square.and.arrow.down", title: "Import flights",
+                          subtitle: "From another app, your calendar, an email or a CSV file", action: onImport)
             }
         }
     }

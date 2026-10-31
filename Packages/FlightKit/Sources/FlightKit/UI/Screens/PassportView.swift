@@ -13,6 +13,7 @@ public struct PassportView: View {
     var scrolls: Bool
     var onOpen: (FullPage) -> Void
     var onOpenFlight: ((PastFlight) -> Void)?
+    var onImport: (() -> Void)?
 
     @State private var sort: TravelFacts.Sort = .date
     @State private var editing: EditorTarget?
@@ -34,7 +35,7 @@ public struct PassportView: View {
     }
 
     private var actions: PastFlightActions {
-        PastFlightActions(add: { editing = .add }, importFile: { choosingFile = true },
+        PastFlightActions(add: { editing = .add }, importFile: { choosingFile = true }, importScreen: onImport,
                           edit: { editing = .edit($0) }, delete: { deleting = $0 })
     }
 
@@ -43,15 +44,19 @@ public struct PassportView: View {
     ///   - now: a fixed clock for previews; nil follows the real time.
     ///   - onOpen: a card was tapped; the shell presents that page over the home (`HomeModel.fullPage`).
     ///   - onOpenFlight: a past flight's row was tapped: the shell opens it in the flight sheet; nil leaves rows inert.
+    ///   - onImport: opens the Import screen from the add menu and the empty state; nil offers the CSV import alone.
     public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
-                onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil) {
-        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onOpenFlight: onOpenFlight)
+                onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil,
+                onImport: (() -> Void)? = nil) {
+        self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onOpenFlight: onOpenFlight,
+                  onImport: onImport)
     }
 
     init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
-         onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil) {
+         onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil,
+         onImport: (() -> Void)? = nil) {
         self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls; self.onOpen = onOpen
-        self.onOpenFlight = onOpenFlight
+        self.onOpenFlight = onOpenFlight; self.onImport = onImport
     }
 
     /// The offline copy turns amber after a day.
@@ -161,7 +166,11 @@ public struct PassportView: View {
                 .foregroundStyle(Theme.secondary.opacity(0.8))
             HStack(spacing: 10) {
                 Chip(title: "Add Past Flight", symbol: "plus", selected: false) { editing = .add }
-                Chip(title: "Import CSV", symbol: "square.and.arrow.down", selected: false) { choosingFile = true }
+                if let onImport {
+                    Chip(title: "Import", symbol: "square.and.arrow.down", selected: false) { onImport() }
+                } else {
+                    Chip(title: "Import CSV", symbol: "square.and.arrow.down", selected: false) { choosingFile = true }
+                }
             }
             .scaledPadding(.top, 18)
         }
