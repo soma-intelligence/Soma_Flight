@@ -106,6 +106,9 @@ struct GoodToKnow: View {
     var timeZone: (title: String, text: String)?
     /// The security wait at the departure airport; nil hides the row (outside its window, or none).
     var security: SecurityRowData? = nil
+    /// The likely delay and gate before the airline says (`PredictionCard`); nil hides each row.
+    var predictedDelay: DelayPrediction? = nil
+    var predictedGate: GatePrediction? = nil
     var onAirport: (String) -> Void
 
     var body: some View {
@@ -115,6 +118,7 @@ struct GoodToKnow: View {
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
                 .scaledPadding(.bottom, 4)
+            PredictionCard(delay: predictedDelay, gate: predictedGate)
             block(origin)
             if let destination { block(destination) }
             if let timeZone {

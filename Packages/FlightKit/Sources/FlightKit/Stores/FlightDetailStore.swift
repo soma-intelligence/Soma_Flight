@@ -43,6 +43,9 @@ public final class FlightDetailStore {
     /// The security wait at the origin (free data; nil outside the US, when the flight is not leaving
     /// within 12 hours, or on failure). The sheet shows it only inside `SecurityWaitFacts.window`.
     public private(set) var securityWait: SecurityWait?
+    /// The gates the flight number used lately, for the gate prediction (free data; nil once the flight has
+    /// a gate or has left, or on failure). See `FlightDetailStore+Prediction.swift`.
+    public private(set) var gateHistory: GateHistory?
 
     /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
     public private(set) var boardingPass: BoardingPass?
@@ -62,6 +65,7 @@ public final class FlightDetailStore {
     private let history: (any HistoryService)?
     private let insights: any InsightsService
     private let security: any SecurityWaitService
+    private let gates: any GateHistoryService
     private let cache: (any FlightListCache)?
     private let passes: (any BoardingPassVault)?
     private let lookup: @Sendable (String) -> Airport?
@@ -70,15 +74,18 @@ public final class FlightDetailStore {
     ///   - history: the user's past flights, for the history card; nil shows none.
     ///   - insights: the arrival forecast and inbound chain; the default asks nothing and shows nothing.
     ///   - security: the security wait at the origin; the default asks nothing and shows nothing.
+    ///   - gates: the flight number's recent gates, for the gate prediction; the default asks nothing.
     ///   - passes: the account's boarding passes on this device; nil offers none.
     ///   - lookup: an airport by code, to match a boarding pass's airports and day to the flight.
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
                 security: any SecurityWaitService = UnavailableSecurityWaitService(),
+                gates: any GateHistoryService = UnavailableGateHistoryService(),
                 cache: (any FlightListCache)? = nil, passes: (any BoardingPassVault)? = nil,
                 lookup: @escaping @Sendable (String) -> Airport? = { _ in nil }, simulatesWallet: Bool = false) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
-        self.insights = insights; self.security = security; self.cache = cache; self.passes = passes; self.lookup = lookup
+        self.insights = insights; self.security = security; self.gates = gates
+        self.cache = cache; self.passes = passes; self.lookup = lookup
         self.simulatesWallet = simulatesWallet
         isArchived = false
     }
@@ -88,6 +95,7 @@ public final class FlightDetailStore {
                 history: (any HistoryService)? = nil) {
         id = past.id; self.flights = flights; self.airports = airports; self.history = history
         insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
+        gates = UnavailableGateHistoryService()
         passes = nil; lookup = { _ in nil }
         simulatesWallet = false
         isArchived = true
@@ -174,8 +182,11 @@ public final class FlightDetailStore {
         async let inboundValue = Self.inbound(insights, id: id)
         let security: (any SecurityWaitService)? = SecurityWaitFacts.worthLoading(f, now: now) ? self.security : nil
         async let securityValue = Self.securityWait(security, airport: originCode)
+        async let gatesValue = Self.gateHistory(gates, flight: f, originTimeZone: origin?.timeZone)
         let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue, securityValue)
+        let gateValue = await gatesValue
         guard !Task.isCancelled else { return }
+        gateHistory = gateValue
         originStats = results.0?.departures
         destinationStats = results.1?.arrivals
         originWeather = results.2?.weather

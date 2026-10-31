@@ -167,7 +167,7 @@ public struct FlightDetailView: View {
                                   ?? DetailFacts.countdownCaption(flight, airline: airline(flight)),
                               tone: DetailFacts.statusTone(flight))
                 DepartArrive(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now,
-                             onAirport: onAirport)
+                             onAirport: onAirport, predictedGate: store.gatePrediction)
                     .scaledPadding(.top, 16)
                 if let details = store.details {
                     DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } },
@@ -191,6 +191,7 @@ public struct FlightDetailView: View {
                            destination: arrivalSide(flight),
                            timeZone: timeZoneChange(flight),
                            security: securityRow(flight, now: now),
+                           predictedDelay: store.delayPrediction(now: now), predictedGate: store.gatePrediction,
                            onAirport: onAirport)
                     .id("goodToKnow")
                 // Canceled or diverted: no arrival forecast and no inbound plane.
@@ -717,7 +718,7 @@ struct FlightDetailPreview: View {
         default: PreviewData.enRoute
         }
         let s = FlightDetailStore(id: flight.id, flights: flights, airports: airports, history: FakeHistoryService(),
-                                  insights: FakeInsightsService(flights: flights))
+                                  insights: FakeInsightsService(flights: flights), gates: FakeGateHistoryService())
         if mode == .failed { await flights.setNextError(.providerUnavailable) }
         await s.load()
         await s.loadExtras()
