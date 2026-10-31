@@ -184,8 +184,17 @@ sources that are public and whose terms allow reuse.
 - TSA FOIA throughput (used for the estimate): TSA's FOIA Reading Room (tsa.gov/foia/readingroom) posts a
   weekly PDF of passengers screened per airport, checkpoint and hour; the latest seen covers 18 to 24 October
   2026. The data.gov record lists it as public, a work of the US government
-  (usa.gov/government-works), so it may be reused. Reduced to a typical week per checkpoint it fills
-  `security_checkpoints` and `security_throughput` (migration 20261030000015), and `security-wait` turns the
-  hour's load into an estimated wait (`security-wait/model.ts`). No importer is written yet: the tables ship
-  empty, and an airport with no rows gets a typical US day instead. Both are labelled estimates in the app and
-  never shown as live.
+  (usa.gov/government-works), so it may be reused. `supabase/scripts/import_tsa_throughput.py` downloads the
+  newest weekly PDFs (cached in the gitignored `supabase/.tsa-cache`, never committed), extracts every row
+  from pdftotext word boxes, and reduces them to a typical week per checkpoint (median passengers per weekday
+  and local hour). Its output is a seed migration that replaces `security_checkpoints` and
+  `security_throughput`; the first one, 20261030000016, covers 30 August to 24 October 2026 (8 reports):
+  591 checkpoints at 411 airports. Employee, crew and FIS checkpoints, arrival rechecks, private terminals and
+  paid suites are left out. The report never says which checkpoints have PreCheck, so PreCheck is unknown
+  unless the name says it. To refresh: run the script with the next migration number as `--out`.
+  `security-wait/model.ts` turns each checkpoint's week into a wait with a documented queue model (assumed
+  lanes of 150 passengers an hour sized against the busiest hour, a carried-over backlog, bunched arrivals);
+  its constants are calibrated, not measured: with this data, checkpoints whose busiest hour passes 1,000
+  passengers wait 15 to 30 minutes at that hour and mostly 5 to 10 through the day, and nothing passes 35.
+  An airport with no rows gets a typical US day instead. Both are labelled estimates in the app and never
+  shown as live.
