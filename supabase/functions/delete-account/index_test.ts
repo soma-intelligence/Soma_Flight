@@ -83,6 +83,8 @@ async function seed(user: string, flight: string) {
         user_id: user,
         date: "2026-01-01",
         ident: "AF84",
+        // An archived row: client rows must carry a route (migration 20261030000013).
+        source: "archive",
       }),
       await db.from("push_tokens").insert([
         { user_id: user, token: `t-${crypto.randomUUID()}`, kind: "alert" },
