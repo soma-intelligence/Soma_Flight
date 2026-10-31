@@ -169,6 +169,18 @@ struct ComponentSnapshotTests {
                  "airport-light-1", to: Self.screensDir)
     }
 
+    /// The Operations Report for Austin (late, weather fine, storms ahead) and Paris CDG (late in low cloud),
+    /// whole, in docs/screens/screens.
+    @Test func operationsReportScreens() async throws {
+        for (code, name) in [("KAUS", "ops-report-aus"), ("LFPG", "ops-report-cdg")] {
+            let store = AirportStore(code: code, airports: FakeAirportService(now: now))
+            await store.load()
+            try render(name, to: Self.screensDir) {
+                OperationsReportView(store: store, now: now, onClose: {}, scrolls: false)
+            }
+        }
+    }
+
     /// Twenty round flags, the fallback among them, at 44 pt.
     @Test func countryFlags() throws {
         let codes: [String?] = ["US", "GB", "FR", "DE", "JP", "BR", "IN", "AU", "CA", "ES",

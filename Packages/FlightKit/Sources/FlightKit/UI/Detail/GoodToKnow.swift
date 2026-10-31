@@ -24,12 +24,14 @@ extension DetailFacts {
     }
 
     /// The disruption row of an airport: only when its departures (origin) or arrivals (destination) run
-    /// at moderate or major severity.
-    static func disruption(code: String, stats: DelayStats?, departures: Bool) -> (title: String, text: String)? {
+    /// at moderate or major severity. With that airport's weather it also says whether the weather is the cause.
+    static func disruption(code: String, stats: DelayStats?, departures: Bool,
+                           weather: Weather? = nil) -> (title: String, text: String)? {
         guard let stats, stats.severity != .normal else { return nil }
         let avg = Format.minutes(Int(stats.avgDelayMinutes.rounded()))
+        let cause = causeSentence(weather, stats: stats).map { " \($0)" } ?? ""
         return ("Delays at \(code)",
-                "\(departures ? "Departures" : "Arrivals") average \(avg) late right now. Tap for the airport's details.")
+                "\(departures ? "Departures" : "Arrivals") average \(avg) late right now.\(cause) Tap for the airport's details.")
     }
 
     /// "18°C and scattered clouds"; the sky alone when there is no temperature.
@@ -91,7 +93,12 @@ struct GoodToKnow: View {
         var stats: DelayStats?
         var weather: Weather?
         var departures: Bool
+        /// The flight's expected arrival, for the destination's forecast row; nil on the origin side.
+        var arrival: Date? = nil
+        var timeZone: TimeZone = .current
     }
+
+    @Environment(\.units) private var units
 
     var origin: Side
     var destination: Side?
@@ -116,7 +123,10 @@ struct GoodToKnow: View {
     }
 
     @ViewBuilder private func block(_ side: Side) -> some View {
-        let disruption = DetailFacts.disruption(code: side.code, stats: side.stats, departures: side.departures)
+        let disruption = DetailFacts.disruption(code: side.code, stats: side.stats, departures: side.departures,
+                                                weather: side.weather)
+        let ahead = DetailFacts.arrivalWeather(side.weather, arrival: side.arrival, timeZone: side.timeZone,
+                                               clock: units.clock)
         DetailCard(padded: false) {
             Button { onAirport(side.icao) } label: {
                 HStack(spacing: 4) {
@@ -149,6 +159,11 @@ struct GoodToKnow: View {
                 InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), multicolor: true,
                         title: side.departures ? "Departure weather" : "Arrival weather",
                         text: DetailFacts.weatherText(w))
+                if let ahead {
+                    Hairline().scaledPadding(.vertical, 14)
+                    InfoRow(symbol: "exclamationmark.triangle.fill", tint: Theme.late, title: ahead.title,
+                            titleTint: Theme.late, text: ahead.text)
+                }
             }
         }
     }

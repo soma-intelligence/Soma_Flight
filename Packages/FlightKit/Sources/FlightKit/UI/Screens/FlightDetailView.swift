@@ -307,8 +307,11 @@ public struct FlightDetailView: View {
     private func arrivalSide(_ f: Flight) -> GoodToKnow.Side {
         let icao = store.destination?.id ?? f.destinationIcao
         let code = store.destination.map { $0.iata ?? $0.id } ?? f.destinationCode
+        // The forecast at arrival only matters while the flight still has to land.
+        let pending: Set<FlightStatus> = [.scheduled, .departed, .enRoute, .unknown]
         return .init(icao: icao, code: code, stats: store.destinationStats, weather: store.destinationWeather,
-                     departures: false)
+                     departures: false, arrival: pending.contains(f.status) ? DetailFacts.bestIn(f) : nil,
+                     timeZone: store.destination?.timeZone ?? .current)
     }
 
     private func timeZoneChange(_ f: Flight) -> (title: String, text: String)? {

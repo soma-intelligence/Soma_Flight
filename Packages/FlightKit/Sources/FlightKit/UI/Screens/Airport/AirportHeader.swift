@@ -53,7 +53,7 @@ struct AirportHeader: View {
 }
 
 /// Maroon card at the top of the sheet when the day is going badly: one line each for
-/// departures, arrivals and weather.
+/// departures, arrivals and weather, the weather line saying whether it explains the delays.
 struct IssuesCard: View {
     var severity: Severity
     var departures: DelayStats
@@ -78,7 +78,8 @@ struct IssuesCard: View {
             row("airplane.arrival", "Arrivals", AirportFacts.delayLine(arrivals, verb: "Arriving"))
             if let weather {
                 divider
-                row(Sky(metar: weather.metarRaw).symbol(night: false), "Weather", AirportFacts.weatherLine(weather))
+                row(Sky(metar: weather.metarRaw).symbol(night: false), "Weather",
+                    AirportFacts.issuesWeatherLine(weather, departures: departures, arrivals: arrivals))
             }
         }
         .scaledPadding(.horizontal, 18)

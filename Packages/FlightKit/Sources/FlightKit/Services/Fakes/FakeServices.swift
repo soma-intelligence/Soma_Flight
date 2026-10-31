@@ -63,6 +63,7 @@ private extension Weather {
     func shifted(by s: TimeInterval) -> Weather {
         var w = self
         w.observedAt = observedAt.addingTimeInterval(s)
+        w.tafIssuedAt = tafIssuedAt?.addingTimeInterval(s)
         w.forecast = forecast.map { var p = $0; p.from = p.from.addingTimeInterval(s); p.to = p.to.addingTimeInterval(s); return p }
         return w
     }

@@ -65,6 +65,7 @@ struct AirportSections: View {
 
     @State private var scope: DailyScope = .departures
     @State private var totalsCache: (key: TotalsKey, stats: DelayStats)?
+    @State private var showingReport = false
 
     /// What the Totals segment depends on, so the core runs once per board refresh.
     struct TotalsKey: Hashable {
@@ -98,6 +99,12 @@ struct AirportSections: View {
                     IssuesCard(severity: severity, departures: stats.departures, arrivals: stats.arrivals, weather: store.weather)
                         .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
                 }
+            }
+            if store.stats != nil || store.weather != nil {
+                OperationsReportRow(impact: store.weather.map(WeatherImpact.of)) { showingReport = true }
+                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
+            }
+            if let stats = store.stats {
                 performance(.departures, stats.departures)
                 performance(.arrivals, stats.arrivals)
             }
@@ -130,6 +137,12 @@ struct AirportSections: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: TotalsTrigger(key: totalsKey, scope: scope), initial: true) {
             if scope == .totals, totalsCache?.key != totalsKey { totalsCache = (totalsKey, computeTotals()) }
+        }
+        .sheet(isPresented: $showingReport) {
+            OperationsReportView(store: store, onClose: { showingReport = false })
+                #if os(macOS)
+                .frame(minWidth: 460, minHeight: 640)
+                #endif
         }
     }
 
