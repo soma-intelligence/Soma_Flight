@@ -41,12 +41,18 @@ import Testing
         #expect(w.source.id == "estimate_tsa_throughput")
         #expect(w.source.url == URL(string: "https://www.tsa.gov/foia/readingroom"))
         #expect(w.fetchedAt == Self.iso.date(from: "2026-11-03T15:30:00Z"))
-        #expect(w.checkpoints.map(\.id) == ["t1", "t2", "t3-e", "t3-f", "intl-g"])
-        let e = try #require(w.checkpoints.first { $0.id == "t3-e" })
-        #expect(e.terminal == "3")
-        #expect(e.precheck == false)
-        #expect(e.precheckMinutes == nil)
-        #expect(e.standardMinutes.map { $0 >= 5 && $0 % 5 == 0 } == true)
+        // SFO's real TSA checkpoints, by terminal then name.
+        #expect(w.checkpoints.map(\.id) == ["security-checkpoint-b", "security-checkpoint-t1-b-mezzanine",
+                                            "security-checkpoint-d", "security-checkpoint-f-1",
+                                            "security-checkpoint-a", "security-checkpoint-g"])
+        let f = try #require(w.checkpoints.first { $0.id == "security-checkpoint-f-1" })
+        #expect(f.name == "Security Checkpoint F-1")
+        #expect(f.terminal == "3")
+        // The TSA report does not say which checkpoints have PreCheck: unknown, with a figure.
+        #expect(f.precheck == nil)
+        #expect(f.precheckMinutes.map { $0 >= 5 } == true)
+        #expect(f.standardMinutes.map { $0 >= 5 && $0 % 5 == 0 } == true)
+        #expect(SecurityWaitFacts.sameTerminal("I", w.checkpoints.last?.terminal))
         #expect(w.checkpoints.allSatisfy { !$0.isWholeAirport })
     }
 
