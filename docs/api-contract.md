@@ -136,7 +136,7 @@ No row means every category is on, so the app writes the row the first time some
 | `faa-notams` | GET | `airport` (IATA or ICAO) | `{ airport, iata, configured, stale, fetched_at, notams }` (below) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }`, or `{ flightId, program }` (faa-status's sweep) | service role only |
-| `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
+| `maintenance` | POST | `?mode=alerts`, `?mode=prune` or `?mode=poll` | service role only (pg_cron) |
 | `brand-assets-sync` | POST | `?mode=logos&limit=50 or ?mode=side_views&limit=100[&icao=UAL,AFR]` (side views: default limit 100; also answers `unknownAirlines`, `mirrored`) | service role only (pg_cron); `{ ok, mode, checked, changed, added, failed, unchanged, missed, skipped, rejected, dropped, deferred, requests, ms, stoppedBy }`, 502 with `ok: false` when the provider is down, or `{ ok, mode, skipped }` with no provider |
 | `usage-alert` | POST | none, or `?mode=cap` | service role only (pg_cron) |
 

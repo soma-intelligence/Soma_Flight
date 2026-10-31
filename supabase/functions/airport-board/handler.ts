@@ -2,10 +2,13 @@
 //   -> { icao, kind, fetched_at, stale, ...body } in the shapes FlightKit decodes (docs/api-contract.md)
 // Lazy refresh only: a snapshot older than its TTL is rebuilt on read. One lease per airport and
 // kind (claim_airport_refresh) keeps concurrent readers from each paying the provider.
+// Boards come from BOARD_PROVIDER (_shared/providers/select.ts), AeroAPI by default.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { AeroApi } from "../_shared/aeroapi.ts";
 import { resolveAirport } from "../_shared/airports.ts";
-import { toBoardRows } from "../_shared/board_rows.ts";
+import { boardRowsFrom } from "../_shared/board_rows.ts";
+import { AeroApiProvider } from "../_shared/providers/aeroapi.ts";
+import type { BoardProvider } from "../_shared/providers/types.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { computeStats } from "../_shared/delay_stats.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
@@ -30,7 +33,10 @@ const KINDS: readonly string[] = ["departures", "arrivals", "stats", "weather"];
 
 export interface Deps {
   db: SupabaseClient;
-  aero: Pick<AeroApi, "boardFlights">;
+  /** The board provider. Defaults to AeroAPI through `aero`. */
+  board?: Pick<BoardProvider, "boardFlights">;
+  /** An AeroAPI client, used when `board` is not given. */
+  aero?: Pick<AeroApi, "boardFlights">;
   fetchFn?: typeof fetch;
   verifier?: TokenVerifier;
   now?: () => Date;
@@ -300,8 +306,9 @@ async function refreshBoard(
   kind: "departures" | "arrivals",
   now: Date,
 ): Promise<BoardPayload> {
-  const flights = await deps.aero.boardFlights(icao, kind);
-  return { flights: await toBoardRows(flights, icao, kind, now) };
+  const board = deps.board ?? new AeroApiProvider(deps.aero ?? {}, () => now);
+  const rows = await board.boardFlights(icao, kind);
+  return { flights: await boardRowsFrom(rows, icao, kind, now) };
 }
 
 export async function handler(req: Request, deps: Deps): Promise<Response> {

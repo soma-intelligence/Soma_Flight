@@ -1,0 +1,61 @@
+{
+  "pagination": { "limit": 100, "offset": 0, "count": 3, "total": 3 },
+  "data": [
+    {
+      "flight_date": "2026-11-03",
+      "flight_status": "scheduled",
+      "departure": {
+        "airport": "San Francisco International", "timezone": "America/Los_Angeles",
+        "iata": "SFO", "icao": "KSFO", "terminal": "I", "gate": "A3", "delay": 25,
+        "scheduled": "2026-11-03T15:40:00+00:00", "estimated": "2026-11-03T16:05:00+00:00",
+        "actual": null, "estimated_runway": null, "actual_runway": null
+      },
+      "arrival": {
+        "airport": "Charles De Gaulle", "timezone": "Europe/Paris",
+        "iata": "CDG", "icao": "LFPG", "terminal": "2E", "gate": null, "baggage": null,
+        "delay": null, "scheduled": "2026-11-04T11:15:00+00:00", "estimated": null,
+        "actual": null, "estimated_runway": null, "actual_runway": null
+      },
+      "airline": { "name": "Air France", "iata": "AF", "icao": "AFR" },
+      "flight": { "number": "84", "iata": "AF84", "icao": "AFR84", "codeshared": null },
+      "aircraft": null,
+      "live": null
+    },
+    {
+      "flight_date": "2026-11-03",
+      "flight_status": "scheduled",
+      "departure": {
+        "airport": "San Francisco International", "timezone": "America/Los_Angeles",
+        "iata": "SFO", "icao": "KSFO", "terminal": "I", "gate": "A3",
+        "scheduled": "2026-11-03T15:40:00+00:00"
+      },
+      "arrival": {
+        "airport": "Charles De Gaulle", "timezone": "Europe/Paris",
+        "iata": "CDG", "icao": "LFPG", "scheduled": "2026-11-04T11:15:00+00:00"
+      },
+      "airline": { "name": "Delta Air Lines", "iata": "DL", "icao": "DAL" },
+      "flight": {
+        "number": "8484", "iata": "DL8484", "icao": "DAL8484",
+        "codeshared": { "airline_name": "air france", "airline_iata": "af", "airline_icao": "afr", "flight_number": "84", "flight_iata": "af84", "flight_icao": "afr84" }
+      },
+      "aircraft": null,
+      "live": null
+    },
+    {
+      "flight_date": "2026-11-02",
+      "flight_status": "cancelled",
+      "departure": {
+        "airport": "San Francisco International", "timezone": "America/Los_Angeles",
+        "iata": "SFO", "icao": "KSFO", "scheduled": "2026-11-02T15:40:00+00:00"
+      },
+      "arrival": {
+        "airport": "Charles De Gaulle", "timezone": "Europe/Paris",
+        "iata": "CDG", "icao": "LFPG", "scheduled": "2026-11-03T11:15:00+00:00"
+      },
+      "airline": { "name": "Air France", "iata": "AF", "icao": "AFR" },
+      "flight": { "number": "84", "iata": "AF84", "icao": "AFR84", "codeshared": null },
+      "aircraft": { "registration": "F-GSQA", "iata": "B77W", "icao": "B77W", "icao24": "3946E1" },
+      "live": null
+    }
+  ]
+}

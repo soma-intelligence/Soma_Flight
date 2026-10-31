@@ -18,6 +18,8 @@ and see runs in `cron.job_run_details`.
 | `insights-cache-prune` | `50 3 * * *` | deletes `forecast_cache` and `inbound_cache` rows fetched more than 2 days ago (`20261030000011_insights_cache.sql`) |
 | `faa-status-sweep` | `*/5 * * * *` | `faa-status?mode=sweep`: reads the FAA's NAS status (free, no key) and sends the `airport_program` alert for each new ground stop, ground delay program or closure that holds a followed flight (`20261030000019_faa.sql`) |
 | `faa-notam-cache-prune` | `57 3 * * *` | deletes `faa_notam_cache` rows fetched more than a day ago |
+| `provider-poll` | `*/5 * * * *` | `maintenance?mode=poll`: the polling refresh of followed flights for a status provider without a webhook (`20261031000027_free_providers.sql`, docs/free-providers.md). Answers `{ skipped }` and calls nothing while `STATUS_PROVIDER` is `aeroapi` or `none` |
+| `provider-quota-prune` | `10 4 * * *` | deletes `provider_quota` periods older than three months and `provider_polls` rows of flights nobody follows |
 
 Boards are not refreshed by a job: `airport-board` refreshes lazily on read.
 
@@ -70,6 +72,13 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | `usage-alert` | `USAGE_ALERT_FROM` | sender, default `Soma Flight <alerts@somalabs.me>` (domain must be verified in Resend) |
 | `faa-notams` | `FAA_NOTAM_CLIENT_ID`, `FAA_NOTAM_CLIENT_SECRET` | the owner's FAA developer account (api.faa.gov, the NOTAM API app's client id and secret; free). Until both are set the function answers `configured: false` and the app shows no NOTAMs, which is the production state. `supabase secrets set FAA_NOTAM_CLIENT_ID=... FAA_NOTAM_CLIENT_SECRET=...` turns it on at once (unconfigured answers are never cached) |
 | `faa-notams` | `FAA_NOTAM_URL` | optional: the endpoint, default `https://external-api.faa.gov/notamapi/v1/notams`, should the FAA move it |
+| `flight-lookup`, `follow-flight`, `maintenance` | `STATUS_PROVIDER` | `aeroapi` (default when unset), `aviationstack`, `flightlabs` or `none`. Anything other than `aeroapi` makes no AeroAPI alerts and turns on the polling refresh (docs/free-providers.md) |
+| `airport-board` | `BOARD_PROVIDER` | `aeroapi` (default), `aviationstack`, `flightlabs` or `none` |
+| `flight-position` | `POSITION_PROVIDER` | `aeroapi` (default), `aviationstack`, `flightlabs`, `opensky` or `none` |
+| provider callers | `AVIATIONSTACK_KEY`, `FLIGHTLABS_KEY`, `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET` | the provider keys; OpenSky also works without its pair (anonymous) |
+| provider callers | `AVIATIONSTACK_MONTHLY_QUOTA`, `FLIGHTLABS_MONTHLY_QUOTA`, `OPENSKY_DAILY_CREDITS` | the plan's allowance, default the free tier (100, 50, 400; 4,000 for OpenSky with an account). Set it to the paid plan's number after an upgrade |
+| `maintenance` | `POLL_QUOTA_SHARE`, `POLL_POINTS` | share of each allowance the poller may use (default 0.7) and `extended` for eight polls a flight instead of four |
+| provider callers | `AVIATIONSTACK_BASE_URL`, `AVIATIONSTACK_ALLOW_HTTP`, `AVIATIONSTACK_TIMES`, `FLIGHTLABS_BASE_URL` | optional. An `http://` Aviationstack base is refused on the hosted project whatever `AVIATIONSTACK_ALLOW_HTTP` says (the key travels in the query string). `AVIATIONSTACK_TIMES=utc` if a real answer shows its times are UTC (default `local`) |
 
 The spend alert claims the day in `usage_alerts` before sending and sets `sent_at` after, so it sends at
 most one email per UTC day. A failed send releases the claim and the next hourly run retries; a claim

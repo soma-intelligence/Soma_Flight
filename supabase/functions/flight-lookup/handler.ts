@@ -1,9 +1,15 @@
 // POST /flight-lookup { ident? | origin+destination, date } -> { flights }
 // An ident search answers the flights departing the day before, the day and the day after `date`
 // (origin-local dates); a route search answers the origin-local `date` only (docs/api-contract.md).
+// The flights come from the status provider (STATUS_PROVIDER, _shared/providers/select.ts).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { type AeroApi, toFlightRows } from "../_shared/aeroapi.ts";
-import type { AeroFlight } from "../_shared/aeroapi_types.ts";
+import type { AeroApi } from "../_shared/aeroapi.ts";
+import { AeroApiProvider } from "../_shared/providers/aeroapi.ts";
+import {
+  type ProviderFlight,
+  rowOf,
+  type StatusProvider,
+} from "../_shared/providers/types.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { resolveAirport } from "../_shared/airports.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
@@ -14,7 +20,10 @@ export const LOOKUP_MAX_PER_HOUR = 30;
 
 export interface Deps {
   db: SupabaseClient;
-  aero: Pick<AeroApi, "flightsByIdent" | "searchRouteWindow">;
+  /** The status provider. Defaults to AeroAPI through `aero`. */
+  status?: Pick<StatusProvider, "flightsByIdent" | "searchRouteWindow">;
+  /** An AeroAPI client, used when `status` is not given (tests, and the default selection). */
+  aero?: Pick<AeroApi, "flightsByIdent" | "searchRouteWindow">;
   verifier?: TokenVerifier;
   now?: () => Date;
 }
@@ -29,12 +38,16 @@ const DAY_MS = 86_400_000;
  */
 async function upsertFlights(
   db: SupabaseClient,
-  flights: AeroFlight[],
-  now: Date,
+  flights: ProviderFlight[],
 ) {
-  const rows = toFlightRows(flights, now).filter((r) =>
-    r.origin_icao && r.destination_icao
-  );
+  const seen = new Set<string>();
+  const rows = flights.map(rowOf).filter((r) => {
+    if (!r.origin_icao || !r.destination_icao || seen.has(r.provider_id)) {
+      return false;
+    }
+    seen.add(r.provider_id);
+    return true;
+  });
   if (rows.length === 0) return [];
   const { data, error } = await db.rpc("upsert_provider_flights", {
     p_rows: rows,
@@ -107,15 +120,15 @@ export function zonedDayStart(tz: string, date: string): Date {
 /** ICAO to timezone: the provider's own value first, the airports table for the rest. */
 async function originTimezones(
   db: SupabaseClient,
-  flights: AeroFlight[],
+  flights: ProviderFlight[],
   extra: string[] = [],
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const missing = new Set<string>(extra);
   for (const f of flights) {
-    const icao = f.origin?.code_icao;
+    const icao = f.origin_icao;
     if (!icao) continue;
-    if (f.origin?.timezone) out.set(icao, f.origin.timezone);
+    if (f.origin_tz) out.set(icao, f.origin_tz);
     else missing.add(icao);
   }
   for (const e of extra) out.delete(e);
@@ -142,8 +155,13 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       throw new ApiError("invalid_request", 405, "POST only");
     }
     const { userId } = await requireUser(req, deps.verifier);
-    const { db, aero } = deps;
+    const { db } = deps;
     const now = (deps.now ?? (() => new Date()))();
+    const status = deps.status ??
+      new AeroApiProvider(
+        deps.aero ?? {},
+        () => now,
+      );
     await checkRate(userId, "flight-lookup", LOOKUP_MAX_PER_HOUR, 60, db);
 
     const body = await req.json().catch(() => null) as
@@ -206,24 +224,20 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         now.getTime() + 2 * DAY_MS,
       ));
       if (from.getTime() >= to.getTime()) return json({ flights: [] });
-      const found = await aero.flightsByIdent(
-        ident,
-        from.toISOString(),
-        to.toISOString(),
-      );
+      const found = await status.flightsByIdent(ident, from, to);
       const days = new Set([prevDate(date), date, nextDate(date)]);
       const tzs = await originTimezones(db, found);
       const near = found.filter((f) =>
         f.scheduled_out != null &&
         days.has(
           localDate(
-            tzs.get(f.origin?.code_icao ?? "") ?? "UTC",
+            tzs.get(f.origin_icao ?? "") ?? "UTC",
             f.scheduled_out,
           ),
         )
       );
       return json({
-        flights: sortFlights(await upsertFlights(db, near, now)),
+        flights: sortFlights(await upsertFlights(db, near)),
       });
     }
 
@@ -266,7 +280,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       console.warn(`airport ${origin} has no timezone, using UTC`);
       tz = "UTC";
     }
-    const found = await aero.searchRouteWindow(
+    const found = await status.searchRouteWindow(
       origin,
       destination,
       zonedDayStart(tz, date),
@@ -275,7 +289,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const onDay = found.filter((f) =>
       f.scheduled_out != null && localDate(tz, f.scheduled_out) === date
     );
-    const rows = await upsertFlights(db, onDay, now);
+    const rows = await upsertFlights(db, onDay);
     const put = await db.from("route_cache").upsert({
       origin_icao: origin,
       destination_icao: destination,

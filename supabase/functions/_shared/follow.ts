@@ -4,6 +4,8 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { AeroApi } from "./aeroapi.ts";
 
 export type AlertApi = Pick<AeroApi, "createAlert" | "deleteAlert">;
+// A null AlertApi means the status provider has no webhook (STATUS_PROVIDER other than aeroapi): no
+// alert is made, and the polling refresh (maintenance mode=poll) keeps followed flights current.
 
 interface FlightRef {
   id: string;
@@ -56,15 +58,16 @@ async function countFollowers(
 }
 
 /**
- * One provider alert per flight, however many users follow it. Creates it when missing, then claims
+ * One provider alert per flight, however many users follow it (none without an AlertApi). Creates it when missing, then claims
  * flights.alert_id with a conditional update (where alert_id is null). A request that loses the
  * race deletes the alert it just made, so exactly one stays.
  */
 export async function ensureAlert(
   db: SupabaseClient,
-  aero: AlertApi,
+  aero: AlertApi | null,
   flightId: string,
 ): Promise<void> {
+  if (!aero) return;
   const flight = await loadFlight(db, flightId);
   if (!flight || flight.alert_id !== null) return;
   if (flight.status === "arrived" || flight.status === "canceled") return;
@@ -123,9 +126,11 @@ export async function ensureAlert(
  */
 export async function releaseAlert(
   db: SupabaseClient,
-  aero: AlertApi,
+  aero: AlertApi | null,
   flightId: string,
 ): Promise<void> {
+  // Without AeroAPI an alert left from before the switch stays for the maintenance sweep.
+  if (!aero) return;
   if ((await countFollowers(db, flightId)) > 0) return;
   const flight = await loadFlight(db, flightId);
   if (!flight || flight.alert_id === null) return;
@@ -149,7 +154,7 @@ export async function releaseAlert(
 /** Removes one follow, then releases the flight's alert if nobody follows it any more. */
 export async function unfollow(
   db: SupabaseClient,
-  aero: AlertApi,
+  aero: AlertApi | null,
   userId: string,
   flightId: string,
 ): Promise<void> {
