@@ -35,6 +35,9 @@ struct SomaFlightApp: App {
                 // it waits in the inbox until the home is built and someone is signed in.
                 if let id = FlightLink.flightID(from: url) {
                     appDelegate.inbox.receiveTap(PushPayload(flightId: id))
+                } else if PassFile.isPassFile(url), let home {
+                    // "Open in Soma Flight" on a boarding pass from Mail, Files or an airline app.
+                    Task { await home.importPass(from: url) }
                 } else if let home {
                     Task { await home.session.handle(url: url) }
                 } else {
@@ -58,7 +61,11 @@ struct SomaFlightApp: App {
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil
-                        await built.session.handle(url: url)
+                        if PassFile.isPassFile(url) {
+                            await built.importPass(from: url)
+                        } else {
+                            await built.session.handle(url: url)
+                        }
                     }
                 } catch {
                     failure = LaunchPlaceholder.failure(for: error)

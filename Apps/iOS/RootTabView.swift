@@ -103,6 +103,8 @@ struct RootTabView: View {
                           notifications: home.notificationSettings)
                 .environment(\.units, units)
         }
+        // A boarding pass opened from Mail, Files or an airline app.
+        .passImportSheet(home)
         .environment(\.units, units)
     }
 
