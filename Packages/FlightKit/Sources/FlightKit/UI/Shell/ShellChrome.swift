@@ -86,6 +86,11 @@ public struct HomeDestination: View {
                 await home.myFlights.unfollow(flight)
                 return home.myFlights.error
             }
+            // A flight followed from the "Other flights" card: My Flights takes it and the sheet shows it.
+            .onFollowedAlternate { flight in
+                await home.didFollow(flight)
+                home.open(flight: flight)
+            }
         case .pastFlight(let flight):
             PastFlightScreen(env: home.env, flight: flight, onAirport: home.open(airport:), onClose: home.shell.close)
         case .airport(let code):

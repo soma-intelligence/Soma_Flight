@@ -46,6 +46,9 @@ public final class FlightDetailStore {
     /// The gates the flight number used lately, for the gate prediction (free data; nil once the flight has
     /// a gate or has left, or on failure). See `FlightDetailStore+Prediction.swift`.
     public private(set) var gateHistory: GateHistory?
+    /// The Connection Assistant (connections with other followed flights, other flights on the route);
+    /// nil shows neither card. `AppEnvironment.makeFlightDetailStore` sets it for followed flights.
+    public internal(set) var connections: ConnectionStore?
 
     /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
     public private(set) var boardingPass: BoardingPass?

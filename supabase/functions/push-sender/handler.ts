@@ -29,6 +29,8 @@ import {
   predictedDelay,
   type PredictionCaches,
 } from "../_shared/prediction.ts";
+import { connectionAlert } from "../_shared/connections.ts";
+import { connectionsOf } from "./connections.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -396,17 +398,29 @@ export async function mutedBy(
 
 type Sent = Tally & { kinds: string[] };
 
+/** Who else an alert concerns: a connection's users and its onward flight. */
+interface DeliverOpts {
+  /** Only these users (among the flight's followers with notify on). */
+  only?: Set<string>;
+  /** The onward flight of a connection alert, for its words. */
+  onward?: Flight;
+}
+
 /** Claims `alerts` for `flight` and sends each one to the followers who want its category. */
 async function deliver(
   ctx: SendCtx,
   flight: Flight,
   alerts: Alert[],
   inbound: Flight | null,
+  opts: DeliverOpts = {},
 ): Promise<Sent> {
   const tally: Sent = { sent: 0, failed: 0, removed: 0, kinds: [] };
   const won = await claim(ctx.db, flight.id, alerts);
   if (won.length === 0) return tally;
   const users = await pagedUsers(ctx.db, flight.id, true);
+  if (opts.only) {
+    for (const u of [...users]) if (!opts.only.has(u)) users.delete(u);
+  }
   if (users.size === 0) return tally;
   const [tokens, muted, originTz, destinationTz] = await Promise.all([
     tokensFor(ctx.db, "alert", users),
@@ -414,7 +428,12 @@ async function deliver(
     tz(ctx.db, flight.origin_icao),
     tz(ctx.db, flight.destination_icao),
   ]);
-  const copyCtx: CopyContext = { originTz, destinationTz, inbound };
+  const copyCtx: CopyContext = {
+    originTz,
+    destinationTz,
+    inbound,
+    onward: opts.onward,
+  };
   for (const a of won) {
     const off = muted.get(a.category)!;
     const to = tokens.filter((t) => !off.has(t.user_id));
@@ -571,6 +590,30 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       alertTally.failed += t.failed;
       alertTally.removed += t.removed;
       alertTally.kinds.push(...t.kinds);
+    }
+
+    // Connections: this flight and the followed flights it connects with. When the layover falls under
+    // the airport's usual minimum, the users who follow both hear it once, on the arriving flight.
+    try {
+      for (const c of await connectionsOf(db, flight)) {
+        const a = connectionAlert(
+          c.departing,
+          c.assessment,
+          (await historyOf(db, c.arriving.id)).keys,
+        );
+        if (!a) continue;
+        const t = await deliver(send, c.arriving, [a], null, {
+          only: c.users,
+          onward: c.departing,
+        });
+        alertTally.sent += t.sent;
+        alertTally.failed += t.failed;
+        alertTally.removed += t.removed;
+        alertTally.kinds.push(...t.kinds);
+      }
+    } catch (e) {
+      // A connection check that fails must not stop the Live Activity update below.
+      console.error("connection alerts failed", (e as Error).message);
     }
 
     // Live Activities: tokens for this flight whose user still follows it (notify is not consulted).

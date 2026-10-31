@@ -363,3 +363,77 @@ test(
     assertEquals(muted.get("delays")!.size, 0);
   },
 );
+
+test(
+  db,
+  "a connection at risk is told once, to the users who follow both flights",
+  async () => {
+    // AF 84 lands at SFO at 09:00Z, UA 1958 leaves at 11:00Z: 2 hours against SFO's 1h 30m.
+    const a = await makeFlight();
+    const b = await makeFlight({
+      ident: "UA1958",
+      origin_icao: "KSFO",
+      origin_iata: "SFO",
+      destination_icao: "KORD",
+      destination_iata: "ORD",
+      scheduled_out: "2026-11-04T11:00:00Z",
+      scheduled_in: "2026-11-04T15:15:00Z",
+      estimated_out: "2026-11-04T11:00:00Z",
+      estimated_in: "2026-11-04T15:15:00Z",
+      gate_origin: "F3",
+    });
+    const both = await follower(a.id);
+    const second = await db.from("user_flights").insert({
+      user_id: both.user,
+      flight_id: b.id,
+    });
+    if (second.error) throw second.error;
+    const onlyFirst = await follower(a.id);
+    const delaysOff = await follower(a.id, { delays: false });
+    const third = await db.from("user_flights").insert({
+      user_id: delaysOff.user,
+      flight_id: b.id,
+    });
+    if (third.error) throw third.error;
+
+    // Still 1h 45m: tight, nothing to say.
+    await db.from("flights").update({ estimated_in: "2026-11-04T09:15:00Z" })
+      .eq("id", a.id);
+    const fine = await call(
+      a.id,
+      await makeEvent(a.id, "update", {
+        estimated_in: ["2026-11-04T09:00:00Z", "2026-11-04T09:15:00Z"],
+      }),
+    );
+    assertEquals(fine.out.kinds, []);
+
+    // 45 minutes: at risk.
+    await db.from("flights").update({ estimated_in: "2026-11-04T10:15:00Z" })
+      .eq("id", a.id);
+    const risk = await call(
+      a.id,
+      await makeEvent(a.id, "update", {
+        estimated_in: ["2026-11-04T09:15:00Z", "2026-11-04T10:15:00Z"],
+      }),
+    );
+    assertEquals(risk.out.kinds, ["connection_at_risk"]);
+    const sent = risk.apns.alerts();
+    assertEquals(sent.map((c) => c.token), [both.alert]);
+    assertEquals(sent[0].body.flightId, a.id);
+    assertEquals(sent[0].body.aps.alert, {
+      title: "AF 84 connection at risk",
+      body:
+        "Only 45m to make UA 1958 at SFO, where it usually takes 1h 30m. Tell the crew you are connecting.",
+    });
+    assertEquals(onlyFirst.alert === sent[0].token, false);
+
+    // Worse again, seen from the onward flight's event: already told.
+    await db.from("flights").update({ estimated_in: "2026-11-04T10:40:00Z" })
+      .eq("id", a.id);
+    const again = await call(
+      b.id,
+      await makeEvent(b.id, "update", { gate_origin: ["F3", "F5"] }),
+    );
+    assertEquals(again.out.kinds.includes("connection_at_risk"), false);
+  },
+);

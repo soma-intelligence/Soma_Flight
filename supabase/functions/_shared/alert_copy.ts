@@ -2,6 +2,10 @@
 // happened ("AF 84 is now 25m late", "Gate changed to G91"), the body gives the time and place.
 // No dashes. Times are local to the airport they happen at (UTC, marked, when its zone is unknown).
 import { type Alert, type AlertFlight, ON_TIME_MAX_MIN } from "./alerts.ts";
+import rules from "./connection_rules.json" with { type: "json" };
+
+/** Less time on the ground than this: boarding has closed (connection_rules.json). */
+const GATE_CLOSE_MIN = rules.verdict.gate_close_minutes;
 
 export interface CopyContext {
   /** IANA zones of the two airports. */
@@ -9,6 +13,8 @@ export interface CopyContext {
   destinationTz?: string | null;
   /** The inbound leg, for inbound_late. */
   inbound?: AlertFlight | null;
+  /** The onward flight, for connection_at_risk. */
+  onward?: AlertFlight | null;
 }
 
 export interface AlertText {
@@ -273,6 +279,28 @@ export function alertText(
         body: `The airline reinstated the flight${
           orig && dest ? ` from ${orig} to ${dest}` : ""
         }.${when ? ` Departs at ${when}.` : ""}`,
+      };
+    }
+    case "connection_at_risk": {
+      // minutes: the layover now expected; from: the airport's usual minimum, in minutes.
+      const next = ctx.onward
+        ? displayIdent(ctx.onward.ident)
+        : "your next flight";
+      const hub = dest ? ` at ${dest}` : "";
+      const layover = a.minutes ?? null;
+      const mct = a.from ? Number(a.from) : NaN;
+      if (layover === null || layover < GATE_CLOSE_MIN) {
+        return {
+          title: `${id} connection may be missed`,
+          body:
+            `${id} now lands too late to make ${next}${hub}. Open the app for other flights.`,
+        };
+      }
+      return {
+        title: `${id} connection at risk`,
+        body: `Only ${span(layover)} to make ${next}${hub}${
+          Number.isFinite(mct) ? `, where it usually takes ${span(mct)}` : ""
+        }. Tell the crew you are connecting.`,
       };
     }
     case "diversion":

@@ -126,6 +126,7 @@ No row means every category is on, so the app writes the row the first time some
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
+| `alternate-flights` | GET | `origin`, `destination` (ICAO), `after` (ISO time) (below) | `{ origin, destination, after, fetched_at, stale, flights }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
@@ -216,6 +217,7 @@ and `kind` beside `aps`, `thread-id` is the flight id and `apns-collapse-id` is
 | `reinstated` | cancellations | status left `canceled` | "AF 84 is back on the schedule" |
 | `diversion` | cancellations | status became `diverted`, or a diverted flight's destination moved | "AF 84 diverted to KOAK" |
 | `predicted_delay` | delays | before the gate out and before any departure delay alert, the core's `predict_delay` gives a medium or high confidence delay from what the backend already holds (the inbound leg's row or a cached inbound chain under 30 min old, the cached arrival forecast, the origin's stats snapshot under 30 min old, weather snapshots under 2 h old); a late inbound prediction is skipped when `inbound_late` goes or went; once per flight; checked on this flight's events and on the inbound leg's | "AF 84 likely 25 min late" |
+| `connection_at_risk` | delays | a user follows this flight and the flight it connects into (below), and the layover from the first flight's best arrival to the second's best departure falls under the connection airport's usual minimum (At risk) or under 15 minutes (Missed); not for a canceled or diverted first flight, a canceled onward flight or one that already left (those have their own alerts); once per pair, claimed on the arriving flight (`connection_at_risk:<onward flights.id>`), sent only to the users who follow both; checked on the events of either flight | "AF 84 connection at risk" |
 
 Dedupe: once-only alerts use a fixed key (`takeoff`, `gate_assigned:departure`, `inbound_late`...),
 the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provider_event_id` without
@@ -223,6 +225,16 @@ the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provi
 the send: a crash in between loses that alert rather than doubling it. Two deliveries processed at the
 same moment can each see the same last delay and both send one (the webhook calls push-sender one event
 after another, so this needs two deliveries for one flight in the same second).
+
+Connections (`_shared/connections.ts`, the same rules as the app's Connection card): two flights connect when
+the first lands where the second leaves from and the second is scheduled to leave after the first lands, within
+24 hours; a flight back to where the first came from is a return trip. Each flight arrives into one connection
+and leaves from one, the shortest gaps first. The minimum connection times are typical figures for the 40
+busiest airports, by kind of connection (domestic or international on each side, Schengen counted as
+domestic), with defaults elsewhere, in `_shared/connection_rules.json`; FlightKit ships a copy and a test fails
+when the two differ. For an event, push-sender reads the flights around this one (leaving from where it lands
+within 24 hours, or landing where it leaves within 24 hours before), pairs them per user among the ones each
+follows, and reads the airports' countries; nothing calls the provider.
 
 Live Activity priority: 10 for `gate_change`, `departure`, `arrival`, `cancel` and `diversion` events
 (unchanged), and for an `update` event that carries a gate, terminal, gate out, take-off, landing, gate
@@ -322,6 +334,60 @@ Both modes:
 - Cost: an inbound refresh is 1 + legs calls to `/flights/{ident}` ($0.005 each). A forecast refresh is
   one `/history/flights/{ident}` result set per window, 9 at most; its price is not on the pricing page
   checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
+
+## alternate-flights
+
+The flight sheet's "Other flights" card: direct flights on a route later the same day, any airline, offered
+when a followed flight is canceled or a connection is at risk or missed. Paid (AeroAPI schedules): the app
+asks only when `INSIGHTS_ENABLED` is on, like `flight-insights`.
+
+`GET /alternate-flights?origin=KSFO&destination=KORD&after=2026-11-03T15:20:00Z`
+
+```json
+{
+  "origin": "KSFO",
+  "destination": "KORD",
+  "after": "2026-11-03T15:00:00.000Z",
+  "fetched_at": "2026-11-03T15:20:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "id": "UAL1958-1793563200-schedule-0000",
+      "ident": "UA1958",
+      "operator": "UAL",
+      "origin_iata": "SFO",
+      "destination_iata": "ORD",
+      "scheduled_out": "2026-11-03T20:00:00.000Z",
+      "scheduled_in": "2026-11-04T00:15:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "status": "scheduled",
+      "aircraft_type": "B772"
+    }
+  ]
+}
+```
+
+- `origin` and `destination` are airport codes of 3 or 4 letters or figures (any case; the app sends ICAO);
+  the same code twice is 400 `invalid_request`. `after` is an ISO time, now when missing, and must be within 2
+  hours before and 2 days after now (400 `out_of_window`); anything else is 400 `invalid_request`.
+- The provider's schedules (`/schedules/{date_start}/{date_end}`, operating flights only, no codeshares) are read
+  for the 24 hours from the start of the UTC hour of `after` (`after` in the answer is that hour), at most 3
+  result sets, and cached whole per route and hour for 30 minutes in `alternates_cache` (service role only,
+  pruned daily), empty answers included. `flights` are the cached ones leaving at or after `after`, by departure.
+- `id` is the provider's flight id, or `<ICAO designator>-<scheduled_out>` for a flight it does not track yet.
+  `ident` is the IATA designator (else the provider's), `operator` the ICAO airline code from the ICAO
+  designator, the airports IATA codes (else ICAO).
+- A schedule has no status: `status` is `scheduled` and the estimates are null, unless `flights` already holds
+  the flight (same provider id), whose status and gate times (actual, else estimated) are laid over, free.
+- `stale` and 503 `provider_unavailable` as in flight-insights: a refused refresh serves the cached answer of any
+  age, with nothing cached the app shows the card empty.
+- Limit: 60 calls per user per hour (429 `rate_limited`).
+- The answer in `supabase/functions/alternate-flights/contract/` is written by the function's tests and decoded
+  by `ConnectionTests` in FlightKit.
+- Cost: one to three `/schedules` result sets per route and hour, shared by everyone; the price is not on the
+  pricing page checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
+- Tapping a row in the app looks the flight up by number (`flight-lookup`) and follows it.
 
 ## security-wait
 
