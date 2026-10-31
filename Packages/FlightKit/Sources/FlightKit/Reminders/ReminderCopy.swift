@@ -48,6 +48,16 @@ public enum ReminderCopy {
                     body: "\(id) departs at \(at). Aim to be at the airport \(lead) early for \(kind) flight.")
     }
 
+    /// "Time to leave for CDG" for a computed leave time: when boarding starts and what the time allows for.
+    public static func leave(_ f: Flight, breakdown b: LeaveTime.Breakdown, tz: TimeZone, clock: TimeStyle) -> Text {
+        let id = Format.ident(f.ident)
+        let at = Format.clock(b.boardingAt, tz, clock)
+        let queue = SecurityWaitFacts.amount(b.securityMinutes, live: b.securityIsLive, capital: false)
+        return Text(title: "Time to leave for \(f.originCode)",
+                    body: "\(id) boards at \(at). This allows \(Format.minutes(Int(b.drive / 60))) to drive, "
+                        + "\(queue) at security and \(Format.minutes(Int(b.bagDrop / 60))) to drop bags.")
+    }
+
     /// Whole minutes the departure estimate is past the schedule, nil without both.
     private static func lateMinutes(_ f: Flight) -> Int? {
         guard let est = f.estimatedOut, let sched = f.scheduledOut else { return nil }

@@ -62,6 +62,10 @@ public final class ReminderScheduler {
         didSet { if enabled != oldValue { scheduleSync(lastFlights) } }
     }
 
+    /// The flight's computed leave time (`LeaveTimeEstimator.leaveTime(for:)`), read at each sync; nil keeps
+    /// the fixed rule for every flight. The home sets it when it has an estimator.
+    public var leaveTime: (@MainActor (Flight) -> LeaveTime?)?
+
     /// - Parameter clock: the user's clock style, read at each sync (12 or 24 hour times in the text).
     public init(center: any LocalNotificationCenter = SystemLocalNotificationCenter(),
                 lookup: @escaping @Sendable (String) -> Airport?,
@@ -80,6 +84,9 @@ public final class ReminderScheduler {
         }
     }
 
+    /// Runs the last list again: the leave times changed (a new measure), not the flights.
+    public func resync() { scheduleSync(lastFlights) }
+
     /// Brings the pending reminders in line with `flights` and waits until it is done.
     public func sync(_ flights: [Flight]) async {
         scheduleSync(flights)
@@ -92,7 +99,7 @@ public final class ReminderScheduler {
         let at = now(), style = clock()
         return flights.flatMap {
             ReminderPlanner.plan(for: $0, origin: lookup($0.originIcao), destination: lookup($0.destinationIcao),
-                                 now: at, clock: style)
+                                 now: at, clock: style, leave: leaveTime?($0))
         }
     }
 

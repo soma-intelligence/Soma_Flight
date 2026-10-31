@@ -191,6 +191,7 @@ public struct FlightDetailView: View {
                            destination: arrivalSide(flight),
                            timeZone: timeZoneChange(flight),
                            security: securityRow(flight, now: now),
+                           leave: store.isArchived ? nil : flight, now: now,
                            onAirport: onAirport)
                     .id("goodToKnow")
                 // Canceled or diverted: no arrival forecast and no inbound plane.

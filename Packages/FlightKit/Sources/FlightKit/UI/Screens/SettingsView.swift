@@ -11,6 +11,8 @@ public struct SettingsView: View {
     var onDeleteAccount: (() async -> Bool)?
     /// The Notifications screen's store; nil keeps the row opening the system settings.
     var notifications: NotificationSettingsStore?
+    /// The Calendar screen's sync; nil hides its row.
+    var calendar: CalendarSync?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -26,6 +28,9 @@ public struct SettingsView: View {
     @State private var deleting = false
     @State private var showingAcknowledgements = false
     @State private var showingNotifications = false
+    @State private var showingCalendar = false
+    /// Which security lane the leave time counts (`LeaveTimeSettings`).
+    @AppStorage(LeaveTimeSettings.precheckKey) private var precheck = false
     /// The deletion failed and the account is still signed in.
     @State private var deleteFailure: APIError?
 
@@ -46,19 +51,20 @@ public struct SettingsView: View {
     ///     nil hides the row. When it returns false, the session's error is shown.
     ///   - notifications: the alert categories (`HomeModel.notificationSettings`); the Notifications row
     ///     opens its screen. Nil keeps the row opening the system settings.
+    ///   - calendar: the calendar sync (`HomeModel.calendar`); the Calendar row opens its screen. Nil hides the row.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
-                notifications: NotificationSettingsStore? = nil) {
+                notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
-                  onDeleteAccount: onDeleteAccount, notifications: notifications, scrolls: true)
+                  onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, scrolls: true)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
          history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
-         notifications: NotificationSettingsStore? = nil, scrolls: Bool,
+         notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, scrolls: Bool,
          dataNote: Bool = SettingsView.defaultDataNote) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
-        self.onDeleteAccount = onDeleteAccount; self.notifications = notifications
+        self.onDeleteAccount = onDeleteAccount; self.notifications = notifications; self.calendar = calendar
         self.scrolls = scrolls; self.dataNote = dataNote
     }
 
@@ -101,6 +107,17 @@ public struct SettingsView: View {
                             last: true, action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
                     RowChevron()
                 }
+            }
+            group("Travel") {
+                if calendar != nil {
+                    SettingsRow(icon: "calendar", title: "Calendar", subtitle: "Put followed flights in your calendar",
+                                action: { showingCalendar = true }) { RowChevron() }
+                }
+                SettingsRow(icon: "person.badge.shield.checkmark", title: "I Have TSA PreCheck",
+                            subtitle: "Leave times count the PreCheck lane", last: true) {
+                    Toggle("I Have TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
+                }
+                .accessibilityElement(children: .combine)
             }
             group("Privacy") {
                 SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", action: { openURL(Self.privacyURL) }) { RowChevron() }
@@ -172,6 +189,9 @@ public struct SettingsView: View {
         .navigationDestination(isPresented: $showingNotifications) {
             if let notifications { PushedPage { NotificationSettingsView(store: notifications) } }
         }
+        .navigationDestination(isPresented: $showingCalendar) {
+            if let calendar { PushedPage { CalendarSettingsView(sync: calendar) } }
+        }
         #else
         .sheet(isPresented: $showingAcknowledgements) {
             AcknowledgementsView(onDone: { showingAcknowledgements = false })
@@ -180,6 +200,12 @@ public struct SettingsView: View {
         .sheet(isPresented: $showingNotifications) {
             if let notifications {
                 NotificationSettingsView(store: notifications, onDone: { showingNotifications = false })
+                    .frame(minWidth: 420, minHeight: 560)
+            }
+        }
+        .sheet(isPresented: $showingCalendar) {
+            if let calendar {
+                CalendarSettingsView(sync: calendar, onDone: { showingCalendar = false })
                     .frame(minWidth: 420, minHeight: 560)
             }
         }

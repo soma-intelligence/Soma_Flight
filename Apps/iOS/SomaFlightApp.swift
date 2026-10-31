@@ -26,6 +26,7 @@ struct SomaFlightApp: App {
                 if let home {
                     SignInGate(home: home) { RootTabView(home: home) }
                         .environment(\.brandAssets, home.env.brand)
+                        .environment(\.leaveTimes, home.leaveTimes)
                 } else {
                     LaunchPlaceholder(failure: failure)
                 }
@@ -54,6 +55,9 @@ struct SomaFlightApp: App {
                     // The home screen and lock screen widgets read My Flights from the App Group.
                     built.attachWidgets(WidgetSnapshotWriter(lookup: built.env.lookup))
                     built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
+                    // The flight sheet's "Leave by" time (the leave reminder uses it) and Settings > Calendar.
+                    built.attachLeaveTimes(LeaveTimeEstimator.forLaunch(env: built.env))
+                    built.attachCalendar(CalendarSync.forLaunch(env: built.env))
                     if Self.wantsLiveActivity {
                         built.attachLiveActivities(FlightActivityController(
                             host: SystemFlightActivityHost(), push: built.env.push, lookup: built.env.lookup))

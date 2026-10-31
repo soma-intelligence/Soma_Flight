@@ -58,13 +58,21 @@ struct SomaFlightMacApp: App {
                 if let home {
                     SignInGate(home: home, showsProgress: true) { RootSidebarView(home: home) }
                         .environment(\.brandAssets, home.env.brand)
+                        .environment(\.leaveTimes, home.leaveTimes)
                 } else {
                     LaunchPlaceholder(failure: failure, showsProgress: true) { failure = nil; attempt += 1 }
                 }
             }
             .frame(minWidth: RootSidebarView.minimumSize.width, minHeight: RootSidebarView.minimumSize.height)
             .onOpenURL { url in
-                if let home { Task { await home.session.handle(url: url) } } else { pendingURL = url }
+                // A calendar event's `somaflight://flight/<id>` opens that flight the way a tapped notification does.
+                if let id = FlightLink.flightID(from: url) {
+                    appDelegate.inbox.receiveTap(PushPayload(flightId: id))
+                } else if let home {
+                    Task { await home.session.handle(url: url) }
+                } else {
+                    pendingURL = url
+                }
             }
             .preferredColorScheme(.dark)
             .task(id: attempt) {
@@ -74,6 +82,9 @@ struct SomaFlightMacApp: App {
                     // `-useFakes` on the command line runs on the seeded fakes with an in-memory cache.
                     let built = HomeModel(env: try await AppEnvironment.forLaunch())
                     built.attachPush(inbox: appDelegate.inbox) { NSApplication.shared.registerForRemoteNotifications() }
+                    // The flight sheet's "Leave by" time and Settings > Calendar.
+                    built.attachLeaveTimes(LeaveTimeEstimator.forLaunch(env: built.env))
+                    built.attachCalendar(CalendarSync.forLaunch(env: built.env))
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil
@@ -95,7 +106,8 @@ struct SomaFlightMacApp: App {
                     // Export only once there is someone to export for (signed in, or the fakes).
                     SettingsView(session: home.session, units: $units, history: home.needsSignIn ? nil : home.env.history,
                                  onDeleteAccount: { await home.session.deleteAccount() },
-                                 notifications: home.needsSignIn ? nil : home.notificationSettings)
+                                 notifications: home.needsSignIn ? nil : home.notificationSettings,
+                                 calendar: home.needsSignIn ? nil : home.calendar)
                 } else {
                     // Settings opened before the window has built its environment.
                     LaunchPlaceholder(failure: failure, showsProgress: true)

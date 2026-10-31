@@ -105,7 +105,7 @@ struct RootTabView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
                           onDeleteAccount: { await home.session.deleteAccount() },
-                          notifications: home.notificationSettings)
+                          notifications: home.notificationSettings, calendar: home.calendar)
                 .environment(\.units, units)
         }
         // A boarding pass opened from Mail, Files or an airline app.
@@ -212,6 +212,7 @@ private struct SettingsSheet: View {
     var history: any HistoryService
     var onDeleteAccount: () async -> Bool
     var notifications: NotificationSettingsStore
+    var calendar: CalendarSync?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -219,7 +220,7 @@ private struct SettingsSheet: View {
         // A stack so Notifications and Acknowledgements slide in inside this sheet.
         NavigationStack {
             SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
-                         notifications: notifications)
+                         notifications: notifications, calendar: calendar)
                 .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
                 .toolbar(.hidden, for: .navigationBar)
         }
