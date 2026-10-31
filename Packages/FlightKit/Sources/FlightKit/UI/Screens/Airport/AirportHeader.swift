@@ -52,13 +52,16 @@ struct AirportHeader: View {
     }
 }
 
-/// Maroon card at the top of the sheet when the day is going badly: one line each for
-/// departures, arrivals and weather, the weather line saying whether it explains the delays.
+/// Maroon card at the top of the sheet when the day is going badly: the FAA's programs and runway
+/// notices first, then one line each for departures, arrivals and weather, the weather line saying
+/// whether it explains the delays.
 struct IssuesCard: View {
     var severity: Severity
-    var departures: DelayStats
-    var arrivals: DelayStats
+    var departures: DelayStats?
+    var arrivals: DelayStats?
     var weather: Weather?
+    /// FAA programs and the NOTAM line (`FAAFacts.airportRows`).
+    var programs: [AdvisoryRowData] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -68,15 +71,19 @@ struct IssuesCard: View {
                     Circle().fill(dot.opacity(0.25)).frame(width: 16, height: 16)
                     Circle().fill(dot).frame(width: 7, height: 7)
                 }
-                Text(AirportFacts.issuesTitle(severity))
+                Text(FAAFacts.issuesTitle(severity, programs: programs))
                     .scaledFont(19, weight: .semibold)
                     .foregroundStyle(Theme.primary)
             }
             .scaledPadding(.bottom, 14)
-            row("airplane.departure", "Departures", AirportFacts.delayLine(departures, verb: "Leaving"))
-            divider
-            row("airplane.arrival", "Arrivals", AirportFacts.delayLine(arrivals, verb: "Arriving"))
-            if let weather {
+            IssuesProgramRows(rows: programs)
+            if let departures, let arrivals {
+                if !programs.isEmpty { divider }
+                row("airplane.departure", "Departures", AirportFacts.delayLine(departures, verb: "Leaving"))
+                divider
+                row("airplane.arrival", "Arrivals", AirportFacts.delayLine(arrivals, verb: "Arriving"))
+            }
+            if let weather, let departures, let arrivals {
                 divider
                 row(Sky(metar: weather.metarRaw).symbol(night: false), "Weather",
                     AirportFacts.issuesWeatherLine(weather, departures: departures, arrivals: arrivals))

@@ -191,6 +191,7 @@ public struct FlightDetailView: View {
                            destination: arrivalSide(flight),
                            timeZone: timeZoneChange(flight),
                            security: securityRow(flight, now: now),
+                           advisories: FAAFacts.rows(store, flight: flight, clock: units.clock, now: now),
                            onAirport: onAirport)
                     .id("goodToKnow")
                 // Canceled or diverted: no arrival forecast and no inbound plane.

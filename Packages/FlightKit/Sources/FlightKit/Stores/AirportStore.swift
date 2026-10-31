@@ -10,17 +10,25 @@ public final class AirportStore {
     public private(set) var weather: Weather?
     /// The security wait per checkpoint; nil outside the US or when it failed (never an error banner).
     public private(set) var security: SecurityWait?
+    /// The FAA's live programs (ground stops, delay programs, closures); nil outside the US or on failure.
+    public private(set) var programs: AirportPrograms?
+    /// Decoded NOTAMs; nil until the backend has the FAA NOTAM key, or on failure.
+    public private(set) var notams: NotamReport?
     public private(set) var fetchedAt: [BoardKind: Date] = [:]
     public private(set) var error: APIError?
 
     private let code: String
     private let service: any AirportService
     private let securityService: any SecurityWaitService
+    private let faaService: any FAAService
 
-    /// - Parameter security: the security wait; the default asks nothing and shows no Security section.
+    /// - Parameters:
+    ///   - security: the security wait; the default asks nothing and shows no Security section.
+    ///   - faa: FAA programs and NOTAMs; the default asks nothing and shows none.
     public init(code: String, airports: any AirportService,
-                security: any SecurityWaitService = UnavailableSecurityWaitService()) {
-        self.code = code; self.service = airports; self.securityService = security
+                security: any SecurityWaitService = UnavailableSecurityWaitService(),
+                faa: any FAAService = UnavailableFAAService()) {
+        self.code = code; self.service = airports; self.securityService = security; self.faaService = faa
     }
 
     /// Loads every part; a failing part keeps its previous value and sets `error`.
@@ -47,6 +55,9 @@ public final class AirportStore {
         } catch { note(error) }
         // A nicety: a failure keeps what the section shows and sets no error.
         if let s = try? await securityService.securityWait(airport: code) { security = s }
+        // FAA advisories likewise: a failure keeps what is shown.
+        if let p = try? await faaService.programs(airport: code) { programs = p }
+        if let n = try? await faaService.notams(airport: code) { notams = n }
         error = firstError
     }
 }

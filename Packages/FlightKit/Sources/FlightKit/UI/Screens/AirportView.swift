@@ -66,6 +66,7 @@ struct AirportSections: View {
     @State private var scope: DailyScope = .departures
     @State private var totalsCache: (key: TotalsKey, stats: DelayStats)?
     @State private var showingReport = false
+    @Environment(\.units) private var units
 
     /// What the Totals segment depends on, so the core runs once per board refresh.
     struct TotalsKey: Hashable {
@@ -93,12 +94,13 @@ struct AirportSections: View {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
                     .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
             }
-            if let stats = store.stats {
-                let severity = AirportFacts.worst(stats.departures.severity, stats.arrivals.severity)
-                if severity != .normal {
-                    IssuesCard(severity: severity, departures: stats.departures, arrivals: stats.arrivals, weather: store.weather)
-                        .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
-                }
+            let faa = FAAFacts.airportRows(programs: store.programs, notams: store.notams, code: code, timeZone: tz,
+                                           clock: units.clock, now: now)
+            let severity = FAAFacts.issuesSeverity(stats: store.stats, rows: faa)
+            if severity != .normal {
+                IssuesCard(severity: severity, departures: store.stats?.departures, arrivals: store.stats?.arrivals,
+                           weather: store.weather, programs: faa)
+                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
             }
             if store.stats != nil || store.weather != nil {
                 OperationsReportRow(impact: store.weather.map(WeatherImpact.of)) { showingReport = true }
@@ -272,7 +274,8 @@ struct AirportPreview: View {
         }
         .task {
             let svc = FakeAirportService(now: PreviewData.now)
-            let s = AirportStore(code: code, airports: svc, security: FakeSecurityWaitService(now: PreviewData.now))
+            let s = AirportStore(code: code, airports: svc, security: FakeSecurityWaitService(now: PreviewData.now),
+                                 faa: FakeFAAService(now: PreviewData.now))
             await s.load()
             if let failSecondLoad {
                 await svc.setNextError(failSecondLoad)

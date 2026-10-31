@@ -43,6 +43,9 @@ public final class FlightDetailStore {
     /// The security wait at the origin (free data; nil outside the US, when the flight is not leaving
     /// within 12 hours, or on failure). The sheet shows it only inside `SecurityWaitFacts.window`.
     public private(set) var securityWait: SecurityWait?
+    /// FAA programs and NOTAMs at both airports (free data; parts stay nil outside the US, without the
+    /// NOTAM key, once the flight landed, or on failure).
+    public private(set) var advisories = FlightAdvisories()
 
     /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
     public private(set) var boardingPass: BoardingPass?
@@ -62,6 +65,7 @@ public final class FlightDetailStore {
     private let history: (any HistoryService)?
     private let insights: any InsightsService
     private let security: any SecurityWaitService
+    private let faa: any FAAService
     private let cache: (any FlightListCache)?
     private let passes: (any BoardingPassVault)?
     private let lookup: @Sendable (String) -> Airport?
@@ -75,10 +79,11 @@ public final class FlightDetailStore {
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
                 security: any SecurityWaitService = UnavailableSecurityWaitService(),
+                faa: any FAAService = UnavailableFAAService(),
                 cache: (any FlightListCache)? = nil, passes: (any BoardingPassVault)? = nil,
                 lookup: @escaping @Sendable (String) -> Airport? = { _ in nil }, simulatesWallet: Bool = false) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
-        self.insights = insights; self.security = security; self.cache = cache; self.passes = passes; self.lookup = lookup
+        self.insights = insights; self.security = security; self.faa = faa; self.cache = cache; self.passes = passes; self.lookup = lookup
         self.simulatesWallet = simulatesWallet
         isArchived = false
     }
@@ -87,7 +92,8 @@ public final class FlightDetailStore {
     public init(past: PastFlight, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil) {
         id = past.id; self.flights = flights; self.airports = airports; self.history = history
-        insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
+        insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); faa = UnavailableFAAService()
+        cache = nil
         passes = nil; lookup = { _ in nil }
         simulatesWallet = false
         isArchived = true
@@ -174,7 +180,9 @@ public final class FlightDetailStore {
         async let inboundValue = Self.inbound(insights, id: id)
         let security: (any SecurityWaitService)? = SecurityWaitFacts.worthLoading(f, now: now) ? self.security : nil
         async let securityValue = Self.securityWait(security, airport: originCode)
-        let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue, securityValue)
+        let faa: (any FAAService)? = FAAFacts.worthLoading(f.status) ? self.faa : nil
+        async let faaValue = Self.advisories(faa, origin: originCode, destination: destinationCode)
+        let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue, securityValue, faaValue)
         guard !Task.isCancelled else { return }
         originStats = results.0?.departures
         destinationStats = results.1?.arrivals
@@ -186,11 +194,18 @@ public final class FlightDetailStore {
         forecast = results.5
         inbound = results.6 ?? []
         securityWait = results.7
+        advisories = results.8 ?? FlightAdvisories()
     }
 
     private nonisolated static func securityWait(_ service: (any SecurityWaitService)?, airport: String) async -> SecurityWait? {
         guard let service else { return nil }
         return try? await service.securityWait(airport: airport)
+    }
+
+    private nonisolated static func advisories(_ service: (any FAAService)?, origin: String,
+                                               destination: String) async -> FlightAdvisories? {
+        guard let service else { return nil }
+        return await FlightAdvisories.load(service, origin: origin, destination: destination)
     }
 
     private nonisolated static func forecast(_ insights: (any InsightsService)?, ident: String) async -> ArrivalForecast? {
