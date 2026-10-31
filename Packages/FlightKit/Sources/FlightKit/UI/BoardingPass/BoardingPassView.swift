@@ -61,10 +61,11 @@ struct BoardingPassView: View {
                     .scaledFont(18, weight: .medium)
                     .foregroundStyle(Theme.primary)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(RoundButton.fill))
+                    .contentShape(Circle())
             }
             .menuStyle(.button)
             .buttonStyle(.plain)
+            .roundGlass()
             .accessibilityLabel("More")
             Spacer()
             Text("Boarding Pass")

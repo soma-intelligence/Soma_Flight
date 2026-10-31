@@ -1,7 +1,7 @@
 import Observation
 import SwiftUI
 
-/// A screen pushed inside the home sheet.
+/// A card stacked inside the home sheet, sliding up over the one below.
 public enum SheetRoute: Hashable, Sendable {
     case flight(Flight.ID)
     /// A flight from the Passport history, shown with the same sheet as a followed flight.
@@ -74,12 +74,10 @@ public final class ShellModel {
         }
     }
 
-    /// How far the map reaches under the sheet's top edge, so the rounded corners show globe, not black.
-    public static let sheetOverlap: CGFloat = 44
-
-    /// Where the map stops above the screen's bottom edge, from the settled detent rather than the live
-    /// sheet height, so a drag does not relayout the map every frame. `.large` keeps the medium inset:
-    /// the globe is hidden then, and the map keeps a sane content area.
+    /// How much of the full-screen map the sheet hides at the bottom (the map's bottom safe area), from the
+    /// settled detent rather than the live sheet height, so a drag never touches the map: only a detent
+    /// that settled glides the globe to its new place. `.large` keeps the medium inset: the globe is hidden
+    /// then, and the map keeps a sane content area for the way back.
     public static func mapInset(for detent: PresentationDetent, screenHeight: CGFloat) -> CGFloat {
         detent == collapsed ? 120 : (screenHeight / 2).rounded()
     }

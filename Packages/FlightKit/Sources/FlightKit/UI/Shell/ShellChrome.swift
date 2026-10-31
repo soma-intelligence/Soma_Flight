@@ -174,19 +174,18 @@ public struct HomeTabPill: View {
     }
 }
 
-/// Round grey button for the panel header (Settings) and the close X, filled as in the reference.
+/// Round Liquid Glass button for the panel header (Settings) and the close X, the same glass as the
+/// map controls' capsule; it lights up and flexes under the finger.
 public struct RoundButton: View {
-    static let fill = Color(light: 0xE3E3E8, dark: 0x3A3A3C)
-
     var systemImage: String
     var label: String
     var action: () -> Void
-    var tint: Color
+    var tint: Color?
     @Environment(\.metricsScale) private var scale
 
-    /// - Parameter fill: the circle's colour; the grey `RoundButton.fill` when nil.
+    /// - Parameter fill: tints the glass (a page in its own colour); plain glass when nil.
     public init(systemImage: String, label: String, fill: Color? = nil, action: @escaping () -> Void) {
-        self.systemImage = systemImage; self.label = label; self.action = action; self.tint = fill ?? Self.fill
+        self.systemImage = systemImage; self.label = label; self.action = action; self.tint = fill
     }
 
     public var body: some View {
@@ -195,15 +194,23 @@ public struct RoundButton: View {
                 .font(.system(size: Theme.metric(18, scale), weight: .medium))
                 .foregroundStyle(Theme.primary)
                 .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
-                .background(Circle().fill(tint))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .roundGlass(tint: tint)
         .accessibilityLabel(label)
     }
 }
 
-/// The circular X at the top right of a pushed screen or a modal sheet.
+public extension View {
+    /// The interactive Liquid Glass circle of every round floating control (`RoundButton`, the close X,
+    /// the round menus beside them), optionally tinted.
+    func roundGlass(tint: Color? = nil) -> some View {
+        glassEffect(tint.map { Glass.regular.tint($0).interactive() } ?? .regular.interactive(), in: .circle)
+    }
+}
+
+/// The circular glass X at the top right of a card or a modal sheet.
 public struct CloseButton: View {
     var action: () -> Void
 

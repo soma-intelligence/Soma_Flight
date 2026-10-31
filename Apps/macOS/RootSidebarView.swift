@@ -39,7 +39,9 @@ struct RootSidebarView: View {
     var body: some View {
         let content = home.globe
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
-                 focus: home.focus, recenter: home.shell.recenter, labels: labels)
+                 focus: home.focus, recenter: home.shell.recenter, labels: labels,
+                 // An open flight alone on the globe, as on the phone.
+                 isolation: home.isolation)
             // The map fills the window; the panel's side counts as covered, so the camera fits arcs and
             // centres airports in the part of the globe left in view.
             .safeAreaPadding(.leading, Self.panelWidth + Self.panelInset)

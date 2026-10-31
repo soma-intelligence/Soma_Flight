@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The iOS home: the satellite globe full screen, a resizable sheet over it holding My Flights or
 /// Passport, a floating tab pill with a round search button, and a gear for Settings. Flights and
-/// airports open inside the sheet while the globe moves onto them. The state is FlightKit's
-/// `HomeModel`, shared with the Mac sidebar.
+/// airports open as cards sliding up inside the sheet while the globe moves onto them; an open flight
+/// is drawn alone on the globe. The state is FlightKit's `HomeModel`, shared with the Mac sidebar.
 struct RootTabView: View {
     @State private var home: HomeModel
     @State private var selection: GlobeSelection?
@@ -25,16 +25,7 @@ struct RootTabView: View {
     private var shell: ShellModel { home.shell }
 
     var body: some View {
-        let content = home.globe
-        GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
-                 focus: home.focus, recenter: shell.recenter, labels: labels, threeD: threeD)
-            // The map draws under the status bar on its own and keeps its controls clear of it. It ends just
-            // under the sheet's settled top (its rounded corners still show the globe), not at the screen's
-            // bottom: MapKit scales the globe to the map's height, so a map no taller than what shows lets
-            // a long-haul arc fit across a phone.
-            .safeAreaPadding(.bottom, ShellModel.sheetOverlap)
-            .padding(.bottom, ShellModel.mapInset(for: shell.detent, screenHeight: screenHeight) - ShellModel.sheetOverlap)
-            .animation(.smooth, value: shell.detent)
+        HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, screenHeight: screenHeight)
             .background {
                 Color.black
                     .ignoresSafeArea()
@@ -77,13 +68,11 @@ struct RootTabView: View {
 
     private var sheet: some View {
         @Bindable var shell = home.shell
-        return NavigationStack(path: $shell.path) {
+        // Each screen slides up over the one below as a card, and its X drops it back down.
+        return CardStack(path: shell.path, onPop: shell.close) {
             tabRoot
-                .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(for: SheetRoute.self) { route in
-                    HomeDestination(home: home, route: route)
-                        .toolbar(.hidden, for: .navigationBar)
-                }
+        } card: { route in
+            HomeDestination(home: home, route: route)
         }
         .environment(\.fullPageZoom, pageZoom)
         .presentationDetents(ShellModel.detents, selection: $shell.detent)
@@ -170,6 +159,30 @@ struct RootTabView: View {
     }
 }
 
+// MARK: - Globe
+
+/// The globe under the sheet, in a view of its own so only what it reads redraws it: the arcs, the
+/// focus, the isolated flight and the settled detent, never the sheet's other state. The map keeps the
+/// whole screen; the detent only moves its bottom safe area, which the globe glides to while the camera
+/// springs onto the new fit.
+private struct HomeGlobe: View {
+    var home: HomeModel
+    @Binding var selection: GlobeSelection?
+    var labels: Bool
+    var threeD: Bool
+    var screenHeight: CGFloat
+
+    var body: some View {
+        let content = home.globe
+        GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
+                 focus: home.focus, recenter: home.shell.recenter, labels: labels, threeD: threeD,
+                 isolation: home.isolation,
+                 bottomInset: ShellModel.mapInset(for: home.shell.detent, screenHeight: screenHeight))
+            // Down to the screen's bottom edge; the status bar's inset stays, so MapKit keeps its compass clear.
+            .ignoresSafeArea(edges: .bottom)
+    }
+}
+
 // MARK: - Modal sheets
 
 /// Search in its own sheet over the home sheet.
@@ -217,13 +230,10 @@ private struct SettingsSheet: View {
 
     var body: some View {
         // Signed out, the gate shows Sign In instead of the home, so this sheet closes with it.
-        // A stack so Notifications and Acknowledgements slide in inside this sheet.
-        NavigationStack {
-            SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
-                         notifications: notifications, calendar: calendar)
-                .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
-                .toolbar(.hidden, for: .navigationBar)
-        }
+        // Notifications, Calendar and Acknowledgements slide up as cards inside this sheet, each with
+        // its own X over this one.
+        SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
+                     notifications: notifications, calendar: calendar, onClose: { dismiss() })
         .presentationDetents([.large])
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)

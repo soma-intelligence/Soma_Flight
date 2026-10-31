@@ -16,6 +16,7 @@ public struct SettingsView: View {
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
+    var onClose: (() -> Void)?
 
     #if os(macOS)
     static let defaultDataNote = true
@@ -55,26 +56,46 @@ public struct SettingsView: View {
     ///   - notifications: the alert categories (`HomeModel.notificationSettings`); the Notifications row
     ///     opens its screen. Nil keeps the row opening the system settings.
     ///   - calendar: the calendar sync (`HomeModel.calendar`); the Calendar row opens its screen. Nil hides the row.
+    ///   - onClose: closes Settings from the round X at the top right (the phone's sheet); nil leaves it out.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
-                notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil) {
+                notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
+                onClose: (() -> Void)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
-                  onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, scrolls: true)
+                  onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, scrolls: true,
+                  onClose: onClose)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
          history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
          notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, scrolls: Bool,
-         dataNote: Bool = SettingsView.defaultDataNote) {
+         dataNote: Bool = SettingsView.defaultDataNote, onClose: (() -> Void)? = nil) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
         self.onDeleteAccount = onDeleteAccount; self.notifications = notifications; self.calendar = calendar
-        self.scrolls = scrolls; self.dataNote = dataNote
+        self.scrolls = scrolls; self.dataNote = dataNote; self.onClose = onClose
     }
 
     static let privacyURL = URL(string: "https://somalabs.me/privacy")!
     static let supportURL = URL(string: "https://somalabs.me/support")!
 
     public var body: some View {
+        #if os(iOS)
+        // On the phone Notifications, Calendar and Acknowledgements slide up over the list as cards inside
+        // the Settings sheet, as the home's screens do, rather than stacking a second sheet over it. Their
+        // X sits where the sheet's own does and drops the card back down.
+        CardStack(path: openPages, onPop: closePage) {
+            list.overlay(alignment: .topTrailing) {
+                if let onClose { CloseButton(action: onClose) }
+            }
+        } card: { page in
+            PushedPage(onClose: closePage) { pageView(page) }
+        }
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScreenTitle("Settings")
                 .scaledPadding(.horizontal, Theme.gutter)
@@ -84,6 +105,33 @@ public struct SettingsView: View {
         }
         .background(Theme.background)
     }
+
+    #if os(iOS)
+    /// A page of Settings opened over the list.
+    enum Page: Hashable { case notifications, calendar, documents, acknowledgements }
+
+    /// The page on show, as a card stack's path (one page at most).
+    var openPages: [Page] {
+        if showingNotifications { [.notifications] }
+        else if showingCalendar { [.calendar] }
+        else if showingDocuments { [.documents] }
+        else if showingAcknowledgements { [.acknowledgements] }
+        else { [] }
+    }
+
+    private func closePage() {
+        showingNotifications = false; showingCalendar = false; showingDocuments = false; showingAcknowledgements = false
+    }
+
+    @ViewBuilder private func pageView(_ page: Page) -> some View {
+        switch page {
+        case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
+        case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
+        case .documents: if let documents { TravelDocumentsView(store: documents) }
+        case .acknowledgements: AcknowledgementsView()
+        }
+    }
+    #endif
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -188,22 +236,8 @@ public struct SettingsView: View {
             case .deleteAccount: Text(Self.deleteMessage)
             }
         }
-        #if os(iOS)
-        // On the phone the two pages slide in inside the Settings sheet (its NavigationStack), with a round
-        // back button, rather than stacking a second sheet over it.
-        .navigationDestination(isPresented: $showingAcknowledgements) {
-            PushedPage { AcknowledgementsView() }
-        }
-        .navigationDestination(isPresented: $showingNotifications) {
-            if let notifications { PushedPage { NotificationSettingsView(store: notifications) } }
-        }
-        .navigationDestination(isPresented: $showingCalendar) {
-            if let calendar { PushedPage { CalendarSettingsView(sync: calendar) } }
-        }
-        .navigationDestination(isPresented: $showingDocuments) {
-            if let documents { PushedPage { TravelDocumentsView(store: documents) } }
-        }
-        #else
+        #if !os(iOS)
+        // The phone opens them as cards over the list instead (`body`).
         .sheet(isPresented: $showingAcknowledgements) {
             AcknowledgementsView(onDone: { showingAcknowledgements = false })
                 .frame(minWidth: 420, minHeight: 520)
@@ -458,22 +492,17 @@ struct SettingsPreview: View {
 #endif
 
 #if os(iOS)
-/// A page pushed inside a sheet: no navigation bar, a round back button at the top left, the sheet's
-/// background, and the edge swipe back.
+/// A page of Settings as a card over the list (`CardStack`): the sheet's background and the round X at
+/// the top right, where the sheet's own sits, which drops the card back to the list.
 struct PushedPage<Content: View>: View {
+    var onClose: () -> Void
     @ViewBuilder var content: Content
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         content
-            .scaledPadding(.top, 44)
-            .overlay(alignment: .topLeading) {
-                RoundButton(systemImage: "chevron.left", label: "Back") { dismiss() }
-                    .scaledPadding(.leading, 16)
-                    .scaledPadding(.top, 8)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
             .background(Theme.background)
-            .toolbar(.hidden, for: .navigationBar)
     }
 }
 #endif

@@ -126,10 +126,10 @@ struct FullPageChrome<Hero: View, Content: View>: View {
                             .font(.system(size: Theme.metric(18, scale), weight: .medium))
                             .foregroundStyle(Theme.primary)
                             .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
-                            .background(Circle().fill(buttonFill ?? RoundButton.fill))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .roundGlass(tint: buttonFill)
                     .accessibilityLabel("Share")
                 }
             }

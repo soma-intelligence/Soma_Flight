@@ -1,4 +1,5 @@
 import MapKit
+import OSLog
 import simd
 import SwiftUI
 
@@ -44,6 +45,29 @@ public enum GlobeFocus: Hashable, Sendable {
     case airport(Airport)
 }
 
+/// One flight drawn alone: the globe fades every other arc, pin and plane while it is open.
+public struct GlobeIsolation: Equatable, Sendable {
+    public var route: Route
+    public var airports: [Airport]
+    public var plane: FlightAnnotationModel?
+
+    public init(route: Route, airports: [Airport], plane: FlightAnnotationModel? = nil) {
+        self.route = route; self.airports = airports; self.plane = plane
+    }
+
+    /// The arc `other` draws the same airport pair as this flight, whichever way it was flown (Passport
+    /// keeps one arc per pair, under its own id).
+    func isSameArc(_ other: Route) -> Bool {
+        other.id == route.id
+            || (Self.same(other.from, route.from) && Self.same(other.to, route.to))
+            || (Self.same(other.from, route.to) && Self.same(other.to, route.from))
+    }
+
+    static func same(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Bool {
+        abs(a.latitude - b.latitude) < 1e-6 && abs(a.longitude - b.longitude) < 1e-6
+    }
+}
+
 /// The map's whole size and the part of it left visible by the bars and the sheet (its safe area), in points.
 public struct GlobeViewport: Equatable, Sendable {
     public var size: CGSize
@@ -52,13 +76,28 @@ public struct GlobeViewport: Equatable, Sendable {
     /// times the cosine of the centre's latitude.
     public var farLimit: Double
 
-    /// - Parameter farLimit: nil is the iPhone's measured clamp (40,000 km).
+    /// - Parameter farLimit: nil is the iPhone's clamp for a map of `size` (`phoneFarLimit(_:)`).
     public init(size: CGSize, visible: CGRect, farLimit: Double? = nil) {
         self.size = size; self.visible = visible
-        self.farLimit = farLimit ?? Self.phoneFarLimit
+        self.farLimit = farLimit ?? Self.phoneFarLimit(size)
     }
 
+    /// The iPhone's clamp measured on a 402 x 495 pt map (the map then ended at the medium sheet): about
+    /// 40,000 km at the equator.
     static let phoneFarLimit = 40_000_000.0
+    static let phoneMeasuredSize = CGSize(width: 402, height: 495)
+
+    /// The iPhone clamp for a map of `size`. NOT YET MEASURED beyond the one size above: it assumes the
+    /// iPhone follows the Mac's measured law (the clamp grows with height / width, so the globe far out
+    /// keeps the same share of the map's width), scaled to go through the iPhone's measured point. The
+    /// full-screen map (402 x 874) then clamps at about 70,600 km. If MapKit clamps nearer, the camera it
+    /// applies is closer than asked and a long arc spills under the sheet; `GlobeMap` logs that in Debug
+    /// builds ("clamped"). To measure: ask for a 400,000 km camera on the full-screen map and read back.
+    static func phoneFarLimit(_ size: CGSize) -> Double {
+        guard size.width > 0, size.height > 0 else { return phoneFarLimit }
+        let m = phoneMeasuredSize
+        return phoneFarLimit * Double(size.height / m.height) / Double(size.width / m.width)
+    }
 
     /// The Mac's MapKit (`#if os(macOS)` in `GlobeMap`; Catalyst and visionOS take the iPhone values).
     /// Measured by asking for a 400,000 km camera and reading back the one MapKit applied, at four
@@ -83,9 +122,9 @@ public struct GlobeViewport: Equatable, Sendable {
         return 37_130_000 * Double(size.height) / Double(size.width)
     }
 
-    /// An iPhone 17 Pro in portrait with the sheet at its medium detent (the map ends 44 pt under the
-    /// sheet's top): the starting guess before the map has measured itself.
-    public static let phone = GlobeViewport(size: CGSize(width: 402, height: 495),
+    /// An iPhone 17 Pro in portrait, the map full screen with the sheet at its medium detent: the starting
+    /// guess before the map has measured itself (the visible height is the earlier guess, kept).
+    public static let phone = GlobeViewport(size: CGSize(width: 402, height: 874),
                                             visible: CGRect(x: 0, y: 62, width: 402, height: 389))
 }
 
@@ -100,7 +139,22 @@ public struct GlobeMap: View {
     var labels: Bool
     /// Tilts the camera for a 3D view; nil leaves the pitch to MapKit's own toggle (the Mac).
     var threeD: Bool?
+    var isolation: GlobeIsolation?
+    /// How far the visible part of the map stops above its bottom edge (the iPhone sheet). The map keeps
+    /// its full size and only its safe area moves, so a detent change never resizes the map.
+    var bottomInset: CGFloat
     @State private var position: MapCameraPosition
+    /// How much of everything outside the isolated flight shows: 1 all of it, 0 none. Stepped by
+    /// `fade(to:)`, as MapKit does not animate its overlays' colours.
+    @State private var fade: Double = 1
+    /// The isolation being drawn; it stays while the rest fades back in.
+    @State private var shown: GlobeIsolation?
+    @State private var fadeTask: Task<Void, Never>?
+    /// A refit waiting for the visible area to stop moving.
+    @State private var refitTask: Task<Void, Never>?
+    /// The visible area the camera already aims at while the safe area glides to a new `bottomInset`;
+    /// geometry changes during the glide do not refit.
+    @State private var aimedAt: CGRect?
     /// Where the camera settled last, so the 3D switch tilts the view the user is looking at.
     @State private var settled: MapCamera?
     @State private var viewport = GlobeViewport.phone
@@ -109,11 +163,17 @@ public struct GlobeMap: View {
     ///   - focus: moves the camera onto an arc or an airport; back to nil returns to the whole globe.
     ///   - recenter: bump it to move the camera back onto the same focus after the user panned away.
     ///   - labels: place names over the imagery.
+    ///   - isolation: one flight drawn alone, the rest faded out; nil draws everything.
+    ///   - bottomInset: the part of the map's bottom hidden by a sheet, added to its safe area. A change
+    ///     glides the globe up or down and springs the camera onto the new fit.
     public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>,
-                focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false, threeD: Bool? = nil) {
+                focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false, threeD: Bool? = nil,
+                isolation: GlobeIsolation? = nil, bottomInset: CGFloat = 0) {
+        self.bottomInset = bottomInset
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
         self.focus = focus; self.recenter = recenter; self.labels = labels; self.threeD = threeD
+        self.isolation = isolation
         // Cheap on purpose: SwiftUI evaluates this on every parent update that rebuilds the view, though
         // only the first value is kept. A focus present from the start is fitted once, on appear.
         _position = State(initialValue: .camera(Self.camera(routes: routes, planes: planes, airports: airports)))
@@ -138,8 +198,9 @@ public struct GlobeMap: View {
 
     /// The farthest MapKit takes the globe camera over a given latitude: it clamps the distance to the
     /// viewport's `farLimit` times the cosine of the centre's latitude, and it keeps north up that far out
-    /// (a heading is ignored). On the iPhone the limit is about 40,000 km (measured at 33, 43, 53 and 63
-    /// degrees north); on the Mac it follows the map's aspect (`GlobeViewport.mac`).
+    /// (a heading is ignored). On the iPhone the limit was about 40,000 km on a 402 x 495 pt map (measured
+    /// at 33, 43, 53 and 63 degrees north) and is assumed to follow the map's aspect as on the Mac
+    /// (`GlobeViewport.phoneFarLimit(_:)`, `GlobeViewport.mac`).
     static func maximumDistance(at latitude: Double, in viewport: GlobeViewport = .phone) -> Double {
         max(minimumRouteDistance, viewport.farLimit * cos(latitude * .pi / 180) * 0.99)
     }
@@ -279,6 +340,55 @@ public struct GlobeMap: View {
         return MapCamera(centerCoordinate: center, distance: 22_000_000, heading: 0, pitch: 0)
     }
 
+    #if DEBUG
+    static let log = Logger(subsystem: "me.somalabs.flight", category: "globe")
+    #endif
+
+    /// The camera's move onto a new visible area (a detent that settled): a spring with no bounce.
+    static let refitAnimation = Animation.spring(duration: 0.6, bounce: 0)
+    /// How long the other flights take to fade out or back in.
+    static let fadeDuration = 0.35
+
+    /// Steps `fade` to `target` along an ease in and out, about 30 times a second.
+    private func fade(to target: Double) {
+        fadeTask?.cancel()
+        let start = fade
+        guard start != target else {
+            if target == 1 { shown = nil }
+            return
+        }
+        let steps = max(1, Int(Self.fadeDuration * 30))
+        fadeTask = Task { @MainActor in
+            for i in 1...steps {
+                try? await Task.sleep(for: .seconds(Self.fadeDuration / Double(steps)))
+                if Task.isCancelled { return }
+                fade = GlobeLayers.eased(from: start, to: target, at: Double(i) / Double(steps))
+            }
+            if target == 1 { shown = nil }
+        }
+    }
+
+    /// Follows a new isolation: a new flight swaps in at once, the rest fades out or back in.
+    private func isolate(_ new: GlobeIsolation?) {
+        if let new {
+            shown = new
+            fade(to: 0)
+        } else {
+            fade(to: 1)
+        }
+    }
+
+    /// Springs the camera onto the focus's fit for the current visible area after `delay`, unless the
+    /// user has moved the globe; a newer call replaces a waiting one.
+    private func refit(after delay: Duration) {
+        refitTask?.cancel()
+        refitTask = Task { @MainActor in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let focus, !position.positionedByUser else { return }
+            withAnimation(Self.refitAnimation) { position = .camera(Self.camera(for: focus, in: viewport)) }
+        }
+    }
+
     private func moveToFocus() {
         withAnimation(.smooth(duration: 0.9)) {
             position = .camera(focus.map { Self.camera(for: $0, in: viewport) }
@@ -287,16 +397,18 @@ public struct GlobeMap: View {
     }
 
     public var body: some View {
+        let layers = GlobeLayers(routes: routes, planes: planes, airports: airports, isolation: shown, fade: fade)
         Map(position: $position, selection: $selection) {
-            ForEach(routes) { route in
+            ForEach(layers.routes) { item in
+                let route = item.route
                 ForEach(Array(route.runs.enumerated()), id: \.offset) { _, run in
                     MapPolyline(coordinates: run, contourStyle: .straight)
-                        .stroke(route.isPast ? Color.white.opacity(0.55) : route.level.color,
+                        .stroke((route.isPast ? Color.white.opacity(0.55) : route.level.color).opacity(item.opacity),
                                 style: StrokeStyle(lineWidth: route.isPast ? 1.2 : 2.5, lineCap: .round, lineJoin: .round))
                 }
             }
-            let unlabelled = GlobeContent.labelHidden(airports)
-            ForEach(airports) { a in
+            ForEach(layers.airports) { item in
+                let a = item.airport
                 Annotation(a.iata ?? a.id, coordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lon), anchor: .center) {
                     Circle()
                         .fill(.white)
@@ -304,14 +416,17 @@ public struct GlobeMap: View {
                         .overlay(Circle().stroke(.black.opacity(0.35), lineWidth: 1))
                         .padding(8)
                         .contentShape(Circle())
+                        .opacity(item.opacity)
                 }
                 // Close neighbours (SFO and OAK) keep their dots; only the busier one is labelled.
-                .annotationTitles(unlabelled.contains(a.id) ? .hidden : .visible)
+                .annotationTitles(item.titled ? .visible : .hidden)
                 .tag(GlobeSelection.airport(a.id))
             }
-            ForEach(planes) { p in
+            ForEach(layers.planes) { item in
+                let p = item.plane
                 Annotation(p.ident, coordinate: p.coordinate, anchor: .center) {
                     FlightAnnotation(model: p, selected: selection == .flight(p.id))
+                        .opacity(item.opacity)
                 }
                 .annotationTitles(.hidden)
                 .tag(GlobeSelection.flight(p.id))
@@ -326,8 +441,10 @@ public struct GlobeMap: View {
         }
         .onChange(of: focus) { moveToFocus() }
         .onChange(of: recenter) { moveToFocus() }
+        .onChange(of: isolation) { _, new in isolate(new) }
         .onAppear {
             if let focus { position = .camera(Self.camera(for: focus, in: viewport)) }
+            if let isolation { shown = isolation; fade = 0 }
         }
         .onGeometryChange(for: GlobeViewport.self) { proxy in
             // The map lays out inside the safe area and draws under it; the insets give back the whole view.
@@ -340,13 +457,42 @@ public struct GlobeMap: View {
             return GlobeViewport(size: size, visible: visible)
             #endif
         } action: { new in
+            let moved = new.visible != viewport.visible
             viewport = new
-            // The sheet settled on another detent: refit, unless the user has moved the globe.
+            // Frames of a glide the camera already aims at; otherwise (a rotation, a resized Mac window)
+            // the camera refits once the visible area holds still, never frame by frame.
+            guard moved, aimedAt == nil else { return }
+            refit(after: .milliseconds(40))
+        }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            settled = context.camera
+            #if DEBUG
+            // The phone's far clamp is a model past its one measured size: say when MapKit went nearer.
+            if let asked = position.camera, asked.distance > context.camera.distance * 1.05 {
+                Self.log.debug("clamped: asked \(Int(asked.distance / 1000)) km, got \(Int(context.camera.distance / 1000)) km at \(context.camera.centerCoordinate.latitude, format: .fixed(precision: 1))°, map \(Int(viewport.size.width)) x \(Int(viewport.size.height))")
+            }
+            #endif
+        }
+        // The sheet settled on another detent: the camera springs at once onto the fit for the visible
+        // area the new inset leaves, while the safe area glides there with the same spring.
+        .onChange(of: bottomInset) { old, new in
+            var visible = viewport.visible
+            visible.size.height = max(0, visible.height - (new - old))
+            aimedAt = visible
             if let focus, !position.positionedByUser {
-                        position = .camera(Self.camera(for: focus, in: new))
+                let target = GlobeViewport(size: viewport.size, visible: visible, farLimit: viewport.farLimit)
+                withAnimation(Self.refitAnimation) { position = .camera(Self.camera(for: focus, in: target)) }
+            }
+            // Once the glide is over, a visible area that ended elsewhere than aimed gets its own refit.
+            refitTask?.cancel()
+            refitTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(700))
+                guard !Task.isCancelled else { return }
+                let missed = viewport.visible != aimedAt
+                aimedAt = nil
+                if missed { refit(after: .zero) }
             }
         }
-        .onMapCameraChange(frequency: .onEnd) { settled = $0.camera }
         .onChange(of: threeD) { _, on in
             guard let on, let c = settled else { return }
             withAnimation(.smooth(duration: 0.8)) {
@@ -358,6 +504,8 @@ public struct GlobeMap: View {
             MapCompass()
             if threeD == nil { MapPitchToggle() }
         }
+        .safeAreaPadding(.bottom, bottomInset)
+        .animation(Self.refitAnimation, value: bottomInset)
     }
 }
 

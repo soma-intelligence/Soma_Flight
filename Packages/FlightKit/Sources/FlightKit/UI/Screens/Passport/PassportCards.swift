@@ -409,11 +409,11 @@ struct PastFlightAddMenu: View {
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .frame(width: 34, height: 34)
-                .background(Circle().fill(Theme.pill))
                 .contentShape(Circle())
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
+        .roundGlass()
         .menuIndicator(.hidden)
         .accessibilityLabel("Add past flights")
     }
