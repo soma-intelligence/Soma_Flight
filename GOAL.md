@@ -19,7 +19,7 @@ The goal is reached when all of these are true at the same time:
 
 ## Principles (hold on every task)
 
-- **Privacy first.** No ads, no analytics SDK, no tracking, no mailbox reading, no contacts, no precise location unless a feature needs it and the user turns it on. Data collected = what the App Store privacy manifest already declares.
+- **Privacy first.** No ads, no analytics SDK, no tracking, no mailbox access (email import reads only an email the user shares or forwards, on the phone), no contacts, no precise location unless a feature needs it and the user turns it on. Data collected = what the App Store privacy manifest already declares.
 - **Our own product.** Inspired by the reference screenshots, never their name, copy, marks or artwork. We never draw an airline trademark ourselves.
 - **Ask before money or deploys.** No paid key, licence, purchase, Supabase cloud change or deploy without the owner's explicit yes.
 - **Fail closed.** Release builds refuse to run without real config; a missing licence shows a monogram, not a borrowed mark.
@@ -33,11 +33,12 @@ Work in this order. A lower line waits until the line above is done or blocked o
 2. **Production switch-on**: backend plan Task 10 (Supabase project, secrets, `db push`, `functions deploy`, AeroAPI webhook) and `INSIGHTS_ENABLED` in Release, on the owner's yes.
 3. **Proactive layer** (audit P1): more push types, calendar sync, computed "leave now" time.
 4. **Store presence**: real screenshots at the required sizes, metadata, age rating, review notes.
-5. **After launch**: P2 and P3 items from [docs/audits/2026-10-30-flighty-pro-audit.md](docs/audits/2026-10-30-flighty-pro-audit.md) and [docs/audits/2026-10-30-soar-diff.md](docs/audits/2026-10-30-soar-diff.md).
+5. **Owner additions (2026-10-31)**: a Friends tab between My Flights and Passport; import from Flighty (its CSV export), from the calendar and from shared confirmation emails; ideas from the Soar comparison.
+6. **After launch**: P2 and P3 items from [docs/audits/2026-10-30-flighty-pro-audit.md](docs/audits/2026-10-30-flighty-pro-audit.md) and [docs/audits/2026-10-30-soar-diff.md](docs/audits/2026-10-30-soar-diff.md).
 
 ## Out of scope until launch
 
-Global radar, track replay, friends, iPad and Vision Pro shells, email or TripIt import, paid tiers. They come back after the goal is reached.
+Global radar, track replay, iPad and Vision Pro shells, TripIt import, paid tiers. They come back after the goal is reached.
 
 ## Owner actions
 
