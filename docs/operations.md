@@ -16,6 +16,8 @@ and see runs in `cron.job_run_details`.
 | `brand-side-views-sync` | `41 * * * *` | `brand-assets-sync?mode=side_views&limit=100`: side views (airline livery on one aircraft type) from the side view provider, up to 100 files a run; pairs whose version is unchanged cost no fetch. A no-op until `SIDE_VIEW_PROVIDER` is configured (below) |
 | `cron-history-prune` | `45 3 * * *` | deletes `cron.job_run_details` rows older than 7 days |
 | `insights-cache-prune` | `50 3 * * *` | deletes `forecast_cache` and `inbound_cache` rows fetched more than 2 days ago (`20261030000011_insights_cache.sql`) |
+| `faa-status-sweep` | `*/5 * * * *` | `faa-status?mode=sweep`: reads the FAA's NAS status (free, no key) and sends the `airport_program` alert for each new ground stop, ground delay program or closure that holds a followed flight (`20261030000019_faa.sql`) |
+| `faa-notam-cache-prune` | `57 3 * * *` | deletes `faa_notam_cache` rows fetched more than a day ago |
 
 Boards are not refreshed by a job: `airport-board` refreshes lazily on read.
 
@@ -66,6 +68,8 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | `usage-alert` | `RESEND_API_KEY`, `OWNER_EMAIL` | required to send; missing gives 503 |
 | `usage-alert` | `USAGE_ALERT_USD` | threshold in USD, default 25 |
 | `usage-alert` | `USAGE_ALERT_FROM` | sender, default `Soma Flight <alerts@somalabs.me>` (domain must be verified in Resend) |
+| `faa-notams` | `FAA_NOTAM_CLIENT_ID`, `FAA_NOTAM_CLIENT_SECRET` | the owner's FAA developer account (api.faa.gov, the NOTAM API app's client id and secret; free). Until both are set the function answers `configured: false` and the app shows no NOTAMs, which is the production state. `supabase secrets set FAA_NOTAM_CLIENT_ID=... FAA_NOTAM_CLIENT_SECRET=...` turns it on at once (unconfigured answers are never cached) |
+| `faa-notams` | `FAA_NOTAM_URL` | optional: the endpoint, default `https://external-api.faa.gov/notamapi/v1/notams`, should the FAA move it |
 
 The spend alert claims the day in `usage_alerts` before sending and sets `sent_at` after, so it sends at
 most one email per UTC day. A failed send releases the claim and the next hourly run retries; a claim

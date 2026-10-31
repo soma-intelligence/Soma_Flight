@@ -84,7 +84,7 @@ No row means every category is on, so the app writes the row the first time some
 
 | Column | Type | Covers |
 | --- | --- | --- |
-| `delays` | bool, default true | `departure_delay`, `arrival_delay`, `schedule_change`, `inbound_late` |
+| `delays` | bool, default true | `departure_delay`, `arrival_delay`, `schedule_change`, `inbound_late`, `airport_program` |
 | `gates` | bool, default true | `gate_assigned`, `gate_change`, `terminal_change` |
 | `takeoff_landing` | bool, default true | `departed`, `takeoff`, `landing`, `arrived` |
 | `baggage` | bool, default true | `baggage_belt` |
@@ -106,8 +106,11 @@ No row means every category is on, so the app writes the row the first time some
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
+| `faa-status` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, stale, fetched_at, programs }` (below) |
+| `faa-status` | POST | `?mode=sweep` | service role only (pg_cron); `{ ok, mode, stale, programs, flights, sent, failed }` |
+| `faa-notams` | GET | `airport` (IATA or ICAO) | `{ airport, iata, configured, stale, fetched_at, notams }` (below) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
-| `push-sender` | POST | `{ flightId, eventId }` | service role only |
+| `push-sender` | POST | `{ flightId, eventId }`, or `{ flightId, program }` (faa-status's sweep) | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
 | `brand-assets-sync` | POST | `?mode=logos&limit=50 or ?mode=side_views&limit=100[&icao=UAL,AFR]` (side views: default limit 100; also answers `unknownAirlines`, `mirrored`) | service role only (pg_cron); `{ ok, mode, checked, changed, added, failed, unchanged, missed, skipped, rejected, dropped, deferred, requests, ms, stoppedBy }`, 502 with `ok: false` when the provider is down, or `{ ok, mode, skipped }` with no provider |
 | `usage-alert` | POST | none, or `?mode=cap` | service role only (pg_cron) |
@@ -194,6 +197,12 @@ and `kind` beside `aps`, `thread-id` is the flight id and `apns-collapse-id` is
 | `cancel` | cancellations | status became `canceled` (nothing else is sent for that event) | "AF 84 canceled" |
 | `reinstated` | cancellations | status left `canceled` | "AF 84 is back on the schedule" |
 | `diversion` | cancellations | status became `diverted`, or a diverted flight's destination moved | "AF 84 diverted to KOAK" |
+| `airport_program` | delays | faa-status's sweep found a ground stop, ground delay program or closure at either airport that holds the flight (see faa-status); once per flight, airport, kind and program start | "Ground delay program at SFO", "Ground stop at EWR", "SFO airport closed" |
+
+An `airport_program` push comes from `POST { flightId, program }`, not from a flight event: its `eventId` is
+null, `apns-collapse-id` is `<flightId>:airport_program`, it updates no Live Activity, and its key in
+`alert_log` is `airport_program:<icao>:<kind>:<program start, to the minute>`, so a program revised by the
+FAA (a new average, a later end) is not announced again, and a new one later that day is.
 
 Dedupe: once-only alerts use a fixed key (`takeoff`, `gate_assigned:departure`, `inbound_late`...),
 the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provider_event_id` without
@@ -340,6 +349,125 @@ Free: no paid provider is called. Sources and why: `docs/data-sources.md`, "Secu
 - Limit: 120 calls per user per hour (429 `rate_limited`).
 - The answers in `supabase/functions/security-wait/contract/` are written by the function's tests and decoded
   by `SecurityWaitTests` in FlightKit.
+
+## faa-status
+
+The FAA's live programs at a US airport: the flight sheet's Good to Know (each airport's card), the airport
+sheet's issues card and the Operations Report. Free: the FAA's public NAS status feed, the JSON behind
+nasstatus.faa.gov (`GET https://nasstatus.faa.gov/api/airport-events`; the older XML at
+`/api/airport-status-information` has the same programs with text times and no ids). Neither is formally
+documented: the parser (`_shared/faa_nas.ts`) reads the field names of real answers and of the FAA status
+page's own code, and skips anything it does not recognise.
+
+`GET /faa-status?airport=SFO`
+
+```json
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "available": true,
+  "reason": null,
+  "stale": false,
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "programs": [
+    {
+      "airport": "SFO",
+      "kind": "ground_delay",
+      "reason": "low clouds",
+      "reason_raw": "WEATHER / LOW CEILINGS",
+      "average_minutes": 47,
+      "trend": null,
+      "extension": null,
+      "starts_at": "2026-10-31T16:00:00.000Z",
+      "ends_at": "2026-11-01T03:59:00.000Z",
+      "updated_at": "2026-10-31T16:05:44.000Z",
+      "advisory_url": "https://www.fly.faa.gov/adv/adv_otherdis.jsp?advn=27&..."
+    }
+  ]
+}
+```
+
+- `kind`, most serious first: `closure`, `ground_stop`, `ground_delay`, `departure_delay`, `arrival_delay`,
+  `deicing`. The app drops a kind it does not know, so the backend may add one.
+- `reason` is the cause in plain words ("low clouds", "heavy traffic", "thunderstorms", "strong wind",
+  "runway or taxiway work"...), null when the FAA gave none; `reason_raw` is the FAA's own text.
+- `average_minutes`: ground delay programs and departure or arrival delays. `trend` (`increasing`,
+  `decreasing`, `steady`): departure and arrival delays. `extension` (`low`, `medium`, `high`): how likely the
+  FAA thinks a ground stop runs past `ends_at`.
+- `starts_at`, `ends_at`: the program's planned window, null when unknown or open ended. A program whose
+  `ends_at` has passed is never answered.
+- `airport` is the FAA's code: the IATA code at every airline airport (else the ICAO code without its K).
+- Closures: only a full closure counts. A closure "to non scheduled transient general aviation" and the
+  feed's free-form notices restrict private flights only, and are left out.
+- Which end matters (the app's `FAAFacts.matters` and the sweep): departure delays and deicing at the origin,
+  arrival delays at the destination, closures, ground stops and ground delay programs at either end.
+- Outside the US and its territories: `available: false`, `reason: "outside_us"`, no programs, the feed not
+  read. An unknown or malformed code is 400 `invalid_request`.
+- Cache: the whole feed in `faa_status_cache` (one row, service role only) for 5 minutes, shared by every
+  airport. When the FAA does not answer, a copy up to 30 minutes old answers with `stale: true` (and
+  `fetched_at` its read time); older, 503 `provider_unavailable`.
+- Limit: 120 calls per user per hour (429 `rate_limited`).
+- `POST /faa-status?mode=sweep`, service role only (pg_cron `faa-status-sweep`, every 5 minutes): refreshes
+  the feed and hands each ground stop, ground delay program or closure that holds a followed flight to
+  push-sender as an `airport_program` alert (see Push alerts). A flight is held when someone follows it with
+  `notify` on, it is scheduled (or unknown) and has not left the gate, it leaves between an hour ago and 12
+  hours from now, and the program covers its departure (its arrival for a closure of the destination).
+  A stale feed sends nothing. At most 200 alerts per run. Answer `{ ok, mode, stale, programs, flights, sent,
+  failed }`.
+- The answers in `supabase/functions/faa-status/contract/` are written by the function's tests and decoded by
+  `FAATests` in FlightKit.
+
+## faa-notams
+
+The NOTAMs (notices to air missions) of an airport that a passenger can feel, in plain English with the
+published text kept, most felt first: the Operations Report lists them, and Good to Know shows one line per
+airport ("2 runway closures at SFO") when a whole runway or the airport is closed or an ILS is out.
+
+Source: the FAA NOTAM API (`https://external-api.faa.gov/notamapi/v1/notams?icaoLocation=KSFO`, from the
+api.faa.gov portal). Free, but every call carries the `client_id` and `client_secret` headers of an FAA
+developer account: function secrets `FAA_NOTAM_CLIENT_ID` and `FAA_NOTAM_CLIENT_SECRET` (and optionally
+`FAA_NOTAM_URL` should the FAA move the endpoint). Without both, the function answers `configured: false`
+with no notams and calls nothing; the app then hides every NOTAM row.
+
+`GET /faa-notams?airport=SFO`
+
+```json
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "configured": true,
+  "stale": false,
+  "fetched_at": "2026-10-31T08:00:00.000Z",
+  "notams": [
+    {
+      "number": "10/101",
+      "kind": "runway_closed",
+      "title": "Runway 10L/28R closed",
+      "detail": null,
+      "relevance": 80,
+      "raw": "!SFO 10/101 SFO RWY 10L/28R CLSD 2610310500-2610311300",
+      "starts_at": "2026-10-31T05:00:00.000Z",
+      "ends_at": "2026-10-31T13:00:00.000Z",
+      "ends_estimated": false
+    }
+  ]
+}
+```
+
+- `kind` and `relevance` (0 to 100, the order of the list): `airport_closed` 100 (2 when closed to private
+  flights only, "Closed to private and charter flights"; 50 with other exceptions), `runway_closed` 80 (50 in
+  part), `ils_out` 60, `construction` 35 on a runway or 20 elsewhere, `taxiway_closed` 25, `obstacle_light` 5.
+  Ties go to the notice in effect first. Every other notice (frequencies, procedures, airspace, birds) is
+  left out, as are cancellations.
+- The decoder (`_shared/notam.ts`, `decodeNotam`) reads the US domestic form, the bare body and the ICAO form
+  (its E) field). `raw` is the domestic text when the API gives it, else the body.
+- Only notices in effect now or starting within 36 hours, at most 30. `ends_at` null is permanent or until
+  further notice; `ends_estimated` true when the end is the FAA's estimate ("EST").
+- Cache: per airport in `faa_notam_cache` for 15 minutes (not-configured answers are never stored). When the
+  API fails, a copy up to 6 hours old answers with `stale: true`; none, 503 `provider_unavailable`.
+- Limit: 120 calls per user per hour (429 `rate_limited`).
+- The answers in `supabase/functions/faa-notams/contract/` are written by the function's tests and decoded by
+  `FAATests` in FlightKit.
 
 ## airport-board
 
