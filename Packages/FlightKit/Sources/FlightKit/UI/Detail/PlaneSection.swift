@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Where is my plane: the aircraft in the airline's colours on our own dark gradient, its name and
 /// registration, then the chain of flights it flies before this one ("This flight" first, then the inbound
-/// legs newest first, each airport between them). The chain is paid data, so only screenshot runs on the
-/// fakes have it. Nothing draws when the type is unknown and the chain is empty.
+/// legs newest first, each airport between them). The chain is paid data, so only builds with insights on
+/// (and screenshot runs on the fakes) have it. Nothing draws when the type is unknown and the chain is empty.
 struct PlaneSection: View {
     var flight: Flight
     var type: AircraftType?

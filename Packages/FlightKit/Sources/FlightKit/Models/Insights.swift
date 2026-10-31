@@ -29,8 +29,8 @@ public enum ForecastBucket: String, CaseIterable, Sendable {
     }
 }
 
-/// How a flight number arrived over the last `days`: paid data (AeroAPI), on fakes until the owner
-/// approves the cost.
+/// How a flight number arrived over the last `days`: paid data (AeroAPI history through
+/// `flight-insights`), or the fakes in screenshot runs.
 public struct ArrivalForecast: Sendable, Hashable {
     public var ident: String
     public var days: Int
@@ -50,7 +50,8 @@ public struct ArrivalForecast: Sendable, Hashable {
     }
 }
 
-/// One earlier flight of the aircraft that will fly this one (paid data, fakes only for now).
+/// One earlier flight of the aircraft that will fly this one (paid data through `flight-insights`, or the
+/// fakes in screenshot runs).
 public struct InboundLeg: Sendable, Hashable, Identifiable {
     public var id: String
     public var ident: String

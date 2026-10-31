@@ -1,0 +1,37 @@
+{
+  "flight_id": "c2000000-0000-0000-0000-000000000001",
+  "fetched_at": "2026-11-03T10:00:00.000Z",
+  "stale": false,
+  "legs": [
+    {
+      "id": "AFR1145-1793689200-schedule-0001p",
+      "ident": "AF1145",
+      "origin_iata": "LHR",
+      "destination_iata": "CDG",
+      "scheduled_out": "2026-11-03T07:00:00.000Z",
+      "scheduled_in": "2026-11-03T08:15:00.000Z",
+      "status": "arrived",
+      "delay_minutes": 12
+    },
+    {
+      "id": "AFR1144-1793682000-schedule-0001p",
+      "ident": "AF1144",
+      "origin_iata": "CDG",
+      "destination_iata": "LHR",
+      "scheduled_out": "2026-11-03T05:00:00.000Z",
+      "scheduled_in": "2026-11-03T06:15:00.000Z",
+      "status": "arrived",
+      "delay_minutes": 0
+    },
+    {
+      "id": "AFR11-1793626200-schedule-0001p",
+      "ident": "AF11",
+      "origin_iata": "JFK",
+      "destination_iata": "CDG",
+      "scheduled_out": "2026-11-02T13:30:00.000Z",
+      "scheduled_in": "2026-11-02T21:00:00.000Z",
+      "status": "arrived",
+      "delay_minutes": 35
+    }
+  ]
+}

@@ -81,7 +81,10 @@ Deno.test("toFlightRow maps off and on times", async () => {
   assertEquals(row.scheduled_on, "2026-11-03T11:00:00Z");
   assertEquals(row.estimated_off, "2026-11-03T01:05:00Z");
   assertEquals(row.estimated_on, "2026-11-03T11:05:00Z");
-  assertEquals(toFlightRow({ ...f, scheduled_off: null }, NOW).scheduled_off, null);
+  assertEquals(
+    toFlightRow({ ...f, scheduled_off: null }, NOW).scheduled_off,
+    null,
+  );
 });
 
 Deno.test("flight fixture has no last_position (real endpoint does not return it)", async () => {
@@ -405,6 +408,37 @@ Deno.test("an ApiError from onCall (budget spent) stops the request before it is
   assertEquals(fetched, 0);
 });
 
+Deno.test("flightHistory asks one 7 day window, never in the future, and dedupes diversions", async () => {
+  const calls: Request[] = [];
+  const api = new AeroApi(
+    "k",
+    fakeFetch(await fixture("history_af84.json"), 200, calls),
+    undefined,
+    opts,
+  );
+  const start = new Date(NOW.getTime() - 7 * 86_400_000);
+  const flights = await api.flightHistory(
+    "AF84",
+    start,
+    new Date(NOW.getTime() + 3_600_000),
+  );
+  assertEquals(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assertEquals(path(calls[0]), "/history/flights/AF84");
+  assertEquals(url.searchParams.get("ident_type"), "designator");
+  assertEquals(url.searchParams.get("start"), start.toISOString());
+  // The provider refuses a bound in the future: a minute behind the clock.
+  assertEquals(url.searchParams.get("end"), "2026-11-03T09:59:00.000Z");
+  // 15 rows, the diverted flight twice: 14 flights, its diverted row kept.
+  assertEquals(flights.length, 14);
+  assert(flights.find((f) => f.fa_flight_id.includes("1792411800"))!.diverted);
+  // An empty window costs nothing; an unknown ident is no flights.
+  assertEquals(await api.flightHistory("AF84", NOW, NOW), []);
+  assertEquals(calls.length, 1);
+  const missing = new AeroApi("k", fakeFetch("{}", 404), undefined, opts);
+  assertEquals(await missing.flightHistory("ZZ1", start, NOW), []);
+});
+
 Deno.test("estimateCost covers every endpoint the client uses and throws on unknown", async () => {
   const used = new Set<string>();
   const record = (e: string) => {
@@ -438,6 +472,12 @@ Deno.test("estimateCost covers every endpoint the client uses and throws on unkn
   await new AeroApi("k", ok("{}", { location: "/alerts/1" }), record)
     .createAlert("AFR84", "2026-11-03", "2026-11-03");
   await new AeroApi("k", ok(""), record).deleteAlert(1);
+  await new AeroApi(
+    "k",
+    ok(await fixture("history_af84.json")),
+    record,
+    nowOpts,
+  ).flightHistory("AF84", new Date(NOW.getTime() - 7 * 86_400_000), NOW);
   assertEquals(
     used.size,
     Object.keys(ENDPOINT_COST).length - 0,

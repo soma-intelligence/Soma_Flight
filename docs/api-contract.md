@@ -80,6 +80,7 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 | `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
+| `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
@@ -143,6 +144,89 @@ agree on without a conversion rule.
 - Unknown airline, no stored asset, or an object gone from the bucket: 404 `not_found`. The app falls back to its own mark.
 - Object paths carry the version (`logos/<ICAO>/<kind>-<version>.<ext>`, `side-views/<ICAO>/<TYPE>-<version>.<ext>`), so a change is a new URL and a cache never mixes versions.
 - Limit: 600 calls per user per hour (429 `rate_limited`).
+
+## flight-insights
+
+The flight sheet's two paid sections, Arrival Forecast and Where's My Plane. Both read AeroAPI through
+`_shared/aeroapi.ts`, so every provider request is charged against the daily spend cap (`charge_usage`)
+before it goes out. Answers are cached whole in `forecast_cache` (12 hours per flight number) and
+`inbound_cache` (10 minutes per flight), empty answers included, so reopening a flight costs nothing.
+Both tables are service role only. The app turns the calls on with `INSIGHTS_ENABLED` (below).
+
+`GET /flight-insights?mode=arrival_forecast&ident=AF84`
+
+```json
+{
+  "ident": "AF84",
+  "fetched_at": "2026-11-03T10:00:00.000Z",
+  "stale": false,
+  "forecast": {
+    "ident": "AF84",
+    "days": 60,
+    "observed": 13,
+    "late_percent": 45,
+    "average_late_minutes": 42,
+    "percents": { "early": 16, "on_time": 23, "late15": 15, "late30": 15, "late45": 15, "canceled": 8, "diverted": 8 }
+  }
+}
+```
+
+- `ident` is a designator: an IATA (two characters) or ICAO (three letters) airline code, one to four
+  figures and an optional letter (spaces dropped, any case). Anything else is 400 `invalid_request`.
+- The history (`/history/flights/{ident}`) is read in 7 day windows, the provider's longest, newest
+  first, until 30 finished flights are seen or 60 days are covered. `days` is the span read (7 to 60).
+- Each finished flight falls in one bucket: `canceled`, `diverted`, else the gate arrival against the
+  scheduled one (runway times when the gate ones are missing), rounded to the minute: `early` below 0,
+  `on_time` 0 to 14, `late15` 15 to 29, `late30` 30 to 44, `late45` 45 or more. A flight not yet arrived
+  is not counted. A diverted flight's two provider rows count once.
+- `percents` has every bucket and adds up to exactly 100 (largest remainder). `late_percent` is
+  `late15 + late30 + late45`; `average_late_minutes` is the mean delay of the flights 15 minutes late or
+  more (0 when none). `observed` is the number of finished flights.
+- `forecast` is null when no flight of the number finished in the span.
+
+`GET /flight-insights?mode=inbound&flight_id=<flights.id>`
+
+```json
+{
+  "flight_id": "c2000000-0000-0000-0000-000000000001",
+  "fetched_at": "2026-11-03T10:00:00.000Z",
+  "stale": false,
+  "legs": [
+    {
+      "id": "AFR1145-1793689200-schedule-0001p",
+      "ident": "AF1145",
+      "origin_iata": "LHR",
+      "destination_iata": "CDG",
+      "scheduled_out": "2026-11-03T07:00:00.000Z",
+      "scheduled_in": "2026-11-03T08:15:00.000Z",
+      "status": "arrived",
+      "delay_minutes": 12
+    }
+  ]
+}
+```
+
+- `legs` are the flights the aircraft flies before this one, newest first. The chain starts from the
+  flight's own `inbound_fa_flight_id` (`/flights/{id}`, one call) and follows each leg's, one call per
+  leg, while the leg left no more than 25 hours before this flight's scheduled departure, for at most 8
+  legs. The first leg found outside the 25 hours ends the walk (it is paid for and left out).
+- `id` is the provider's flight id; `origin_iata` and `destination_iata` fall back to the ICAO or local
+  code when a field has no IATA code. `status` is a `flights.status` value. `delay_minutes` is the
+  arrival against the schedule (actual, else estimate; gate, else runway), never below 0.
+- `legs` is empty when the provider names no inbound flight or does not know it.
+- An unknown `flight_id` is 404 `not_found`; a malformed one is 400 `invalid_request`.
+
+Both modes:
+
+- `stale` is true when the provider refused a refresh (the daily cap reached, an outage, its rate limit)
+  and an older cached answer is served instead. With nothing cached the answer is 503
+  `provider_unavailable`; the app then hides the section.
+- Limit: 120 calls per user per hour (429 `rate_limited`). Every open of a flight sheet makes two.
+- The answers in `supabase/functions/flight-insights/contract/` are written by the function's tests and
+  decoded by `SupabaseInsightsTests` in FlightKit.
+- Cost: an inbound refresh is 1 + legs calls to `/flights/{ident}` ($0.005 each). A forecast refresh is
+  one `/history/flights/{ident}` result set per window, 9 at most; its price is not on the pricing page
+  checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
 
 ## airport-board
 
@@ -602,6 +686,10 @@ The example files below are generated from the handler by `airport-board/index_t
   `Config.Release.xcconfig`, which is empty: the URL and anon key must come from a gitignored
   `Config.local.xcconfig` next to it, otherwise the app refuses to start ("no server configured"). A plain
   http URL is only accepted for this machine. Never put the service role key in any of these files.
+- `INSIGHTS_ENABLED` (Info.plist `InsightsEnabled`) turns the paid flight sheet sections on
+  (`flight-insights`): YES in `Config.Debug.xcconfig`, NO in `Config.Release.xcconfig` until the owner
+  approves the AeroAPI cost (set it to YES in `Config.local.xcconfig`). Off, the app shows neither section
+  and makes no call. Screenshot runs (`-useFakes`) always show the fakes.
 - Sign in with Apple needs a provisioning profile. The Mac Debug build signs to run locally and leaves the
   capability out (`SomaFlight-Debug.entitlements`), so only email sign-in works there; a Mac Release or iOS
   device build needs the team and a profile with Sign in with Apple, and fails to sign without one.

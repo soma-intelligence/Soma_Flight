@@ -15,6 +15,7 @@ and see runs in `cron.job_run_details`.
 | `brand-logos-sync` | `17 * * * *` | `brand-assets-sync?mode=logos&limit=50`: logos, dark logos, tails and brand colours for the 50 airlines never checked or checked over 7 days ago, oldest first. 2,050 airlines are all checked within two days, then each again once 7 days old, which is the weekly refresh. A no-op until the logo provider is configured (below) |
 | `brand-side-views-sync` | `41 * * * *` | `brand-assets-sync?mode=side_views&limit=100`: side views (airline livery on one aircraft type) from the side view provider, up to 100 files a run; pairs whose version is unchanged cost no fetch. A no-op until `SIDE_VIEW_PROVIDER` is configured (below) |
 | `cron-history-prune` | `45 3 * * *` | deletes `cron.job_run_details` rows older than 7 days |
+| `insights-cache-prune` | `50 3 * * *` | deletes `forecast_cache` and `inbound_cache` rows fetched more than 2 days ago (`20261030000011_insights_cache.sql`) |
 
 Boards are not refreshed by a job: `airport-board` refreshes lazily on read.
 

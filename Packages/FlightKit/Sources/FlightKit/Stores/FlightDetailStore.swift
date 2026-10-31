@@ -36,9 +36,9 @@ public final class FlightDetailStore {
     public private(set) var destinationWeather: Weather?
     /// The user's past flights between the two airports, both ways; nil when none or not loaded.
     private(set) var routeHistory: RouteHistory?
-    /// How this flight number arrived lately (paid data: fakes only, nil in live builds).
+    /// How this flight number arrived lately (paid data; nil when insights are off or have none).
     public private(set) var forecast: ArrivalForecast?
-    /// The aircraft's earlier flights, newest first (paid data: fakes only, empty in live builds).
+    /// The aircraft's earlier flights, newest first (paid data; empty when insights are off or know none).
     public private(set) var inbound: [InboundLeg] = []
 
     /// What the server holds, to go back to when a save fails.

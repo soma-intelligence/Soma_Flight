@@ -18,7 +18,7 @@ public struct AppEnvironment: Sendable {
     /// Airline logos (versioned disk cache over `brand-asset`); the shells put it in `\.brandAssets`.
     public var brand: any BrandAssetService
     /// The flight sheet's paid insights (arrival forecast, inbound chain): the fakes with `-useFakes`,
-    /// nothing in live builds until the owner approves the AeroAPI cost.
+    /// `flight-insights` in live builds whose Info.plist turns them on (`INSIGHTS_ENABLED`), nothing otherwise.
     public var insights: any InsightsService
     public var cache: CacheStore
     public var directory: AirportDirectory
@@ -56,14 +56,18 @@ public struct AppEnvironment: Sendable {
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
     /// recent searches. The backend is the one in Info.plist (`SupabaseConfig.fromBundle()`).
     @concurrent public static func live() async throws -> AppEnvironment {
-        try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard)
+        try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
+                     insights: SupabaseInsightsService.isEnabled())
     }
 
     /// The Supabase services over one client, with the bundled airport directory.
-    /// - Parameter authStorage: where the session persists; nil is the Keychain.
+    /// - Parameters:
+    ///   - authStorage: where the session persists; nil is the Keychain.
+    ///   - insights: true asks `flight-insights` for the paid sections; false shows none and calls nothing.
     public static func supabase(config: SupabaseConfig, cache: CacheStore, recents: RecentsStorage,
                                 directory: AirportDirectory = .bundled(),
-                                authStorage: (any AuthLocalStorage)? = nil) -> AppEnvironment {
+                                authStorage: (any AuthLocalStorage)? = nil,
+                                insights: Bool = false) -> AppEnvironment {
         let backend = SupabaseBackend(config: config, authStorage: authStorage)
         let lookup = directory.lookup
         let push = SupabasePushService(backend: backend, defaults: recents == .memory ? nil : .standard)
@@ -74,7 +78,8 @@ public struct AppEnvironment: Sendable {
                               push: push, cache: cache, directory: directory,
                               recents: recents, requiresSignIn: true,
                               aircraftFacts: SupabaseAircraftFactsService(backend: backend),
-                              brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)))
+                              brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)),
+                              insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService())
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes

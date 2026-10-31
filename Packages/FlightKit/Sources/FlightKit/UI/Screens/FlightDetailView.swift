@@ -2,8 +2,8 @@ import SwiftUI
 
 /// One followed flight in full: the airline, flight number and route pinned at the top; then the
 /// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
-/// code and seat tiles, Good to Know, the arrival forecast and where the plane is (fakes only for
-/// now), the detailed timetable, the airline, the user's
+/// code and seat tiles, Good to Know, the arrival forecast and where the plane is (paid data, when
+/// insights are on), the detailed timetable, the airline, the user's
 /// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
 /// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
 /// belong to the shell.
