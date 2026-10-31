@@ -61,7 +61,7 @@ public struct SignInView: View {
         .background { backdrop }
     }
 
-    /// The home's satellite globe, still, fading into the page below the intro so the form sits on plain
+    /// The home's satellite globe, turning slowly, fading into the page below the intro so the form sits on plain
     /// dark. Snapshots get the plain page (ImageRenderer cannot draw a map).
     @ViewBuilder private var backdrop: some View {
         if staticControls {
@@ -69,11 +69,7 @@ public struct SignInView: View {
         } else {
             ZStack {
                 Color.black
-                Map(initialPosition: .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 38, longitude: -40),
-                                                       distance: 24_000_000, heading: 0, pitch: 0)),
-                    interactionModes: [])
-                    .mapStyle(.imagery(elevation: .realistic))
-                    .mapControlVisibility(.hidden)
+                SpinningGlobe()
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 LinearGradient(stops: [.init(color: .black.opacity(0.15), location: 0),
@@ -275,6 +271,47 @@ public struct SignInView: View {
             .frame(height: controlHeight)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
+    }
+}
+
+/// The satellite globe turning eastward at about a third of a degree a second (one turn in 18 minutes),
+/// still when Reduce Motion is on. The camera moves in small steps, and the loop stops with the view.
+struct SpinningGlobe: View {
+    /// Degrees of longitude per second.
+    static let speed = 0.33
+    static let latitude = 34.0
+    static let distance = 24_000_000.0
+    @State private var longitude = -40.0
+    @State private var position: MapCameraPosition = .camera(SpinningGlobe.camera(longitude: -40))
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static func camera(longitude: Double) -> MapCamera {
+        MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                  distance: distance, heading: 0, pitch: 0)
+    }
+
+    /// Longitude kept in -180...180 as it grows.
+    static func advanced(_ longitude: Double, by seconds: Double) -> Double {
+        var l = longitude + speed * seconds
+        if l > 180 { l -= 360 }
+        return l
+    }
+
+    var body: some View {
+        Map(position: $position, interactionModes: [])
+            .mapStyle(.imagery(elevation: .realistic))
+            .mapControlVisibility(.hidden)
+            .task(id: reduceMotion) {
+                guard !reduceMotion else { return }
+                var last = Date.now
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(50))
+                    let now = Date.now
+                    longitude = Self.advanced(longitude, by: now.timeIntervalSince(last))
+                    last = now
+                    position = .camera(Self.camera(longitude: longitude))
+                }
+            }
     }
 }
 
