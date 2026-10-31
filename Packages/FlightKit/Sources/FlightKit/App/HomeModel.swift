@@ -2,9 +2,9 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// The two sections of the home panel (the iOS sheet, the Mac sidebar).
-public enum HomeTab: String, Hashable, Sendable {
-    case flights, passport
+/// The three sections of the home panel (the iOS sheet, the Mac sidebar), in the tab pill's order.
+public enum HomeTab: String, Hashable, Sendable, CaseIterable {
+    case flights, friends, passport
 }
 
 /// A Passport page that opens over the whole home (full screen on iOS, a sheet on the Mac) from one of
@@ -46,6 +46,12 @@ public final class HomeModel {
     /// Settings > Notifications for the current owner, replaced on every account change. Its Reminders
     /// switch turns the local reminders on and off.
     public private(set) var notificationSettings: NotificationSettingsStore
+    /// Friends, their shared flights and the invitations for the current owner, replaced on every account change.
+    public private(set) var friends: FriendsStore
+    /// An invitation link the app was opened with, waiting for the user's answer (the shells show a sheet).
+    public var pendingInvite: PendingFriendInvite?
+    /// A link opened before anyone was signed in, previewed once someone is.
+    @ObservationIgnored private var waitingInviteToken: String?
     /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
     /// The section on show. Choosing Passport raises the iOS sheet to full height, like the reference,
@@ -110,6 +116,7 @@ public final class HomeModel {
         myFlights = env.makeMyFlightsStore(owner: nil)
         passport = env.makePassportStore(owner: nil)
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
+        friends = env.makeFriendsStore()
         seenAwaiting = awaitingSession
         watchSession()
     }
@@ -160,6 +167,7 @@ public final class HomeModel {
     public var globe: GlobeContent {
         switch tab {
         case .flights: .followed(followed, lookup: env.lookup)
+        case .friends: .friends(friends.flights, lookup: env.lookup)
         case .passport: .past(passport.flights, lookup: env.lookup)
         }
     }
@@ -170,7 +178,15 @@ public final class HomeModel {
     }
 
     private func route(for id: Flight.ID) -> Route? {
-        followed.first { $0.id == id }.flatMap { GlobeContent.route(for: $0, lookup: env.lookup) }
+        if let f = followed.first(where: { $0.id == id }) { return GlobeContent.route(for: f, lookup: env.lookup) }
+        return friends.friendFlight(id).flatMap { Self.friendRoute($0, lookup: env.lookup) }
+    }
+
+    /// A friend's flight's arc, dashed in the friends colour.
+    static func friendRoute(_ ff: FriendFlight, lookup: (String) -> Airport?) -> Route? {
+        GlobeContent.route(for: ff.flight, lookup: lookup).map {
+            Route(id: "friend-\($0.id)", from: $0.from, to: $0.to, level: $0.level, isPast: false, isFriend: true)
+        }
     }
 
     // MARK: Navigation
@@ -187,6 +203,14 @@ public final class HomeModel {
         shell.open(past: flight, route: route)
     }
 
+    /// Opens a friend's page.
+    public func open(friend id: UUID) { shell.open(friend: id) }
+
+    /// Opens a friend's flight in the flight sheet, read only, its arc drawn in the friends colour.
+    public func open(friendFlight ff: FriendFlight) {
+        shell.open(friendFlight: ff, route: Self.friendRoute(ff, lookup: env.lookup))
+    }
+
     /// Codes arrive as ICAO from the globe and as either code from the screens; the stack keys on ICAO.
     public func open(airport code: String) {
         shell.open(airport: env.lookup(code)?.id ?? code)
@@ -196,7 +220,13 @@ public final class HomeModel {
     public func select(_ picked: GlobeSelection) {
         switch picked {
         case .airport(let code): open(airport: code)
-        case .flight(let id): if let f = followed.first(where: { $0.id == id }) { open(flight: f) }
+        case .flight(let id):
+            // The Friends tab draws friends' planes; the other tabs the user's own.
+            if tab == .friends, let ff = friends.friendFlight(id) {
+                open(friendFlight: ff)
+            } else if let f = followed.first(where: { $0.id == id }) {
+                open(flight: f)
+            }
         }
     }
 
@@ -226,7 +256,11 @@ public final class HomeModel {
         await myFlights.load()
         myFlights.startUpdates()
         await passport.load()
-        if !env.requiresSignIn || owner != nil { await notificationSettings.load() }
+        if !env.requiresSignIn || owner != nil {
+            await notificationSettings.load()
+            await friends.load()
+            await previewWaitingInvite()
+        }
     }
 
     /// Runs when the session's user changes (the session watch calls it): clears the panel's stack and
@@ -259,7 +293,43 @@ public final class HomeModel {
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
+        friends = env.makeFriendsStore()
+        pendingInvite = nil
         wireListChange()
+    }
+
+    // MARK: Friends
+
+    /// Handles an invitation link (`https://somalabs.me/i/<token>`, `somaflight://i/<token>`): opens the
+    /// Friends tab and asks the user to accept or decline. Signed out, it waits for a sign-in. False for any
+    /// other URL.
+    @discardableResult
+    public func handleInvite(url: URL) async -> Bool {
+        guard let token = FriendLink.token(from: url) else { return false }
+        waitingInviteToken = token
+        await previewWaitingInvite()
+        return true
+    }
+
+    private func previewWaitingInvite() async {
+        guard let token = waitingInviteToken, !env.requiresSignIn || owner != nil else { return }
+        waitingInviteToken = nil
+        tab = .friends
+        shell.reset()
+        pendingInvite = PendingFriendInvite(token: token)
+        let preview = await friends.preview(token: token)
+        if pendingInvite?.token == token { pendingInvite = preview }
+    }
+
+    /// Answers the pending invitation. Returns the error, nil when it went through (the sheet closes then).
+    public func answerInvite(accept: Bool) async -> APIError? {
+        guard let invite = pendingInvite else { return nil }
+        let error = await friends.respond(token: invite.token, accept: accept)
+        if error == nil {
+            pendingInvite = nil
+            if accept, let name = invite.preview?.name { showToast("You and \(name) are friends") }
+        }
+        return error
     }
 
     // MARK: Live Activity
@@ -480,6 +550,14 @@ public final class HomeModel {
         // `-toast "Following UA 990"` holds that toast on screen (no timer) for a capture.
         if let text = args.string(forKey: "toast") { toast = text }
         if let tab = args.string(forKey: "tab").flatMap(HomeTab.init(rawValue:)) { self.tab = tab }
+        // `-open friend` opens the first friend's page, `-open friendFlight` their first flight.
+        if args.string(forKey: "open") == "friend", let f = friends.friends.first {
+            tab = .friends
+            open(friend: f.id)
+        } else if args.string(forKey: "open") == "friendFlight", let ff = friends.flights.first {
+            tab = .friends
+            open(friendFlight: ff)
+        }
         if args.object(forKey: "year") != nil { passport.year = args.integer(forKey: "year") }
         if let page = args.string(forKey: "fullPage").flatMap(FullPage.init(rawValue:)) {
             tab = .passport

@@ -13,6 +13,8 @@ public struct SettingsView: View {
     var notifications: NotificationSettingsStore?
     /// The Calendar screen's sync; nil hides its row.
     var calendar: CalendarSync?
+    /// The name and emoji friends see (Account); nil hides the rows.
+    var friends: FriendsStore?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -52,18 +54,22 @@ public struct SettingsView: View {
     ///   - notifications: the alert categories (`HomeModel.notificationSettings`); the Notifications row
     ///     opens its screen. Nil keeps the row opening the system settings.
     ///   - calendar: the calendar sync (`HomeModel.calendar`); the Calendar row opens its screen. Nil hides the row.
+    ///   - friends: the Friends store (`HomeModel.friends`); Account then holds the name and emoji friends see.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
-                notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil) {
+                notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
+                friends: FriendsStore? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
-                  onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, scrolls: true)
+                  onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, friends: friends,
+                  scrolls: true)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
          history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
-         notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, scrolls: Bool,
-         dataNote: Bool = SettingsView.defaultDataNote) {
+         notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, friends: FriendsStore? = nil,
+         scrolls: Bool, dataNote: Bool = SettingsView.defaultDataNote) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
+        self.friends = friends
         self.onDeleteAccount = onDeleteAccount; self.notifications = notifications; self.calendar = calendar
         self.scrolls = scrolls; self.dataNote = dataNote
     }
@@ -91,6 +97,9 @@ public struct SettingsView: View {
             }
             AccountRow(session: session.session, onSignIn: onSignIn)
             Hairline()
+            if let friends {
+                group("Profile") { ProfileRows(store: friends) }
+            }
 
             group("Units") {
                 SettingsRow(icon: "ruler", title: "Distance") {

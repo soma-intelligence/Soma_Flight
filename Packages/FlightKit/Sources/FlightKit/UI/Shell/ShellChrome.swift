@@ -50,6 +50,24 @@ public struct PastFlightScreen: View {
     }
 }
 
+/// A friend's flight in the flight sheet, read only like a Passport flight: no follow, alerts, share link,
+/// booking tiles or boarding pass, only what the friend shared.
+public struct FriendFlightScreen: View {
+    @State private var store: FlightDetailStore
+    var onAirport: (String) -> Void
+    var onClose: () -> Void
+
+    public init(env: AppEnvironment, flight: Flight, onAirport: @escaping (String) -> Void, onClose: @escaping () -> Void) {
+        _store = State(initialValue: FlightDetailStore(friend: flight, flights: env.flights, airports: env.airports))
+        self.onAirport = onAirport; self.onClose = onClose
+    }
+
+    public var body: some View {
+        FlightDetailView(store: store, onAirport: onAirport, onClose: onClose)
+            .task { await store.load() }
+    }
+}
+
 /// Airport sheet with its own store; far-end city names come from the shared airport list.
 public struct AirportScreen: View {
     @State private var store: AirportStore
@@ -98,13 +116,18 @@ public struct HomeDestination: View {
             PastFlightScreen(env: home.env, flight: flight, onAirport: home.open(airport:), onClose: home.shell.close)
         case .airport(let code):
             AirportScreen(env: home.env, code: code, onClose: home.shell.close)
+        case .friend(let id):
+            FriendPageView(store: home.friends, friendID: id, lookup: home.env.lookup,
+                           onOpenFlight: home.open(friendFlight:), onClose: home.shell.close)
+        case .friendFlight(let ff):
+            FriendFlightScreen(env: home.env, flight: ff.flight, onAirport: home.open(airport:), onClose: home.shell.close)
         }
     }
 }
 
 // MARK: - Chrome
 
-/// Floating pill with the two tabs and the round search button beside it.
+/// Floating pill with the three tabs (My Flights, Friends, Passport) and the round search button beside it.
 public struct HomeTabPill: View {
     @Binding var tab: HomeTab
     var onSearch: () -> Void
@@ -124,6 +147,7 @@ public struct HomeTabPill: View {
         HStack(spacing: Theme.metric(10, scale)) {
             HStack(spacing: 0) {
                 item(.flights, title: "My Flights", systemImage: "airplane.circle.fill")
+                item(.friends, title: "Friends", systemImage: "person.2.fill")
                 item(.passport, title: "Passport", systemImage: "person.text.rectangle.fill")
             }
             .scaledPadding(.all, 4)

@@ -76,6 +76,12 @@ struct RootSidebarView: View {
             }
             // A boarding pass opened with Open With, or dropped on the Dock icon.
             .passImportSheet(home)
+            // An invitation link the app was opened with: accept or decline.
+            .sheet(item: Binding(get: { home.pendingInvite }, set: { home.pendingInvite = $0 })) { invite in
+                FriendInviteSheet(invite: invite, onAnswer: { await home.answerInvite(accept: $0) },
+                                  onClose: { home.pendingInvite = nil })
+                    .frame(width: 400, height: 460)
+            }
             .environment(\.units, units)
     }
 
@@ -127,6 +133,8 @@ struct RootSidebarView: View {
                 case .flights:
                     MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                                   lookup: env.lookup)
+                case .friends:
+                    FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
                 case .passport:
                     PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
                                  onOpenFlight: home.open(past:))
