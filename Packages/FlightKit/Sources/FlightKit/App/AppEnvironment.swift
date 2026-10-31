@@ -134,12 +134,23 @@ public struct AppEnvironment: Sendable {
         return env
     }
 
+    /// True when a launch runs on the seeded fakes: `-useFakes` on the command line, in DEBUG builds only.
+    /// Release builds (TestFlight, the App Store) ignore the argument and always run on the backend, so no
+    /// shipped screen can show seeded flights (a Mac user can pass launch arguments with `open --args`).
+    public static func usesFakes(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        #if DEBUG
+        return arguments.contains("-useFakes")
+        #else
+        return false
+        #endif
+    }
+
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
-    /// over an in-memory cache (screenshot runs), anything else the backend (`live()`). Both shells call this.
-    /// With fakes in DEBUG builds, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
+    /// over an in-memory cache (screenshot runs, DEBUG only), anything else the backend (`live()`). Both
+    /// shells call this. With fakes, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
         HistoryExport.removeTemporaryFiles()
-        guard arguments.contains("-useFakes") else { return try await live() }
+        guard usesFakes(arguments) else { return try await live() }
         #if DEBUG
         let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
             arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
@@ -148,7 +159,7 @@ public struct AppEnvironment: Sendable {
         if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
         return env
         #else
-        return try await fake()
+        return try await live()
         #endif
     }
 

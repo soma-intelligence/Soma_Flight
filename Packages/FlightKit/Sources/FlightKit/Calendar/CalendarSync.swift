@@ -67,7 +67,7 @@ public final class CalendarSync {
     /// The sync a launch runs on: EventKit, or the in-memory calendars with the fakes (`-useFakes`).
     public static func forLaunch(env: AppEnvironment,
                                  arguments: [String] = ProcessInfo.processInfo.arguments) -> CalendarSync {
-        let fakes = arguments.contains("-useFakes")
+        let fakes = AppEnvironment.usesFakes(arguments)
         let flights = env.flights
         return CalendarSync(store: fakes ? FakeCalendarStore() : SystemCalendarStore(), lookup: env.lookup,
                             details: { id in (try? await flights.followDetails(id)) ?? nil },

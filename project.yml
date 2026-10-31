@@ -12,6 +12,8 @@ settings:
     # The app and its widget extension must carry the same versions.
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # Soma Labs team (the one Prism signs with), so a regenerated project archives without picking it by hand.
+    DEVELOPMENT_TEAM: 2RFY9Z4UVH
 packages:
   FlightKit:
     path: Packages/FlightKit
@@ -47,6 +49,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        # The name under the icon; PRODUCT_NAME alone would show "SomaFlight".
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # iPhone only in v1 (every layout and screenshot is a phone); iPad later, with all four orientations.
         TARGETED_DEVICE_FAMILY: "1"
@@ -84,6 +89,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
         PRODUCT_NAME: SomaFlight
         GENERATE_INFOPLIST_FILE: YES
+        # The name in the menu bar, Dock and Finder; PRODUCT_NAME alone would show "SomaFlight".
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
+        # Required by App Store Connect for every Mac upload (the archive is refused without it).
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig) and the somaflight:// sign-in
         # callback. Debug's plist also allows local networking for the local stack.

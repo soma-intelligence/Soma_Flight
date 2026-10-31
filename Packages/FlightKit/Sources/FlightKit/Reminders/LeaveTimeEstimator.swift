@@ -71,7 +71,7 @@ public final class LeaveTimeEstimator {
     /// fakes (`-useFakes`).
     public static func forLaunch(env: AppEnvironment,
                                  arguments: [String] = ProcessInfo.processInfo.arguments) -> LeaveTimeEstimator {
-        let fakes = arguments.contains("-useFakes")
+        let fakes = AppEnvironment.usesFakes(arguments)
         return LeaveTimeEstimator(travel: fakes ? FakeTravelTime() : MapKitTravelTime(), security: env.security,
                                   lookup: env.lookup, reference: env.reference, defaults: fakes ? nil : .standard)
     }
