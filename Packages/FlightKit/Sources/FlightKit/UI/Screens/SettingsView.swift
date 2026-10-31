@@ -33,6 +33,7 @@ public struct SettingsView: View {
     @State private var showingNotifications = false
     @State private var showingCalendar = false
     @State private var showingDocuments = false
+    @State private var showingAppIcon = false
     /// The travel documents vault; nil hides its row.
     @Environment(\.travelDocuments) private var documents
     /// Which security lane the leave time counts (`LeaveTimeSettings`).
@@ -112,19 +113,21 @@ public struct SettingsView: View {
 
     #if os(iOS)
     /// A page of Settings opened over the list.
-    enum Page: Hashable { case notifications, calendar, documents, acknowledgements }
+    enum Page: Hashable { case notifications, calendar, documents, appIcon, acknowledgements }
 
     /// The page on show, as a card stack's path (one page at most).
     var openPages: [Page] {
         if showingNotifications { [.notifications] }
         else if showingCalendar { [.calendar] }
         else if showingDocuments { [.documents] }
+        else if showingAppIcon { [.appIcon] }
         else if showingAcknowledgements { [.acknowledgements] }
         else { [] }
     }
 
     private func closePage() {
-        showingNotifications = false; showingCalendar = false; showingDocuments = false; showingAcknowledgements = false
+        showingNotifications = false; showingCalendar = false; showingDocuments = false; showingAppIcon = false
+        showingAcknowledgements = false
     }
 
     @ViewBuilder private func pageView(_ page: Page) -> some View {
@@ -132,6 +135,7 @@ public struct SettingsView: View {
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
         case .documents: if let documents { TravelDocumentsView(store: documents) }
+        case .appIcon: AppIconView()
         case .acknowledgements: AcknowledgementsView()
         }
     }
@@ -158,6 +162,12 @@ public struct SettingsView: View {
                     PillPicker(options: [(TimeStyle.h24, "24-Hour"), (.h12, "12-Hour")], selection: $units.clock)
                 }
             }
+            #if os(iOS)
+            group("Appearance") {
+                SettingsRow(icon: "app.badge.fill", title: "App Icon", subtitle: AppIcons.choice(for: UIApplication.shared.alternateIconName).name,
+                            last: true, action: { showingAppIcon = true }) { RowChevron() }
+            }
+            #endif
             group("Alerts") {
                 SettingsRow(icon: "bell.badge.fill", title: "Notifications",
                             subtitle: notifications == nil ? "Gate changes, delays, take-off and landing"
