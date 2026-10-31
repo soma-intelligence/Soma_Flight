@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The Friends tab with no friend yet: a small drawing, one line, one sentence and Invite a Friend, which
-/// opens the share sheet with a new invitation link at once (the link is made when a receiver is picked).
+/// opens the share sheet with the invitation link (made when it is tapped, reused until it nears its end).
 struct FriendsEmptyState: View {
-    var invite: FriendInviteItem
+    var store: FriendsStore
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,7 +18,7 @@ struct FriendsEmptyState: View {
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.top, 6)
-            ShareLink(item: invite, preview: SharePreview(FriendInviteItem.title)) {
+            InviteShareButton(store: store) {
                 Label("Invite a Friend", systemImage: "paperplane.fill")
                     .scaledFont(17, weight: .semibold)
                     .foregroundStyle(.white)

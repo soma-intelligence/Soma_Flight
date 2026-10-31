@@ -34,9 +34,17 @@ public final class FriendsStore {
 
     private let service: any FriendsService
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var pendingInvite: Task<FriendInvite?, Never>?
+    @ObservationIgnored private var pendingInvite: Task<Result<FriendInvite, APIError>, Never>?
+    @ObservationIgnored private let clock: @Sendable () -> Date
 
-    public init(service: any FriendsService) { self.service = service }
+    /// `clock` tells the current time for deciding whether the last invitation is still good.
+    public init(service: any FriendsService, clock: @escaping @Sendable () -> Date = { Date.now }) {
+        self.service = service
+        self.clock = clock
+    }
+
+    /// An invitation is reused until it is this close to its end, so a link handed over never dies in hand.
+    nonisolated static let inviteMargin: TimeInterval = 3600
 
     // MARK: Loading
 
@@ -245,18 +253,29 @@ public final class FriendsStore {
         }
     }
 
-    /// The invitation link for a share or a QR code: a new single-use link each time, made only when it is
-    /// asked for. Calls that arrive while one is being made (a share sheet asking twice) get the same link.
+    /// The invitation link for a share or a QR code. The last invitation is reused while it has more than an
+    /// hour left, so sharing twice, opening the QR sheet and sharing, or cancelling a share sheet never
+    /// leaves extra active single-use links behind. Calls that arrive while one is being made get the same link.
     public func shareInviteURL() async throws(APIError) -> URL {
-        let task: Task<FriendInvite?, Never>
+        if let invite, invite.expiresAt.timeIntervalSince(clock()) > Self.inviteMargin { return invite.url }
+        let task: Task<Result<FriendInvite, APIError>, Never>
         if let pendingInvite { task = pendingInvite } else {
-            task = Task { await self.makeInvite() }
+            task = Task { () -> Result<FriendInvite, APIError> in
+                do throws(APIError) {
+                    let made = try await self.service.invite()
+                    self.invite = made
+                    self.error = nil
+                    return .success(made)
+                } catch {
+                    self.error = error
+                    return .failure(error)
+                }
+            }
             pendingInvite = task
         }
-        let made = await task.value
+        let result = await task.value
         if pendingInvite == task { pendingInvite = nil }
-        guard let made else { throw error ?? .providerUnavailable }
-        return made.url
+        return try result.get().url
     }
 
     /// Sends a request to a code's owner. Throws so the sheet can say what happened under the field.

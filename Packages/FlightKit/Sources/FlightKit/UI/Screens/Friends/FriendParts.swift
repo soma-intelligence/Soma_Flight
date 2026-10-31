@@ -110,6 +110,16 @@ enum FriendFacts {
         return "\(base) My friend code is \(FriendsMe(friendCode: code).spacedCode)."
     }
 
+    /// The line under the QR sheet's title: how long the invitation lasts, from its own end date.
+    static func qrBlurb(expiresAt: Date?, now: Date) -> String {
+        let base = "Point another phone's camera here."
+        guard let expiresAt else { return "\(base) The invitation works once." }
+        let left = expiresAt.timeIntervalSince(now)
+        let days = Int((left / 86_400).rounded(.up))
+        let span = left <= 0 ? "it has expired" : days <= 1 ? "for 1 more day" : "for \(days) more days"
+        return "\(base) The invitation works once, \(span)."
+    }
+
     static let emptyTitle = "Fly apart, stay close"
     static let emptyText = "See each other's flights, only with the people you pick."
     static let quietTitle = "Nobody is flying soon"

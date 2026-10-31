@@ -295,9 +295,15 @@ private struct CompactCircle: ViewModifier {
 
 enum Pasteboard {
     /// Puts plain text on the system pasteboard.
-    @MainActor static func copy(_ text: String) {
+    /// With `sensitive`, it stays on this device (no Universal Clipboard) and expires after two minutes.
+    @MainActor static func copy(_ text: String, sensitive: Bool = false) {
         #if canImport(UIKit)
-        UIPasteboard.general.string = text
+        if sensitive {
+            UIPasteboard.general.setItems([["public.utf8-plain-text": text]],
+                                          options: [.localOnly: true, .expirationDate: Date.now.addingTimeInterval(120)])
+        } else {
+            UIPasteboard.general.string = text
+        }
         #elseif canImport(AppKit)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
