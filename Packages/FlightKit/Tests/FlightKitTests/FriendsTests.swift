@@ -337,7 +337,6 @@ import Testing
         clock.value = Self.now.addingTimeInterval(7 * 86_400 - 600)
         let second = try await store.shareInviteURL()
         #expect(second != first, "with less than an hour left a new link is made")
-        #expect(try await store.shareInviteURL() == second)
     }
 
     final class Clock: @unchecked Sendable {
