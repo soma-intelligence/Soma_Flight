@@ -1,0 +1,23 @@
+{
+  "airport": "KAUS",
+  "iata": "AUS",
+  "fetched_at": "2026-11-03T15:30:00.000Z",
+  "available": true,
+  "reason": null,
+  "live": false,
+  "source": {
+    "id": "estimate_typical_day",
+    "name": "Estimate from a typical day at US airports",
+    "url": null
+  },
+  "checkpoints": [
+    {
+      "id": "all",
+      "name": "All checkpoints",
+      "terminal": null,
+      "precheck": null,
+      "standard_minutes": 10,
+      "precheck_minutes": 5
+    }
+  ]
+}

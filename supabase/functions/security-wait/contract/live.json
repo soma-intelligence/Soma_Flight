@@ -1,0 +1,31 @@
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "fetched_at": "2026-11-03T15:30:00.000Z",
+  "available": true,
+  "reason": null,
+  "live": true,
+  "source": {
+    "id": "test_live",
+    "name": "Test airport feed",
+    "url": "https://example.test/waits"
+  },
+  "checkpoints": [
+    {
+      "id": "t1",
+      "name": "Harvey Milk Terminal 1",
+      "terminal": "1",
+      "precheck": true,
+      "standard_minutes": 14,
+      "precheck_minutes": 4
+    },
+    {
+      "id": "intl-g",
+      "name": "International G",
+      "terminal": "International",
+      "precheck": true,
+      "standard_minutes": 22,
+      "precheck_minutes": 8
+    }
+  ]
+}

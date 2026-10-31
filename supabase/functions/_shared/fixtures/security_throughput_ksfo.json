@@ -1,0 +1,31 @@
+{
+  "_note": "Hand-made test fixture in the shape of TSA's weekly throughput report reduced to a typical week (passengers per checkpoint and local hour, Sunday first). The figures are illustrative, not TSA data.",
+  "airport": "KSFO",
+  "weekdays": [1.0, 0.95, 0.8, 0.8, 0.95, 1.0, 0.8],
+  "checkpoints": [
+    {
+      "id": "t1", "name": "Harvey Milk Terminal 1", "terminal": "1", "precheck": true,
+      "hours": [0, 0, 0, 10, 420, 980, 1100, 940, 760, 640, 610, 630, 660, 600, 610, 690, 720, 650, 540, 430, 320, 210, 90, 0]
+    },
+    {
+      "id": "t2", "name": "Terminal 2", "terminal": "2", "precheck": true,
+      "hours": [0, 0, 0, 0, 310, 820, 900, 700, 520, 470, 450, 470, 500, 470, 480, 560, 600, 540, 430, 330, 240, 150, 60, 0]
+    },
+    {
+      "id": "t3-f", "name": "Terminal 3 F", "terminal": "3", "precheck": true,
+      "hours": [0, 0, 0, 20, 500, 1200, 1350, 1150, 900, 760, 730, 750, 790, 720, 730, 820, 860, 780, 650, 520, 390, 250, 110, 10]
+    },
+    {
+      "id": "t3-e", "name": "Terminal 3 E", "terminal": "3", "precheck": false,
+      "hours": [0, 0, 0, 0, 120, 300, 340, 250, 180, 160, 150, 160, 170, 150, 160, 190, 200, 180, 140, 110, 80, 50, 20, 0]
+    },
+    {
+      "id": "intl-g", "name": "International G", "terminal": "International", "precheck": true,
+      "hours": [80, 20, 0, 0, 60, 200, 380, 520, 640, 700, 660, 600, 520, 460, 500, 620, 700, 760, 820, 880, 900, 760, 420, 200]
+    },
+    {
+      "id": "closed", "name": "Closed checkpoint", "terminal": "1", "precheck": true,
+      "hours": []
+    }
+  ]
+}
