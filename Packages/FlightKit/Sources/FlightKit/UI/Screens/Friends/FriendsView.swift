@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The Friends tab: the title with Add Friend and a menu (pause sharing, a new code), filters (all friends,
-/// flying soon) and a chip per friend, requests waiting for an answer, then one row per friend with their
-/// next flight in its status colour. A friend's row opens their page; their flights draw on the globe in the
-/// friends colour while this tab is open (the shell's `HomeModel.globe`).
+/// The Friends tab: the title with one Add Friend button (the shell's Settings gear sits beside it), requests
+/// waiting for an answer as a compact banner, then friends in three groups (in the air, a flight coming up,
+/// nothing coming up), each row with their next flight in its status colour. The user's friend code closes
+/// the list as a card, with the tab's other actions in its menu. With no friend yet, a short invitation opens
+/// the share sheet. A friend's row opens their page; a long press holds the sharing switches and Remove. Their
+/// flights draw on the globe in the friends colour while this tab is open (the shell's `HomeModel.globe`).
 ///
 /// The shell owns loading (`HomeModel.load()`); the view reloads on pull to refresh and the banner's retry.
 public struct FriendsView: View {
@@ -11,25 +13,39 @@ public struct FriendsView: View {
     var onOpenFriend: (UUID) -> Void
     var lookup: (String) -> Airport?
     var fixedNow: Date?
+    var scrolls: Bool
     @State private var adding = false
+    @State private var showingQR = false
+    @State private var removing: Friend?
 
     /// - Parameters:
     ///   - onOpenFriend: opens a friend's page.
     ///   - now: a fixed clock for previews; nil follows the real time.
     public init(store: FriendsStore, onOpenFriend: @escaping (UUID) -> Void,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil) {
-        self.store = store; self.onOpenFriend = onOpenFriend; self.lookup = lookup; self.fixedNow = now
+        self.init(store: store, onOpenFriend: onOpenFriend, lookup: lookup, now: now, scrolls: true)
+    }
+
+    init(store: FriendsStore, onOpenFriend: @escaping (UUID) -> Void, lookup: @escaping (String) -> Airport?,
+         now: Date?, scrolls: Bool) {
+        self.store = store; self.onOpenFriend = onOpenFriend; self.lookup = lookup
+        self.fixedNow = now; self.scrolls = scrolls
     }
 
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
-                header
-                    .scaledPadding(.leading, Theme.gutter)
-                    .scaledPadding(.top, 19)
-                    .scaledPadding(.bottom, 8)
-                if !store.friends.isEmpty { chips }
-                ScreenScroll(scrolls: true, refresh: { await store.load() }) { content(now: now) }
+                // Same title and spacing as My Flights and Passport; the add button sits left of the
+                // shell's Settings gear, which keeps the last 60 points.
+                ScreenTitle("Friends")
+                    .overlay(alignment: .trailing) {
+                        RoundButton(systemImage: "person.badge.plus", label: "Add Friend") { adding = true }
+                            .scaledPadding(.trailing, 48)
+                    }
+                    .scaledPadding(.horizontal, Theme.gutter)
+                    .scaledPadding(.top, 22)
+                    .scaledPadding(.bottom, 12)
+                ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
         .background(Theme.background)
@@ -39,63 +55,25 @@ public struct FriendsView: View {
                 .frame(width: 420, height: 600)
                 #endif
         }
-    }
-
-    // MARK: Header
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text("Friends")
-                .scaledFont(32, weight: .bold, relativeTo: .largeTitle)
-                .foregroundStyle(Theme.primary)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            Menu {
-                if let me = store.me {
-                    Toggle("Pause All Sharing", systemImage: "pause.circle",
-                           isOn: Binding(get: { me.sharingPaused }, set: { v in Task { await store.setPaused(v) } }))
-                    Button("New Friend Code", systemImage: "arrow.triangle.2.circlepath") { Task { await store.resetCode() } }
-                }
-                Button("Refresh", systemImage: "arrow.clockwise") { Task { await store.load() } }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .scaledFont(18, weight: .semibold)
-                    .foregroundStyle(Theme.primary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .menuIndicator(.hidden)
-            .buttonStyle(.plain)
-            .roundGlass(tint: nil)
-            .accessibilityLabel("More")
-            RoundButton(systemImage: "person.badge.plus", label: "Add Friend") { adding = true }
+        .sheet(isPresented: $showingQR) {
+            FriendQRSheet(store: store) { showingQR = false }
+                #if os(macOS)
+                .frame(width: 400, height: 560)
+                #endif
         }
-        // The shell's Settings gear sits in the last 60 points.
-        .scaledPadding(.trailing, 68)
-    }
-
-    private var chips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(FriendsStore.Filter.allCases, id: \.self) { f in
-                    FriendChip(title: f.title, selected: store.filter == f, action: { store.filter = f }) { EmptyView() }
-                }
-                ForEach(store.friends) { friend in
-                    FriendChip(title: friend.name.split(separator: " ").first.map(String.init) ?? friend.name,
-                               selected: false, action: { onOpenFriend(friend.id) }) {
-                        FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 22)
-                    }
-                }
-            }
-            .scaledPadding(.horizontal, 14)
+        .confirmationDialog("Remove \(removing?.name ?? "this friend")?",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible, presenting: removing) { friend in
+            Button("Remove Friend", role: .destructive) { Task { await store.remove(friend.id) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("You stop seeing each other's flights. To be friends again, one of you sends a new invitation.")
         }
-        .scaledPadding(.bottom, 8)
     }
 
     // MARK: Content
 
     @ViewBuilder private func content(now: Date) -> some View {
-        let visible = store.visibleFriends(now: now)
         VStack(alignment: .leading, spacing: 0) {
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
@@ -107,122 +85,133 @@ public struct FriendsView: View {
                     .foregroundStyle(Theme.late)
                     .scaledPadding(.bottom, 12)
             }
-            requests
+            FriendRequestsBanner(store: store)
             if store.friends.isEmpty {
                 if !store.hasLoaded {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 200).accessibilityLabel("Loading your friends")
                 } else if store.error == nil {
-                    emptyState(FriendFacts.emptyTitle, FriendFacts.emptyText, button: true)
+                    FriendsEmptyState(invite: FriendInviteItem.of(store))
                 }
-            } else if visible.isEmpty {
-                emptyState(FriendFacts.quietTitle, FriendFacts.quietText, button: false)
             } else {
-                CapsHeader(store.filter == .soon ? "Flying Soon" : "Friends",
-                           trailing: visible.count == 1 ? "1 friend" : "\(visible.count) friends")
-                    .scaledPadding(.top, 6)
-                    .scaledPadding(.bottom, 6)
-                ForEach(visible) { friend in
-                    Button { onOpenFriend(friend.id) } label: {
-                        FriendRow(friend: friend, next: store.nextFlight(of: friend.id), now: now)
+                ForEach(store.sections(), id: \.section) { group in
+                    CapsHeader(group.section.title,
+                               trailing: group.friends.count == 1 ? "1 friend" : "\(group.friends.count) friends")
+                        .scaledPadding(.top, 6)
+                        .scaledPadding(.bottom, 4)
+                    ForEach(group.friends) { friend in
+                        Button { onOpenFriend(friend.id) } label: {
+                            FriendRow(friend: friend, next: store.upcomingFlight(of: friend.id), lookup: lookup, now: now)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu { menu(friend) }
                     }
-                    .buttonStyle(.plain)
+                    Spacer().frame(height: 0).scaledPadding(.bottom, 18)
                 }
             }
-            if let me = store.me {
-                Text("Your friend code: \(me.spacedCode)")
-                    .scaledFont(13, weight: .medium)
-                    .foregroundStyle(Theme.secondary)
-                    .textSelection(.enabled)
-                    .scaledPadding(.top, 22)
+            if store.me != nil {
+                FriendCodeCard(store: store, onShowQR: { showingQR = true })
+                    .scaledPadding(.top, store.friends.isEmpty ? 28 : 6)
             }
         }
         .scaledPadding(.horizontal, 16)
-        .scaledPadding(.bottom, 24)
+        .scaledPadding(.bottom, 32)
     }
 
-    @ViewBuilder private var requests: some View {
-        let incoming = store.incoming, outgoing = store.outgoing
-        if !incoming.isEmpty || !outgoing.isEmpty {
-            CapsHeader("Requests").scaledPadding(.bottom, 6)
-            ForEach(incoming) { r in
-                HStack(spacing: 12) {
-                    FriendAvatar(name: r.displayName, emoji: r.emoji, size: 40)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(r.displayName ?? "Someone").scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
-                        Text("Used your friend code").scaledFont(14).foregroundStyle(Theme.secondary)
-                    }
-                    Spacer(minLength: 8)
-                    Button("Decline") { Task { await store.respond(to: r, accept: false) } }
-                        .scaledFont(15, weight: .semibold).foregroundStyle(Theme.secondary)
-                    Button("Accept") { Task { await store.respond(to: r, accept: true) } }
-                        .scaledFont(15, weight: .semibold).foregroundStyle(.white)
-                        .scaledPadding(.horizontal, 12).scaledPadding(.vertical, 7)
-                        .background(Capsule().fill(Theme.accent))
-                }
-                .buttonStyle(.plain)
-                .scaledPadding(.vertical, 8)
-            }
-            ForEach(outgoing) { r in
-                HStack(spacing: 12) {
-                    Image(systemName: "paperplane.fill").scaledFont(16).foregroundStyle(Theme.secondary).frame(width: 40)
-                    Text("Request sent, waiting for an answer").scaledFont(15).foregroundStyle(Theme.secondary)
-                    Spacer(minLength: 8)
-                    Button("Cancel") { Task { await store.cancel(r) } }
-                        .scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary).buttonStyle(.plain)
-                }
-                .scaledPadding(.vertical, 8)
-            }
-            Spacer().frame(height: 0).scaledPadding(.bottom, 14)
-        }
+    /// A row's long press: what the user shares with this friend, alerts for their flights, Remove.
+    @ViewBuilder private func menu(_ friend: Friend) -> some View {
+        Toggle("Share My Flights", systemImage: "airplane", isOn: binding(friend, \.shareFlights))
+        Toggle("Share My Passport Totals", systemImage: "globe.europe.africa.fill", isOn: binding(friend, \.sharePassport))
+        Toggle("Alerts for \(friend.name)'s Flights", systemImage: "bell.badge", isOn: binding(friend, \.alerts))
+        Divider()
+        Button("Remove Friend", systemImage: "person.badge.minus", role: .destructive) { removing = friend }
     }
 
-    private func emptyState(_ title: String, _ text: String, button: Bool) -> some View {
-        VStack(spacing: 6) {
-            Text(title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.secondary)
-            Text(text).scaledFont(15).foregroundStyle(Theme.secondary.opacity(0.8))
-            if button {
-                Button { adding = true } label: {
-                    Label("Add a Friend", systemImage: "person.badge.plus")
-                        .scaledFont(15, weight: .semibold)
-                        .foregroundStyle(Theme.primary)
-                        .scaledPadding(.horizontal, 16)
-                        .scaledPadding(.vertical, 9)
-                        .background(Capsule().fill(Theme.pill))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .scaledPadding(.top, 10)
-            }
-        }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .scaledPadding(.horizontal, 12)
+    private func binding(_ friend: Friend, _ key: WritableKeyPath<FriendSettings, Bool>) -> Binding<Bool> {
+        Binding(get: { store.friend(friend.id)?.settings[keyPath: key] ?? false },
+                set: { v in Task { await store.update(friend.id) { $0[keyPath: key] = v } } })
     }
 }
 
-/// A friend in the list: their avatar and name, then their next flight and its status in its colour.
+/// Requests waiting on the tab, as one compact card: each incoming one with Accept and a quiet decline, each
+/// one the user sent with Cancel. Nothing shows without a request.
+struct FriendRequestsBanner: View {
+    var store: FriendsStore
+
+    var body: some View {
+        let incoming = store.incoming, outgoing = store.outgoing
+        if !incoming.isEmpty || !outgoing.isEmpty {
+            VStack(spacing: 0) {
+                ForEach(Array(incoming.enumerated()), id: \.element.id) { i, r in
+                    if i > 0 { Hairline().scaledPadding(.leading, 46) }
+                    HStack(spacing: 10) {
+                        FriendAvatar(name: r.displayName, emoji: r.emoji, size: 34, id: r.id)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(r.displayName ?? "Someone")
+                                .scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
+                            Text("Wants to be friends").scaledFont(13).foregroundStyle(Theme.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 6)
+                        Button { Task { await store.respond(to: r, accept: false) } } label: {
+                            Image(systemName: "xmark").scaledFont(13, weight: .bold).foregroundStyle(Theme.secondary)
+                                .frame(width: 32, height: 32).background(Circle().fill(Theme.pill))
+                        }
+                        .accessibilityLabel("Decline")
+                        Button { Task { await store.respond(to: r, accept: true) } } label: {
+                            Text("Accept").scaledFont(14, weight: .semibold).foregroundStyle(.white)
+                                .scaledPadding(.horizontal, 12).scaledPadding(.vertical, 7)
+                                .background(Capsule().fill(Theme.accent))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .scaledPadding(.vertical, 10)
+                }
+                ForEach(Array(outgoing.enumerated()), id: \.element.id) { i, r in
+                    if i > 0 || !incoming.isEmpty { Hairline().scaledPadding(.leading, 46) }
+                    HStack(spacing: 10) {
+                        Image(systemName: "paperplane.fill").scaledFont(14).foregroundStyle(Theme.secondary)
+                            .frame(width: 34)
+                        Text("Request sent, waiting for an answer").scaledFont(14).foregroundStyle(Theme.secondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 6)
+                        Button("Cancel") { Task { await store.cancel(r) } }
+                            .scaledFont(14, weight: .semibold).foregroundStyle(Theme.primary).buttonStyle(.plain)
+                    }
+                    .scaledPadding(.vertical, 10)
+                }
+            }
+            .scaledPadding(.horizontal, 12)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.card.opacity(0.5)))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.separator, lineWidth: 1))
+            .scaledPadding(.bottom, 18)
+        }
+    }
+}
+
+/// A friend in the list: their avatar and name, their next flight ("AF 84 · Paris → San Francisco"), then
+/// where it stands ("departs in 3h") in its status colour after a dot of that colour.
 struct FriendRow: View {
     var friend: Friend
     var next: Flight?
+    var lookup: (String) -> Airport? = { _ in nil }
     var now: Date
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 44)
+            HStack(spacing: 14) {
+                FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 46, id: friend.id)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(friend.name).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
                     if let next {
-                        let status = FriendFacts.status(next, now: now)
-                        Text(FriendFacts.summary(next)).scaledFont(15).foregroundStyle(Theme.primary.opacity(0.85))
-                            .lineLimit(1)
+                        let when = FriendFacts.when(next, now: now)
+                        Text(FriendFacts.route(next, lookup: lookup))
+                            .scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
                         HStack(spacing: 6) {
-                            Circle().fill(status.color).frame(width: 7, height: 7)
-                            Text(status.text).scaledFont(14, weight: .medium).foregroundStyle(status.color)
+                            Circle().fill(when.color).frame(width: 7, height: 7)
+                            Text(when.text).scaledFont(15, weight: .medium).foregroundStyle(when.color).lineLimit(1)
                         }
                     } else {
-                        Text(friend.sharesFlights ? "No upcoming flights" : "Not sharing flights")
-                            .scaledFont(15).foregroundStyle(Theme.secondary)
+                        Text(friend.sharesFlights ? FriendFacts.since(friend.since) : "Not sharing flights with you")
+                            .scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 8)
@@ -230,7 +219,7 @@ struct FriendRow: View {
             }
             .scaledPadding(.vertical, 12)
             .contentShape(Rectangle())
-            Hairline().scaledPadding(.leading, 56)
+            Hairline().scaledPadding(.leading, 60)
         }
         .accessibilityElement(children: .combine)
     }

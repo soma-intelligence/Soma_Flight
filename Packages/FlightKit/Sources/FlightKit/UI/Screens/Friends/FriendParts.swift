@@ -56,29 +56,90 @@ enum FriendFacts {
         "Friends since \(d.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_US_POSIX"))))"
     }
 
+    /// "AF 84 · Paris → San Francisco": the flight and its cities (codes when an airport is unknown).
+    static func route(_ f: Flight, lookup: (String) -> Airport?) -> String {
+        let from = lookup(f.originIcao)?.city ?? f.originCode, to = lookup(f.destinationIcao)?.city ?? f.destinationCode
+        return "\(Format.ident(f.ident)) · \(from) → \(to)"
+    }
+
+    /// The short status after the route on a friend's row, and its colour: "departs in 3h",
+    /// "in the air · lands in 1h 20m", "departs in 40 min · 25 min late", "landed", "canceled".
+    static func when(_ f: Flight, now: Date) -> (text: String, color: Color) {
+        switch f.status {
+        case .canceled: return ("canceled", Theme.veryLate)
+        case .diverted: return ("diverted", Theme.diverted)
+        case .landed, .arrived: return ("landed", Theme.secondary)
+        case .departed, .enRoute:
+            let lands = DetailFacts.bestIn(f).map { Int($0.timeIntervalSince(now) / 60) }.flatMap { $0 > 0 ? $0 : nil }
+            return (["in the air", lands.map { "lands in \(span($0))" }].compactMap { $0 }.joined(separator: " · "),
+                    f.level.color)
+        case .scheduled, .unknown:
+            guard let out = DetailFacts.bestOut(f) else { return ("scheduled", f.level.color) }
+            let m = Int(out.timeIntervalSince(now) / 60)
+            let leaves = m <= 0 ? "departing now" : "departs in \(span(m))"
+            return ([leaves, lateText(f)].compactMap { $0 }.joined(separator: " · "), f.level.color)
+        }
+    }
+
+    /// A wait in a few characters: "40 min", "1h 40m" (under 3 hours), "3h", "1 day", "4 days".
+    static func span(_ minutes: Int) -> String {
+        let m = max(0, minutes)
+        if m < 60 { return "\(m) min" }
+        if m < 24 * 60 {
+            let h = m / 60, rest = m % 60
+            return h < 3 && rest > 0 ? "\(h)h \(rest)m" : "\(h)h"
+        }
+        let d = m / (24 * 60)
+        return d == 1 ? "1 day" : "\(d) days"
+    }
+
+    /// The friend code as VoiceOver reads it, one character at a time in its two groups:
+    /// "K 7 M 2, X 9 Q P".
+    static func spokenCode(_ code: String) -> String {
+        let spaced = FriendsMe(friendCode: code).spacedCode
+        return spaced.split(separator: " ").map { $0.map(String.init).joined(separator: " ") }.joined(separator: ", ")
+    }
+
+    /// What the code card shows before the code has loaded.
+    static let codePlaceholder = "···· ····"
+
+    /// The words that travel with an invitation link (and alone when no link could be made).
+    static func inviteMessage(code: String?) -> String {
+        let base = "Let's follow each other's flights on Soma Flight."
+        guard let code else { return base }
+        return "\(base) My friend code is \(FriendsMe(friendCode: code).spacedCode)."
+    }
+
     static let emptyTitle = "Fly apart, stay close"
-    static let emptyText = "Invite a friend with a link or your code. You each choose what you share, and nothing else about you is ever looked up."
+    static let emptyText = "See each other's flights, only with the people you pick."
     static let quietTitle = "Nobody is flying soon"
     static let quietText = "No friend has a flight in the next 24 hours."
 }
 
 // MARK: - Avatar
 
-/// A friend's round mark: their emoji, else their initials, on the friends colour.
+/// A friend's round mark: their emoji, else their initials, on a soft colour of their own (the friends
+/// colour without an id).
 struct FriendAvatar: View {
     var name: String?
     var emoji: String?
     var size: CGFloat = 40
+    /// Picks the friend's colour (`FriendAvatarText.tone`).
+    var id: UUID?
+
+    /// The soft colours avatars take, the friends colour first.
+    static let tones: [Color] = [Theme.friend, Theme.accent, Theme.diverted, Theme.late, Theme.onTime, Theme.passportAccent]
 
     var body: some View {
+        let tone = Self.tones[FriendAvatarText.tone(id, count: Self.tones.count)]
         ZStack {
-            Circle().fill(Theme.friend.opacity(emoji == nil ? 0.9 : 0.22))
+            Circle().fill(tone.opacity(0.2))
             if let emoji, !emoji.isEmpty {
-                Text(emoji).font(.system(size: size * 0.55))
+                Text(emoji).font(.system(size: size * 0.52))
             } else {
                 Text(FriendAvatarText.initials(name))
                     .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(tone)
             }
         }
         .frame(width: size, height: size)
@@ -86,31 +147,7 @@ struct FriendAvatar: View {
     }
 }
 
-/// A small pill for the list's filters and friend shortcuts.
-struct FriendChip<Leading: View>: View {
-    var title: String
-    var selected: Bool
-    var action: () -> Void
-    @ViewBuilder var leading: Leading
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                leading
-                Text(title).scaledFont(15, weight: .semibold).lineLimit(1)
-            }
-            .foregroundStyle(selected ? Theme.primary : Theme.secondary)
-            .scaledPadding(.horizontal, 12)
-            .scaledPadding(.vertical, 7)
-            .background(Capsule().fill(selected ? Theme.pill : Color.clear))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-/// Icon, title and grey line, with a switch: the friend page's and the tab menu's settings rows.
+/// Icon, title and grey line, with a switch: the friend page's settings rows.
 struct FriendToggleRow: View {
     var icon: String
     var title: String
