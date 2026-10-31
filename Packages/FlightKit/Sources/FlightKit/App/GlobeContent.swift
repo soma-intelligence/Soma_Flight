@@ -11,10 +11,13 @@ public struct GlobeContent: Sendable, Equatable {
         self.routes = routes; self.planes = planes; self.airports = airports
     }
 
-    /// Followed flights: one arc each, coloured by delay, planes for the ones with a position.
-    public static func followed(_ flights: [Flight], lookup: (String) -> Airport?) -> GlobeContent {
+    /// Followed flights: one arc each, coloured by delay, planes for the ones with a position. A flight the
+    /// app cannot hear about (offline, or in the air with no update for a while) has its plane where the
+    /// estimate puts it on the arc instead (`FlightEstimate`), drawn as an estimate.
+    public static func followed(_ flights: [Flight], lookup: (String) -> Airport?, online: Bool = true,
+                                now: Date = .now) -> GlobeContent {
         let routes = flights.compactMap { route(for: $0, lookup: lookup) }
-        let planes = flights.compactMap { FlightAnnotationModel(flight: $0) }
+        let planes = flights.compactMap { plane(for: $0, lookup: lookup, online: online, now: now) }
         let codes = flights.flatMap { [$0.originIcao, $0.destinationIcao] }
         return GlobeContent(routes: routes, planes: planes, airports: endpoints(codes, lookup: lookup))
     }
@@ -45,6 +48,16 @@ public struct GlobeContent: Sendable, Equatable {
         }
         let codes = flights.flatMap { [$0.originIcao, $0.destinationIcao] }
         return GlobeContent(routes: routes, airports: endpoints(codes, lookup: lookup))
+    }
+
+    /// A followed flight's plane: at the estimate when there is one with a place, else at its last position.
+    public static func plane(for flight: Flight, lookup: (String) -> Airport?, online: Bool, now: Date)
+        -> FlightAnnotationModel? {
+        if let e = flight.estimate(online: online, now: now, lookup: lookup), let c = e.coordinate {
+            return FlightAnnotationModel(id: flight.id, ident: flight.ident, coordinate: c, heading: e.heading ?? 0,
+                                         level: flight.level, isEstimated: true)
+        }
+        return FlightAnnotationModel(flight: flight)
     }
 
     /// The arc of one flight, keyed by the flight id; nil when an end is unknown.

@@ -87,6 +87,7 @@ struct RootSidebarView: View {
             // The Import screen; a confirmation email dropped on it or opened with the app lands there too.
             .importSheet(home)
             .environment(\.units, units)
+            .environment(\.connectivity, home.connectivity)
     }
 
     // MARK: Panel

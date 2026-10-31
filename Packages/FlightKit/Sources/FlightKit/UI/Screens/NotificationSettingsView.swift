@@ -62,6 +62,7 @@ public struct NotificationSettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.horizontal, 16)
             group("Flight Alerts", Self.alertCategories)
+            if let texts = store.texts { TextMeTooSection(store: texts) }
             group("On This Device", [.reminders])
             Text("Reminders are set on this device: check-in opens a day before, a summary at 7:00 on the morning of the flight, and a nudge to leave, timed from where you are when you allow your location, else 3 hours before an international flight or 2 before a domestic one.")
                 .scaledFont(13)

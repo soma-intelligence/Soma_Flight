@@ -7,10 +7,14 @@ public struct FlightActivityDisplay: Sendable, Hashable {
     public var state: FlightActivityAttributes.ContentState
     /// "6:25 PM" rather than "18:25": the app's clock setting, read by the extension from the App Group.
     public var twelveHour: Bool
+    /// When the card is drawn. With it, a flight in the air moves on by time from its last state (the
+    /// extension passes the render time, so a card with no news since take-off still advances); nil keeps
+    /// the state's own progress.
+    public var now: Date?
 
     public init(_ attributes: FlightActivityAttributes, _ state: FlightActivityAttributes.ContentState,
-                twelveHour: Bool = false) {
-        self.attributes = attributes; self.state = state; self.twelveHour = twelveHour
+                twelveHour: Bool = false, now: Date? = nil) {
+        self.attributes = attributes; self.state = state; self.twelveHour = twelveHour; self.now = now
     }
 
     public var isAirborne: Bool { [.departed, .enRoute].contains(state.status) }
@@ -154,12 +158,17 @@ public struct FlightActivityDisplay: Sendable, Hashable {
         return isPastDeparture ? arrivalTime : departureTime
     }
 
-    /// Progress drawn on the bar: the state's, kept at 0 before take-off and 1 once down.
+    /// Progress drawn on the bar: the state's, kept at 0 before take-off and 1 once down. In the air with
+    /// `now`, the share of the best times elapsed when that is further on (never back, never past 1).
     public var progress: Double {
         switch state.status {
-        case .landed, .arrived: 1
-        case .scheduled, .unknown, .canceled: 0
-        default: state.progress
+        case .landed, .arrived: return 1
+        case .scheduled, .unknown, .canceled: return 0
+        default: break
         }
+        guard isAirborne, let now, let out = state.estimatedOut, let inn = state.estimatedIn, inn > out else {
+            return state.progress
+        }
+        return max(state.progress, min(1, max(0, now.timeIntervalSince(out) / inn.timeIntervalSince(out))))
     }
 }

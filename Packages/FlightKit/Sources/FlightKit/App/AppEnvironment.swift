@@ -40,6 +40,12 @@ public struct AppEnvironment: Sendable {
     /// The Friends tab: friends, their shared flights, invitations. The fakes (two friends) with `-useFakes`,
     /// `friends` and the friend database functions in live builds (free, so always on).
     public var friends: any FriendsService = UnavailableFriendsService()
+    /// Text Me Too and in-flight texts (`sms-verify`): the fakes (nothing sent) with `-useFakes`, the backend in
+    /// live builds, which answers "not available" until the owner turns texts on (docs/sms-alerts.md).
+    public var textAlerts: any TextAlertsService = UnavailableTextAlertsService()
+    /// A connection state that never changes (the fakes: online, offline with `-fakeOffline`); nil watches the
+    /// device's own (`Connectivity.shared`).
+    public var fixedConnectivity: Bool?
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -90,6 +96,8 @@ public struct AppEnvironment: Sendable {
             .withAlternates(FakeAlternateFlightsService(flights: flights))
         env.sharing = FakeFlightShareService(now: now)
         env.friends = FakeFriendsService(now: now)
+        env.textAlerts = FakeTextAlertsService()
+        env.fixedConnectivity = true
         return env
     }
 
@@ -129,6 +137,7 @@ public struct AppEnvironment: Sendable {
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
+        env.textAlerts = SupabaseTextAlertsService(backend: backend)
         return env
     }
 
@@ -149,7 +158,8 @@ public struct AppEnvironment: Sendable {
         let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
             arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
         }
-        let env = try await fake(pastLimit: limit)
+        var env = try await fake(pastLimit: limit)
+        env.fixedConnectivity = !arguments.contains("-fakeOffline")
         if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
         return env
         #else

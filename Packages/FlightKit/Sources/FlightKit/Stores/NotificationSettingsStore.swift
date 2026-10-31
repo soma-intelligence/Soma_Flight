@@ -15,11 +15,17 @@ public final class NotificationSettingsStore {
 
     @ObservationIgnored public var onChange: (@MainActor (NotificationPreferences) -> Void)?
 
+    /// Text Me Too (the number, the code and the text switches); nil shows no text section.
+    public let texts: TextAlertsStore?
+
     private let service: any NotificationPreferencesService
     /// Bumped by every load and toggle, so a slow answer never overwrites a newer choice.
     @ObservationIgnored private var generation = 0
 
-    public init(service: any NotificationPreferencesService) { self.service = service }
+    public init(service: any NotificationPreferencesService, texts: (any TextAlertsService)? = nil) {
+        self.service = service
+        self.texts = texts.map { TextAlertsStore(service: $0) }
+    }
 
     public func load() async {
         generation += 1

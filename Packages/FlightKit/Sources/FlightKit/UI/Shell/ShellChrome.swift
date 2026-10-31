@@ -9,6 +9,8 @@ public struct FlightScreen: View {
     var onClose: () -> Void
     var onStopTracking: ((Flight.ID) async -> APIError?)?
     var sharing: any FlightShareService
+    /// The More menu's "Text Me Updates In Flight" for this flight.
+    @State private var texts: FlightTextsModel
 
     /// - Parameter onStopTracking: unfollows the flight (the menu's "Stop Tracking") and returns the error, nil
     ///   on success; nil lets the store ask the service. The sheet closes once it worked.
@@ -17,11 +19,14 @@ public struct FlightScreen: View {
         _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
         self.onAirport = onAirport; self.onClose = onClose; self.onStopTracking = onStopTracking
         sharing = env.sharing
+        _texts = State(initialValue: FlightTextsModel(flight: id, service: env.textAlerts))
     }
 
     public var body: some View {
         FlightDetailView(store: store, onAirport: onAirport, onClose: onClose, onStopTracking: onStopTracking)
             .environment(\.flightSharing, sharing)
+            .environment(\.flightTexts, texts)
+            .task { await texts.load() }
             .task {
                 await store.load()
                 // The live position of a followed flight in the air; it also reaches the globe through

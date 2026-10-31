@@ -62,6 +62,11 @@ public final class HomeModel {
     @ObservationIgnored private var waitingInviteToken: String?
     /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
+    /// The device's connection: offline, the globe and the flight sheet show estimates and the home its
+    /// calm banner (the shells put it in `\.connectivity`).
+    public let connectivity: Connectivity
+    /// Moves once a minute while a followed flight is estimated, so its plane advances on the globe.
+    public private(set) var estimateClock = Date.now
     /// The section on show. Choosing Passport raises the iOS sheet to full height, like the reference,
     /// so its three cards show at once.
     public var tab: HomeTab = .flights {
@@ -119,6 +124,7 @@ public final class HomeModel {
 
     public init(env: AppEnvironment) {
         self.env = env
+        connectivity = env.fixedConnectivity.map { Connectivity(online: $0) } ?? .shared
         // Nobody is signed in until the session store publishes an account; the stores are rebuilt then.
         session = env.makeSessionStore()
         myFlights = env.makeMyFlightsStore(owner: nil)
@@ -128,7 +134,7 @@ public final class HomeModel {
         followLater = queue
         imports = ImportStore(passport: history, flights: env.flights, queue: queue, calendar: nil, airport: env.lookup,
                               reference: env.reference)
-        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
+        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
         friends = env.makeFriendsStore()
         seenAwaiting = awaitingSession
         imports = makeImports()
@@ -182,13 +188,13 @@ public final class HomeModel {
     /// (a detent settling, a toast), which must not rebuild the globe's overlays.
     public var globe: GlobeContent {
         let key: GlobeKey = switch tab {
-        case .flights: .flights(followed)
+        case .flights: .flights(followed, estimating: estimateTick)
         case .friends: .friends(friends.flights)
         case .passport: .passport(passport.flights)
         }
         if let globeCache, globeCache.key == key { return globeCache.content }
         let content: GlobeContent = switch key {
-        case .flights(let flights): .followed(flights, lookup: env.lookup)
+        case .flights(let flights, _): .followed(flights, lookup: env.lookup, online: connectivity.isOnline, now: estimateClock)
         case .friends(let flights): .friends(flights, lookup: env.lookup)
         case .passport(let flights): .past(flights, lookup: env.lookup)
         }
@@ -197,12 +203,34 @@ public final class HomeModel {
     }
 
     private enum GlobeKey: Equatable {
-        case flights([Flight])
+        case flights([Flight], estimating: Date?)
         case friends([FriendFlight])
         case passport([PastFlight])
     }
 
     @ObservationIgnored private var globeCache: (key: GlobeKey, content: GlobeContent)?
+
+    /// The minute the globe's estimated planes are drawn for, nil while every followed flight is live (so the
+    /// globe is not rebuilt for nothing). Reading it starts the minute tick.
+    private var estimateTick: Date? {
+        let online = connectivity.isOnline, now = estimateClock
+        guard followed.contains(where: { $0.estimate(online: online, now: now, lookup: env.lookup) != nil }) else { return nil }
+        startEstimateClock()
+        return now
+    }
+
+    @ObservationIgnored private var estimateTimer: Task<Void, Never>?
+
+    private func startEstimateClock() {
+        guard estimateTimer == nil else { return }
+        estimateTimer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard let self else { return }
+                self.estimateClock = .now
+            }
+        }
+    }
 
     /// One flight alone on the globe while it is the screen on top of the panel (followed or past): its
     /// arc, its two airports and its plane. Nil shows everything.
@@ -214,7 +242,7 @@ public final class HomeModel {
         case .flight(let id):
             let flight = followed.first { $0.id == id }
             codes = flight.map { [$0.originIcao, $0.destinationIcao] } ?? []
-            plane = flight.flatMap { FlightAnnotationModel(flight: $0) }
+            plane = flight.flatMap { GlobeContent.plane(for: $0, lookup: env.lookup, online: connectivity.isOnline, now: estimateClock) }
         case .friendFlight(let ff):
             codes = [ff.flight.originIcao, ff.flight.destinationIcao]
             plane = FlightAnnotationModel(flight: ff.flight, isFriend: true)
@@ -357,7 +385,7 @@ public final class HomeModel {
         followLater.adopt(owner: owner)
         imports = makeImports()
         showImport = false
-        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
+        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
         friends = env.makeFriendsStore()
         pendingInvite = nil
         wireListChange()

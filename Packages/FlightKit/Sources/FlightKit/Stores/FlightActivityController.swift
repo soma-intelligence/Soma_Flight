@@ -40,13 +40,16 @@ public struct RunningFlightActivity: Sendable, Hashable {
 /// - it ends when its flight arrives or is canceled (the final state stays up 30 min, 60 min for a
 ///   cancellation, as the backend's end push does), 6 h after the expected arrival of a flight left
 ///   landed or diverted, and at once when it is unfollowed; `endAll()` at sign-out;
-/// - a timer re-runs the rules when the next flight reaches the 4 hour line; the shell also syncs
+/// - a timer re-runs the rules when the next flight reaches the 4 hour line, and every 5 minutes while the
+///   running one is in the air (its progress moves by time, also with no connection); the shell also syncs
 ///   when the app becomes active (`Activity.request` only works in the foreground).
 /// Each new push token is registered as `live_activity` for the flight.
 @MainActor
 public final class FlightActivityController {
     /// How long before departure an activity starts.
     public static let lead: TimeInterval = 4 * 3600
+    /// How often a running activity in the air is moved on by time (the widgets' step).
+    public static let progressStep: TimeInterval = WidgetTimeline.progressStep
     /// A scheduled flight this long past its departure without news is not started.
     static let staleDeparture: TimeInterval = 2 * 3600
     /// A flight left landed or diverted this long after its expected arrival is over for the activity.
@@ -157,7 +160,13 @@ public final class FlightActivityController {
             }
         }
         await retryPendingTokens()
-        defer { setWake(Self.nextWake(in: flights, now: clock)) }
+        // In the air, the card's progress moves with the clock even with no news (offline, airline Wi-Fi):
+        // the timer comes back every `progressStep` to update it from the times (the same estimate as the
+        // flight sheet's).
+        let tick: Date? = keepIndex.flatMap { i in
+            [.departed, .enRoute].contains(alive[i].1.status) ? clock.addingTimeInterval(Self.progressStep) : nil
+        }
+        defer { setWake([Self.nextWake(in: flights, now: clock), tick].compactMap { $0 }.min()) }
         guard keepIndex == nil, let next = best else { return }
         guard host.areActivitiesEnabled else {
             Self.log.info("live activities are off, none started")

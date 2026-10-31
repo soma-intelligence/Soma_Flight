@@ -65,6 +65,7 @@ struct RootTabView: View {
             // A confirmation email shared to the app from Mail (the share extension's inbox).
             .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
             .environment(\.units, units)
+            .environment(\.connectivity, home.connectivity)
     }
 
     // MARK: Sheet

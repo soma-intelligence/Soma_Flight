@@ -21,6 +21,7 @@ public struct FlightDetailView: View {
     @Environment(\.units) private var units
     @Environment(\.openURL) private var openURL
     @Environment(\.flightSharing) private var sharingService
+    @Environment(\.flightTexts) private var flightTexts
     /// The flight's live link (made on Share, stopped from the menu); nil for Passport flights.
     @State private var sharing: FlightShareModel?
 
@@ -167,6 +168,7 @@ public struct FlightDetailView: View {
                 }
                 if !store.isArchived {
                     SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
+                    EstimatedProgressCard(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
                 }
                 if let notice = notice(flight) { notice }
                 CountdownCard(title: DetailFacts.landedTitle(flight)
@@ -318,6 +320,7 @@ public struct FlightDetailView: View {
                     if !accepted { Pasteboard.copy(DetailFacts.supportAddress) }
                 }
             }
+            if store.isFollowed { FlightTextsMenuItem(model: flightTexts) }
             if store.isFollowed {
                 Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
             }

@@ -16,6 +16,7 @@ public struct MyFlightsView: View {
     var fixedNow: Date?
     var scrolls: Bool
     @Environment(\.reference) private var reference
+    @Environment(\.connectivity) private var connectivity
 
     /// - Parameters:
     ///   - onSearch: opens the search sheet from the empty state; nil hides the button.
@@ -58,8 +59,9 @@ public struct MyFlightsView: View {
     @ViewBuilder private func content(now: Date) -> some View {
         let groups = self.groups
         VStack(alignment: .leading, spacing: 0) {
-            if store.isOffline {
-                ErrorBanner(error: .offline, retry: reload)
+            // Offline is not an error here: the saved list keeps working, so the banner stays calm.
+            if store.isOffline || connectivity?.isOnline == false {
+                OfflineBanner(retry: reload)
                     .scaledPadding(.bottom, 10)
                 if let updated = store.fetchedAt ?? store.lastUpdated, !groups.isEmpty {
                     StaleBadge(fetchedAt: updated, ttl: Self.ttl, now: now)
