@@ -312,8 +312,8 @@ public final class HomeModel {
         wireListChange()
     }
 
-    /// Points My Flights' change callback at the Live Activity, the widgets, the reminders and the
-    /// calendar, whichever are attached, the Notifications screen at the reminders, and the leave times
+    /// Points My Flights' change callback at the Live Activity, the widgets, the watch, the reminders and
+    /// the calendar, whichever are attached, the Notifications screen at the reminders, and the leave times
     /// at the reminders.
     private func wireListChange() {
         let activities = activities, widgets = widgets, reminders = reminders, watch = watch, calendar = calendar
