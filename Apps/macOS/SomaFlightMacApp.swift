@@ -64,7 +64,7 @@ struct SomaFlightMacApp: App {
             }
             .frame(minWidth: RootSidebarView.minimumSize.width, minHeight: RootSidebarView.minimumSize.height)
             .onOpenURL { url in
-                if let home { Task { await home.session.handle(url: url) } } else { pendingURL = url }
+                if let home { Task { await Self.open(url, in: home) } } else { pendingURL = url }
             }
             .preferredColorScheme(.dark)
             .task(id: attempt) {
@@ -77,7 +77,7 @@ struct SomaFlightMacApp: App {
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil
-                        await built.session.handle(url: url)
+                        await Self.open(url, in: built)
                     }
                 } catch {
                     failure = LaunchPlaceholder.failure(for: error)
@@ -104,6 +104,16 @@ struct SomaFlightMacApp: App {
             .frame(width: 480, height: 640)
             .environment(\.units, units)
             .preferredColorScheme(.dark)
+        }
+    }
+
+    /// A URL the system opened the app with: a boarding pass (Open With, or a file dropped on the Dock
+    /// icon) goes to the pass import, anything else is a sign-in link.
+    @MainActor static func open(_ url: URL, in home: HomeModel) async {
+        if PassFile.isPassFile(url) {
+            await home.importPass(from: url)
+        } else {
+            await home.session.handle(url: url)
         }
     }
 }
