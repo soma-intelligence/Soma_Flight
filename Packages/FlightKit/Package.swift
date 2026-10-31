@@ -12,6 +12,9 @@ let package = Package(
         // What the Apple Watch app and its complications link: the snapshot from the phone and the watch's
         // models, over FlightActivityKit. No Supabase: the watch only hears from the phone in v1.
         .library(name: "FlightWatchKit", targets: ["FlightWatchKit"]),
+        // What the share extension links: the confirmation email reader and the drop folder it leaves the
+        // email in for the app. Foundation and PDFKit only.
+        .library(name: "FlightImportKit", targets: ["FlightImportKit"]),
     ],
     dependencies: [
         .package(path: "../FlightCoreFFI"),
@@ -29,9 +32,14 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
         ),
         .target(
+            name: "FlightImportKit",
+            swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
+        ),
+        .target(
             name: "FlightKit",
             dependencies: [
                 "FlightActivityKit",
+                "FlightImportKit",
                 .product(name: "FlightCore", package: "FlightCoreFFI"),
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
@@ -43,6 +51,7 @@ let package = Package(
             dependencies: [
                 "FlightKit",
                 "FlightWatchKit",
+                "FlightImportKit",
                 // The local-stack smoke test (INTEGRATION=1) signs a user in through the client.
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
