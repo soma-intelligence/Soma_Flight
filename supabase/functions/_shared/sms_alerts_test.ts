@@ -17,6 +17,7 @@ import {
   smsText,
   wantsSms,
 } from "./sms_alerts.ts";
+import { fakeDb } from "./sms_test_db.ts";
 
 const gate: Alert = {
   kind: "gate_change",
@@ -172,32 +173,21 @@ Deno.test("the plan keeps followers who can text and have the category on", () =
 function db(
   rows: SmsRow[] | "forbidden",
 ): { client: SupabaseClient; reads: number } {
-  const state = { reads: 0 };
-  const client = {
-    from(table: string) {
-      if (rows === "forbidden") throw new Error(`read ${table} while disabled`);
-      assertEquals(table, "sms_alerts");
-      state.reads++;
-      const q = {
-        select: () => q,
-        in: (_c: string, ids: string[]) => {
-          q.ids = ids;
-          return q;
-        },
-        eq: () =>
-          Promise.resolve({
-            data: rows.filter((r) => q.ids.includes(r.user_id)),
-            error: null,
-          }),
-        ids: [] as string[],
-      };
-      return q;
-    },
-  } as unknown as SupabaseClient;
+  if (rows === "forbidden") {
+    const client = {
+      from(table: string) {
+        throw new Error(`read ${table} while disabled`);
+      },
+    } as unknown as SupabaseClient;
+    return { client, reads: 0 };
+  }
+  const f = fakeDb({
+    sms_alerts: rows as unknown as Record<string, unknown>[],
+  });
   return {
-    client,
+    client: f.client,
     get reads() {
-      return state.reads;
+      return f.touched.filter((t) => t === "sms_alerts").length;
     },
   };
 }
@@ -258,7 +248,7 @@ Deno.test("with the flag on and a sender, the hook texts the planned followers",
     new Set(["u1", "u2"]),
     noneMuted(),
   );
-  assertEquals(r, { sent: 1, failed: 0 });
+  assertEquals(r, { sent: 1, failed: 0, deduped: 0 });
   assertEquals(s.sent.map((m) => m.to), ["+14155550100"]);
   assertEquals(d.reads, 1);
   const failing = await smsHook(
@@ -268,7 +258,7 @@ Deno.test("with the flag on and a sender, the hook texts the planned followers",
     new Set(["u1"]),
     noneMuted(),
   );
-  assertEquals(failing, { sent: 0, failed: 1 });
+  assertEquals(failing, { sent: 0, failed: 1, deduped: 0 });
 });
 
 Deno.test("an alert not worth a text never reads the table", async () => {

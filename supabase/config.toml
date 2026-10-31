@@ -447,6 +447,14 @@ verify_jwt = true
 [functions.faa-notams]
 verify_jwt = true
 
+# Texts (off until SMS_ALERTS_ENABLED): the signed-in traveller's number, code and switches.
+[functions.sms-verify]
+verify_jwt = true
+
+# Linq's webhook for STOP and HELP replies: signed with LINQ_WEBHOOK_SECRET, not a Supabase JWT.
+[functions.sms-inbound]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

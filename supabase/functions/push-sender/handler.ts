@@ -36,6 +36,7 @@ import { connectionsOf } from "./connections.ts";
 import { readProgramAlert } from "../_shared/faa_nas.ts";
 import { smsHook, type SmsHookDeps } from "../_shared/sms_alerts.ts";
 import { forFriends, friendAlertText } from "../_shared/friend_alerts.ts";
+import { onwardNotes } from "./sms_onward.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -304,6 +305,8 @@ interface SendCtx {
   eventId: string | null;
   /** The text message hook's deps; undefined sends nothing. */
   sms?: SmsHookDeps;
+  /** The call's clock, for the in-flight texts' window. */
+  now?: Date;
 }
 
 /** The keys already sent for a flight and the newest delay sent per side (alert_log). */
@@ -450,8 +453,19 @@ async function deliver(
   for (const a of won) {
     const off = muted.get(a.category)!;
     const text = alertText(a, flight, copyCtx);
-    // Texts (off today): the same alert, to followers who verified a number and turned texts on.
-    await smsHook(ctx.sms, a, text, users, muted);
+    // Texts (off today): the same alert, to followers who verified a number and turned texts on, or who
+    // are on board with in-flight texts on. One text per user and alert (claim_sms).
+    try {
+      await smsHook(ctx.sms, a, text, users, muted, {
+        flightId: flight.id,
+        flight,
+        now: ctx.now ?? new Date(),
+        onward: () => onwardNotes(ctx.db, flight, (icao) => tz(ctx.db, icao)),
+      });
+    } catch (e) {
+      // A text that fails must never stop the push.
+      console.error("sms hook failed", (e as Error).message);
+    }
     const to = tokens.filter((t) => !off.has(t.user_id));
     if (to.length === 0) continue;
     const body = {
@@ -563,6 +577,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       expiration: hour,
       eventId,
       sms: deps.sms,
+      now: nowDate,
     };
     const history = await historyOf(db, flightId);
     const detected = detectAlerts(
