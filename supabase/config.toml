@@ -421,6 +421,10 @@ verify_jwt = true
 [functions.security-wait]
 verify_jwt = true
 
+# Other direct flights on a route (paid AeroAPI schedules, cached in Postgres for 30 minutes).
+[functions.alternate-flights]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

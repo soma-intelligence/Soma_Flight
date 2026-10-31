@@ -5,11 +5,17 @@ import type {
   AeroFlight,
   AeroFullFlight,
   AeroInFlightStatus,
+  AeroScheduledFlight,
   FlightRow,
   PositionRow,
 } from "./aeroapi_types.ts";
 
-export type { AeroFlight, FlightRow, PositionRow } from "./aeroapi_types.ts";
+export type {
+  AeroFlight,
+  AeroScheduledFlight,
+  FlightRow,
+  PositionRow,
+} from "./aeroapi_types.ts";
 
 export const AEROAPI_BASE = "https://aeroapi.flightaware.com/aeroapi";
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -28,6 +34,8 @@ export type AirportListKind =
  * UNVERIFIED: /history/flights/{ident} is not in docs/provider-check.md either; 0.02 is a cautious
  * stand-in (four times the live flight info price), so the spend cap errs on the safe side. Confirm
  * before purchase.
+ * UNVERIFIED: /schedules/{date_start}/{date_end} is not in docs/provider-check.md either; 0.02 is the
+ * same cautious stand-in until the pricing page is read again.
  */
 export const ENDPOINT_COST: Record<string, number> = {
   "/flights/{ident}": 0.005,
@@ -38,6 +46,7 @@ export const ENDPOINT_COST: Record<string, number> = {
   "/airports/{id}/flights/scheduled_departures": 0.005,
   "/airports/{id}/flights/scheduled_arrivals": 0.005,
   "/airports/{id}/flights/to/{dest_id}": 0.02,
+  "/schedules/{date_start}/{date_end}": 0.02,
   "/alerts": 0,
   "/alerts/{id}": 0,
 };
@@ -249,6 +258,54 @@ export class AeroApi {
       if (t >= from.getTime() && t < to.getTime()) out.push(segs[0]);
     }
     return dedupeByFaFlightId(out);
+  }
+
+  /**
+   * Flights in the airline schedules from `origin` to `destination` (ICAO or IATA) whose scheduled_out
+   * is in [start, end), nonstop by nature (a schedule entry is one leg). Operating flights only
+   * (include_codeshares=false), so each flight comes once under its operator's number. A schedule is a
+   * plan: no status or estimates. Follows links.next up to `maxPages` pages, each one billed result
+   * set; an empty window returns [] without a call.
+   */
+  async schedules(
+    origin: string,
+    destination: string,
+    start: Date,
+    end: Date,
+    maxPages = 3,
+  ): Promise<AeroScheduledFlight[]> {
+    if (!(start.getTime() < end.getTime())) return [];
+    const q = new URLSearchParams({
+      origin,
+      destination,
+      include_codeshares: "false",
+    });
+    const from = start.toISOString(), to = end.toISOString();
+    let rows: AeroScheduledFlight[];
+    try {
+      rows = await this.paged<AeroScheduledFlight>(
+        "/schedules/{date_start}/{date_end}",
+        `/schedules/${encodeURIComponent(from)}/${encodeURIComponent(to)}`,
+        "scheduled",
+        maxPages,
+        q,
+      );
+    } catch (e) {
+      // A route the provider has no schedule for is "no flights", not a failure.
+      if (e instanceof ApiError && e.code === "not_found") return [];
+      throw e;
+    }
+    const seen = new Set<string>();
+    const out: AeroScheduledFlight[] = [];
+    for (const r of rows) {
+      const t = Date.parse(r.scheduled_out);
+      if (!(t >= start.getTime() && t < end.getTime())) continue;
+      const key = r.fa_flight_id ?? `${r.ident}@${r.scheduled_out}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+    }
+    return out;
   }
 
   /**

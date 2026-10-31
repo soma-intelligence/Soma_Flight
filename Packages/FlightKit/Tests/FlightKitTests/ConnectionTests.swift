@@ -54,6 +54,27 @@ import Testing
         #expect(backend == app)
     }
 
+    /// `alternate-flights` answers as its tests write them, read by the decoder the live service uses.
+    @Test func decodesTheAlternatesContract() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let data = try Data(contentsOf: root.appending(path: "supabase/functions/alternate-flights/contract/alternates.json"))
+        let answer = try SupabaseAlternateFlightsService.decodeAnswer(data)
+        #expect(answer.origin == "KSFO" && answer.destination == "KORD")
+        #expect(answer.after == FlightJSON.parse("2026-11-03T15:00:00Z"))
+        #expect(!answer.stale)
+        let flights = try SupabaseAlternateFlightsService.decode(data)
+        #expect(flights.map(\.ident) == ["UA2306", "AA1781", "UA1958", "AS1314"])
+        let ua = try #require(flights.first { $0.ident == "UA1958" })
+        #expect(ua.operator == "UAL")
+        #expect(ua.originIata == "SFO" && ua.destinationIata == "ORD")
+        #expect(ua.scheduledOut == FlightJSON.parse("2026-11-03T20:00:00Z"))
+        #expect(ua.status == .scheduled && ua.estimatedOut == nil)
+        #expect(ua.aircraftType == "B772")
+        #expect(SupabaseAlternateFlightsService.iso(FlightJSON.parse("2026-11-03T15:20:00Z")!) == "2026-11-03T15:20:00Z")
+    }
+
     @Test func regions() {
         let r = ConnectionRules.bundled
         #expect(r.sameRegion("US", "us"))

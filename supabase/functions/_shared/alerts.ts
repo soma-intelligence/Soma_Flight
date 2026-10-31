@@ -21,7 +21,8 @@ export type AlertKind =
   | "arrived"
   | "cancel"
   | "reinstated"
-  | "diversion";
+  | "diversion"
+  | "connection_at_risk";
 
 /** Columns of notification_preferences. `reminders` is only read by the app. */
 export type AlertCategory =
@@ -37,6 +38,7 @@ export const CATEGORY: Record<AlertKind, AlertCategory> = {
   arrival_delay: "delays",
   schedule_change: "delays",
   inbound_late: "delays",
+  connection_at_risk: "delays",
   gate_assigned: "gates",
   gate_change: "gates",
   terminal_change: "gates",

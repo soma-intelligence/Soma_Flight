@@ -1,0 +1,61 @@
+{
+  "origin": "KSFO",
+  "destination": "KORD",
+  "after": "2026-11-03T15:00:00.000Z",
+  "fetched_at": "2026-11-03T15:20:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "id": "UAL2306-1793546100-schedule-0000",
+      "ident": "UA2306",
+      "operator": "UAL",
+      "origin_iata": "SFO",
+      "destination_iata": "ORD",
+      "scheduled_out": "2026-11-03T16:35:00.000Z",
+      "scheduled_in": "2026-11-03T20:52:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "status": "scheduled",
+      "aircraft_type": "B39M"
+    },
+    {
+      "id": "AAL1781-1793556600-schedule-0000",
+      "ident": "AA1781",
+      "operator": "AAL",
+      "origin_iata": "SFO",
+      "destination_iata": "ORD",
+      "scheduled_out": "2026-11-03T18:10:00.000Z",
+      "scheduled_in": "2026-11-03T22:31:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "status": "scheduled",
+      "aircraft_type": "A321"
+    },
+    {
+      "id": "UAL1958-1793563200-schedule-0000",
+      "ident": "UA1958",
+      "operator": "UAL",
+      "origin_iata": "SFO",
+      "destination_iata": "ORD",
+      "scheduled_out": "2026-11-03T20:00:00.000Z",
+      "scheduled_in": "2026-11-04T00:15:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "status": "scheduled",
+      "aircraft_type": "B772"
+    },
+    {
+      "id": "ASA1314-2026-11-03T21:50:00.000Z",
+      "ident": "AS1314",
+      "operator": "ASA",
+      "origin_iata": "SFO",
+      "destination_iata": "ORD",
+      "scheduled_out": "2026-11-03T21:50:00.000Z",
+      "scheduled_in": "2026-11-04T02:05:00.000Z",
+      "estimated_out": null,
+      "estimated_in": null,
+      "status": "scheduled",
+      "aircraft_type": "B738"
+    }
+  ]
+}

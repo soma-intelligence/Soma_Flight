@@ -478,6 +478,8 @@ Deno.test("estimateCost covers every endpoint the client uses and throws on unkn
     record,
     nowOpts,
   ).flightHistory("AF84", new Date(NOW.getTime() - 7 * 86_400_000), NOW);
+  await new AeroApi("k", ok(await fixture("schedules_ksfo_kord.json")), record)
+    .schedules("KSFO", "KORD", NOW, new Date(NOW.getTime() + 86_400_000));
   assertEquals(
     used.size,
     Object.keys(ENDPOINT_COST).length - 0,
@@ -783,4 +785,50 @@ Deno.test("fixtures agree on fa_flight_id for the same flight", async () => {
   const b = route[0].segments[0];
   assertEquals(b.ident_iata, "AA2417");
   assertEquals(a.fa_flight_id, b.fa_flight_id);
+});
+
+Deno.test("schedules reads one route's operating flights in the window, each once", async () => {
+  const calls: Request[] = [];
+  const api = new AeroApi(
+    "k",
+    routed(
+      async () => new Response(await fixture("schedules_ksfo_kord.json")),
+      calls,
+    ),
+  );
+  const start = new Date("2026-11-03T15:00:00Z");
+  const end = new Date("2026-11-04T15:00:00Z");
+  const rows = await api.schedules("KSFO", "KORD", start, end);
+  assertEquals(calls.length, 1);
+  const url = new URL(calls[0].url);
+  assertEquals(
+    decodeURIComponent(path(calls[0])),
+    "/schedules/2026-11-03T15:00:00.000Z/2026-11-04T15:00:00.000Z",
+  );
+  assertEquals(url.searchParams.get("origin"), "KSFO");
+  assertEquals(url.searchParams.get("destination"), "KORD");
+  assertEquals(url.searchParams.get("include_codeshares"), "false");
+  // The repeated UA 2306 counts once; UA 640 leaves the next day, after the window.
+  assertEquals(rows.map((r) => r.ident_iata), [
+    "UA2306",
+    "AA1781",
+    "UA1958",
+    "AS1314",
+  ]);
+});
+
+Deno.test("schedules: an empty window costs nothing, an unknown route is empty", async () => {
+  const calls: Request[] = [];
+  const api = new AeroApi(
+    "k",
+    routed(() => new Response("{}", { status: 404 }), calls),
+  );
+  const t = new Date("2026-11-03T15:00:00Z");
+  assertEquals(await api.schedules("KSFO", "KORD", t, t), []);
+  assertEquals(calls.length, 0);
+  assertEquals(
+    await api.schedules("KSFO", "KZZZ", t, new Date(t.getTime() + 3_600_000)),
+    [],
+  );
+  assertEquals(calls.length, 1);
 });

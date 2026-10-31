@@ -32,6 +32,37 @@ export interface AeroInFlightStatus {
   last_position: AeroPosition | null;
 }
 
+/**
+ * One item of GET /schedules/{date_start}/{date_end} (ScheduledFlight, subset): a flight in the
+ * airline schedules. A plan, not a tracked flight: no status, estimates, gates or registration.
+ */
+export interface AeroScheduledFlight {
+  ident: string;
+  ident_icao: string | null;
+  ident_iata: string | null;
+  /** For a codeshare, the operating flight's ident; null for the operating flight itself. */
+  actual_ident?: string | null;
+  actual_ident_icao?: string | null;
+  actual_ident_iata?: string | null;
+  aircraft_type: string | null;
+  scheduled_in: string;
+  scheduled_out: string;
+  origin: string;
+  origin_icao: string | null;
+  origin_iata: string | null;
+  origin_lid?: string | null;
+  destination: string;
+  destination_icao: string | null;
+  destination_iata: string | null;
+  destination_lid?: string | null;
+  /** Null for a flight the provider has not started tracking yet. */
+  fa_flight_id: string | null;
+  meal_service?: string | null;
+  seats_cabin_business?: number | null;
+  seats_cabin_coach?: number | null;
+  seats_cabin_first?: number | null;
+}
+
 /** One item of GET /airports/{id}/flights/to/{dest_id}: a possibly multi-leg itinerary. */
 export interface AeroFullFlight {
   segments: AeroFlight[];
