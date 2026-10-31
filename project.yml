@@ -94,6 +94,9 @@ targets:
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         ENABLE_APP_SANDBOX: YES
         ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
+        # Read access to files the user picks (Passport CSV import, boarding pass file) or opens with the app
+        # (.pkpass). Also in both entitlements files, which win at signing.
+        ENABLE_USER_SELECTED_FILES: readonly
       configs:
         # Sign in with Apple and Push Notifications (com.apple.developer.aps-environment) need a provisioning
         # profile, which a Mac build signed to run locally has not: Debug keeps the sandbox and network only

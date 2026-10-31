@@ -74,6 +74,8 @@ struct RootSidebarView: View {
                     .frame(minHeight: Self.minimumSize.height - 80, idealHeight: Self.fullPageSize.height,
                            maxHeight: Self.fullPageSize.height)
             }
+            // A boarding pass opened with Open With, or dropped on the Dock icon.
+            .passImportSheet(home)
             .environment(\.units, units)
     }
 

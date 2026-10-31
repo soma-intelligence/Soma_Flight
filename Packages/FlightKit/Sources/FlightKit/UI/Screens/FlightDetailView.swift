@@ -20,6 +20,9 @@ public struct FlightDetailView: View {
     @Environment(\.reference) private var reference
     @Environment(\.units) private var units
     @Environment(\.openURL) private var openURL
+    @Environment(\.flightSharing) private var sharingService
+    /// The flight's live link (made on Share, stopped from the menu); nil for Passport flights.
+    @State private var sharing: FlightShareModel?
 
     /// - Parameters:
     ///   - onAirport: opens the airport sheet for an ICAO code.
@@ -106,6 +109,13 @@ public struct FlightDetailView: View {
         .task(id: store.flight?.id) {
             if store.flight != nil { await store.loadExtras(now: fixedNow ?? .now) }
         }
+        // Only a followed flight has a live link (the server checks the follow), so only it asks.
+        .task(id: store.isFollowed ? store.flight?.id : nil) {
+            guard let id = store.flight?.id, store.isFollowed else { return }
+            if sharing == nil { sharing = FlightShareModel(flight: id, service: sharingService) }
+            await sharing?.refresh()
+        }
+        .shareErrorAlert(sharing)
     }
 
     private func reload() { Task { await store.load() } }
@@ -257,13 +267,15 @@ public struct FlightDetailView: View {
     }
 
     private func bottomBar(_ flight: Flight, compact: Bool = false) -> some View {
-        DetailBottomBar(shareText: DetailFacts.shareText(flight, origin: store.origin,
-                                                         destination: plannedDestination(flight), clock: units.clock),
+        DetailBottomBar(share: shareItem(flight),
                         notify: DetailFacts.takesAlerts(flight) && !store.isArchived ? store.notify : nil,
                         onNotify: { on in Task { await store.setNotify(on) } }, compact: compact) {
-            ShareLink(item: DetailFacts.shareText(flight, origin: store.origin, destination: plannedDestination(flight),
-                                                  clock: units.clock)) {
+            let share = shareItem(flight)
+            ShareLink(item: share, preview: SharePreview(share.title)) {
                 Label("Share", systemImage: "square.and.arrow.up")
+            }
+            if let sharing, sharing.isSharing {
+                Button("Stop Sharing", systemImage: "link.badge.minus") { Task { await sharing.stop() } }
             }
             Divider()
             if let a = airline(flight) {
@@ -304,6 +316,12 @@ public struct FlightDetailView: View {
                 Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
             }
         }
+    }
+
+    /// What Share hands over: a followed flight's live link, and the flight in words for every flight.
+    private func shareItem(_ flight: Flight) -> FlightShareItem {
+        FlightSharing.item(flight, origin: store.origin, destination: plannedDestination(flight),
+                           clock: units.clock, model: store.isFollowed ? sharing : nil)
     }
 
     private func stopTracking() {

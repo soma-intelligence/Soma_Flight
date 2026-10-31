@@ -425,6 +425,16 @@ verify_jwt = true
 [functions.alternate-flights]
 verify_jwt = true
 
+# Live flight sharing: creates, checks and revokes a flight's share links for the signed-in sharer.
+[functions.share-flight]
+verify_jwt = true
+
+# The public page behind https://somalabs.me/f/<token> (the landing site rewrites /f/* here): anyone with
+# the link, no account. The resvg WASM that draws the preview image is read at runtime, so it ships too.
+[functions.flight-page]
+verify_jwt = false
+static_files = ["./functions/_shared/brand/resvg/*"]
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
