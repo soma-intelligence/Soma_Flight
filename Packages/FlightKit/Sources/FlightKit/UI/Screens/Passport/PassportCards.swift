@@ -296,20 +296,28 @@ struct CardPressStyle: ButtonStyle {
     }
 }
 
-/// Past flights: sort chips, then groups (years for the date sort) with their rows.
+/// Past flights: sort chips, then groups (years for the date sort) with their rows. With `actions`, the
+/// header offers Add Past Flight and Import, and a flight the traveller added has Edit and Delete on its
+/// row; archived flights are read only. A tap on any row calls `onOpen` (the flight replay) when set.
 struct PastFlightsSection: View {
     var flights: [PastFlight]
     var lookup: (String) -> Airport?
     @Binding var sort: TravelFacts.Sort
+    var actions: PastFlightActions? = nil
+    var onOpen: ((PastFlight) -> Void)? = nil
     @Environment(\.airportStaticControls) private var staticControls
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Past Flights")
-                .scaledFont(22, weight: .bold)
-                .foregroundStyle(Theme.primary)
-                .scaledPadding(.horizontal, 20)
-                .accessibilityAddTraits(.isHeader)
+            HStack {
+                Text("Past Flights")
+                    .scaledFont(22, weight: .bold)
+                    .foregroundStyle(Theme.primary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                if let actions { PastFlightAddMenu(actions: actions) }
+            }
+            .scaledPadding(.horizontal, 20)
             HorizontalStrip(scrolls: !staticControls) {
                 HStack(spacing: 2) {
                     ForEach(TravelFacts.Sort.allCases, id: \.self) { s in
@@ -345,13 +353,70 @@ struct PastFlightsSection: View {
                 .accessibilityElement(children: .combine)
                 ForEach(group.flights) { f in
                     Hairline()
-                    PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
+                    row(f)
                 }
             }
         }
     }
 
     private func city(_ icao: String) -> String { lookup(icao)?.city ?? icao }
+
+    /// A row: a tap calls `onOpen` (when set), and a flight the traveller added has Edit and Delete in its
+    /// context menu and its trailing swipe actions (the swipe shows once the rows sit in a `List`).
+    @ViewBuilder private func row(_ f: PastFlight) -> some View {
+        let plain = PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
+        let tappable = Group {
+            if let onOpen {
+                Button { onOpen(f) } label: { plain.contentShape(Rectangle()) }.buttonStyle(.plain)
+            } else {
+                plain
+            }
+        }
+        if let actions, f.isEditable {
+            tappable
+                .contextMenu {
+                    Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") }
+                    Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
+                }
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
+                    Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") }
+                }
+        } else {
+            tappable
+        }
+    }
+}
+
+/// What the Past Flights list can ask the Passport to do.
+struct PastFlightActions {
+    var add: () -> Void
+    var importFile: () -> Void
+    var edit: (PastFlight) -> Void
+    var delete: (PastFlight) -> Void
+}
+
+/// The plus in the Past Flights header: add one flight by hand, or import a CSV file.
+struct PastFlightAddMenu: View {
+    var actions: PastFlightActions
+
+    var body: some View {
+        Menu {
+            Button { actions.add() } label: { Label("Add Past Flight", systemImage: "plus") }
+            Button { actions.importFile() } label: { Label("Import from CSV", systemImage: "square.and.arrow.down") }
+        } label: {
+            Image(systemName: "plus")
+                .scaledFont(17, weight: .semibold)
+                .foregroundStyle(Theme.primary)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(Theme.pill))
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Add past flights")
+    }
 }
 
 /// "UA 984  CDG → SFO", "Paris to San Francisco", the date on the right.
