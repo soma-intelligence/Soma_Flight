@@ -85,8 +85,10 @@ struct RootTabView: View {
         .interactiveDismissDisabled()
         .sheet(isPresented: $showSearch) {
             SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
+                        known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
                         onFollowed: { flight in Task { await home.didFollow(flight) } },
-                        onImport: { showSearch = false; home.showImport = true })
+                        onImport: { showSearch = false; home.showImport = true },
+                        onAirport: { code in showSearch = false; home.open(airport: code) })
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -205,20 +207,22 @@ private struct SearchSheet: View {
     var lookup: (String) -> Airport?
     var alreadyFollowed: FollowedFlights
     var frequent: [FrequentItem]
+    var known: [KnownFlight]
     var onFollowed: (Flight) -> Void
     var onImport: () -> Void
+    var onAirport: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem],
-         onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void) {
+    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem], known: [KnownFlight],
+         onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void, onAirport: @escaping (String) -> Void) {
         _store = State(initialValue: env.makeSearchStore())
-        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent
-        self.onFollowed = onFollowed; self.onImport = onImport
+        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.known = known
+        self.onFollowed = onFollowed; self.onImport = onImport; self.onAirport = onAirport
     }
 
     var body: some View {
         SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
-                   frequent: frequent, onImport: onImport)
+                   frequent: frequent, onImport: onImport, onAirport: onAirport, known: known)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             #if DEBUG
             // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.

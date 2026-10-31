@@ -113,16 +113,25 @@ struct RootSidebarView: View {
 
     /// The toolbar search field. macOS draws only the field of the screen on top of the stack (one put on
     /// the stack itself does not show), so the root and every pushed screen carry the same field, bound
-    /// to the one store: it stays in the toolbar while a flight or airport is open. Submitting goes back
-    /// to the panel's root and shows the results there.
+    /// to the one store: it stays in the toolbar while a flight or airport is open. Typing goes back to
+    /// the panel's root and shows the suggestions there; return picks the top one.
     private func searchField(_ screen: some View) -> some View {
         screen
             .searchable(text: $search.text, placement: .toolbar, prompt: Text("Flight, route, or airport"))
+            .onChange(of: search.text) { _, text in
+                search.textChanged()
+                if !text.isEmpty, !showSearch { home.shell.reset(); showSearch = true }
+            }
             .onSubmit(of: .search) {
                 home.shell.reset()
                 showSearch = true
-                Task { await search.search() }
+                if case .openAirport(let code) = search.submit() { openAirport(code) }
             }
+    }
+
+    private func openAirport(_ code: String) {
+        showSearch = false
+        home.open(airport: code)
     }
 
     @ViewBuilder private var panelRoot: some View {
@@ -131,7 +140,8 @@ struct RootSidebarView: View {
             if showSearch {
                 SearchView(store: search, onFollowed: { flight in Task { await home.didFollow(flight) } },
                            lookup: env.lookup, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
-                           onImport: { home.showImport = true })
+                           onImport: { home.showImport = true }, onAirport: openAirport,
+                           known: KnownFlight.list(followed: home.followed, past: home.passport.flights))
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {
                 switch home.tab {

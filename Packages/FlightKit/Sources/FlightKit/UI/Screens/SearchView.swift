@@ -17,9 +17,11 @@ public struct FollowedFlights: Sendable, Equatable {
     }
 }
 
-/// Find a flight to follow: one field for a flight number, a route or an airport, the recent
-/// searches and ways to search under it, and the results with a Follow button each. Errors show
-/// in a banner and the typed text stays.
+/// Find a flight to follow: one field for a flight number, a route or an airport. Empty, it offers the
+/// frequently used airlines and airports, the recent searches and ways to search; while typing, ranked
+/// suggestions on the device (`SearchSuggester`) and, after a pause on a whole flight number or route,
+/// its live results, each with a Follow button. Return picks the top suggestion. Errors show in a banner
+/// and the typed text stays.
 public struct SearchView: View {
     @Bindable var store: SearchStore
     var onFollowed: (Flight) -> Void
@@ -28,6 +30,8 @@ public struct SearchView: View {
     var frequent: [FrequentItem]
     var scrolls: Bool
     var onImport: (() -> Void)?
+    var onAirport: ((String) -> Void)?
+    var known: [KnownFlight]
 
     @State private var followed: Set<Flight.ID> = []
     @State private var pending: Set<Flight.ID> = []
@@ -39,19 +43,22 @@ public struct SearchView: View {
     ///   - alreadyFollowed: flights already followed, which show "Following" instead of a second Follow.
     ///   - frequent: the airlines and airports offered before anything is typed (`HomeModel.frequent`).
     ///   - onImport: opens the Import screen from the "More" rows; nil leaves the row out.
+    ///   - onAirport: opens an airport's board (ICAO) from "Flights from ... today"; nil leaves those rows inert.
+    ///   - known: the followed and past flights flight numbers are suggested from.
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init(),
-                frequent: [FrequentItem] = [], onImport: (() -> Void)? = nil) {
+                frequent: [FrequentItem] = [], onImport: (() -> Void)? = nil,
+                onAirport: ((String) -> Void)? = nil, known: [KnownFlight] = []) {
         self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
-                  frequent: frequent, scrolls: true, onImport: onImport)
+                  frequent: frequent, scrolls: true, onImport: onImport, onAirport: onAirport, known: known)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
          alreadyFollowed: FollowedFlights = .init(), frequent: [FrequentItem] = [], scrolls: Bool,
-         onImport: (() -> Void)? = nil) {
+         onImport: (() -> Void)? = nil, onAirport: ((String) -> Void)? = nil, known: [KnownFlight] = []) {
         self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
         self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.scrolls = scrolls
-        self.onImport = onImport
+        self.onImport = onImport; self.onAirport = onAirport; self.known = known
     }
 
     public var body: some View {
@@ -66,7 +73,16 @@ public struct SearchView: View {
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
+        .onAppear { store.known = known }
+        .onChange(of: known) { _, k in store.known = k }
+        .onChange(of: store.text) { store.textChanged() }
+        .onChange(of: store.suggestions) { _, s in
+            guard !isBlank else { return }
+            AccessibilityNotification.Announcement(SearchSuggestionRow.announcement(count: s.count)).post()
+        }
     }
+
+    private var isBlank: Bool { store.text.trimmingCharacters(in: .whitespaces).isEmpty }
 
     // MARK: Field
 
@@ -109,11 +125,20 @@ public struct SearchView: View {
             .submitLabel(.search)
             #endif
             .focused($focused)
-            .onSubmit(run)
+            .onSubmit { handle(store.submit()) }
     }
 
     private func run() {
         Task { await store.search() }
+    }
+
+    /// A picked row or return: an airport's board opens; otherwise the field keeps the keyboard.
+    private func handle(_ pick: SearchPick) {
+        switch pick {
+        case .openAirport(let code): onAirport?(code)
+        case .filled: focused = true
+        case .searching: break
+        }
     }
 
     // MARK: Content
@@ -125,13 +150,27 @@ public struct SearchView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.vertical, 8)
             }
-            if store.results.isEmpty {
-                suggestions
+            if isBlank {
+                if store.results.isEmpty { suggestions } else { results }
             } else {
-                results
+                typing
             }
         }
         .scaledPadding(.bottom, 24)
+    }
+
+    /// While typing: the ranked suggestions, then the live (or returned) results.
+    @ViewBuilder private var typing: some View {
+        SearchSuggestionList(suggestions: store.suggestions, lookup: lookup) { handle(store.pick($0)) }
+        if !store.results.isEmpty {
+            results
+        } else if store.suggestions.isEmpty, !store.isSearching, store.error == nil {
+            Text("Press return to search \u{201C}\(store.text.trimmingCharacters(in: .whitespaces))\u{201D}")
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 18)
+        }
     }
 
     private var results: some View {
@@ -139,7 +178,7 @@ public struct SearchView: View {
             let count = store.results.count
             CapsHeader("Results", trailing: count == 1 ? "1 flight" : "\(count) flights")
                 .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 16)
+                .scaledPadding(.top, isBlank ? 16 : 22)
                 .scaledPadding(.bottom, 4)
             ForEach(store.results) { flight in
                 ResultRow(flight: flight, origin: lookup(flight.originIcao), destination: lookup(flight.destinationIcao),
@@ -174,8 +213,7 @@ public struct SearchView: View {
                     .scaledPadding(.bottom, 4)
                 ForEach(store.recent, id: \.self) { q in
                     OptionRow(icon: icon(for: q), title: q, subtitle: describe(q)) {
-                        store.text = q
-                        run()
+                        handle(store.pick(.recent(q)))
                     }
                 }
             }
@@ -193,23 +231,21 @@ public struct SearchView: View {
         }
     }
 
-    /// An airline fills the field with its code and a space, ready for the number; an airport runs its
-    /// search at once.
+    /// An airline fills the field with its code and a space, ready for the number; an airport too, and
+    /// then offers its board and its routes.
     @ViewBuilder private func frequentRow(_ item: FrequentItem) -> some View {
         switch item {
         case .airline(let a, _):
             FrequentRow(title: a.name, subtitle: Self.subtitle(item)) {
                 AirlineLogo(airline: a, code: a.iata ?? a.id, size: Self.frequentIcon, decorative: true)
             } action: {
-                store.text = "\(a.iata ?? a.id) "
-                focused = true
+                handle(store.pick(.airline(a)))
             }
         case .airport(let a, _):
             FrequentRow(title: DetailFacts.shortName(a.name), subtitle: Self.subtitle(item)) {
                 CountryFlag(code: a.country, size: Self.frequentIcon, decorative: true)
             } action: {
-                store.text = a.iata ?? a.id
-                run()
+                handle(store.pick(.airport(a)))
             }
         }
     }
@@ -402,7 +438,7 @@ struct RouteText: View {
 
 /// A search store from the seed, optionally searched or failing.
 struct SearchPreview: View {
-    enum Mode { case start, results, sparse, notFound, planLimit, rateLimited }
+    enum Mode { case start, results, sparse, notFound, planLimit, rateLimited, typing, typingRoute, typingCity }
     var mode: Mode = .start
     @State private var store: SearchStore?
 
@@ -411,7 +447,8 @@ struct SearchPreview: View {
             if let store {
                 SearchView(store: store, onFollowed: { _ in }, lookup: SearchPreview.lookup,
                            frequent: FrequentlyUsed.compute(past: [], followed: PreviewData.followed,
-                                                            reference: .bundled(), lookup: SearchPreview.lookup))
+                                                            reference: .bundled(), lookup: SearchPreview.lookup),
+                           known: KnownFlight.list(followed: PreviewData.followed, past: []))
             } else {
                 ProgressView()
             }
@@ -430,6 +467,11 @@ struct SearchPreview: View {
         s.seedRecent(["AUS SFO", "AF84", "SFO"])
         switch mode {
         case .start: break
+        case .typing, .typingRoute, .typingCity:
+            s.known = KnownFlight.list(followed: PreviewData.followed, past: [])
+            s.text = mode == .typing ? "AF 8" : mode == .typingRoute ? "AUS SFO" : "paris"
+            s.suggestNow()
+            if mode == .typingRoute { await s.search() }
         case .results, .sparse:
             s.text = mode == .sparse ? "AS312" : "UA1527"
             await s.search()
@@ -453,4 +495,7 @@ struct SearchPreview: View {
 #Preview("Not found") { SearchPreview(mode: .notFound).preferredColorScheme(.dark) }
 #Preview("Plan limit") { SearchPreview(mode: .planLimit).preferredColorScheme(.dark) }
 #Preview("Rate limited") { SearchPreview(mode: .rateLimited).preferredColorScheme(.light) }
+#Preview("Typing a number") { SearchPreview(mode: .typing).preferredColorScheme(.dark) }
+#Preview("Typing a route") { SearchPreview(mode: .typingRoute).preferredColorScheme(.dark) }
+#Preview("Typing a city") { SearchPreview(mode: .typingCity).preferredColorScheme(.light) }
 #endif

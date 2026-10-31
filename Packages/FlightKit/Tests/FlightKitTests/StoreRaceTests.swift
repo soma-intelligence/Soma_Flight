@@ -27,6 +27,7 @@ final class ScriptedFlights: FlightService, Sendable {
     }
 
     var activeSubscriptions: Int { subs.withLock { $0 } }
+    var lookups: Int { calls.withLock { $0.lookup } }
 
     func lookup(_ query: FlightQuery) async throws(APIError) -> [Flight] {
         let n = calls.withLock { $0.lookup += 1; return $0.lookup }
