@@ -124,11 +124,14 @@ struct SomaFlightMacApp: App {
     }
 
     /// A URL the system opened the app with: a boarding pass (Open With, or a file dropped on the Dock
-    /// icon) goes to the pass import, anything else is a sign-in link.
+    /// icon) goes to the pass import, a confirmation email (.eml, PDF) to the Import screen, anything else
+    /// is a sign-in link.
     @MainActor static func open(_ url: URL, in home: HomeModel) async {
         if await home.handleInvite(url: url) { return }
         if PassFile.isPassFile(url) {
             await home.importPass(from: url)
+        } else if HomeModel.isEmailFile(url) {
+            home.openImport(emailFile: url)
         } else {
             await home.session.handle(url: url)
         }

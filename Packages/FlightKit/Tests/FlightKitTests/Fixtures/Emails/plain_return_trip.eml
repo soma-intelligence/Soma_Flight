@@ -1,0 +1,22 @@
+From: Airline <tickets@airline.example>
+Subject: Your e-ticket receipt XJ7K2P
+Date: Wed, 3 Feb 2027 11:00:00 +0000
+Content-Type: text/plain; charset=utf-8
+
+Dear Mr Smith,
+
+Thank you for booking with us.
+Your booking reference: XJ7K2P
+
+Outbound
+Sat 14 Mar 2027
+BA 286   San Francisco (SFO) 19:40  ->  London Heathrow (LHR) 13:55 +1
+Seat 32K   Economy
+
+Return
+Sun 22 Mar 2027
+BA 287   London Heathrow (LHR) 11:35  ->  San Francisco (SFO) 14:30
+Seat 30A   Economy
+
+Passenger: MR JOHN SMITH
+Total: GBP 812.40

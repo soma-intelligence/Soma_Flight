@@ -2,6 +2,16 @@ import Foundation
 import Observation
 import os
 
+/// Why the calendar import could not read the calendar.
+public struct CalendarImportRefusal: Error, Sendable, Equatable {
+    public var access: CalendarAccess
+    public var message: String {
+        access == .writeOnly
+            ? "Soma Flight can only add events to your calendar. To find flights in it, allow full access in Settings > Privacy > Calendars."
+            : "Soma Flight can't read your calendar. To find flights in it, allow full access in Settings > Privacy > Calendars."
+    }
+}
+
 /// Keeps one calendar event per followed flight, on the device and nowhere else: created when the flight
 /// is followed, rewritten when its times, gates or status change, removed on unfollow, all removed when
 /// syncing is turned off or nobody is signed in. A flight's event identifier is kept, so a sync never
@@ -125,6 +135,20 @@ public final class CalendarSync {
     public func refresh() {
         access = store.access
         calendars = access == .full ? store.calendars() : []
+    }
+
+    // MARK: Import
+
+    /// The events between the two dates, for the calendar import: asks for full access first when it has
+    /// never been asked (the import is what asks, when the traveller starts it), and answers the access
+    /// instead when it is not full. Reading changes nothing in the calendars.
+    public func readEvents(from start: Date, to end: Date) async -> Result<[CalendarEventSnapshot], CalendarImportRefusal> {
+        var a = store.access
+        if a == .notDetermined { a = await store.requestFullAccess() }
+        access = a
+        guard a == .full else { return .failure(CalendarImportRefusal(access: a)) }
+        calendars = store.calendars()
+        return .success(store.events(from: start, to: end))
     }
 
     // MARK: Sync

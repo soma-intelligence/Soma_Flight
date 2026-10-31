@@ -1,0 +1,43 @@
+Return-Path: <noreply@airline.example>
+From: Airline <noreply@airline.example>
+To: jane@example.com
+Subject: =?UTF-8?Q?Your_booking_QX4T7B_is_confirmed?=
+Date: Tue, 2 Feb 2027 09:12:00 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1_abc"
+
+--b1_abc
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+Your trip to San Francisco is confirmed.
+Booking reference QX4T7B
+AF 84 Paris (CDG) 10:15 - San Francisco (SFO) 12:40, Sun 14 Mar 2027
+
+--b1_abc
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta charset=3D"utf-8"><script type=3D"application/ld+json">{"=
+@context": "http://schema.org", "@graph": [{"@type": "FlightReservation", "=
+reservationNumber": "QX4T7B", "reservationStatus": "http://schema.org/Reser=
+vationConfirmed", "underName": {"@type": "Person", "name": "Jane Traveller"=
+}, "reservationFor": {"@type": "Flight", "flightNumber": "84", "airline": {=
+"@type": "Airline", "name": "Air France", "iataCode": "AF"}, "departureAirp=
+ort": {"@type": "Airport", "name": "Paris Charles de Gaulle", "iataCode": "=
+CDG"}, "departureTime": "2027-03-14T10:15:00+01:00", "arrivalAirport": {"@t=
+ype": "Airport", "name": "San Francisco", "iataCode": "SFO"}, "arrivalTime"=
+: "2027-03-14T12:40:00-07:00"}, "airplaneSeat": "32A", "airplaneSeatClass":=
+ {"@type": "AirplaneSeatClass", "name": "Premium Economy"}}, {"@type": "Fli=
+ghtReservation", "reservationNumber": "QX4T7B", "reservationFor": {"@type":=
+ "Flight", "flightNumber": "AF83", "airline": {"@type": "Airline", "name": =
+"Air France"}, "departureAirport": {"@type": "Airport", "iataCode": "SFO"},=
+ "departureTime": "2027-03-22T15:35:00-07:00", "arrivalAirport": {"@type": =
+"Airport", "iataCode": "CDG"}, "arrivalTime": "2027-03-23T11:05:00+01:00"}}=
+]}</script></head>
+<body><table><tr><td>Bonjour Jane,</td></tr><tr><td>Your trip to San Franci=
+sco is confirmed. Booking reference QX4T7B.</td></tr>
+<tr><td>AF 84 &middot; Paris (CDG) 10:15 &rarr; San Francisco (SFO) 12:40</=
+td></tr></table>
+<p>Total paid: 1&nbsp;234,00 EUR</p></body></html>
+--b1_abc--
