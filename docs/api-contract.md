@@ -106,6 +106,8 @@ No row means every category is on, so the app writes the row the first time some
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
+| `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
+| `flight-page` | GET | `/flight-page/<token>[/og.png]`, public (no JWT) | the share page (HTML) or its preview image (PNG) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
@@ -340,6 +342,41 @@ Free: no paid provider is called. Sources and why: `docs/data-sources.md`, "Secu
 - Limit: 120 calls per user per hour (429 `rate_limited`).
 - The answers in `supabase/functions/security-wait/contract/` are written by the function's tests and decoded
   by `SecurityWaitTests` in FlightKit.
+
+## share-flight and flight-page
+
+Live flight sharing. The sheet's Share hands over `https://somalabs.me/f/<token>`; anyone with the link sees
+the flight, live, with no account, until 24 hours after it arrives or until the sharer taps Stop Sharing.
+
+- `POST /share-flight { "flight_id": "<uuid>" }` answers `{ "url": "https://somalabs.me/f/<43 chars>",
+  "expires_at": "2026-11-04T20:55:00.000Z" }`. Each call makes a new random token (32 bytes, base64url);
+  `flight_shares` keeps only its SHA-256. The caller must follow the flight or keep it in the Passport, else
+  404 `not_found`; a flight down for more than 24 hours is 409 `out_of_window`.
+- `GET /share-flight?flight_id=` answers `{ "active": true, "expires_at": "..." }` while the caller has a link
+  that still opens, else `{ "active": false, "expires_at": null }`.
+- `DELETE /share-flight?flight_id=` revokes every link of the caller's to that flight: `{ "revoked": 2 }`.
+- Expiry is computed, not stored: 24 hours after the best arrival time (gate, else runway, else estimate,
+  else schedule), so a delay keeps the link open longer (`_shared/share.ts`).
+- Limit: 60 calls per user per hour, all three methods together (429 `rate_limited`).
+- The answers in `supabase/functions/share-flight/contract/` are written by the function's tests and decoded
+  by `FlightShareTests` in FlightKit.
+
+`GET /flight-page/<token>` is the page itself: self-contained HTML (inline CSS and SVG, no script), the
+app's dark design, the airline mark, route, times in status colours, terminal, gate and belt, a progress bar
+in the air, a static great circle map on a Natural Earth outline, Open Graph tags, a meta refresh every 60 s
+and a "Get Soma Flight" link. It reads the flights row, its airports and airline only: never the sharer's
+seat, booking code or notes, never the sharer's name. Unknown, revoked and expired tokens all answer the same
+404 page. `GET /flight-page/<token>/og.png` is the 1200 by 630 preview image (the route map, drawn by resvg).
+Cached 30 s (page) and 300 s (image) by the CDN in front.
+
+Environment: `SHARE_BASE_URL` (default `https://somalabs.me/f/`), `GET_APP_URL` (default
+`https://somalabs.me/flight`), `PUBLIC_SUPABASE_URL` (the project URL browsers reach, for signed logo URLs).
+
+somalabs.me routes `/f/*` to the function (landing site's repository). Supabase rewrites a `text/html` answer
+to `text/plain` on its own domain, so the landing must serve the HTML with its own content type: a route
+handler that fetches `https://<project>.supabase.co/functions/v1/flight-page/<path>` and returns the body with
+the function's status and headers. A plain rewrite is enough only once the project serves functions from a
+custom domain (where the rewrite to `text/plain` does not apply); check the content type before relying on it.
 
 ## airport-board
 
