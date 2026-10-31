@@ -14,7 +14,8 @@ export const FOLLOW_MAX_PER_HOUR = 60;
 
 export interface Deps {
   db: SupabaseClient;
-  aero: AlertApi;
+  /** Null when the status provider has no alerts (the polling refresh covers the flight). */
+  aero: AlertApi | null;
   verifier?: TokenVerifier;
 }
 

@@ -6,8 +6,16 @@
 // viewer. Everyone else, and every flight not in the air or not followed by the caller, gets the
 // stored row as it is. A provider failure is logged and answers the stored row too: the position is
 // a nicety, never a reason to fail the detail screen.
+// The provider is POSITION_PROVIDER (_shared/providers/select.ts), AeroAPI by default. Providers that
+// look aircraft up by callsign get the ICAO ident; OpenSky also gets a point to search around (the
+// last position when it is under 30 minutes old, else the origin airport).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { AeroApi } from "../_shared/aeroapi.ts";
+import { AeroApiProvider } from "../_shared/providers/aeroapi.ts";
+import type {
+  PositionProvider,
+  PositionQuery,
+} from "../_shared/providers/types.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { checkRate } from "../_shared/limits.ts";
@@ -17,9 +25,15 @@ export const POSITION_MAX_PER_HOUR = 120;
 const AIRBORNE = new Set(["departed", "en_route"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** A last position older than this is no help to find the aircraft again. */
+export const NEAR_MAX_AGE_MS = 30 * 60_000;
+
 export interface Deps {
   db: SupabaseClient;
-  aero: Pick<AeroApi, "flightPosition">;
+  /** The position provider. Defaults to AeroAPI through `aero`. */
+  position?: Pick<PositionProvider, "position">;
+  /** An AeroAPI client, used when `position` is not given. */
+  aero?: Pick<AeroApi, "flightPosition">;
   verifier?: TokenVerifier;
 }
 
@@ -29,7 +43,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       throw new ApiError("invalid_request", 405, "POST only");
     }
     const { userId } = await requireUser(req, deps.verifier);
-    const { db, aero } = deps;
+    const { db } = deps;
+    const provider = deps.position ?? new AeroApiProvider(deps.aero ?? {});
     await checkRate(userId, "flight-position", POSITION_MAX_PER_HOUR, 60, db);
 
     const body = await req.json().catch(() => null) as
@@ -68,7 +83,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
 
     let position;
     try {
-      position = await aero.flightPosition(flight.provider_id);
+      position = await provider.position(await positionQuery(db, flight));
     } catch (e) {
       console.error(
         `position refresh failed for ${flightId}`,
@@ -86,4 +101,45 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
   } catch (e) {
     return errorResponse(e);
   }
+}
+
+/**
+ * The ICAO callsign of a stored flight: the part of an AeroAPI fa_flight_id before the first dash
+ * (AFR84-...), the ident inside a synthetic id (aviationstack:AFR84:LFPG:2026-10-31), else the
+ * stored ident.
+ */
+export function callsignOf(providerId: string, ident: string): string {
+  if (providerId.includes(":")) {
+    const part = providerId.split(":")[1];
+    if (part) return part;
+  }
+  const head = providerId.split("-")[0];
+  return /^[A-Z]{3}[0-9]{1,4}[A-Z]?$/.test(head) ? head : ident;
+}
+
+async function positionQuery(
+  db: SupabaseClient,
+  flight: Record<string, unknown>,
+): Promise<PositionQuery> {
+  const providerId = String(flight.provider_id);
+  let near: PositionQuery["near"] = null;
+  const at = typeof flight.position_at === "string"
+    ? Date.parse(flight.position_at)
+    : NaN;
+  if (
+    typeof flight.position_lat === "number" &&
+    typeof flight.position_lon === "number" &&
+    Date.now() - at < NEAR_MAX_AGE_MS
+  ) {
+    near = { lat: flight.position_lat, lon: flight.position_lon };
+  } else if (typeof flight.origin_icao === "string") {
+    const a = await db.from("airports").select("lat, lon")
+      .eq("icao", flight.origin_icao).maybeSingle();
+    if (a.data) near = { lat: a.data.lat as number, lon: a.data.lon as number };
+  }
+  return {
+    provider_id: providerId,
+    callsign: callsignOf(providerId, String(flight.ident ?? "")),
+    near,
+  };
 }

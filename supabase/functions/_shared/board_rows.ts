@@ -56,9 +56,9 @@ function isoMillis(v: string | null): string | null {
 }
 
 /**
- * Rows for a board of `kind` at `icao`. A missing airport on the viewed side is the viewed airport.
- * A missing airport on the other side drops the row (logged): the app cannot show it.
- * One row per fa_flight_id (a diverted flight comes back twice).
+ * Rows for a board of `kind` at `icao` from AeroAPI flights. A missing airport on the viewed side
+ * is the viewed airport. A missing airport on the other side drops the row (logged): the app cannot
+ * show it. One row per fa_flight_id (a diverted flight comes back twice).
  */
 export async function toBoardRows(
   flights: AeroFlight[],
@@ -66,10 +66,27 @@ export async function toBoardRows(
   kind: "departures" | "arrivals",
   now: Date,
 ): Promise<BoardRow[]> {
+  return await boardRowsFrom(
+    flights.map((f) => toFlightRow(f, now)),
+    icao,
+    kind,
+    now,
+  );
+}
+
+/** The same from rows any provider adapter produced (providers/types.ts). */
+export async function boardRowsFrom(
+  rows: FlightRow[],
+  icao: string,
+  kind: "departures" | "arrivals",
+  now: Date,
+): Promise<BoardRow[]> {
   const seen = new Set<string>();
   const out: BoardRow[] = [];
-  for (const f of flights) {
-    const row = toFlightRow(f, now);
+  for (const source of rows) {
+    const { origin_tz: _tz, ...row } = source as FlightRow & {
+      origin_tz?: unknown;
+    };
     if (seen.has(row.provider_id)) continue;
     const origin = row.origin_icao ?? (kind === "departures" ? icao : null);
     const destination = row.destination_icao ??

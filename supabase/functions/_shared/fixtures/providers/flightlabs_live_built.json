@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": [
+    { "hex": "3946E1", "reg_number": "F-GSQA", "flag": "FR", "lat": 48.5, "lng": -30.25, "alt": 11277,
+      "dir": 265, "speed": 889, "v_speed": 0, "squawk": "2000", "airline_icao": "AFR",
+      "airline_iata": "AF", "aircraft_icao": "B77W", "flight_icao": "AFR84", "flight_iata": "AF84",
+      "flight_number": "84", "dep_icao": "KSFO", "dep_iata": "SFO", "arr_icao": "LFPG",
+      "arr_iata": "CDG", "updated": 1793780000, "status": "en-route", "type": "adsb" }
+  ]
+}

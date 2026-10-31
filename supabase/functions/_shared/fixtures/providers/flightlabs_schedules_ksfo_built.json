@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "data": [
+    {
+      "airline_iata": "AF", "airline_icao": "AFR", "flight_iata": "AF84", "flight_icao": "AFR84",
+      "flight_number": "84", "dep_iata": "SFO", "dep_icao": "KSFO", "dep_terminal": "I",
+      "dep_gate": "A3", "dep_time": "2026-11-03 15:40", "dep_time_utc": "2026-11-03 23:40",
+      "dep_estimated": "2026-11-03 16:05", "dep_estimated_utc": "2026-11-04 00:05",
+      "dep_actual": null, "dep_actual_utc": null,
+      "arr_iata": "CDG", "arr_icao": "LFPG", "arr_terminal": "2E", "arr_gate": null,
+      "arr_baggage": null, "arr_time": "2026-11-04 11:15", "arr_time_utc": "2026-11-04 10:15",
+      "arr_estimated": null, "arr_estimated_utc": null, "arr_actual": null, "arr_actual_utc": null,
+      "cs_airline_iata": null, "cs_flight_number": null, "cs_flight_iata": null,
+      "status": "scheduled", "duration": 635, "delayed": 25, "dep_delayed": 25, "arr_delayed": null,
+      "aircraft_icao": "B77W",
+      "dep_time_ts": 1793749200, "arr_time_ts": 1793787300, "dep_estimated_ts": 1793750700
+    },
+    {
+      "airline_iata": "DL", "airline_icao": "DAL", "flight_iata": "DL8484", "flight_icao": "DAL8484",
+      "flight_number": "8484", "dep_iata": "SFO", "dep_icao": "KSFO",
+      "dep_time": "2026-11-03 15:40", "dep_time_utc": "2026-11-03 23:40",
+      "arr_iata": "CDG", "arr_icao": "LFPG", "arr_time_utc": "2026-11-04 10:15",
+      "cs_airline_iata": "AF", "cs_flight_number": "84", "cs_flight_iata": "AF84",
+      "status": "scheduled", "aircraft_icao": "B77W"
+    },
+    {
+      "airline_iata": "UA", "airline_icao": "UAL", "flight_iata": "UA1", "flight_icao": "UAL1",
+      "flight_number": "1", "dep_iata": "SFO", "dep_icao": "KSFO", "dep_terminal": "3",
+      "dep_gate": "F12", "dep_time": "2026-11-03 11:00", "dep_time_utc": "2026-11-03 19:00",
+      "dep_actual": "2026-11-03 11:08", "dep_actual_utc": "2026-11-03 19:08",
+      "arr_iata": "SIN", "arr_icao": "WSSS", "arr_time_utc": "2026-11-04 11:35",
+      "status": "active", "aircraft_icao": "B789"
+    }
+  ]
+}

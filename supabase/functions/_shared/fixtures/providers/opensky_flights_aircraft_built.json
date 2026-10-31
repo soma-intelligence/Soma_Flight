@@ -1,0 +1,7 @@
+[
+  { "icao24": "c0130c", "firstSeen": 1793390000, "estDepartureAirport": "CYVR", "lastSeen": 1793397200,
+    "estArrivalAirport": "KSFO", "callsign": "ACA565  ", "estDepartureAirportHorizDistance": 1200,
+    "estDepartureAirportVertDistance": 40, "estArrivalAirportHorizDistance": 900,
+    "estArrivalAirportVertDistance": 20, "departureAirportCandidatesCount": 1,
+    "arrivalAirportCandidatesCount": 2 }
+]

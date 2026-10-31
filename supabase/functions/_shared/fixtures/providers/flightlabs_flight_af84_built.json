@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "data": [
+    { "DATE": "03 Nov 2026", "FROM": "San Francisco (SFO)", "TO": "Paris (CDG)", "AIRCRAFT": "77W",
+      "FLIGHT TIME": "\u2014", "STD": "15:40", "ATD": "\u2014", "STA": "11:15", "STATUS": "Scheduled" }
+  ]
+}
