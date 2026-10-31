@@ -169,6 +169,54 @@ export function greatCircle(a_json, b_json, segments) {
 }
 
 /**
+ * Likely departure delay (`DelayInput` JSON, camelCase): a `DelayPrediction`, or `null` when the
+ * signals are weak.
+ * @param {string} input_json
+ * @returns {string}
+ */
+export function predictDelay(input_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(input_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.predictDelay(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Likely departure gate from `GateDay` and `GateCount` JSON arrays (camelCase): a `GatePrediction`,
+ * or `null` without a clear majority.
+ * @param {string} days_json
+ * @param {string} airline_json
+ * @param {string | null} [airline_code]
+ * @returns {string}
+ */
+export function predictGate(days_json, airline_json, airline_code) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(days_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(airline_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(airline_code) ? 0 : passStringToWasm0(airline_code, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.predictGate(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * @param {string} report
  * @returns {string}
  */

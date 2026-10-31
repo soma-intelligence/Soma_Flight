@@ -298,6 +298,16 @@ RustBuffer uniffi_flightcore_ffi_fn_func_seat_position(RustBuffer seat, RustBuff
 RustBuffer uniffi_flightcore_ffi_fn_func_weather_impact(RustBuffer conditions, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PREDICT_DELAY
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PREDICT_DELAY
+RustBuffer uniffi_flightcore_ffi_fn_func_predict_delay(RustBuffer input, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PREDICT_GATE
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PREDICT_GATE
+RustBuffer uniffi_flightcore_ffi_fn_func_predict_gate(RustBuffer days, RustBuffer airline, RustBuffer airline_code, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_FLIGHTCORE_FFI_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_FLIGHTCORE_FFI_RUSTBUFFER_ALLOC
 RustBuffer ffi_flightcore_ffi_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -621,6 +631,18 @@ uint16_t uniffi_flightcore_ffi_checksum_func_seat_position(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_WEATHER_IMPACT
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_WEATHER_IMPACT
 uint16_t uniffi_flightcore_ffi_checksum_func_weather_impact(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PREDICT_DELAY
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PREDICT_DELAY
+uint16_t uniffi_flightcore_ffi_checksum_func_predict_delay(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PREDICT_GATE
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PREDICT_GATE
+uint16_t uniffi_flightcore_ffi_checksum_func_predict_gate(void
     
 );
 #endif

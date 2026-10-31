@@ -9,6 +9,8 @@ export const describeWeather: (a: number, b: number) => [number, number];
 export const distanceKm: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const flightCategory: (a: number, b: number) => [number, number];
 export const greatCircle: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const predictDelay: (a: number, b: number) => [number, number];
+export const predictGate: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const presentWeather: (a: number, b: number) => [number, number];
 export const weatherImpact: (a: number, b: number) => [number, number];
 export const __wbindgen_externrefs: WebAssembly.Table;

@@ -490,3 +490,95 @@ export function computeAircraftStats(
     ),
   );
 }
+
+// MARK: Predictions (core predict.rs)
+
+/** Inputs of the delay prediction (camelCase). Times are unix seconds. */
+export interface DelayInput {
+  status: FlightStatus;
+  scheduledOut: number;
+  estimatedOut: number | null;
+  now: number;
+  aircraftType: string | null;
+  /** Codes the reason names ("SFO"): IATA where known. */
+  originCode: string;
+  destinationCode: string;
+  /** The plane on its way in: best known arrival at our origin, and whether it has left its gate. */
+  inbound: { arrival: number; departed: boolean } | null;
+  /** How the flight number arrived lately (forecast_cache). */
+  history:
+    | { observed: number; latePercent: number; averageLateMinutes: number }
+    | null;
+  /** The origin's departures board (stats snapshot). */
+  board: { total: number; delayed15: number; avgDelayMinutes: number } | null;
+  originWeather: { level: ImpactLevel; affects: Affects | null } | null;
+  destinationWeather: { level: ImpactLevel; affects: Affects | null } | null;
+}
+
+export type DelayReason =
+  | "lateInbound"
+  | "originWeather"
+  | "destinationWeather"
+  | "congestion"
+  | "history";
+export type Confidence = "low" | "medium" | "high";
+
+export interface DelayPrediction {
+  /** Rounded to 5 minutes, at least 15. */
+  minutes: number;
+  reason: DelayReason;
+  confidence: Confidence;
+  /** "Late inbound aircraft", "Weather at SFO", "Airport congestion", "Often late". */
+  reasonTitle: string;
+  /** "Likely 25 min late: inbound aircraft running late". */
+  summary: string;
+}
+
+/** The likely departure delay before the airline moves its estimate; null when the signals are weak. */
+export function predictDelay(input: DelayInput): DelayPrediction | null {
+  return unwrap<DelayPrediction | null>(
+    wasm.predictDelay(stringify(input, "input")),
+  );
+}
+
+export interface GateDay {
+  /** "YYYY-MM-DD", local at the origin. */
+  day: string;
+  gate: string;
+  terminal: string | null;
+}
+
+export interface GateCount {
+  gate: string;
+  terminal: string | null;
+  flights: number;
+}
+
+export interface GatePrediction {
+  guess: "gate" | "concourse" | "terminal";
+  gate: string | null;
+  concourse: string | null;
+  terminal: string | null;
+  used: number;
+  of: number;
+  fromAirline: boolean;
+  /** "B22", "Concourse B", "Terminal 2". */
+  label: string;
+  /** "Used 6 of the last 7 days", "Where AF usually departs". */
+  detail: string;
+}
+
+/** The likely departure gate, concourse or terminal; null without a clear majority. */
+export function predictGate(
+  days: GateDay[],
+  airline: GateCount[],
+  airlineCode: string | null,
+): GatePrediction | null {
+  return unwrap<GatePrediction | null>(
+    wasm.predictGate(
+      stringify(days, "days"),
+      stringify(airline, "airline"),
+      airlineCode ?? undefined,
+    ),
+  );
+}

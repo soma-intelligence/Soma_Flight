@@ -23,6 +23,18 @@ export function flightCategory(ceiling_ft: number | null | undefined, visibility
 
 export function greatCircle(a_json: string, b_json: string, segments: number): string;
 
+/**
+ * Likely departure delay (`DelayInput` JSON, camelCase): a `DelayPrediction`, or `null` when the
+ * signals are weak.
+ */
+export function predictDelay(input_json: string): string;
+
+/**
+ * Likely departure gate from `GateDay` and `GateCount` JSON arrays (camelCase): a `GatePrediction`,
+ * or `null` without a clear majority.
+ */
+export function predictGate(days_json: string, airline_json: string, airline_code?: string | null): string;
+
 export function presentWeather(report: string): string;
 
 /**

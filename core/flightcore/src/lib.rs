@@ -7,4 +7,5 @@ pub mod geo;
 pub mod impact;
 pub mod passport;
 pub mod passport_detail;
+pub mod predict;
 pub mod weather;
