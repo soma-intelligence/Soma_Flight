@@ -89,6 +89,8 @@ public final class HomeModel {
     /// The home screen and lock screen widgets' snapshot; nil until the iOS shell calls `attachWidgets`
     /// (never on the Mac, which has no widget extension).
     @ObservationIgnored public private(set) var widgets: WidgetSnapshotWriter?
+    /// The Apple Watch's snapshot; nil until the iOS shell calls `attachWatch` (never on the Mac).
+    @ObservationIgnored public private(set) var watch: WatchSnapshotSender?
     /// Check-in, morning and leave reminders; nil until the iOS shell calls `attachReminders`.
     @ObservationIgnored public private(set) var reminders: ReminderScheduler?
     /// `start()` has run: the stores have been built for an owner and loaded once.
@@ -231,6 +233,7 @@ public final class HomeModel {
         fullPage = nil
         // The previous account's flights leave the widgets now; the new account's load writes its own.
         widgets?.clear()
+        watch?.clear()
         rebuildStores()
         // Signed out too (nil): a sign-in as the same account later registers the token again.
         push?.accountChanged(owner: owner)
@@ -270,6 +273,18 @@ public final class HomeModel {
         wireListChange()
     }
 
+    /// Hands the Apple Watch's snapshot to the home: it follows the widgets (every trusted change of My
+    /// Flights, cleared when signed out) and reads the boarding passes of the account signed in now.
+    /// Call once, before `start()`.
+    public func attachWatch(_ sender: WatchSnapshotSender) {
+        watch = sender
+        sender.passes = { [weak self] id in
+            guard let self else { return nil }
+            return await self.env.passes.vault(for: self.owner).pass(for: id)
+        }
+        wireListChange()
+    }
+
     /// Hands the local reminders to the home: from now on every trusted change of My Flights schedules,
     /// rewrites or removes them, and the Reminders switch turns them on and off. Call once, before
     /// `start()`.
@@ -281,11 +296,11 @@ public final class HomeModel {
     /// Points My Flights' change callback at the Live Activity, the widgets and the reminders, whichever
     /// are attached, and the Notifications screen at the reminders.
     private func wireListChange() {
-        let activities = activities, widgets = widgets, reminders = reminders
+        let activities = activities, widgets = widgets, reminders = reminders, watch = watch
         if let reminders {
             notificationSettings.onChange = { prefs in reminders.enabled = prefs.reminders }
         }
-        guard activities != nil || widgets != nil || reminders != nil else { return }
+        guard activities != nil || widgets != nil || reminders != nil || watch != nil else { return }
         myFlights.onListChange = { [weak self] list in
             // Scheduled synchronously, so each runs the lists in the order the store changed.
             activities?.scheduleSync(list)
@@ -293,13 +308,16 @@ public final class HomeModel {
             // Signed out, the widgets stay empty whatever a late load returns.
             guard let self, !(self.env.requiresSignIn && self.owner == nil) else { return }
             widgets?.write(list)
+            watch?.write(list)
         }
     }
 
-    /// Signed out, the widgets show nothing: a later account must never see the previous one's flights.
+    /// Signed out, the widgets and the watch show nothing: a later account must never see the previous
+    /// one's flights.
     private func clearWidgetsIfSignedOut() {
-        guard let widgets, !awaitingSession, env.requiresSignIn, owner == nil else { return }
-        widgets.clear()
+        guard !awaitingSession, env.requiresSignIn, owner == nil else { return }
+        widgets?.clear()
+        watch?.clear()
     }
 
     /// Settles the activities for the account signed in now: signed out ends them all, otherwise the

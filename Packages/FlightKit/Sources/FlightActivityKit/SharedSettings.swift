@@ -9,10 +9,12 @@ public enum SharedSettings {
     /// True (or absent) for 24 hour times, false for 12 hour.
     public static let clock24Key = "units.clock24"
 
-    /// The group's defaults on iOS, where the extension reads them; the app's own on the Mac, which has no
-    /// extension and no App Group. Falls back to the app's own when the group cannot be opened.
+    /// The group's defaults on iOS, where the extension reads them, and on the watch, where the
+    /// complications read the watch app's snapshot (the watch has its own container, so the same group
+    /// name holds the watch's copy); the app's own on the Mac, which has no extension and no App Group.
+    /// Falls back to the app's own when the group cannot be opened.
     public static var defaults: UserDefaults {
-        #if os(iOS)
+        #if os(iOS) || os(watchOS)
         if let group = UserDefaults(suiteName: appGroup) { return group }
         Logger(subsystem: "me.somalabs.flight", category: "settings")
             .error("App Group \(appGroup, privacy: .public) unavailable: the Live Activity will not see the clock setting")

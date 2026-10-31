@@ -4,11 +4,14 @@ import PackageDescription
 let package = Package(
     name: "FlightKit",
     // .v26 needs PackageDescription 6.2; the string form keeps tools 6.0.
-    platforms: [.iOS("26.0"), .macOS("26.0")],
+    platforms: [.iOS("26.0"), .macOS("26.0"), .watchOS("26.0")],
     products: [
         .library(name: "FlightKit", targets: ["FlightKit"]),
         // What the widget extension links: the Live Activity attributes and views, no Supabase or MapKit.
         .library(name: "FlightActivityKit", targets: ["FlightActivityKit"]),
+        // What the Apple Watch app and its complications link: the snapshot from the phone and the watch's
+        // models, over FlightActivityKit. No Supabase: the watch only hears from the phone in v1.
+        .library(name: "FlightWatchKit", targets: ["FlightWatchKit"]),
     ],
     dependencies: [
         .package(path: "../FlightCoreFFI"),
@@ -18,6 +21,11 @@ let package = Package(
     targets: [
         .target(
             name: "FlightActivityKit",
+            swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
+        ),
+        .target(
+            name: "FlightWatchKit",
+            dependencies: ["FlightActivityKit"],
             swiftSettings: [.swiftLanguageMode(.v6), .enableUpcomingFeature("StrictConcurrency")]
         ),
         .target(
@@ -34,6 +42,7 @@ let package = Package(
             name: "FlightKitTests",
             dependencies: [
                 "FlightKit",
+                "FlightWatchKit",
                 // The local-stack smoke test (INTEGRATION=1) signs a user in through the client.
                 .product(name: "Supabase", package: "supabase-swift"),
             ],

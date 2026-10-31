@@ -110,6 +110,8 @@ extension HomeModel {
         } catch {
             return false
         }
+        // The watch shows the pass at the gate.
+        watch?.refresh()
         // The details are a nicety here: a failure leaves the pass kept and the tiles as they were.
         if let details = try? await env.flights.followDetails(flight.id),
            let next = BoardingPassMatch.filled(details, from: kept)?.normalized() {
