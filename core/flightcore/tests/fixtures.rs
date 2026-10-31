@@ -3,6 +3,9 @@ use flightcore::aircraft::{
 };
 use flightcore::delay::{BoardFlight, DelayStats, compute_stats};
 use flightcore::geo::{Coord, distance_km, great_circle};
+use flightcore::impact::{
+    Affects, Conditions, HazardKind, ImpactLevel, describe_weather, present_weather, weather_impact,
+};
 use flightcore::passport::{PastFlight, compute_passport};
 use flightcore::passport_detail::{CountryInfo, compute_passport_detail};
 use flightcore::weather::{FlightCategory, flight_category};
@@ -345,5 +348,70 @@ fn aircraft_fixture_cases() {
         ))
         .unwrap();
         assert_eq!(got, c.expected, "{}", c.name);
+    }
+}
+
+// Weather impact
+
+#[derive(Deserialize)]
+struct ImpactCase {
+    name: String,
+    conditions: Conditions,
+    level: ImpactLevel,
+    slows: bool,
+    affects: Option<Affects>,
+    hazards: Vec<HazardKind>,
+    reason: String,
+}
+
+#[derive(Deserialize)]
+struct DescribeCase {
+    wx: String,
+    text: String,
+}
+
+#[derive(Deserialize)]
+struct ReportCase {
+    report: String,
+    wx: String,
+}
+
+#[derive(Deserialize)]
+struct ImpactFile {
+    impact: Vec<ImpactCase>,
+    describe: Vec<DescribeCase>,
+    present_weather: Vec<ReportCase>,
+}
+
+fn impact_file() -> ImpactFile {
+    serde_json::from_str(include_str!("../../fixtures/weather_impact.json")).unwrap()
+}
+
+#[test]
+fn weather_impact_fixture_cases() {
+    let f = impact_file();
+    assert!(!f.impact.is_empty());
+    for c in f.impact {
+        let i = weather_impact(&c.conditions);
+        assert_eq!(i.level, c.level, "{}", c.name);
+        assert_eq!(i.slows, c.slows, "{}", c.name);
+        assert_eq!(i.affects, c.affects, "{}", c.name);
+        let kinds: Vec<HazardKind> = i.hazards.iter().map(|h| h.kind).collect();
+        assert_eq!(kinds, c.hazards, "{}", c.name);
+        assert_eq!(i.reason, c.reason, "{}", c.name);
+    }
+}
+
+#[test]
+fn describe_weather_fixture_cases() {
+    for c in impact_file().describe {
+        assert_eq!(describe_weather(&c.wx), c.text, "{}", c.wx);
+    }
+}
+
+#[test]
+fn present_weather_fixture_cases() {
+    for c in impact_file().present_weather {
+        assert_eq!(present_weather(&c.report), c.wx, "{}", c.report);
     }
 }

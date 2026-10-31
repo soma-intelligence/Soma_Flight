@@ -13,6 +13,9 @@ export interface CloudLayer {
   baseFt: number | null;
 }
 
+/** How a TAF period starts: FM, BECMG, TEMPO or PROB; null for the base forecast. */
+export type ForecastChange = "FM" | "BECMG" | "TEMPO" | "PROB";
+
 /** Wire shape of one forecast period: FlightKit `ForecastPeriod`, camelCase keys, ISO 8601 dates. */
 export interface ForecastPeriod {
   from: string;
@@ -25,6 +28,13 @@ export interface ForecastPeriod {
   visibilitySm: number | null;
   /** Lowest BKN, OVC or VV layer in feet, null when there is none. */
   ceilingFt: number | null;
+  /** How the period starts. TEMPO and PROB periods overlap the base or FM period they sit in. */
+  change: ForecastChange | null;
+  /** Percent, for PROB30 and PROB40 periods. */
+  probability: number | null;
+  /** Present weather groups ("-RA BR"), null when none. */
+  wx: string | null;
+  clouds: CloudLayer[];
 }
 
 /** Wire shape of the weather snapshot: FlightKit `Weather`. */
@@ -40,6 +50,14 @@ export interface Weather {
   category: FlightCategory;
   observedAt: string;
   forecast: ForecastPeriod[];
+  /** Present weather groups of the METAR ("-RA BR"), null when none. */
+  wx: string | null;
+  clouds: CloudLayer[];
+  dewpointC: number | null;
+  /** Altimeter setting in hectopascals, as the feed gives it. */
+  altimeterHpa: number | null;
+  /** When the TAF was issued, null without a TAF. */
+  tafIssuedAt: string | null;
 }
 
 type Json = Record<string, unknown>;
@@ -133,6 +151,25 @@ function categoryOf(
 const newest = (list: Json[], key: string) =>
   [...list].sort((a, b) => (num(b[key]) ?? 0) - (num(a[key]) ?? 0))[0];
 
+/** The feed's change kind; a bare probability is a PROB period. Null for the base forecast. */
+function forecastChange(
+  v: unknown,
+  probability: unknown,
+): ForecastChange | null {
+  if (v === "FM" || v === "BECMG" || v === "TEMPO" || v === "PROB") return v;
+  return num(probability) !== null ? "PROB" : null;
+}
+
+function wxOf(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+}
+
+function isoOfString(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = Date.parse(v);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
+
 function parsePeriods(t: Json): ForecastPeriod[] {
   const fcsts = Array.isArray(t.fcsts) ? t.fcsts as Json[] : [];
   const out: ForecastPeriod[] = [];
@@ -155,6 +192,10 @@ function parsePeriods(t: Json): ForecastPeriod[] {
       gustKt: int(num(f.wgst)),
       visibilitySm,
       ceilingFt,
+      change: forecastChange(f.fcstChange, f.probability),
+      probability: int(num(f.probability)),
+      wx: wxOf(f.wxString),
+      clouds,
     });
   }
   return out;
@@ -188,6 +229,11 @@ export function toWeather(metars: Json[], tafs: Json[]): Weather | null {
     category,
     observedAt,
     forecast: taf ? parsePeriods(taf) : [],
+    wx: wxOf(o.wxString),
+    clouds,
+    dewpointC: num(o.dewp),
+    altimeterHpa: num(o.altim),
+    tafIssuedAt: taf ? isoOfString(taf.issueTime ?? taf.bulletinTime) : null,
   };
 }
 

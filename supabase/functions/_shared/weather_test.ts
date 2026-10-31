@@ -61,6 +61,12 @@ Deno.test("fetchWeather returns the app's Weather shape for KAUS", async () => {
   assertEquals(w.category, "IFR");
   assertEquals(w.tempC, 21.7);
   assertEquals(w.tafRaw?.startsWith("TAF KAUS 291730Z"), true);
+  assertEquals(w.tafIssuedAt, "2026-10-29T17:30:00.000Z");
+  assertEquals(w.wx, "-RA");
+  assertEquals(w.clouds.length, 4);
+  assertEquals(w.clouds[0], { cover: "BKN", baseFt: 900 });
+  assertEquals(w.dewpointC, 20);
+  assertEquals(w.altimeterHpa, 1021.1);
   assertEquals(w.forecast.length, 5);
   assertEquals(w.forecast[0], {
     from: "2026-10-29T18:00:00.000Z",
@@ -71,7 +77,18 @@ Deno.test("fetchWeather returns the app's Weather shape for KAUS", async () => {
     gustKt: null,
     visibilitySm: 6, // "6+"
     ceilingFt: 2500,
+    change: null, // the base forecast
+    probability: null,
+    wx: "-RA",
+    clouds: [
+      { cover: "SCT", baseFt: 1500 },
+      { cover: "BKN", baseFt: 2500 },
+      { cover: "OVC", baseFt: 10000 },
+    ],
   });
+  assertEquals(w.forecast[1].change, "FM");
+  assertEquals(w.forecast[2].wx, null);
+  assertEquals(w.forecast[4].wx, "-RA BR");
   assertEquals(w.forecast[4].ceilingFt, 900);
   assertEquals(w.forecast[4].visibilitySm, 3);
   assertEquals(w.forecast[4].category, "IFR");
@@ -130,6 +147,22 @@ Deno.test("fetchWeather: no visibility falls back to the feed category, else unu
   assertEquals((await fetchWeather("KAUS", fakeFetch(metar))).category, "IFR");
   delete metar[0].fltCat;
   await assertRejects(() => fetchWeather("KAUS", fakeFetch(metar)), ApiError);
+});
+
+Deno.test("TEMPO and PROB periods keep their change kind and probability", async () => {
+  const taf = structuredClone(TAF);
+  taf[0].fcsts[1].fcstChange = "TEMPO";
+  taf[0].fcsts[1].wxString = "TSRA";
+  taf[0].fcsts[2].fcstChange = null;
+  taf[0].fcsts[2].probability = 30;
+  const w = await fetchWeather("KAUS", fakeFetch(METAR, taf));
+  assertEquals([w.forecast[1].change, w.forecast[1].wx], ["TEMPO", "TSRA"]);
+  assertEquals([w.forecast[2].change, w.forecast[2].probability], [
+    "PROB",
+    30,
+  ]);
+  const noTaf = await fetchWeather("KAUS", fakeFetch(METAR, null));
+  assertEquals(noTaf.tafIssuedAt, null);
 });
 
 Deno.test("forecast periods without a time or a category are left out", async () => {

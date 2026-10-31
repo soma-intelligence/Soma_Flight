@@ -841,7 +841,7 @@
    "onTime": 54,
    "delayed15": 96,
    "canceled": 2,
-   "avgDelayMinutes": 39.026666666666664,
+   "avgDelayMinutes": 31.4,
    "perHour": [
     {
      "hour": 1792749600,
@@ -1250,7 +1250,7 @@
      "canceled": 0
     }
    ],
-   "severity": "normal"
+   "severity": "major"
   }
  }
 }

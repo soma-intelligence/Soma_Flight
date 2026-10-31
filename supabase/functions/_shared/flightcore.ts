@@ -381,6 +381,62 @@ export function flightCategory(
   return unwrap<FlightCategory>(wasm.flightCategory(ceilingFt, visibilitySm));
 }
 
+/** What the weather impact reads (camelCase). Null values are unknown. */
+export interface WeatherConditions {
+  ceilingFt: number | null;
+  visibilitySm: number | null;
+  windKt: number | null;
+  gustKt: number | null;
+  /** Present weather groups ("-RA BR"); a whole METAR body works too. */
+  wx: string;
+}
+
+export type ImpactLevel = "none" | "minor" | "moderate" | "severe";
+export type Affects = "arrivals" | "departures" | "both";
+export type HazardKind =
+  | "thunderstorm"
+  | "freezingPrecip"
+  | "snow"
+  | "lowCeiling"
+  | "fog"
+  | "lowVisibility"
+  | "wind"
+  | "heavyRain";
+
+export interface Hazard {
+  kind: HazardKind;
+  level: ImpactLevel;
+  affects: Affects;
+  label: string;
+}
+
+export interface WeatherImpact {
+  level: ImpactLevel;
+  /** True from "moderate" up: the weather is likely slowing the airport. */
+  slows: boolean;
+  affects: Affects | null;
+  hazards: Hazard[];
+  /** "Low clouds and fog: arrivals likely slowed". */
+  reason: string;
+}
+
+/** Whether the weather is likely slowing the airport (core `impact::weather_impact`). */
+export function weatherImpact(conditions: WeatherConditions): WeatherImpact {
+  return unwrap<WeatherImpact>(
+    wasm.weatherImpact(stringify(conditions, "conditions")),
+  );
+}
+
+/** Plain English for present weather groups: "-RA BR" is "light rain and mist". */
+export function describeWeather(wx: string): string {
+  return wasm.describeWeather(wx);
+}
+
+/** The present weather groups of a METAR body, without trend groups or remarks. */
+export function presentWeather(report: string): string {
+  return wasm.presentWeather(report);
+}
+
 export function computePassport(
   flights: PastFlight[],
   year?: number,

@@ -545,6 +545,30 @@ fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -1436,6 +1460,68 @@ public func FfiConverterTypeFlightRef_lift(_ buf: RustBuffer) throws -> FlightRe
 #endif
 public func FfiConverterTypeFlightRef_lower(_ value: FlightRef) -> RustBuffer {
     return FfiConverterTypeFlightRef.lower(value)
+}
+
+
+public struct Hazard: Equatable, Hashable {
+    public var kind: HazardKind
+    public var level: ImpactLevel
+    public var affects: Affects
+    public var label: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: HazardKind, level: ImpactLevel, affects: Affects, label: String) {
+        self.kind = kind
+        self.level = level
+        self.affects = affects
+        self.label = label
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Hazard: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHazard: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Hazard {
+        return
+            try Hazard(
+                kind: FfiConverterTypeHazardKind.read(from: &buf), 
+                level: FfiConverterTypeImpactLevel.read(from: &buf), 
+                affects: FfiConverterTypeAffects.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Hazard, into buf: inout [UInt8]) {
+        FfiConverterTypeHazardKind.write(value.kind, into: &buf)
+        FfiConverterTypeImpactLevel.write(value.level, into: &buf)
+        FfiConverterTypeAffects.write(value.affects, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHazard_lift(_ buf: RustBuffer) throws -> Hazard {
+    return try FfiConverterTypeHazard.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHazard_lower(_ value: Hazard) -> RustBuffer {
+    return FfiConverterTypeHazard.lower(value)
 }
 
 
@@ -2609,6 +2695,147 @@ public func FfiConverterTypeTypeTally_lower(_ value: TypeTally) -> RustBuffer {
 }
 
 
+/**
+ * What the weather impact reads; see `flightcore::impact::Conditions`.
+ */
+public struct WeatherConditions: Equatable, Hashable {
+    public var ceilingFt: Int32?
+    public var visibilitySm: Double?
+    public var windKt: Int32?
+    public var gustKt: Int32?
+    /**
+     * Present weather groups ("-RA BR"); a whole METAR body works too.
+     */
+    public var wx: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ceilingFt: Int32?, visibilitySm: Double?, windKt: Int32?, gustKt: Int32?, 
+        /**
+         * Present weather groups ("-RA BR"); a whole METAR body works too.
+         */wx: String) {
+        self.ceilingFt = ceilingFt
+        self.visibilitySm = visibilitySm
+        self.windKt = windKt
+        self.gustKt = gustKt
+        self.wx = wx
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WeatherConditions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWeatherConditions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WeatherConditions {
+        return
+            try WeatherConditions(
+                ceilingFt: FfiConverterOptionInt32.read(from: &buf), 
+                visibilitySm: FfiConverterOptionDouble.read(from: &buf), 
+                windKt: FfiConverterOptionInt32.read(from: &buf), 
+                gustKt: FfiConverterOptionInt32.read(from: &buf), 
+                wx: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WeatherConditions, into buf: inout [UInt8]) {
+        FfiConverterOptionInt32.write(value.ceilingFt, into: &buf)
+        FfiConverterOptionDouble.write(value.visibilitySm, into: &buf)
+        FfiConverterOptionInt32.write(value.windKt, into: &buf)
+        FfiConverterOptionInt32.write(value.gustKt, into: &buf)
+        FfiConverterString.write(value.wx, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherConditions_lift(_ buf: RustBuffer) throws -> WeatherConditions {
+    return try FfiConverterTypeWeatherConditions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherConditions_lower(_ value: WeatherConditions) -> RustBuffer {
+    return FfiConverterTypeWeatherConditions.lower(value)
+}
+
+
+public struct WeatherImpact: Equatable, Hashable {
+    public var level: ImpactLevel
+    public var slows: Bool
+    public var affects: Affects?
+    public var hazards: [Hazard]
+    public var reason: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(level: ImpactLevel, slows: Bool, affects: Affects?, hazards: [Hazard], reason: String) {
+        self.level = level
+        self.slows = slows
+        self.affects = affects
+        self.hazards = hazards
+        self.reason = reason
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WeatherImpact: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWeatherImpact: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WeatherImpact {
+        return
+            try WeatherImpact(
+                level: FfiConverterTypeImpactLevel.read(from: &buf), 
+                slows: FfiConverterBool.read(from: &buf), 
+                affects: FfiConverterOptionTypeAffects.read(from: &buf), 
+                hazards: FfiConverterSequenceTypeHazard.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WeatherImpact, into buf: inout [UInt8]) {
+        FfiConverterTypeImpactLevel.write(value.level, into: &buf)
+        FfiConverterBool.write(value.slows, into: &buf)
+        FfiConverterOptionTypeAffects.write(value.affects, into: &buf)
+        FfiConverterSequenceTypeHazard.write(value.hazards, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherImpact_lift(_ buf: RustBuffer) throws -> WeatherImpact {
+    return try FfiConverterTypeWeatherImpact.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherImpact_lower(_ value: WeatherImpact) -> RustBuffer {
+    return FfiConverterTypeWeatherImpact.lower(value)
+}
+
+
 public struct YearCount: Equatable, Hashable {
     public var year: Int32
     public var flights: UInt32
@@ -2661,6 +2888,79 @@ public func FfiConverterTypeYearCount_lift(_ buf: RustBuffer) throws -> YearCoun
 public func FfiConverterTypeYearCount_lower(_ value: YearCount) -> RustBuffer {
     return FfiConverterTypeYearCount.lower(value)
 }
+
+
+
+public enum Affects: Equatable, Hashable {
+    
+    case arrivals
+    case departures
+    case both
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension Affects: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAffects: FfiConverterRustBuffer {
+    typealias SwiftType = Affects
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Affects {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .arrivals
+        
+        case 2: return .departures
+        
+        case 3: return .both
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Affects, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .arrivals:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .departures:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .both:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAffects_lift(_ buf: RustBuffer) throws -> Affects {
+    return try FfiConverterTypeAffects.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAffects_lower(_ value: Affects) -> RustBuffer {
+    return FfiConverterTypeAffects.lower(value)
+}
+
 
 
 
@@ -2847,6 +3147,197 @@ public func FfiConverterTypeFlightStatus_lift(_ buf: RustBuffer) throws -> Fligh
 #endif
 public func FfiConverterTypeFlightStatus_lower(_ value: FlightStatus) -> RustBuffer {
     return FfiConverterTypeFlightStatus.lower(value)
+}
+
+
+
+
+public enum HazardKind: Equatable, Hashable {
+    
+    case thunderstorm
+    case freezingPrecip
+    case snow
+    case lowCeiling
+    case fog
+    case lowVisibility
+    case wind
+    case heavyRain
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension HazardKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHazardKind: FfiConverterRustBuffer {
+    typealias SwiftType = HazardKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HazardKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .thunderstorm
+        
+        case 2: return .freezingPrecip
+        
+        case 3: return .snow
+        
+        case 4: return .lowCeiling
+        
+        case 5: return .fog
+        
+        case 6: return .lowVisibility
+        
+        case 7: return .wind
+        
+        case 8: return .heavyRain
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HazardKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .thunderstorm:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .freezingPrecip:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .snow:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .lowCeiling:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .fog:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .lowVisibility:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .wind:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .heavyRain:
+            writeInt(&buf, Int32(8))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHazardKind_lift(_ buf: RustBuffer) throws -> HazardKind {
+    return try FfiConverterTypeHazardKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHazardKind_lower(_ value: HazardKind) -> RustBuffer {
+    return FfiConverterTypeHazardKind.lower(value)
+}
+
+
+
+
+public enum ImpactLevel: Equatable, Hashable {
+    
+    /**
+     * The core's `None`, renamed so Swift never confuses it with `Optional.none`.
+     */
+    case clear
+    case minor
+    case moderate
+    case severe
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ImpactLevel: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImpactLevel: FfiConverterRustBuffer {
+    typealias SwiftType = ImpactLevel
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImpactLevel {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .clear
+        
+        case 2: return .minor
+        
+        case 3: return .moderate
+        
+        case 4: return .severe
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ImpactLevel, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .clear:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .minor:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .moderate:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .severe:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImpactLevel_lift(_ buf: RustBuffer) throws -> ImpactLevel {
+    return try FfiConverterTypeImpactLevel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImpactLevel_lower(_ value: ImpactLevel) -> RustBuffer {
+    return FfiConverterTypeImpactLevel.lower(value)
 }
 
 
@@ -3440,6 +3931,30 @@ fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
+    typealias SwiftType = Double?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterDouble.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterDouble.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -3576,6 +4091,30 @@ fileprivate struct FfiConverterOptionTypeTypeTally: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeTypeTally.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeAffects: FfiConverterRustBuffer {
+    typealias SwiftType = Affects?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAffects.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAffects.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -3873,6 +4412,31 @@ fileprivate struct FfiConverterSequenceTypeDecadeCount: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDecadeCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHazard: FfiConverterRustBuffer {
+    typealias SwiftType = [Hazard]
+
+    public static func write(_ value: [Hazard], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHazard.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Hazard] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Hazard]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHazard.read(from: &buf))
         }
         return seq
     }
@@ -4210,6 +4774,17 @@ public func computeStats(rows: [BoardFlight]) -> DelayStats  {
 })
 }
 /**
+ * Plain English for present weather groups ("-RA BR" is "light rain and mist").
+ */
+public func describeWeather(wx: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_describe_weather(
+        FfiConverterString.lower(wx),uniffiCallStatus
+    )
+})
+}
+/**
  * Haversine distance in kilometres.
  */
 public func distanceKm(a: Coord, b: Coord) -> Double  {
@@ -4251,6 +4826,17 @@ public func greatCircle(a: Coord, b: Coord, segments: UInt32) -> [Coord]  {
 })
 }
 /**
+ * The present weather groups of a METAR body, without trend groups or remarks.
+ */
+public func presentWeather(report: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_present_weather(
+        FfiConverterString.lower(report),uniffiCallStatus
+    )
+})
+}
+/**
  * Window, middle or aisle for a seat ("23A") in the economy layout of an
  * aircraft family ("a320", "b777", ...); nil for other families or letters.
  */
@@ -4260,6 +4846,17 @@ public func seatPosition(seat: String, family: String) -> SeatPosition?  {
     uniffi_flightcore_ffi_fn_func_seat_position(
         FfiConverterString.lower(seat),
         FfiConverterString.lower(family),uniffiCallStatus
+    )
+})
+}
+/**
+ * Whether the weather is likely slowing the airport, with a one-line reason.
+ */
+public func weatherImpact(conditions: WeatherConditions) -> WeatherImpact  {
+    return try!  FfiConverterTypeWeatherImpact_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_weather_impact(
+        FfiConverterTypeWeatherConditions_lower(conditions),uniffiCallStatus
     )
 })
 }
@@ -4291,6 +4888,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_flightcore_ffi_checksum_func_compute_stats() != 34295) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_flightcore_ffi_checksum_func_describe_weather() != 55254) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_flightcore_ffi_checksum_func_distance_km() != 48912) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4300,7 +4900,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_flightcore_ffi_checksum_func_great_circle() != 35599) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_flightcore_ffi_checksum_func_present_weather() != 50650) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_flightcore_ffi_checksum_func_seat_position() != 50712) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_weather_impact() != 47269) {
         return InitializationResult.apiChecksumMismatch
     }
 

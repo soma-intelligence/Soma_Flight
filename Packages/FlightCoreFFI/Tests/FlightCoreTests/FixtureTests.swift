@@ -212,6 +212,65 @@ private func categoryName(_ c: FlightCategory) -> String {
     }
 }
 
+// MARK: - Weather impact
+
+private func levelName(_ l: ImpactLevel) -> String {
+    switch l {
+    case .clear: "none"
+    case .minor: "minor"
+    case .moderate: "moderate"
+    case .severe: "severe"
+    }
+}
+
+private func affectsName(_ a: Affects?) -> String? {
+    switch a {
+    case .arrivals: "arrivals"
+    case .departures: "departures"
+    case .both: "both"
+    case nil: nil
+    }
+}
+
+private func hazardName(_ k: HazardKind) -> String {
+    switch k {
+    case .thunderstorm: "thunderstorm"
+    case .freezingPrecip: "freezingPrecip"
+    case .snow: "snow"
+    case .lowCeiling: "lowCeiling"
+    case .fog: "fog"
+    case .lowVisibility: "lowVisibility"
+    case .wind: "wind"
+    case .heavyRain: "heavyRain"
+    }
+}
+
+@Test func weatherImpactCases() throws {
+    let file = try fixture("weather_impact")
+    let all = try cases(file, "impact")
+    #expect(!all.isEmpty)
+    for c in all {
+        let n = string(c["name"]) ?? "?"
+        let input = try #require(c["conditions"] as? [String: Any])
+        let got = weatherImpact(conditions: WeatherConditions(
+            ceilingFt: int32(input["ceilingFt"]), visibilitySm: double(input["visibilitySm"]),
+            windKt: int32(input["windKt"]), gustKt: int32(input["gustKt"]), wx: string(input["wx"]) ?? ""))
+        #expect(levelName(got.level) == string(c["level"]), "\(n)")
+        #expect(got.slows == (c["slows"] as? Bool), "\(n)")
+        #expect(affectsName(got.affects) == string(c["affects"]), "\(n)")
+        #expect(got.hazards.map { hazardName($0.kind) } == (c["hazards"] as? [String]), "\(n)")
+        #expect(got.reason == string(c["reason"]), "\(n): \(got.reason)")
+    }
+    for c in try cases(file, "describe") {
+        let wx = string(c["wx"]) ?? ""
+        #expect(describeWeather(wx: wx) == string(c["text"]), "\(wx)")
+    }
+    for c in try cases(file, "present_weather") {
+        let report = string(c["report"]) ?? ""
+        #expect(presentWeather(report: report) == string(c["wx"]), "\(report)")
+    }
+}
+
 @Test func nonFiniteOrNegativeVisibilityIsLifr() {
     for v in [Double.nan, .infinity, -.infinity, -1, -0.5] {
         #expect(flightCategory(ceilingFt: nil, visibilitySm: v) == .lifr, "\(v)")

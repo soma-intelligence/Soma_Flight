@@ -5,7 +5,7 @@
 //! Built into `Packages/FlightCoreFFI/FlightCoreFFI.xcframework` by
 //! `core/scripts/build-xcframework.sh`.
 
-use flightcore::{aircraft, delay, geo, passport, passport_detail, weather};
+use flightcore::{aircraft, delay, geo, impact, passport, passport_detail, weather};
 
 uniffi::setup_scaffolding!();
 
@@ -274,6 +274,169 @@ impl From<weather::FlightCategory> for FlightCategory {
 #[uniffi::export]
 pub fn flight_category(ceiling_ft: Option<i32>, visibility_sm: f64) -> FlightCategory {
     weather::flight_category(ceiling_ft, visibility_sm).into()
+}
+
+// Weather impact
+
+/// What the weather impact reads; see `flightcore::impact::Conditions`.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct WeatherConditions {
+    pub ceiling_ft: Option<i32>,
+    pub visibility_sm: Option<f64>,
+    pub wind_kt: Option<i32>,
+    pub gust_kt: Option<i32>,
+    /// Present weather groups ("-RA BR"); a whole METAR body works too.
+    pub wx: String,
+}
+
+impl From<WeatherConditions> for impact::Conditions {
+    fn from(c: WeatherConditions) -> Self {
+        // Struct literal: a new core field fails to compile here.
+        Self {
+            ceiling_ft: c.ceiling_ft,
+            visibility_sm: c.visibility_sm,
+            wind_kt: c.wind_kt,
+            gust_kt: c.gust_kt,
+            wx: c.wx,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, uniffi::Enum)]
+pub enum ImpactLevel {
+    /// The core's `None`, renamed so Swift never confuses it with `Optional.none`.
+    Clear,
+    Minor,
+    Moderate,
+    Severe,
+}
+
+impl From<impact::ImpactLevel> for ImpactLevel {
+    fn from(l: impact::ImpactLevel) -> Self {
+        match l {
+            impact::ImpactLevel::None => Self::Clear,
+            impact::ImpactLevel::Minor => Self::Minor,
+            impact::ImpactLevel::Moderate => Self::Moderate,
+            impact::ImpactLevel::Severe => Self::Severe,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum Affects {
+    Arrivals,
+    Departures,
+    Both,
+}
+
+impl From<impact::Affects> for Affects {
+    fn from(a: impact::Affects) -> Self {
+        match a {
+            impact::Affects::Arrivals => Self::Arrivals,
+            impact::Affects::Departures => Self::Departures,
+            impact::Affects::Both => Self::Both,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum HazardKind {
+    Thunderstorm,
+    FreezingPrecip,
+    Snow,
+    LowCeiling,
+    Fog,
+    LowVisibility,
+    Wind,
+    HeavyRain,
+}
+
+impl From<impact::HazardKind> for HazardKind {
+    fn from(k: impact::HazardKind) -> Self {
+        match k {
+            impact::HazardKind::Thunderstorm => Self::Thunderstorm,
+            impact::HazardKind::FreezingPrecip => Self::FreezingPrecip,
+            impact::HazardKind::Snow => Self::Snow,
+            impact::HazardKind::LowCeiling => Self::LowCeiling,
+            impact::HazardKind::Fog => Self::Fog,
+            impact::HazardKind::LowVisibility => Self::LowVisibility,
+            impact::HazardKind::Wind => Self::Wind,
+            impact::HazardKind::HeavyRain => Self::HeavyRain,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct Hazard {
+    pub kind: HazardKind,
+    pub level: ImpactLevel,
+    pub affects: Affects,
+    pub label: String,
+}
+
+impl From<impact::Hazard> for Hazard {
+    fn from(
+        impact::Hazard {
+            kind,
+            level,
+            affects,
+            label,
+        }: impact::Hazard,
+    ) -> Self {
+        Self {
+            kind: kind.into(),
+            level: level.into(),
+            affects: affects.into(),
+            label,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct WeatherImpact {
+    pub level: ImpactLevel,
+    pub slows: bool,
+    pub affects: Option<Affects>,
+    pub hazards: Vec<Hazard>,
+    pub reason: String,
+}
+
+impl From<impact::Impact> for WeatherImpact {
+    fn from(
+        impact::Impact {
+            level,
+            slows,
+            affects,
+            hazards,
+            reason,
+        }: impact::Impact,
+    ) -> Self {
+        Self {
+            level: level.into(),
+            slows,
+            affects: affects.map(Affects::from),
+            hazards: hazards.into_iter().map(Hazard::from).collect(),
+            reason,
+        }
+    }
+}
+
+/// Whether the weather is likely slowing the airport, with a one-line reason.
+#[uniffi::export]
+pub fn weather_impact(conditions: WeatherConditions) -> WeatherImpact {
+    impact::weather_impact(&conditions.into()).into()
+}
+
+/// Plain English for present weather groups ("-RA BR" is "light rain and mist").
+#[uniffi::export]
+pub fn describe_weather(wx: String) -> String {
+    impact::describe_weather(&wx)
+}
+
+/// The present weather groups of a METAR body, without trend groups or remarks.
+#[uniffi::export]
+pub fn present_weather(report: String) -> String {
+    impact::present_weather(&report)
 }
 
 // Passport

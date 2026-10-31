@@ -5,9 +5,12 @@ import {
   computePassport,
   computePassportDetail,
   computeStats,
+  describeWeather,
   distanceKm,
   flightCategory,
   greatCircle,
+  presentWeather,
+  weatherImpact,
 } from "./flightcore.ts";
 import type { Coord } from "./flightcore.ts";
 
@@ -129,6 +132,38 @@ Deno.test("category fixture: cases", () => {
         flightCategory(c.ceiling_ft, c.visibility_sm)
       } vs ${c.expected}`,
     );
+  }
+});
+
+Deno.test("weather impact fixture: verdicts, descriptions, groups", () => {
+  const f = fixture("weather_impact");
+  assert(f.impact.length > 0, "no impact cases");
+  for (const c of f.impact) {
+    const i = weatherImpact(c.conditions);
+    const got = {
+      level: i.level,
+      slows: i.slows,
+      affects: i.affects,
+      hazards: i.hazards.map((h) => h.kind),
+      reason: i.reason,
+    };
+    const want = {
+      level: c.level,
+      slows: c.slows,
+      affects: c.affects,
+      hazards: c.hazards,
+      reason: c.reason,
+    };
+    assert(
+      deepEqual(got, want),
+      `${c.name}: ${JSON.stringify(got)} vs ${JSON.stringify(want)}`,
+    );
+  }
+  for (const c of f.describe) {
+    assert(describeWeather(c.wx) === c.text, `describe ${c.wx}`);
+  }
+  for (const c of f.present_weather) {
+    assert(presentWeather(c.report) === c.wx, `present ${c.report}`);
   }
 });
 

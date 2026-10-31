@@ -263,6 +263,11 @@ RustBuffer uniffi_flightcore_ffi_fn_func_compute_passport_detail(RustBuffer flig
 RustBuffer uniffi_flightcore_ffi_fn_func_compute_stats(RustBuffer rows, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_DESCRIBE_WEATHER
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_DESCRIBE_WEATHER
+RustBuffer uniffi_flightcore_ffi_fn_func_describe_weather(RustBuffer wx, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_DISTANCE_KM
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_DISTANCE_KM
 double uniffi_flightcore_ffi_fn_func_distance_km(RustBuffer a, RustBuffer b, RustCallStatus *_Nonnull out_status
@@ -278,9 +283,19 @@ RustBuffer uniffi_flightcore_ffi_fn_func_flight_category(RustBuffer ceiling_ft, 
 RustBuffer uniffi_flightcore_ffi_fn_func_great_circle(RustBuffer a, RustBuffer b, uint32_t segments, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PRESENT_WEATHER
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_PRESENT_WEATHER
+RustBuffer uniffi_flightcore_ffi_fn_func_present_weather(RustBuffer report, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_SEAT_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_SEAT_POSITION
 RustBuffer uniffi_flightcore_ffi_fn_func_seat_position(RustBuffer seat, RustBuffer family, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_WEATHER_IMPACT
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_FN_FUNC_WEATHER_IMPACT
+RustBuffer uniffi_flightcore_ffi_fn_func_weather_impact(RustBuffer conditions, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_FLIGHTCORE_FFI_RUSTBUFFER_ALLOC
@@ -567,6 +582,12 @@ uint16_t uniffi_flightcore_ffi_checksum_func_compute_stats(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_DESCRIBE_WEATHER
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_DESCRIBE_WEATHER
+uint16_t uniffi_flightcore_ffi_checksum_func_describe_weather(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_DISTANCE_KM
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_DISTANCE_KM
 uint16_t uniffi_flightcore_ffi_checksum_func_distance_km(void
@@ -585,9 +606,21 @@ uint16_t uniffi_flightcore_ffi_checksum_func_great_circle(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PRESENT_WEATHER
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_PRESENT_WEATHER
+uint16_t uniffi_flightcore_ffi_checksum_func_present_weather(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_SEAT_POSITION
 #define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_SEAT_POSITION
 uint16_t uniffi_flightcore_ffi_checksum_func_seat_position(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_WEATHER_IMPACT
+#define UNIFFI_FFIDEF_UNIFFI_FLIGHTCORE_FFI_CHECKSUM_FUNC_WEATHER_IMPACT
+uint16_t uniffi_flightcore_ffi_checksum_func_weather_impact(void
     
 );
 #endif

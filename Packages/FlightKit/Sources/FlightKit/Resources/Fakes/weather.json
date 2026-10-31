@@ -1,31 +1,242 @@
 {
  "KAUS": {
-  "metarRaw": "KAUS 232353Z 17012G22KT 10SM FEW040 BKN250 29/17 A2998",
-  "tafRaw": "KAUS 232320Z 2400/2506 17010KT P6SM SCT040",
-  "tempC": 29.0,
+  "metarRaw": "KAUS 231453Z 17012G22KT 10SM FEW040 BKN250 24/17 A2998 RMK AO2 SLP145 T02440172",
+  "tafRaw": "TAF KAUS 231120Z 2312/2412 17012G20KT P6SM FEW040 BKN250 FM232000 18014G24KT P6SM SCT050 BKN250 TEMPO 2321/2401 VRB15G30KT 3SM TSRA BKN030CB FM240300 16008KT P6SM SCT040",
+  "tempC": 24.4,
   "windDirDeg": 170,
   "windKt": 12,
   "gustKt": 22,
   "visibilitySm": 10.0,
   "ceilingFt": 25000,
   "category": "VFR",
-  "observedAt": "2026-10-23T15:10:00.000Z",
+  "observedAt": "2026-10-23T14:53:00.000Z",
+  "wx": null,
+  "clouds": [
+   {
+    "cover": "FEW",
+    "baseFt": 4000
+   },
+   {
+    "cover": "BKN",
+    "baseFt": 25000
+   }
+  ],
+  "dewpointC": 17.2,
+  "altimeterHpa": 1015.2,
+  "tafIssuedAt": "2026-10-23T11:20:00.000Z",
   "forecast": [
    {
-    "from": "2026-10-23T16:00:00.000Z",
-    "to": "2026-10-23T22:00:00.000Z",
+    "from": "2026-10-23T12:00:00.000Z",
+    "to": "2026-10-23T20:00:00.000Z",
     "category": "VFR",
     "windDirDeg": 170,
-    "windKt": 10,
+    "windKt": 12,
+    "gustKt": 20,
+    "visibilitySm": 6.0,
+    "ceilingFt": 25000,
+    "change": null,
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "FEW",
+      "baseFt": 4000
+     },
+     {
+      "cover": "BKN",
+      "baseFt": 25000
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T20:00:00.000Z",
+    "to": "2026-10-24T03:00:00.000Z",
+    "category": "VFR",
+    "windDirDeg": 180,
+    "windKt": 14,
+    "gustKt": 24,
+    "visibilitySm": 6.0,
+    "ceilingFt": 25000,
+    "change": "FM",
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "SCT",
+      "baseFt": 5000
+     },
+     {
+      "cover": "BKN",
+      "baseFt": 25000
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T21:00:00.000Z",
+    "to": "2026-10-24T01:00:00.000Z",
+    "category": "MVFR",
+    "windDirDeg": null,
+    "windKt": 15,
+    "gustKt": 30,
+    "visibilitySm": 3.0,
+    "ceilingFt": 3000,
+    "change": "TEMPO",
+    "probability": null,
+    "wx": "TSRA",
+    "clouds": [
+     {
+      "cover": "BKN",
+      "baseFt": 3000
+     }
+    ]
+   },
+   {
+    "from": "2026-10-24T03:00:00.000Z",
+    "to": "2026-10-24T12:00:00.000Z",
+    "category": "VFR",
+    "windDirDeg": 160,
+    "windKt": 8,
     "gustKt": null,
     "visibilitySm": 6.0,
-    "ceilingFt": 4000
+    "ceilingFt": null,
+    "change": "FM",
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "SCT",
+      "baseFt": 4000
+     }
+    ]
+   }
+  ]
+ },
+ "LFPG": {
+  "metarRaw": "LFPG 231530Z 21006KT 2500 -DZ BR BKN006 OVC009 12/11 Q1012 TEMPO 0800 FG BKN002",
+  "tafRaw": "TAF LFPG 231100Z 2312/2418 20008KT 4000 -DZ BKN007 TEMPO 2312/2316 2500 -DZ BR BKN005 BECMG 2318/2320 BKN003 PROB40 TEMPO 2320/2408 0300 FG VV001 BECMG 2408/2410 22010KT 9999 SCT020",
+  "tempC": 12.0,
+  "windDirDeg": 210,
+  "windKt": 6,
+  "gustKt": null,
+  "visibilitySm": 1.55,
+  "ceilingFt": 600,
+  "category": "IFR",
+  "observedAt": "2026-10-23T15:30:00.000Z",
+  "wx": "-DZ BR",
+  "clouds": [
+   {
+    "cover": "BKN",
+    "baseFt": 600
+   },
+   {
+    "cover": "OVC",
+    "baseFt": 900
+   }
+  ],
+  "dewpointC": 11.0,
+  "altimeterHpa": 1012.0,
+  "tafIssuedAt": "2026-10-23T11:00:00.000Z",
+  "forecast": [
+   {
+    "from": "2026-10-23T12:00:00.000Z",
+    "to": "2026-10-23T18:00:00.000Z",
+    "category": "IFR",
+    "windDirDeg": 200,
+    "windKt": 8,
+    "gustKt": null,
+    "visibilitySm": 2.49,
+    "ceilingFt": 700,
+    "change": null,
+    "probability": null,
+    "wx": "-DZ",
+    "clouds": [
+     {
+      "cover": "BKN",
+      "baseFt": 700
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T12:00:00.000Z",
+    "to": "2026-10-23T16:00:00.000Z",
+    "category": "IFR",
+    "windDirDeg": 200,
+    "windKt": 8,
+    "gustKt": null,
+    "visibilitySm": 1.55,
+    "ceilingFt": 500,
+    "change": "TEMPO",
+    "probability": null,
+    "wx": "-DZ BR",
+    "clouds": [
+     {
+      "cover": "BKN",
+      "baseFt": 500
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T18:00:00.000Z",
+    "to": "2026-10-24T08:00:00.000Z",
+    "category": "LIFR",
+    "windDirDeg": 200,
+    "windKt": 6,
+    "gustKt": null,
+    "visibilitySm": 2.49,
+    "ceilingFt": 300,
+    "change": "BECMG",
+    "probability": null,
+    "wx": "-DZ",
+    "clouds": [
+     {
+      "cover": "BKN",
+      "baseFt": 300
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T20:00:00.000Z",
+    "to": "2026-10-24T08:00:00.000Z",
+    "category": "LIFR",
+    "windDirDeg": null,
+    "windKt": 0,
+    "gustKt": null,
+    "visibilitySm": 0.19,
+    "ceilingFt": 100,
+    "change": "PROB",
+    "probability": 40,
+    "wx": "FG",
+    "clouds": [
+     {
+      "cover": "VV",
+      "baseFt": 100
+     }
+    ]
+   },
+   {
+    "from": "2026-10-24T08:00:00.000Z",
+    "to": "2026-10-24T18:00:00.000Z",
+    "category": "VFR",
+    "windDirDeg": 220,
+    "windKt": 10,
+    "gustKt": null,
+    "visibilitySm": 6.21,
+    "ceilingFt": null,
+    "change": "BECMG",
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "SCT",
+      "baseFt": 2000
+     }
+    ]
    }
   ]
  },
  "KSFO": {
-  "metarRaw": "KSFO 232356Z 29014KT 10SM FEW015 SCT200 17/11 A3002",
-  "tafRaw": "KSFO 232320Z 2400/2506 28012KT P6SM FEW015",
+  "metarRaw": "KSFO 231456Z 29014KT 10SM FEW015 SCT200 17/11 A3002 RMK AO2 SLP165",
+  "tafRaw": "TAF KSFO 231120Z 2312/2418 28012KT P6SM FEW015 SCT200 FM232000 29016G24KT P6SM FEW020 FM240300 27010KT P6SM BKN012 FM240800 26006KT 5SM BR OVC008",
   "tempC": 17.0,
   "windDirDeg": 290,
   "windKt": 14,
@@ -33,41 +244,101 @@
   "visibilitySm": 10.0,
   "ceilingFt": null,
   "category": "VFR",
-  "observedAt": "2026-10-23T15:24:00.000Z",
-  "forecast": [
+  "observedAt": "2026-10-23T14:56:00.000Z",
+  "wx": null,
+  "clouds": [
    {
-    "from": "2026-10-23T16:00:00.000Z",
-    "to": "2026-10-23T22:00:00.000Z",
-    "category": "MVFR",
-    "windDirDeg": 280,
-    "windKt": 12,
-    "gustKt": 20,
-    "visibilitySm": 4.0,
-    "ceilingFt": 1500
+    "cover": "FEW",
+    "baseFt": 1500
+   },
+   {
+    "cover": "SCT",
+    "baseFt": 20000
    }
-  ]
- },
- "LFPG": {
-  "metarRaw": "LFPG 232330Z 22008KT 9999 FEW030 11/07 Q1018",
-  "tafRaw": "LFPG 232300Z 2400/2506 22010KT 9999 FEW030",
-  "tempC": 11.0,
-  "windDirDeg": 220,
-  "windKt": 8,
-  "gustKt": null,
-  "visibilitySm": 6.2,
-  "ceilingFt": null,
-  "category": "VFR",
-  "observedAt": "2026-10-23T15:24:00.000Z",
+  ],
+  "dewpointC": 11.0,
+  "altimeterHpa": 1016.6,
+  "tafIssuedAt": "2026-10-23T11:20:00.000Z",
   "forecast": [
    {
-    "from": "2026-10-23T16:00:00.000Z",
-    "to": "2026-10-23T22:00:00.000Z",
-    "category": "MVFR",
+    "from": "2026-10-23T12:00:00.000Z",
+    "to": "2026-10-23T20:00:00.000Z",
+    "category": "VFR",
     "windDirDeg": 280,
     "windKt": 12,
-    "gustKt": 20,
-    "visibilitySm": 4.0,
-    "ceilingFt": 1500
+    "gustKt": null,
+    "visibilitySm": 6.0,
+    "ceilingFt": null,
+    "change": null,
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "FEW",
+      "baseFt": 1500
+     },
+     {
+      "cover": "SCT",
+      "baseFt": 20000
+     }
+    ]
+   },
+   {
+    "from": "2026-10-23T20:00:00.000Z",
+    "to": "2026-10-24T03:00:00.000Z",
+    "category": "VFR",
+    "windDirDeg": 290,
+    "windKt": 16,
+    "gustKt": 24,
+    "visibilitySm": 6.0,
+    "ceilingFt": null,
+    "change": "FM",
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "FEW",
+      "baseFt": 2000
+     }
+    ]
+   },
+   {
+    "from": "2026-10-24T03:00:00.000Z",
+    "to": "2026-10-24T08:00:00.000Z",
+    "category": "MVFR",
+    "windDirDeg": 270,
+    "windKt": 10,
+    "gustKt": null,
+    "visibilitySm": 6.0,
+    "ceilingFt": 1200,
+    "change": "FM",
+    "probability": null,
+    "wx": null,
+    "clouds": [
+     {
+      "cover": "BKN",
+      "baseFt": 1200
+     }
+    ]
+   },
+   {
+    "from": "2026-10-24T08:00:00.000Z",
+    "to": "2026-10-24T18:00:00.000Z",
+    "category": "IFR",
+    "windDirDeg": 260,
+    "windKt": 6,
+    "gustKt": null,
+    "visibilitySm": 5.0,
+    "ceilingFt": 800,
+    "change": "FM",
+    "probability": null,
+    "wx": "BR",
+    "clouds": [
+     {
+      "cover": "OVC",
+      "baseFt": 800
+     }
+    ]
    }
   ]
  }
