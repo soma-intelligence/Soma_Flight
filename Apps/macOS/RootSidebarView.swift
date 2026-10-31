@@ -76,6 +76,8 @@ struct RootSidebarView: View {
             }
             // A boarding pass opened with Open With, or dropped on the Dock icon.
             .passImportSheet(home)
+            // The Import screen; a confirmation email dropped on it or opened with the app lands there too.
+            .importSheet(home)
             .environment(\.units, units)
     }
 
@@ -120,7 +122,8 @@ struct RootSidebarView: View {
         Group {
             if showSearch {
                 SearchView(store: search, onFollowed: { flight in Task { await home.didFollow(flight) } },
-                           lookup: env.lookup, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent)
+                           lookup: env.lookup, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
+                           onImport: { home.showImport = true })
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {
                 switch home.tab {
@@ -129,7 +132,7 @@ struct RootSidebarView: View {
                                   lookup: env.lookup)
                 case .passport:
                     PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                                 onOpenFlight: home.open(past:))
+                                 onOpenFlight: home.open(past:), onImport: { home.showImport = true })
                 }
             }
         }

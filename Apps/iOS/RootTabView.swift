@@ -16,6 +16,7 @@ struct RootTabView: View {
     @State private var showSettings = false
     @State private var screenHeight: CGFloat = 874
     @StoredUnits private var units: Units
+    @Environment(\.scenePhase) private var scenePhase
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -70,6 +71,8 @@ struct RootTabView: View {
             }
             // The search sheet covers the tab pill: a follow's toast waits for it to close.
             .onChange(of: showSearch) { _, open in home.searchOpen = open }
+            // A confirmation email shared to the app from Mail (the share extension's inbox).
+            .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
             .environment(\.units, units)
     }
 
@@ -93,7 +96,8 @@ struct RootTabView: View {
         .interactiveDismissDisabled()
         .sheet(isPresented: $showSearch) {
             SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
-                        onFollowed: { flight in Task { await home.didFollow(flight) } })
+                        onFollowed: { flight in Task { await home.didFollow(flight) } },
+                        onImport: { showSearch = false; home.showImport = true })
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -110,6 +114,8 @@ struct RootTabView: View {
         }
         // A boarding pass opened from Mail, Files or an airline app.
         .passImportSheet(home)
+        // The Import screen, from the Passport's add menu, Add Flight or a shared email.
+        .importSheet(home, suspended: showSearch)
         .environment(\.units, units)
     }
 
@@ -121,7 +127,7 @@ struct RootTabView: View {
                               lookup: env.lookup)
             case .passport:
                 PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                                 onOpenFlight: home.open(past:))
+                                 onOpenFlight: home.open(past:), onImport: { home.showImport = true })
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -179,18 +185,19 @@ private struct SearchSheet: View {
     var alreadyFollowed: FollowedFlights
     var frequent: [FrequentItem]
     var onFollowed: (Flight) -> Void
+    var onImport: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem],
-         onFollowed: @escaping (Flight) -> Void) {
+         onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void) {
         _store = State(initialValue: env.makeSearchStore())
         self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent
-        self.onFollowed = onFollowed
+        self.onFollowed = onFollowed; self.onImport = onImport
     }
 
     var body: some View {
         SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
-                   frequent: frequent)
+                   frequent: frequent, onImport: onImport)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             #if DEBUG
             // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.

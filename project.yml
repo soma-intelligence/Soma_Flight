@@ -40,6 +40,8 @@ targets:
         product: FlightKit
       # The flight Live Activity and the home screen and lock screen widgets (embedded app extension).
       - target: SomaFlightWidgets
+      # "Soma Flight" in the share sheet: takes a confirmation email or itinerary for the import.
+      - target: SomaFlightShare
       # The Apple Watch app (with its complications), fed My Flights over WatchConnectivity.
       - target: SomaFlightWatch
     settings:
@@ -56,7 +58,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         # Settings > Calendar (asked when the switch is turned on) and the "Leave by" time (asked from its
         # breakdown, while the app is in use only).
-        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date. Nothing leaves your device.
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date, and finds the flights in your events when you import them. Nothing leaves your device.
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
       configs:
@@ -89,7 +91,7 @@ targets:
         # callback. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/macOS/Info.plist
         # Settings > Calendar and the "Leave by" time; the sandbox entitlements are in both .entitlements files.
-        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date. Nothing leaves your Mac.
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date, and finds the flights in your events when you import them. Nothing leaves your Mac.
         INFOPLIST_KEY_NSLocationUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         ENABLE_APP_SANDBOX: YES
@@ -131,6 +133,30 @@ targets:
         PRODUCT_NAME: SomaFlightWidgets
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Apps/Widgets/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+  SomaFlightShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Apps/Share
+        excludes: ["Info.plist", "*.entitlements"]
+    entitlements:
+      path: Apps/Share/SomaFlightShare.entitlements
+      properties:
+        # Leaves the shared email in the App Group's import inbox, where the app reads and deletes it.
+        com.apple.security.application-groups: [group.me.somalabs.flight]
+    dependencies:
+      # The email reader and the inbox only: no Supabase, no network, a share extension's memory budget.
+      - package: FlightKit
+        product: FlightImportKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.share
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_NAME: SomaFlightShare
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Apps/Share/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
   SomaFlightWatch:

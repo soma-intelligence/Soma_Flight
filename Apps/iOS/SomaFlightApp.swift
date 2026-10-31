@@ -39,6 +39,9 @@ struct SomaFlightApp: App {
                 } else if PassFile.isPassFile(url), let home {
                     // "Open in Soma Flight" on a boarding pass from Mail, Files or an airline app.
                     Task { await home.importPass(from: url) }
+                } else if HomeModel.isEmailFile(url), let home {
+                    // A confirmation email or itinerary opened with the app: read on the phone.
+                    home.openImport(emailFile: url)
                 } else if let home {
                     Task { await home.session.handle(url: url) }
                 } else {
@@ -69,6 +72,8 @@ struct SomaFlightApp: App {
                         pendingURL = nil
                         if PassFile.isPassFile(url) {
                             await built.importPass(from: url)
+                        } else if HomeModel.isEmailFile(url) {
+                            built.openImport(emailFile: url)
                         } else {
                             await built.session.handle(url: url)
                         }
