@@ -156,12 +156,52 @@ public final class HomeModel {
     /// Followed flights, the ones in the air first.
     public var followed: [Flight] { myFlights.live + myFlights.upcoming }
 
-    /// Arcs, planes and pins for the tab on show.
+    /// Arcs, planes and pins for the tab on show. Built again only when the flights behind it change:
+    /// each arc is a great circle from the Rust core, and the shell reads this on every layout pass
+    /// (a detent settling, a toast), which must not rebuild the globe's overlays.
     public var globe: GlobeContent {
-        switch tab {
-        case .flights: .followed(followed, lookup: env.lookup)
-        case .passport: .past(passport.flights, lookup: env.lookup)
+        let key: GlobeKey = switch tab {
+        case .flights: .flights(followed)
+        case .passport: .passport(passport.flights)
         }
+        if let globeCache, globeCache.key == key { return globeCache.content }
+        let content: GlobeContent = switch key {
+        case .flights(let flights): .followed(flights, lookup: env.lookup)
+        case .passport(let flights): .past(flights, lookup: env.lookup)
+        }
+        globeCache = (key, content)
+        return content
+    }
+
+    private enum GlobeKey: Equatable {
+        case flights([Flight])
+        case passport([PastFlight])
+    }
+
+    @ObservationIgnored private var globeCache: (key: GlobeKey, content: GlobeContent)?
+
+    /// One flight alone on the globe while it is the screen on top of the panel (followed or past): its
+    /// arc, its two airports and its plane. Nil shows everything.
+    public var isolation: GlobeIsolation? {
+        guard case .route(let route) = focus else { return nil }
+        let codes: [String]
+        var plane: FlightAnnotationModel?
+        switch shell.path.last {
+        case .flight(let id):
+            let flight = followed.first { $0.id == id }
+            codes = flight.map { [$0.originIcao, $0.destinationIcao] } ?? []
+            plane = flight.flatMap(FlightAnnotationModel.init(flight:))
+        case .pastFlight(let flight):
+            codes = [flight.originIcao, flight.destinationIcao]
+        default:
+            return nil
+        }
+        var airports = codes.compactMap { env.lookup($0) }
+        // A flight that left the list: its ends are found on the globe by their place.
+        if airports.isEmpty {
+            airports = globe.airports.filter { GlobeIsolation.same($0.coordinate, route.from) || GlobeIsolation.same($0.coordinate, route.to) }
+        }
+        return GlobeIsolation(route: route, airports: airports, plane: plane)
     }
 
     /// Where the camera looks: the screen on top of the panel, or the whole globe.

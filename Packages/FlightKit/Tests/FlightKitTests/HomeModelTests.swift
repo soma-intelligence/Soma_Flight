@@ -156,7 +156,9 @@ import Testing
         // The cosine law and the 1% margin below MapKit's clamp.
         let vp = mac(1180, 799)
         #expect(abs(GlobeMap.maximumDistance(at: 60, in: vp) - 25_148_000 * 0.5 * 0.99) < 60_000)
-        #expect(GlobeViewport.phone.farLimit == 40_000_000)
+        #expect(GlobeViewport.phoneFarLimit(GlobeViewport.phoneMeasuredSize) == 40_000_000)
+        // The full-screen phone map scales the measured point by height over width, as the Mac does.
+        #expect(abs(GlobeViewport.phone.farLimit - 40_000_000 * 874 / 495) < 1)
         #expect(GlobeViewport.macFarLimit(.zero) == 40_000_000)
     }
 

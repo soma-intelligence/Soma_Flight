@@ -164,7 +164,7 @@ import Testing
         let pts = [r.from] + r.runs.flatMap { $0 } + [r.to]
         let cam = GlobeMap.camera(for: .route(r), in: vp)
         let worst = GlobeMap.candidateCenters(around: try #require(GlobeMap.sphericalMean(pts))).map {
-            GlobeMap.overflow(pts, camera: MapCamera(centerCoordinate: $0, distance: GlobeMap.maximumDistance(at: $0.latitude),
+            GlobeMap.overflow(pts, camera: MapCamera(centerCoordinate: $0, distance: GlobeMap.maximumDistance(at: $0.latitude, in: vp),
                                                      heading: 0, pitch: 0), in: vp)
         }
         #expect(GlobeMap.overflow(pts, camera: cam, in: vp) == worst.min())

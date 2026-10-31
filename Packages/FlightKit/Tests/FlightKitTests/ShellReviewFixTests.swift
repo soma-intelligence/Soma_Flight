@@ -56,8 +56,8 @@ import Testing
     @Test func longHaulArcFitsAtEveryDetent() throws {
         let cdg = airport("LFPG", 49.0097, 2.5479), sfo = airport("KSFO", 37.6188, -122.3750)
         let route = Route(from: cdg.coordinate, to: sfo.coordinate, level: .late, isPast: false)
-        // Collapsed: the map runs down to 120 pt above the bottom, plus the part tucked under the sheet.
-        let collapsed = GlobeViewport(size: CGSize(width: 402, height: 874 - 120 + ShellModel.sheetOverlap),
+        // Collapsed: the full-screen map's visible area runs down to the sheet, 120 pt above the bottom.
+        let collapsed = GlobeViewport(size: CGSize(width: 402, height: 874),
                                       visible: CGRect(x: 0, y: 62, width: 402, height: 874 - 120 - 62))
         for vp in [GlobeViewport.phone, collapsed] {
             let cam = GlobeMap.camera(for: .route(route), in: vp)

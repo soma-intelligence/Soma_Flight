@@ -269,9 +269,27 @@ struct DetailBottomBar<Menu: View>: View {
             .font(.system(size: Theme.fontSize(compact ? 15 : 19, scale), weight: .semibold))
             .foregroundStyle(Theme.primary)
             .frame(width: side, height: side)
-            .background { if compact { Circle().fill(Theme.pill) } }
             .contentShape(Circle())
+            .modifier(CompactCircle(on: compact))
             .help(name == "ellipsis" ? "More" : name == "square.and.arrow.up" ? "Share Flight" : "Alerts")
+    }
+}
+
+/// The circle behind a header action beside the close X: the same glass as the X on the phone; on the
+/// Mac the flat pill colour, which its borderless menu also draws behind "More".
+private struct CompactCircle: ViewModifier {
+    var on: Bool
+
+    func body(content: Content) -> some View {
+        if on {
+            #if os(iOS)
+            content.roundGlass()
+            #else
+            content.background(Circle().fill(Theme.pill))
+            #endif
+        } else {
+            content
+        }
     }
 }
 
