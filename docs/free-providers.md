@@ -108,8 +108,9 @@ Codeshare listings (`flight.codeshared` set) are skipped; the operating flight c
 Times: the documented example writes times with `+00:00` but its two airports show the same clock
 time, so the docs do not settle whether these are UTC or local clock times with a wrong offset.
 `AVIATIONSTACK_TIMES=local` (default) reads them as the airport's clock at `departure.timezone` /
-`arrival.timezone`; `utc` takes the offset at its word. Check one real answer against the airline's
-own site before relying on either. The provider has no stable flight id: ours is
+`arrival.timezone`; `utc` takes the offset at its word. Settled on 2026-10-31 with a real answer: JL 2200
+Sendai to Itami showed `actual` 07:44 "+00:00" and status `active` at 23:09 UTC (08:09 in Tokyo), so the
+times are the airport's local clock with a wrong offset, and `local` is right. The provider has no stable flight id: ours is
 `aviationstack:<ICAO ident>:<origin>:<flight_date>` (two departures of one number from one airport on
 one day would collide; rare).
 
