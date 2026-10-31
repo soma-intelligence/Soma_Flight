@@ -363,3 +363,71 @@ test(
     assertEquals(muted.get("delays")!.size, 0);
   },
 );
+
+// MARK: Airport program alerts (faa-status's sweep)
+
+async function callProgram(
+  flightId: string,
+  program: unknown,
+  apns = fakeApns(),
+) {
+  const res = await handler(
+    new Request("http://localhost/push-sender", {
+      method: "POST",
+      headers: { authorization: `Bearer ${SERVICE_KEY}` },
+      body: JSON.stringify({ flightId, program }),
+    }),
+    {
+      db,
+      config: () => CFG,
+      serviceKey: () => SERVICE_KEY,
+      fetchFn: apns.fn,
+      now: () => new Date("2026-11-03T21:00:00Z"),
+    },
+  );
+  return { status: res.status, out: await res.json(), apns };
+}
+
+const PROGRAM = {
+  key: "airport_program:KSFO:ground_delay:2026-11-03T20:00",
+  kind: "ground_delay",
+  end: "destination",
+  code: "SFO",
+  reason: "low clouds",
+  average_minutes: 47,
+  ends_at: "2026-11-04T07:00:00Z",
+};
+
+test(
+  db,
+  "a program alert goes once, to the followers who want delays",
+  async () => {
+    const f = await makeFlight();
+    const all = await follower(f.id);
+    await follower(f.id, { delays: false });
+    const first = await callProgram(f.id, PROGRAM);
+    assertEquals(first.status, 200);
+    assertEquals(first.out.kinds, ["airport_program"]);
+    const sent = first.apns.alerts();
+    assertEquals(sent.map((c) => c.token), [all.alert]);
+    assertEquals(sent[0].body.kind, "airport_program");
+    assertEquals(sent[0].body.eventId, null);
+    assertEquals(sent[0].body.aps.alert.title, "Ground delay program at SFO");
+    assertEquals(
+      sent[0].headers["apns-collapse-id"],
+      `${f.id}:airport_program`,
+    );
+    // No Live Activity update for a program.
+    assertEquals(first.apns.calls.length, 1);
+    const again = await callProgram(f.id, PROGRAM);
+    assertEquals([again.out.kinds, again.apns.calls.length], [[], 0]);
+  },
+);
+
+test(db, "a malformed program is refused", async () => {
+  const f = await makeFlight();
+  const bad = await callProgram(f.id, { ...PROGRAM, kind: "deicing" });
+  assertEquals(bad.status, 400);
+  const none = await callProgram(crypto.randomUUID(), PROGRAM);
+  assertEquals(none.status, 404);
+});

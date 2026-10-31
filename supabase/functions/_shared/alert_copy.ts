@@ -279,5 +279,53 @@ export function alertText(
           body:
             "The flight is landing at a different airport. Open the app for details.",
         };
+    case "airport_program":
+      return programText(a, id, ctx);
+  }
+}
+
+/**
+ * An FAA program at one end of the flight. At the destination a ground stop or ground delay program
+ * holds the flight before it leaves; at the origin it says the airport is struggling. The end time is
+ * the airport's own clock.
+ */
+function programText(a: Alert, id: string, ctx: CopyContext): AlertText {
+  const p = a.program;
+  if (!p) {
+    return {
+      title: `${id} may be delayed`,
+      body: "The FAA is holding flights. Open the app for details.",
+    };
+  }
+  const tz = p.end === "origin" ? ctx.originTz : ctx.destinationTz;
+  const until = p.ends_at ? ` until ${clock(p.ends_at, tz)}` : "";
+  const because = p.reason ? ` because of ${p.reason}` : "";
+  const after = p.end === "destination"
+    ? ` ${id} may leave late.`
+    : " Departures may run late too.";
+  switch (p.kind) {
+    case "ground_stop":
+      return {
+        title: `Ground stop at ${p.code}`,
+        body:
+          `Flights to ${p.code} are held before take-off${because}${until}.${after}`,
+      };
+    case "ground_delay": {
+      const avg = p.average_minutes
+        ? `, about ${span(p.average_minutes)} on average`
+        : "";
+      return {
+        title: `Ground delay program at ${p.code}`,
+        body: `Flights to ${p.code} are held before take-off${avg}${
+          avg && because ? "," : ""
+        }${because}.${after}`,
+      };
+    }
+    default:
+      return {
+        title: `${p.code} airport closed`,
+        body:
+          `The FAA lists ${p.code} as closed${until}. Check with your airline about ${id}.`,
+      };
   }
 }

@@ -2,8 +2,14 @@
 // wrote into its payload and the flights row. Pure functions; push-sender reads the history
 // (alert_log) and claims what this returns.
 //
+// Airport program alerts (airport_program: a ground stop, ground delay program or closure at either
+// end) do not come from a flight event: faa-status finds them and hands each to push-sender
+// (faa_nas.ts).
+//
 // Nothing here calls the provider. The inbound late alert reads the inbound leg's row only when
 // flights already has it (inbound_provider_id, migration 20261030000012).
+
+import type { ProgramAlert } from "./faa_nas.ts";
 
 /** Every alert the server sends. Reminders (check-in, morning of, leave for the airport) are local. */
 export type AlertKind =
@@ -21,7 +27,8 @@ export type AlertKind =
   | "arrived"
   | "cancel"
   | "reinstated"
-  | "diversion";
+  | "diversion"
+  | "airport_program";
 
 /** Columns of notification_preferences. `reminders` is only read by the app. */
 export type AlertCategory =
@@ -48,6 +55,7 @@ export const CATEGORY: Record<AlertKind, AlertCategory> = {
   cancel: "cancellations",
   reinstated: "cancellations",
   diversion: "cancellations",
+  airport_program: "delays",
 };
 
 /**
@@ -87,6 +95,8 @@ export interface Alert {
   /** Old and new value of what changed (gate, terminal, belt, airport, ISO time). */
   from?: string | null;
   to?: string | null;
+  /** airport_program only: the program, as faa-status sent it. */
+  program?: ProgramAlert;
 }
 
 /** What the event's payload says about one column. */
