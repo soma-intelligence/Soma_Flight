@@ -43,6 +43,9 @@ public final class FlightDetailStore {
     /// The security wait at the origin (free data; nil outside the US, when the flight is not leaving
     /// within 12 hours, or on failure). The sheet shows it only inside `SecurityWaitFacts.window`.
     public private(set) var securityWait: SecurityWait?
+    /// The Connection Assistant (connections with other followed flights, other flights on the route);
+    /// nil shows neither card. `AppEnvironment.makeFlightDetailStore` sets it for followed flights.
+    public internal(set) var connections: ConnectionStore?
 
     /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
     public private(set) var boardingPass: BoardingPass?

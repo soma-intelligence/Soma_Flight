@@ -1,0 +1,610 @@
+{
+  "about": "Typical minimum connection times (MCT, in minutes) and transfer rules for the Connection Assistant. The figures are rounded, typical values for the 40 busiest airports by passengers, from airline and airport connection guidance; they are planning aids, not an airline's official MCT. mct: dd domestic to domestic, di domestic to international, id international to domestic, ii international to international. A leg is domestic when its other airport is in the same country (or country group) as the connection airport, or when both are in the Schengen area. transfer_screening: always (every connection goes through security again), international (when the arriving leg is international). The app (FlightKit Resources/Reference/connection_rules.json) and push-sender (supabase/functions/_shared/connection_rules.json) read copies of this file; a FlightKit test fails when they differ.",
+  "version": 1,
+  "defaults": {
+    "mct": {
+      "dd": 45,
+      "di": 75,
+      "id": 90,
+      "ii": 75
+    },
+    "airside_terminals": true,
+    "terminal_transfer_minutes": 15,
+    "walk_minutes": 10,
+    "transfer_screening": "international"
+  },
+  "verdict": {
+    "tight_margin_minutes": 30,
+    "gate_close_minutes": 15
+  },
+  "steps": {
+    "deplane": 10,
+    "deplane_international": 15,
+    "immigration": 25,
+    "customs_recheck": 15,
+    "exit_control": 10,
+    "security": 15
+  },
+  "schengen": [
+    "AT",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "EE",
+    "ES",
+    "FI",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IS",
+    "IT",
+    "LI",
+    "LT",
+    "LU",
+    "LV",
+    "MT",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "RO",
+    "SE",
+    "SI",
+    "SK"
+  ],
+  "country_groups": [
+    [
+      "AS",
+      "GU",
+      "MP",
+      "PR",
+      "US",
+      "VI"
+    ]
+  ],
+  "full_entry_countries": [
+    "AS",
+    "GU",
+    "MP",
+    "PR",
+    "US",
+    "VI"
+  ],
+  "no_exit_control_countries": [
+    "AS",
+    "CA",
+    "GB",
+    "GU",
+    "IE",
+    "MP",
+    "PR",
+    "US",
+    "VI"
+  ],
+  "airports": {
+    "CYYZ": {
+      "iata": "YYZ",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "EDDF": {
+      "iata": "FRA",
+      "mct": {
+        "dd": 45,
+        "di": 45,
+        "id": 45,
+        "ii": 45
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 15,
+      "transfer_screening": "international"
+    },
+    "EDDM": {
+      "iata": "MUC",
+      "mct": {
+        "dd": 30,
+        "di": 45,
+        "id": 45,
+        "ii": 45
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "EGLL": {
+      "iata": "LHR",
+      "mct": {
+        "dd": 60,
+        "di": 60,
+        "id": 75,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 15,
+      "transfer_screening": "always"
+    },
+    "EHAM": {
+      "iata": "AMS",
+      "mct": {
+        "dd": 40,
+        "di": 50,
+        "id": 50,
+        "ii": 40
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 15,
+      "transfer_screening": "international"
+    },
+    "KATL": {
+      "iata": "ATL",
+      "mct": {
+        "dd": 40,
+        "di": 60,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KCLT": {
+      "iata": "CLT",
+      "mct": {
+        "dd": 35,
+        "di": 60,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KDEN": {
+      "iata": "DEN",
+      "mct": {
+        "dd": 40,
+        "di": 60,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KDFW": {
+      "iata": "DFW",
+      "mct": {
+        "dd": 45,
+        "di": 60,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KEWR": {
+      "iata": "EWR",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KIAH": {
+      "iata": "IAH",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KJFK": {
+      "iata": "JFK",
+      "mct": {
+        "dd": 60,
+        "di": 75,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KLAS": {
+      "iata": "LAS",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KLAX": {
+      "iata": "LAX",
+      "mct": {
+        "dd": 60,
+        "di": 90,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KMCO": {
+      "iata": "MCO",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KMIA": {
+      "iata": "MIA",
+      "mct": {
+        "dd": 50,
+        "di": 60,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 15,
+      "transfer_screening": "international"
+    },
+    "KORD": {
+      "iata": "ORD",
+      "mct": {
+        "dd": 50,
+        "di": 90,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 15,
+      "transfer_screening": "international"
+    },
+    "KPHX": {
+      "iata": "PHX",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KSEA": {
+      "iata": "SEA",
+      "mct": {
+        "dd": 45,
+        "di": 60,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "KSFO": {
+      "iata": "SFO",
+      "mct": {
+        "dd": 45,
+        "di": 75,
+        "id": 90,
+        "ii": 75
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "LEBL": {
+      "iata": "BCN",
+      "mct": {
+        "dd": 45,
+        "di": 60,
+        "id": 60,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "LEMD": {
+      "iata": "MAD",
+      "mct": {
+        "dd": 45,
+        "di": 60,
+        "id": 60,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "LFPG": {
+      "iata": "CDG",
+      "mct": {
+        "dd": 60,
+        "di": 90,
+        "id": 90,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 15,
+      "transfer_screening": "international"
+    },
+    "LTFM": {
+      "iata": "IST",
+      "mct": {
+        "dd": 60,
+        "di": 60,
+        "id": 75,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 5,
+      "walk_minutes": 15,
+      "transfer_screening": "always"
+    },
+    "MMMX": {
+      "iata": "MEX",
+      "mct": {
+        "dd": 60,
+        "di": 90,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "OMDB": {
+      "iata": "DXB",
+      "mct": {
+        "dd": 60,
+        "di": 75,
+        "id": 75,
+        "ii": 75
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 15,
+      "transfer_screening": "always"
+    },
+    "OTHH": {
+      "iata": "DOH",
+      "mct": {
+        "dd": 60,
+        "di": 60,
+        "id": 60,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "RJAA": {
+      "iata": "NRT",
+      "mct": {
+        "dd": 60,
+        "di": 75,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "RJTT": {
+      "iata": "HND",
+      "mct": {
+        "dd": 30,
+        "di": 90,
+        "id": 120,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "RKSI": {
+      "iata": "ICN",
+      "mct": {
+        "dd": 60,
+        "di": 90,
+        "id": 120,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "VABB": {
+      "iata": "BOM",
+      "mct": {
+        "dd": 60,
+        "di": 120,
+        "id": 150,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 30,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "VHHH": {
+      "iata": "HKG",
+      "mct": {
+        "dd": 60,
+        "di": 60,
+        "id": 60,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "VIDP": {
+      "iata": "DEL",
+      "mct": {
+        "dd": 75,
+        "di": 120,
+        "id": 150,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 30,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "VTBS": {
+      "iata": "BKK",
+      "mct": {
+        "dd": 55,
+        "di": 75,
+        "id": 90,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 10,
+      "walk_minutes": 15,
+      "transfer_screening": "always"
+    },
+    "WIII": {
+      "iata": "CGK",
+      "mct": {
+        "dd": 60,
+        "di": 120,
+        "id": 150,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "WSSS": {
+      "iata": "SIN",
+      "mct": {
+        "dd": 60,
+        "di": 60,
+        "id": 60,
+        "ii": 60
+      },
+      "airside_terminals": true,
+      "terminal_transfer_minutes": 15,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "YSSY": {
+      "iata": "SYD",
+      "mct": {
+        "dd": 30,
+        "di": 90,
+        "id": 120,
+        "ii": 60
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 10,
+      "transfer_screening": "international"
+    },
+    "ZBAA": {
+      "iata": "PEK",
+      "mct": {
+        "dd": 60,
+        "di": 120,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 25,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "ZGGG": {
+      "iata": "CAN",
+      "mct": {
+        "dd": 60,
+        "di": 90,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    },
+    "ZSPD": {
+      "iata": "PVG",
+      "mct": {
+        "dd": 60,
+        "di": 120,
+        "id": 120,
+        "ii": 90
+      },
+      "airside_terminals": false,
+      "terminal_transfer_minutes": 20,
+      "walk_minutes": 10,
+      "transfer_screening": "always"
+    }
+  }
+}

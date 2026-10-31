@@ -180,6 +180,10 @@ public struct FlightDetailView: View {
                     BoardingPassSection(store: store)
                         .id("boardingPass")
                 }
+                // Connections with other followed flights; other flights when canceled or a connection is at risk.
+                if let connections = store.connections, ConnectionSections.isShown(connections, flight: flight, now: now) {
+                    ConnectionSections(store: connections, flight: flight, now: now)
+                }
             }
             .scaledPadding(.horizontal, Theme.gutter)
             .scaledPadding(.top, 16)
@@ -238,6 +242,7 @@ public struct FlightDetailView: View {
         }
         // Room for the floating bar over the last card (the Mac has it in the header).
         .scaledPadding(.bottom, Self.barInHeader ? 24 : 88)
+        .connectionUpdates(store.connections, flight: flight, now: now)
     }
 
     /// The Mac's 360 pt panel has no room for a floating bar: its three buttons go in the header.

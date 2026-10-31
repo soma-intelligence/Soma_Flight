@@ -25,6 +25,9 @@ public struct AppEnvironment: Sendable {
     /// Security (TSA) waits for Good to Know and the airport sheet: the fakes with `-useFakes`,
     /// `security-wait` in live builds (free, so always on).
     public var security: any SecurityWaitService
+    /// Other direct flights on a route, for the Connection Assistant (paid data, like `insights`): the fakes
+    /// with `-useFakes`, `alternate-flights` when `INSIGHTS_ENABLED` is on, nothing otherwise.
+    public var alternates: any AlternateFlightsService = UnavailableAlternateFlightsService()
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -68,6 +71,7 @@ public struct AppEnvironment: Sendable {
                               brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
                               security: FakeSecurityWaitService(now: now),
                               passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
+        .withAlternates(FakeAlternateFlightsService(flights: flights))
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -101,6 +105,7 @@ public struct AppEnvironment: Sendable {
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
                               notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
                               security: SupabaseSecurityWaitService(backend: backend))
+        .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
@@ -113,7 +118,9 @@ public struct AppEnvironment: Sendable {
         let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
             arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
         }
-        return try await fake(pastLimit: limit)
+        let env = try await fake(pastLimit: limit)
+        if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
+        return env
         #else
         return try await fake()
         #endif
@@ -160,9 +167,12 @@ public struct AppEnvironment: Sendable {
     }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
-        FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
+        let store = FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
                           security: security, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
                           lookup: directory.lookup, simulatesWallet: simulatesWallet)
+        store.connections = ConnectionStore(id: id, flights: flights, airports: airports, alternates: alternates,
+                                            lookup: directory.lookup)
+        return store
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.
