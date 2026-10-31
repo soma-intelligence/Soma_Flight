@@ -12,16 +12,16 @@
   },
   "checkpoints": [
     {
-      "id": "t1",
-      "name": "Harvey Milk Terminal 1",
+      "id": "security-checkpoint-b",
+      "name": "Security Checkpoint B",
       "terminal": "1",
       "precheck": true,
       "standard_minutes": 14,
       "precheck_minutes": 4
     },
     {
-      "id": "intl-g",
-      "name": "International G",
+      "id": "security-checkpoint-g",
+      "name": "Security Checkpoint G",
       "terminal": "International",
       "precheck": true,
       "standard_minutes": 22,

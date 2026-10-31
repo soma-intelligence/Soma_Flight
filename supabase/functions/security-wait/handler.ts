@@ -6,8 +6,9 @@
 // 1. A live provider that covers the airport (LIVE_PROVIDERS). There is none today: no free live source
 //    may be reused by a public app (docs/data-sources.md). A provider is only added with the source's
 //    written permission; the code path is tested with a fake one.
-// 2. An estimate from TSA's hourly throughput per checkpoint (security_checkpoints, security_throughput),
-//    when the airport has rows: each checkpoint's load at this local hour (model.ts).
+// 2. An estimate from TSA's hourly throughput per checkpoint (security_checkpoints, security_throughput,
+//    loaded by supabase/scripts/import_tsa_throughput.py), when the airport has rows: each checkpoint's
+//    typical week through the queue model at this local hour (model.ts).
 // 3. An estimate from a typical US day, one "All checkpoints" row, when the airport has no rows.
 // Estimates always answer live: false, and the app labels them as estimates.
 //
@@ -22,11 +23,12 @@ import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { checkRate } from "../_shared/limits.ts";
 import {
-  loadAt,
   localTime,
+  rounded,
   typicalWeek,
-  waitForLoad,
+  waitAt,
   weekFromRows,
+  weekWaits,
 } from "./model.ts";
 
 export const CACHE_TTL_MS = 5 * 60_000;
@@ -92,6 +94,8 @@ export interface Deps {
   now?: () => Date;
   /** Test hook: the live providers (LIVE_PROVIDERS otherwise). */
   live?: readonly LiveProvider[];
+  /** Test hook: throughput rows read per request (THROUGHPUT_PAGE otherwise). */
+  pageSize?: number;
 }
 
 interface AirportRow {
@@ -101,11 +105,46 @@ interface AirportRow {
   tz: string | null;
 }
 
+/** Rows read per request: the API answers at most max_rows (1000) at a time. */
+export const THROUGHPUT_PAGE = 1000;
+
+interface ThroughputRow {
+  checkpoint_id: string;
+  weekday: number;
+  hour: number;
+  passengers: number;
+}
+
+/**
+ * Every throughput row of the airport. A large airport has more than one page of them (ten checkpoints
+ * by up to 168 hours), so they are read page by page in a stable order.
+ */
+async function throughputRows(
+  db: SupabaseClient,
+  icao: string,
+  pageSize: number,
+): Promise<ThroughputRow[]> {
+  const out: ThroughputRow[] = [];
+  for (let from = 0;; from += pageSize) {
+    const page = await db.from("security_throughput")
+      .select("checkpoint_id, weekday, hour, passengers")
+      .eq("airport_icao", icao)
+      .order("checkpoint_id").order("weekday").order("hour")
+      .range(from, from + pageSize - 1);
+    if (page.error) {
+      throw new Error(`security_throughput read failed: ${page.error.message}`);
+    }
+    out.push(...(page.data ?? []));
+    if ((page.data?.length ?? 0) < pageSize) return out;
+  }
+}
+
 /** The checkpoints of the airport with their estimate at `now`; empty when it has no throughput rows. */
 async function throughputEstimate(
   db: SupabaseClient,
   airport: AirportRow,
   now: Date,
+  pageSize: number,
 ): Promise<Checkpoint[]> {
   const cps = await db.from("security_checkpoints")
     .select("id, name, terminal, precheck").eq("airport_icao", airport.icao)
@@ -114,19 +153,14 @@ async function throughputEstimate(
     throw new Error(`security_checkpoints read failed: ${cps.error.message}`);
   }
   if (!cps.data?.length) return [];
-  const rows = await db.from("security_throughput")
-    .select("checkpoint_id, weekday, hour, passengers")
-    .eq("airport_icao", airport.icao);
-  if (rows.error) {
-    throw new Error(`security_throughput read failed: ${rows.error.message}`);
-  }
+  const rows = await throughputRows(db, airport.icao, pageSize);
   const t = localTime(now, airport.tz);
   const out: Checkpoint[] = [];
   for (const c of cps.data) {
-    const mine = (rows.data ?? []).filter((r) => r.checkpoint_id === c.id);
+    const mine = rows.filter((r) => r.checkpoint_id === c.id);
     // A checkpoint with no traffic on record (closed, or not in the report) says nothing.
     if (!mine.length) continue;
-    const wait = waitForLoad(loadAt(weekFromRows(mine), t));
+    const wait = rounded(waitAt(weekWaits(weekFromRows(mine)), t));
     out.push({
       id: c.id,
       name: c.name,
@@ -141,7 +175,9 @@ async function throughputEstimate(
 
 /** The typical US day at the airport's local time, as one row for every checkpoint. */
 export function typicalEstimate(airport: AirportRow, now: Date): Checkpoint[] {
-  const wait = waitForLoad(loadAt(typicalWeek(), localTime(now, airport.tz)));
+  const wait = rounded(
+    waitAt(weekWaits(typicalWeek()), localTime(now, airport.tz)),
+  );
   return [{
     id: "all",
     name: "All checkpoints",
@@ -217,7 +253,12 @@ export async function build(
       );
     }
   }
-  const measured = await throughputEstimate(deps.db, airport, now);
+  const measured = await throughputEstimate(
+    deps.db,
+    airport,
+    now,
+    deps.pageSize ?? THROUGHPUT_PAGE,
+  );
   return {
     ...base,
     available: true,

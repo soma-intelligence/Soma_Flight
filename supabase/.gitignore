@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# TSA throughput importer: downloaded reports and their text (never committed)
+.tsa-cache

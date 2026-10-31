@@ -15,15 +15,7 @@ import {
   THROUGHPUT_SOURCE,
   TYPICAL_SOURCE,
 } from "./handler.ts";
-import {
-  loadAt,
-  localTime,
-  MAX_MINUTES,
-  roundToFive,
-  typicalWeek,
-  waitForLoad,
-  weekFromRows,
-} from "./model.ts";
+import { localTime, rounded, typicalWeek, waitAt, weekWaits } from "./model.ts";
 
 // Tuesday 3 November 2026, 07:30 in San Francisco (PST) and 09:30 in Austin (CST): the morning rush.
 const NOW = new Date("2026-11-03T15:30:00Z");
@@ -34,11 +26,12 @@ interface FixtureCheckpoint {
   name: string;
   terminal: string | null;
   precheck: boolean | null;
-  hours: number[];
+  /** [weekday][hour] median passengers, Sunday first. */
+  week: number[][];
 }
+/** Real aggregated TSA rows for SFO (supabase/scripts/import_tsa_throughput.py --fixture SFO). */
 const fixture: {
   airport: string;
-  weekdays: number[];
   checkpoints: FixtureCheckpoint[];
 } = JSON.parse(
   Deno.readTextFileSync(
@@ -48,6 +41,15 @@ const fixture: {
     ),
   ),
 );
+/** SFO's checkpoints in the order the answer lists them: by terminal, then name. */
+const SFO_ORDER = [
+  "security-checkpoint-b",
+  "security-checkpoint-t1-b-mezzanine",
+  "security-checkpoint-d",
+  "security-checkpoint-f-1",
+  "security-checkpoint-a",
+  "security-checkpoint-g",
+];
 
 const db = await testDb();
 /** Airports whose cached answers and checkpoints every test clears, before and after. */
@@ -71,27 +73,42 @@ function test(name: string, fn: () => Promise<void>) {
   });
 }
 
-/** Loads the fixture's checkpoints and their typical week into the tables for KSFO. */
-async function seedKsfo() {
-  const cps = await db.from("security_checkpoints").insert(
-    fixture.checkpoints.map((c) => ({
+/**
+ * Loads the fixture's checkpoints and their typical week into the tables for KSFO, plus a checkpoint
+ * with no traffic on record (test-only, as a closed checkpoint would be). `precheck` overrides a
+ * checkpoint's PreCheck flag by id.
+ */
+async function seedKsfo(precheck: Record<string, boolean> = {}) {
+  const cps = await db.from("security_checkpoints").insert([
+    ...fixture.checkpoints.map((c) => ({
       airport_icao: fixture.airport,
       id: c.id,
       name: c.name,
       terminal: c.terminal,
-      precheck: c.precheck,
+      precheck: precheck[c.id] ?? c.precheck,
     })),
-  );
+    {
+      airport_icao: fixture.airport,
+      id: "closed",
+      name: "Closed checkpoint",
+      terminal: "1",
+      precheck: null,
+    },
+  ]);
   if (cps.error) throw cps.error;
   const rows = fixture.checkpoints.flatMap((c) =>
-    fixture.weekdays.flatMap((f, weekday) =>
-      c.hours.map((p, hour) => ({
-        airport_icao: fixture.airport,
-        checkpoint_id: c.id,
-        weekday,
-        hour,
-        passengers: Math.round(p * f),
-      }))
+    c.week.flatMap((hours, weekday) =>
+      hours.flatMap((passengers, hour) =>
+        passengers > 0
+          ? [{
+            airport_icao: fixture.airport,
+            checkpoint_id: c.id,
+            weekday,
+            hour,
+            passengers,
+          }]
+          : []
+      )
     )
   );
   const r = await db.from("security_throughput").insert(rows);
@@ -140,71 +157,12 @@ function fakeLive(
   };
 }
 
-// MARK: The model
-
-Deno.test("waits round to five minutes and grow with the load", () => {
-  assertEquals([0, 2, 2.4, 2.5, 7.4, 7.6, 31].map(roundToFive), [
-    5,
-    5,
-    5,
-    5,
-    5,
-    10,
-    30,
-  ]);
-  assertEquals(waitForLoad(0), { standard: 5, precheck: 5 });
-  assertEquals(waitForLoad(1).standard, roundToFive(MAX_MINUTES));
-  assertEquals(waitForLoad(1), { standard: 30, precheck: 10 });
-  // Out of range or nonsense loads are clamped.
-  assertEquals(waitForLoad(4), waitForLoad(1));
-  assertEquals(waitForLoad(-1), waitForLoad(0));
-  assertEquals(waitForLoad(Number.NaN), waitForLoad(0));
-  let last = 0;
-  for (let l = 0; l <= 1; l += 0.05) {
-    const w = waitForLoad(l);
-    assert(w.standard >= last, `standard never drops (load ${l})`);
-    assert(w.precheck <= w.standard, "PreCheck is never longer");
-    last = w.standard;
-  }
-});
-
-Deno.test("local time follows the airport's clock", () => {
-  assertEquals(localTime(NOW, "America/Los_Angeles"), {
-    weekday: 2,
-    hour: 7,
-    minute: 30,
-  });
-  assertEquals(localTime(NOW, "America/Chicago").hour, 9);
-  // Saturday 23:30 in Los Angeles is Sunday in UTC.
-  assertEquals(
-    localTime(new Date("2026-11-08T07:30:00Z"), "America/Los_Angeles"),
-    { weekday: 6, hour: 23, minute: 30 },
-  );
-  assertEquals(localTime(NOW, null), { weekday: 2, hour: 15, minute: 30 });
-});
-
-Deno.test("the load blends the hour with the next, against the week's peak", () => {
-  const week = weekFromRows([
-    { weekday: 2, hour: 7, passengers: 400 },
-    { weekday: 2, hour: 8, passengers: 800 },
-    { weekday: 0, hour: 6, passengers: 1000 },
-    // Out of range rows are ignored.
-    { weekday: 9, hour: 7, passengers: 5000 },
-  ]);
-  assertEquals(loadAt(week, { weekday: 2, hour: 7, minute: 0 }), 0.4);
-  assertEquals(loadAt(week, { weekday: 2, hour: 7, minute: 30 }), 0.6);
-  // Saturday 23:00 blends into Sunday 00:00.
-  assertEquals(loadAt(week, { weekday: 6, hour: 23, minute: 30 }), 0);
-  assertEquals(loadAt(weekFromRows([]), { weekday: 0, hour: 0, minute: 0 }), 0);
-  // The typical week peaks on Sunday at 06:00.
-  assertEquals(loadAt(typicalWeek(), { weekday: 0, hour: 6, minute: 0 }), 1);
-});
-
 // MARK: Answers
 
 test("an airport with throughput answers an estimate per checkpoint", async () => {
-  await seedKsfo();
-  const { status, body } = await ask("airport=sfo");
+  await seedKsfo({ "security-checkpoint-d": false });
+  // Pages of 100 rows: SFO's ~850 rows take several, as a large hub's take several of 1,000.
+  const { status, body } = await ask("airport=sfo", { pageSize: 100 });
   assertEquals(status, 200);
   assertEquals(body.airport, "KSFO");
   assertEquals(body.iata, "SFO");
@@ -213,25 +171,47 @@ test("an airport with throughput answers an estimate per checkpoint", async () =
   assertEquals(body.source, THROUGHPUT_SOURCE);
   assertEquals(body.fetched_at, NOW.toISOString());
   // The closed checkpoint has no traffic on record and is left out; sorted by terminal then name.
-  assertEquals(body.checkpoints.map((c) => c.id), [
-    "t1",
-    "t2",
-    "t3-e",
-    "t3-f",
-    "intl-g",
-  ]);
-  const t3f = body.checkpoints.find((c) => c.id === "t3-f")!;
-  // Tuesday 07:30: (1150 + 900) / 2 * 0.8 against the Sunday 06:00 peak of 1350.
-  const load = ((1150 + 900) / 2 * 0.8) / 1350;
-  assertEquals(t3f.standard_minutes, waitForLoad(load).standard);
-  assertEquals(t3f.precheck_minutes, waitForLoad(load).precheck);
-  assertEquals(t3f.terminal, "3");
-  assertEquals(t3f.precheck, true);
+  assertEquals(body.checkpoints.map((c) => c.id), SFO_ORDER);
+  // Tuesday 07:30 in San Francisco, through the queue model on Terminal 3's real week.
+  const f1 = body.checkpoints.find((c) => c.id === "security-checkpoint-f-1")!;
+  const week = fixture.checkpoints.find((c) => c.id === f1.id)!.week;
+  const expected = rounded(
+    waitAt(weekWaits(week), localTime(NOW, "America/Los_Angeles")),
+  );
+  assertEquals(f1.standard_minutes, expected.standard);
+  assertEquals(f1.precheck_minutes, expected.precheck);
+  assertEquals(f1.name, "Security Checkpoint F-1");
+  assertEquals(f1.terminal, "3");
+  // The report does not say which checkpoints have PreCheck: unknown, and a figure is still given.
+  assertEquals(f1.precheck, null);
+  assert(f1.precheck_minutes! >= 5);
   // No PreCheck lanes: no PreCheck figure.
-  const t3e = body.checkpoints.find((c) => c.id === "t3-e")!;
-  assertEquals(t3e.precheck, false);
-  assertEquals(t3e.precheck_minutes, null);
-  assert(t3e.standard_minutes! >= 5);
+  const d = body.checkpoints.find((c) => c.id === "security-checkpoint-d")!;
+  assertEquals(d.precheck, false);
+  assertEquals(d.precheck_minutes, null);
+  assert(d.standard_minutes! >= 5);
+  // Every figure is a believable estimate: 5 to 30 minutes, in steps of 5.
+  for (const c of body.checkpoints) {
+    assert(
+      c.standard_minutes! >= 5 && c.standard_minutes! <= 30 &&
+        c.standard_minutes! % 5 === 0,
+      `${c.id}: ${c.standard_minutes}`,
+    );
+  }
+});
+
+Deno.test("the real SFO week gives believable waits through the day", () => {
+  // Queue-model plausibility on real rows (no database): the morning rush waits longer than the
+  // afternoon at Terminal 3, and no hour of the week passes 30 minutes at any checkpoint.
+  const f1 = fixture.checkpoints.find((c) =>
+    c.id === "security-checkpoint-f-1"
+  )!;
+  const w = weekWaits(f1.week);
+  const tuesday = (h: number) => rounded(w[2][h]).standard;
+  assert(tuesday(7) > tuesday(15), `${tuesday(7)} vs ${tuesday(15)}`);
+  for (const c of fixture.checkpoints) {
+    assert(weekWaits(c.week).flat().every((m) => rounded(m).standard <= 30));
+  }
 });
 
 test("an airport with no throughput answers a typical day", async () => {
@@ -240,8 +220,10 @@ test("an airport with no throughput answers a typical day", async () => {
   assertEquals(body.available, true);
   assertEquals(body.live, false);
   assertEquals(body.source, TYPICAL_SOURCE);
-  // Tuesday 09:30 in Austin: halfway from 0.6 to 0.6, times Tuesday's 0.8.
-  const w = waitForLoad(0.6 * 0.8);
+  // Tuesday 09:30 in Austin, on the typical US week.
+  const w = rounded(
+    waitAt(weekWaits(typicalWeek()), localTime(NOW, "America/Chicago")),
+  );
   assertEquals(body.checkpoints, [{
     id: "all",
     name: "All checkpoints",
@@ -326,7 +308,7 @@ test("a failing or empty live source falls back to the estimate", async () => {
   await db.from("security_wait_cache").delete().eq("airport_icao", "KSFO");
   const empty = await ask("airport=SFO", { live: [fakeLive([])] });
   assertEquals(empty.body.live, false);
-  assertEquals(empty.body.checkpoints.length, 5);
+  assertEquals(empty.body.checkpoints.length, SFO_ORDER.length);
 });
 
 test("answers are cached for a few minutes per airport", async () => {
@@ -418,16 +400,16 @@ test("contract examples match the handler's answers", async () => {
   await db.from("security_wait_cache").delete().eq("airport_icao", "KSFO");
   const live = fakeLive([
     {
-      id: "t1",
-      name: "Harvey Milk Terminal 1",
+      id: "security-checkpoint-b",
+      name: "Security Checkpoint B",
       terminal: "1",
       precheck: true,
       standard_minutes: 14,
       precheck_minutes: 4,
     },
     {
-      id: "intl-g",
-      name: "International G",
+      id: "security-checkpoint-g",
+      name: "Security Checkpoint G",
       terminal: "International",
       precheck: true,
       standard_minutes: 22,

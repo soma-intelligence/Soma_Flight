@@ -16,7 +16,7 @@
       "name": "All checkpoints",
       "terminal": null,
       "precheck": null,
-      "standard_minutes": 10,
+      "standard_minutes": 5,
       "precheck_minutes": 5
     }
   ]

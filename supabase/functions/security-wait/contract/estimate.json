@@ -12,43 +12,51 @@
   },
   "checkpoints": [
     {
-      "id": "t1",
-      "name": "Harvey Milk Terminal 1",
+      "id": "security-checkpoint-b",
+      "name": "Security Checkpoint B",
       "terminal": "1",
-      "precheck": true,
-      "standard_minutes": 15,
+      "precheck": null,
+      "standard_minutes": 5,
       "precheck_minutes": 5
     },
     {
-      "id": "t2",
-      "name": "Terminal 2",
+      "id": "security-checkpoint-t1-b-mezzanine",
+      "name": "Security Checkpoint T1 B Mezzanine",
+      "terminal": "1",
+      "precheck": null,
+      "standard_minutes": 5,
+      "precheck_minutes": 5
+    },
+    {
+      "id": "security-checkpoint-d",
+      "name": "Security Checkpoint D",
       "terminal": "2",
-      "precheck": true,
-      "standard_minutes": 15,
+      "precheck": null,
+      "standard_minutes": 5,
       "precheck_minutes": 5
     },
     {
-      "id": "t3-e",
-      "name": "Terminal 3 E",
+      "id": "security-checkpoint-f-1",
+      "name": "Security Checkpoint F-1",
       "terminal": "3",
-      "precheck": false,
-      "standard_minutes": 15,
-      "precheck_minutes": null
-    },
-    {
-      "id": "t3-f",
-      "name": "Terminal 3 F",
-      "terminal": "3",
-      "precheck": true,
-      "standard_minutes": 15,
+      "precheck": null,
+      "standard_minutes": 5,
       "precheck_minutes": 5
     },
     {
-      "id": "intl-g",
-      "name": "International G",
+      "id": "security-checkpoint-a",
+      "name": "Security Checkpoint A",
       "terminal": "International",
-      "precheck": true,
-      "standard_minutes": 15,
+      "precheck": null,
+      "standard_minutes": 5,
+      "precheck_minutes": 5
+    },
+    {
+      "id": "security-checkpoint-g",
+      "name": "Security Checkpoint G",
+      "terminal": "International",
+      "precheck": null,
+      "standard_minutes": 5,
       "precheck_minutes": 5
     }
   ]
