@@ -80,8 +80,12 @@ public actor FakeInsightsService: InsightsService {
 
     static let hubs = ["JFK", "ORD", "DEN", "LAX", "SEA", "BOS", "IAD", "MIA", "ATL", "LHR", "AMS", "FRA", "MAD", "NRT"]
 
+    /// Flight numbers whose plane is still in the air and 75 minutes late, so screenshot runs show a delay
+    /// prediction (`Predictions.delay`): AS312, the next day's flight with no estimate yet.
+    static let lateInbound: Set<String> = ["AS312"]
+
     /// Two legs ending at the flight's origin, newest first, the aircraft turning 90 minutes before
-    /// each departure.
+    /// each departure (a `lateInbound` flight's newest leg is still flying, late).
     static func chain(for f: Flight) -> [InboundLeg] {
         let h = fnv1a(f.ident.uppercased())
         let origin = f.originIata ?? f.originIcao
@@ -94,10 +98,11 @@ public actor FakeInsightsService: InsightsService {
         let secondIn = firstOut.addingTimeInterval(-90 * 60)
         let secondOut = secondIn.addingTimeInterval(-Double(120 + Int((h >> 24) % 180)) * 60)
         let code = TravelFacts.airlineCode(ident: f.ident)
+        let late = lateInbound.contains(f.ident)
         return [
             InboundLeg(id: "\(f.id)-1", ident: "\(code)\(100 + Int((h >> 32) % 800))", originIata: a,
-                       destinationIata: origin, scheduledOut: firstOut, scheduledIn: firstIn, status: .arrived,
-                       delayMinutes: Int((h >> 40) % 35)),
+                       destinationIata: origin, scheduledOut: firstOut, scheduledIn: firstIn,
+                       status: late ? .enRoute : .arrived, delayMinutes: late ? 75 : Int((h >> 40) % 35)),
             InboundLeg(id: "\(f.id)-2", ident: "\(code)\(100 + Int((h >> 44) % 800))", originIata: b,
                        destinationIata: a, scheduledOut: secondOut, scheduledIn: secondIn, status: .arrived,
                        delayMinutes: Int((h >> 52) % 20)),

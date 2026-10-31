@@ -109,6 +109,8 @@ struct DepartArrive: View {
     var destination: Airport?
     var now: Date
     var onAirport: (String) -> Void = { _ in }
+    /// The likely departure gate while none is assigned (`FlightDetailStore.gatePrediction`).
+    var predictedGate: GatePrediction? = nil
     @Environment(\.units) private var units
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -254,11 +256,16 @@ struct DepartArrive: View {
         }
     }
 
-    /// The arrival's baggage belt (once known) beside the gate.
-    private func badges(gate: String?, belt: String?, arriving: Bool) -> some View {
+    /// The arrival's baggage belt (once known) beside the gate; before the departure gate is known, its
+    /// likely value in the dashed guess style.
+    @ViewBuilder private func badges(gate: String?, belt: String?, arriving: Bool) -> some View {
         HStack(spacing: 6) {
             if let belt { BeltBadge(belt: belt) }
-            GateBadge(gate: gate, arriving: arriving)
+            if gate == nil, !arriving, let guess = predictedGate?.badge {
+                PredictedGateBadge(label: guess, arriving: arriving)
+            } else {
+                GateBadge(gate: gate, arriving: arriving)
+            }
         }
     }
 }

@@ -74,6 +74,27 @@ given; `estimated_off` and `estimated_on` are frozen once the matching `actual_o
 kept from the webhook deliveries (`inbound_fa_flight_id`). The app does not read it; push-sender uses it
 for the inbound late alert, and only when that leg is in `flights` too.
 
+### gate_history (function)
+
+`rpc/gate_history` (POST, signed-in users only; anon gets 42501) with `p_ident` (the flight's `ident`,
+"AF84"), `p_origin` (origin ICAO), `p_operator` (the flight's `operator`, "AF", or null), `p_day` (the
+flight's local departure day at the origin, `YYYY-MM-DD`) and optional `p_days` (1 to 30, default 7).
+Answer, one JSON object:
+
+```json
+{
+  "days": [{ "day": "2026-10-29", "gate": "B22", "terminal": "2" }],
+  "airline": [{ "gate": "B22", "terminal": "2", "flights": 9 }]
+}
+```
+
+`days`: the departure gate the flight number used on each of the `p_days` days before `p_day`, newest
+first (the last gate seen that day). `airline`: the operator's departures at the origin over the 14
+days before `p_day`, by gate, busiest first, at most 100; empty without an operator. Both come from
+`flight_gate_days` (service role only), which a trigger on `flights` fills whenever a departure gate is
+stored (webhook merge or lookup; canceled flights skipped) and a daily job prunes after 30 days. The app
+turns them into "Likely gate B22, used 6 of the last 7 days" with the core's `predict_gate`.
+
 ### notification_preferences
 
 One row per user, the alert categories they want. Clients have `select`, `insert`, `update` and
@@ -84,7 +105,7 @@ No row means every category is on, so the app writes the row the first time some
 
 | Column | Type | Covers |
 | --- | --- | --- |
-| `delays` | bool, default true | `departure_delay`, `arrival_delay`, `schedule_change`, `inbound_late` |
+| `delays` | bool, default true | `departure_delay`, `arrival_delay`, `schedule_change`, `inbound_late`, `predicted_delay` |
 | `gates` | bool, default true | `gate_assigned`, `gate_change`, `terminal_change` |
 | `takeoff_landing` | bool, default true | `departed`, `takeoff`, `landing`, `arrived` |
 | `baggage` | bool, default true | `baggage_belt` |
@@ -194,6 +215,7 @@ and `kind` beside `aps`, `thread-id` is the flight id and `apns-collapse-id` is
 | `cancel` | cancellations | status became `canceled` (nothing else is sent for that event) | "AF 84 canceled" |
 | `reinstated` | cancellations | status left `canceled` | "AF 84 is back on the schedule" |
 | `diversion` | cancellations | status became `diverted`, or a diverted flight's destination moved | "AF 84 diverted to KOAK" |
+| `predicted_delay` | delays | before the gate out and before any departure delay alert, the core's `predict_delay` gives a medium or high confidence delay from what the backend already holds (the inbound leg's row or a cached inbound chain under 30 min old, the cached arrival forecast, the origin's stats snapshot under 30 min old, weather snapshots under 2 h old); a late inbound prediction is skipped when `inbound_late` goes or went; once per flight; checked on this flight's events and on the inbound leg's | "AF 84 likely 25 min late" |
 
 Dedupe: once-only alerts use a fixed key (`takeoff`, `gate_assigned:departure`, `inbound_late`...),
 the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provider_event_id` without

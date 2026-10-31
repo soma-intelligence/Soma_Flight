@@ -152,6 +152,15 @@ export function alertText(
           : `${plane} is running late. Expect a delay.`,
       };
     }
+    case "predicted_delay": {
+      // The core's summary reads "Likely 25 min late: inbound aircraft running late".
+      const cause = a.note?.split(": ").slice(1).join(": ") ?? "";
+      const why = cause ? `${sentence(cause)} ` : "";
+      return {
+        title: `${id} likely ${a.minutes ?? 0} min late`,
+        body: `${why}The airline has not changed its departure time yet.`,
+      };
+    }
     case "gate_assigned": {
       if (a.side === "arrival") {
         return {

@@ -1091,6 +1091,67 @@ public func FfiConverterTypeBoardFlight_lower(_ value: BoardFlight) -> RustBuffe
 }
 
 
+/**
+ * The origin's departures right now; see `flightcore::predict::BoardSignal`.
+ */
+public struct BoardSignal: Equatable, Hashable {
+    public var total: UInt32
+    public var delayed15: UInt32
+    public var avgDelayMinutes: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(total: UInt32, delayed15: UInt32, avgDelayMinutes: Double) {
+        self.total = total
+        self.delayed15 = delayed15
+        self.avgDelayMinutes = avgDelayMinutes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BoardSignal: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBoardSignal: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BoardSignal {
+        return
+            try BoardSignal(
+                total: FfiConverterUInt32.read(from: &buf), 
+                delayed15: FfiConverterUInt32.read(from: &buf), 
+                avgDelayMinutes: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BoardSignal, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterUInt32.write(value.delayed15, into: &buf)
+        FfiConverterDouble.write(value.avgDelayMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoardSignal_lift(_ buf: RustBuffer) throws -> BoardSignal {
+    return try FfiConverterTypeBoardSignal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoardSignal_lower(_ value: BoardSignal) -> RustBuffer {
+    return FfiConverterTypeBoardSignal.lower(value)
+}
+
+
 public struct Coord: Equatable, Hashable {
     public var lat: Double
     public var lon: Double
@@ -1307,6 +1368,169 @@ public func FfiConverterTypeDecadeCount_lower(_ value: DecadeCount) -> RustBuffe
 }
 
 
+/**
+ * Everything the delay prediction reads; see `flightcore::predict::DelayInput`.
+ */
+public struct DelayInput: Equatable, Hashable {
+    public var status: FlightStatus
+    public var scheduledOut: Int64
+    public var estimatedOut: Int64?
+    public var now: Int64
+    public var aircraftType: String?
+    public var originCode: String
+    public var destinationCode: String
+    public var inbound: InboundSignal?
+    public var history: HistorySignal?
+    public var board: BoardSignal?
+    public var originWeather: WeatherSignal?
+    public var destinationWeather: WeatherSignal?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(status: FlightStatus, scheduledOut: Int64, estimatedOut: Int64?, now: Int64, aircraftType: String?, originCode: String, destinationCode: String, inbound: InboundSignal?, history: HistorySignal?, board: BoardSignal?, originWeather: WeatherSignal?, destinationWeather: WeatherSignal?) {
+        self.status = status
+        self.scheduledOut = scheduledOut
+        self.estimatedOut = estimatedOut
+        self.now = now
+        self.aircraftType = aircraftType
+        self.originCode = originCode
+        self.destinationCode = destinationCode
+        self.inbound = inbound
+        self.history = history
+        self.board = board
+        self.originWeather = originWeather
+        self.destinationWeather = destinationWeather
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DelayInput: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDelayInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelayInput {
+        return
+            try DelayInput(
+                status: FfiConverterTypeFlightStatus.read(from: &buf), 
+                scheduledOut: FfiConverterInt64.read(from: &buf), 
+                estimatedOut: FfiConverterOptionInt64.read(from: &buf), 
+                now: FfiConverterInt64.read(from: &buf), 
+                aircraftType: FfiConverterOptionString.read(from: &buf), 
+                originCode: FfiConverterString.read(from: &buf), 
+                destinationCode: FfiConverterString.read(from: &buf), 
+                inbound: FfiConverterOptionTypeInboundSignal.read(from: &buf), 
+                history: FfiConverterOptionTypeHistorySignal.read(from: &buf), 
+                board: FfiConverterOptionTypeBoardSignal.read(from: &buf), 
+                originWeather: FfiConverterOptionTypeWeatherSignal.read(from: &buf), 
+                destinationWeather: FfiConverterOptionTypeWeatherSignal.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DelayInput, into buf: inout [UInt8]) {
+        FfiConverterTypeFlightStatus.write(value.status, into: &buf)
+        FfiConverterInt64.write(value.scheduledOut, into: &buf)
+        FfiConverterOptionInt64.write(value.estimatedOut, into: &buf)
+        FfiConverterInt64.write(value.now, into: &buf)
+        FfiConverterOptionString.write(value.aircraftType, into: &buf)
+        FfiConverterString.write(value.originCode, into: &buf)
+        FfiConverterString.write(value.destinationCode, into: &buf)
+        FfiConverterOptionTypeInboundSignal.write(value.inbound, into: &buf)
+        FfiConverterOptionTypeHistorySignal.write(value.history, into: &buf)
+        FfiConverterOptionTypeBoardSignal.write(value.board, into: &buf)
+        FfiConverterOptionTypeWeatherSignal.write(value.originWeather, into: &buf)
+        FfiConverterOptionTypeWeatherSignal.write(value.destinationWeather, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayInput_lift(_ buf: RustBuffer) throws -> DelayInput {
+    return try FfiConverterTypeDelayInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayInput_lower(_ value: DelayInput) -> RustBuffer {
+    return FfiConverterTypeDelayInput.lower(value)
+}
+
+
+public struct DelayPrediction: Equatable, Hashable {
+    public var minutes: UInt32
+    public var reason: DelayReason
+    public var confidence: PredictionConfidence
+    public var reasonTitle: String
+    public var summary: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(minutes: UInt32, reason: DelayReason, confidence: PredictionConfidence, reasonTitle: String, summary: String) {
+        self.minutes = minutes
+        self.reason = reason
+        self.confidence = confidence
+        self.reasonTitle = reasonTitle
+        self.summary = summary
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DelayPrediction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDelayPrediction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelayPrediction {
+        return
+            try DelayPrediction(
+                minutes: FfiConverterUInt32.read(from: &buf), 
+                reason: FfiConverterTypeDelayReason.read(from: &buf), 
+                confidence: FfiConverterTypePredictionConfidence.read(from: &buf), 
+                reasonTitle: FfiConverterString.read(from: &buf), 
+                summary: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DelayPrediction, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.minutes, into: &buf)
+        FfiConverterTypeDelayReason.write(value.reason, into: &buf)
+        FfiConverterTypePredictionConfidence.write(value.confidence, into: &buf)
+        FfiConverterString.write(value.reasonTitle, into: &buf)
+        FfiConverterString.write(value.summary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayPrediction_lift(_ buf: RustBuffer) throws -> DelayPrediction {
+    return try FfiConverterTypeDelayPrediction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayPrediction_lower(_ value: DelayPrediction) -> RustBuffer {
+    return FfiConverterTypeDelayPrediction.lower(value)
+}
+
+
 public struct DelayStats: Equatable, Hashable {
     public var total: UInt32
     public var onTime: UInt32
@@ -1463,6 +1687,210 @@ public func FfiConverterTypeFlightRef_lower(_ value: FlightRef) -> RustBuffer {
 }
 
 
+public struct GateCount: Equatable, Hashable {
+    public var gate: String
+    public var terminal: String?
+    public var flights: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(gate: String, terminal: String?, flights: UInt32) {
+        self.gate = gate
+        self.terminal = terminal
+        self.flights = flights
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GateCount: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGateCount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GateCount {
+        return
+            try GateCount(
+                gate: FfiConverterString.read(from: &buf), 
+                terminal: FfiConverterOptionString.read(from: &buf), 
+                flights: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GateCount, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.gate, into: &buf)
+        FfiConverterOptionString.write(value.terminal, into: &buf)
+        FfiConverterUInt32.write(value.flights, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateCount_lift(_ buf: RustBuffer) throws -> GateCount {
+    return try FfiConverterTypeGateCount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateCount_lower(_ value: GateCount) -> RustBuffer {
+    return FfiConverterTypeGateCount.lower(value)
+}
+
+
+public struct GateDay: Equatable, Hashable {
+    /**
+     * Local day at the origin, "YYYY-MM-DD".
+     */
+    public var day: String
+    public var gate: String
+    public var terminal: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Local day at the origin, "YYYY-MM-DD".
+         */day: String, gate: String, terminal: String?) {
+        self.day = day
+        self.gate = gate
+        self.terminal = terminal
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GateDay: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGateDay: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GateDay {
+        return
+            try GateDay(
+                day: FfiConverterString.read(from: &buf), 
+                gate: FfiConverterString.read(from: &buf), 
+                terminal: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GateDay, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.day, into: &buf)
+        FfiConverterString.write(value.gate, into: &buf)
+        FfiConverterOptionString.write(value.terminal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateDay_lift(_ buf: RustBuffer) throws -> GateDay {
+    return try FfiConverterTypeGateDay.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateDay_lower(_ value: GateDay) -> RustBuffer {
+    return FfiConverterTypeGateDay.lower(value)
+}
+
+
+public struct GatePrediction: Equatable, Hashable {
+    public var guess: GateGuess
+    public var gate: String?
+    public var concourse: String?
+    public var terminal: String?
+    public var used: UInt32
+    public var of: UInt32
+    public var fromAirline: Bool
+    public var label: String
+    public var detail: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(guess: GateGuess, gate: String?, concourse: String?, terminal: String?, used: UInt32, of: UInt32, fromAirline: Bool, label: String, detail: String) {
+        self.guess = guess
+        self.gate = gate
+        self.concourse = concourse
+        self.terminal = terminal
+        self.used = used
+        self.of = of
+        self.fromAirline = fromAirline
+        self.label = label
+        self.detail = detail
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GatePrediction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGatePrediction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GatePrediction {
+        return
+            try GatePrediction(
+                guess: FfiConverterTypeGateGuess.read(from: &buf), 
+                gate: FfiConverterOptionString.read(from: &buf), 
+                concourse: FfiConverterOptionString.read(from: &buf), 
+                terminal: FfiConverterOptionString.read(from: &buf), 
+                used: FfiConverterUInt32.read(from: &buf), 
+                of: FfiConverterUInt32.read(from: &buf), 
+                fromAirline: FfiConverterBool.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                detail: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GatePrediction, into buf: inout [UInt8]) {
+        FfiConverterTypeGateGuess.write(value.guess, into: &buf)
+        FfiConverterOptionString.write(value.gate, into: &buf)
+        FfiConverterOptionString.write(value.concourse, into: &buf)
+        FfiConverterOptionString.write(value.terminal, into: &buf)
+        FfiConverterUInt32.write(value.used, into: &buf)
+        FfiConverterUInt32.write(value.of, into: &buf)
+        FfiConverterBool.write(value.fromAirline, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterString.write(value.detail, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGatePrediction_lift(_ buf: RustBuffer) throws -> GatePrediction {
+    return try FfiConverterTypeGatePrediction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGatePrediction_lower(_ value: GatePrediction) -> RustBuffer {
+    return FfiConverterTypeGatePrediction.lower(value)
+}
+
+
 public struct Hazard: Equatable, Hashable {
     public var kind: HazardKind
     public var level: ImpactLevel
@@ -1522,6 +1950,67 @@ public func FfiConverterTypeHazard_lift(_ buf: RustBuffer) throws -> Hazard {
 #endif
 public func FfiConverterTypeHazard_lower(_ value: Hazard) -> RustBuffer {
     return FfiConverterTypeHazard.lower(value)
+}
+
+
+/**
+ * How the flight number arrived lately; see `flightcore::predict::HistorySignal`.
+ */
+public struct HistorySignal: Equatable, Hashable {
+    public var observed: UInt32
+    public var latePercent: UInt32
+    public var averageLateMinutes: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(observed: UInt32, latePercent: UInt32, averageLateMinutes: UInt32) {
+        self.observed = observed
+        self.latePercent = latePercent
+        self.averageLateMinutes = averageLateMinutes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HistorySignal: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHistorySignal: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HistorySignal {
+        return
+            try HistorySignal(
+                observed: FfiConverterUInt32.read(from: &buf), 
+                latePercent: FfiConverterUInt32.read(from: &buf), 
+                averageLateMinutes: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HistorySignal, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.observed, into: &buf)
+        FfiConverterUInt32.write(value.latePercent, into: &buf)
+        FfiConverterUInt32.write(value.averageLateMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistorySignal_lift(_ buf: RustBuffer) throws -> HistorySignal {
+    return try FfiConverterTypeHistorySignal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHistorySignal_lower(_ value: HistorySignal) -> RustBuffer {
+    return FfiConverterTypeHistorySignal.lower(value)
 }
 
 
@@ -1592,6 +2081,75 @@ public func FfiConverterTypeHourBucket_lift(_ buf: RustBuffer) throws -> HourBuc
 #endif
 public func FfiConverterTypeHourBucket_lower(_ value: HourBucket) -> RustBuffer {
     return FfiConverterTypeHourBucket.lower(value)
+}
+
+
+/**
+ * The plane on its way in; see `flightcore::predict::InboundSignal`.
+ */
+public struct InboundSignal: Equatable, Hashable {
+    /**
+     * Best known gate arrival at this flight's origin, unix seconds.
+     */
+    public var arrival: Int64
+    /**
+     * The inbound leg has left its gate.
+     */
+    public var departed: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Best known gate arrival at this flight's origin, unix seconds.
+         */arrival: Int64, 
+        /**
+         * The inbound leg has left its gate.
+         */departed: Bool) {
+        self.arrival = arrival
+        self.departed = departed
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InboundSignal: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInboundSignal: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InboundSignal {
+        return
+            try InboundSignal(
+                arrival: FfiConverterInt64.read(from: &buf), 
+                departed: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InboundSignal, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.arrival, into: &buf)
+        FfiConverterBool.write(value.departed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInboundSignal_lift(_ buf: RustBuffer) throws -> InboundSignal {
+    return try FfiConverterTypeInboundSignal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInboundSignal_lower(_ value: InboundSignal) -> RustBuffer {
+    return FfiConverterTypeInboundSignal.lower(value)
 }
 
 
@@ -2836,6 +3394,63 @@ public func FfiConverterTypeWeatherImpact_lower(_ value: WeatherImpact) -> RustB
 }
 
 
+/**
+ * Weather impact at one airport around the flight's time.
+ */
+public struct WeatherSignal: Equatable, Hashable {
+    public var level: ImpactLevel
+    public var affects: Affects?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(level: ImpactLevel, affects: Affects?) {
+        self.level = level
+        self.affects = affects
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension WeatherSignal: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWeatherSignal: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WeatherSignal {
+        return
+            try WeatherSignal(
+                level: FfiConverterTypeImpactLevel.read(from: &buf), 
+                affects: FfiConverterOptionTypeAffects.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WeatherSignal, into buf: inout [UInt8]) {
+        FfiConverterTypeImpactLevel.write(value.level, into: &buf)
+        FfiConverterOptionTypeAffects.write(value.affects, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherSignal_lift(_ buf: RustBuffer) throws -> WeatherSignal {
+    return try FfiConverterTypeWeatherSignal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWeatherSignal_lower(_ value: WeatherSignal) -> RustBuffer {
+    return FfiConverterTypeWeatherSignal.lower(value)
+}
+
+
 public struct YearCount: Equatable, Hashable {
     public var year: Int32
     public var flights: UInt32
@@ -2959,6 +3574,93 @@ public func FfiConverterTypeAffects_lift(_ buf: RustBuffer) throws -> Affects {
 #endif
 public func FfiConverterTypeAffects_lower(_ value: Affects) -> RustBuffer {
     return FfiConverterTypeAffects.lower(value)
+}
+
+
+
+
+public enum DelayReason: Equatable, Hashable {
+    
+    case lateInbound
+    case originWeather
+    case destinationWeather
+    case congestion
+    case history
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DelayReason: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDelayReason: FfiConverterRustBuffer {
+    typealias SwiftType = DelayReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelayReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .lateInbound
+        
+        case 2: return .originWeather
+        
+        case 3: return .destinationWeather
+        
+        case 4: return .congestion
+        
+        case 5: return .history
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DelayReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .lateInbound:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .originWeather:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .destinationWeather:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .congestion:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .history:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayReason_lift(_ buf: RustBuffer) throws -> DelayReason {
+    return try FfiConverterTypeDelayReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDelayReason_lower(_ value: DelayReason) -> RustBuffer {
+    return FfiConverterTypeDelayReason.lower(value)
 }
 
 
@@ -3147,6 +3849,79 @@ public func FfiConverterTypeFlightStatus_lift(_ buf: RustBuffer) throws -> Fligh
 #endif
 public func FfiConverterTypeFlightStatus_lower(_ value: FlightStatus) -> RustBuffer {
     return FfiConverterTypeFlightStatus.lower(value)
+}
+
+
+
+
+public enum GateGuess: Equatable, Hashable {
+    
+    case gate
+    case concourse
+    case terminal
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GateGuess: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGateGuess: FfiConverterRustBuffer {
+    typealias SwiftType = GateGuess
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GateGuess {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .gate
+        
+        case 2: return .concourse
+        
+        case 3: return .terminal
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GateGuess, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .gate:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .concourse:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .terminal:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateGuess_lift(_ buf: RustBuffer) throws -> GateGuess {
+    return try FfiConverterTypeGateGuess.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGateGuess_lower(_ value: GateGuess) -> RustBuffer {
+    return FfiConverterTypeGateGuess.lower(value)
 }
 
 
@@ -3411,6 +4186,79 @@ public func FfiConverterTypePastFlightStatus_lift(_ buf: RustBuffer) throws -> P
 #endif
 public func FfiConverterTypePastFlightStatus_lower(_ value: PastFlightStatus) -> RustBuffer {
     return FfiConverterTypePastFlightStatus.lower(value)
+}
+
+
+
+
+public enum PredictionConfidence: Equatable, Hashable {
+    
+    case low
+    case medium
+    case high
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PredictionConfidence: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePredictionConfidence: FfiConverterRustBuffer {
+    typealias SwiftType = PredictionConfidence
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PredictionConfidence {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .low
+        
+        case 2: return .medium
+        
+        case 3: return .high
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PredictionConfidence, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .low:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .high:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePredictionConfidence_lift(_ buf: RustBuffer) throws -> PredictionConfidence {
+    return try FfiConverterTypePredictionConfidence.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePredictionConfidence_lower(_ value: PredictionConfidence) -> RustBuffer {
+    return FfiConverterTypePredictionConfidence.lower(value)
 }
 
 
@@ -4027,6 +4875,54 @@ fileprivate struct FfiConverterOptionTypeAircraftCount: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeBoardSignal: FfiConverterRustBuffer {
+    typealias SwiftType = BoardSignal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeBoardSignal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeBoardSignal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeDelayPrediction: FfiConverterRustBuffer {
+    typealias SwiftType = DelayPrediction?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDelayPrediction.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDelayPrediction.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeFlightRef: FfiConverterRustBuffer {
     typealias SwiftType = FlightRef?
 
@@ -4043,6 +4939,78 @@ fileprivate struct FfiConverterOptionTypeFlightRef: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeFlightRef.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeGatePrediction: FfiConverterRustBuffer {
+    typealias SwiftType = GatePrediction?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeGatePrediction.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeGatePrediction.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHistorySignal: FfiConverterRustBuffer {
+    typealias SwiftType = HistorySignal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHistorySignal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHistorySignal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeInboundSignal: FfiConverterRustBuffer {
+    typealias SwiftType = InboundSignal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeInboundSignal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeInboundSignal.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4091,6 +5059,30 @@ fileprivate struct FfiConverterOptionTypeTypeTally: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeTypeTally.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeWeatherSignal: FfiConverterRustBuffer {
+    typealias SwiftType = WeatherSignal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeWeatherSignal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeWeatherSignal.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4412,6 +5404,56 @@ fileprivate struct FfiConverterSequenceTypeDecadeCount: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDecadeCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGateCount: FfiConverterRustBuffer {
+    typealias SwiftType = [GateCount]
+
+    public static func write(_ value: [GateCount], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGateCount.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GateCount] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GateCount]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGateCount.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGateDay: FfiConverterRustBuffer {
+    typealias SwiftType = [GateDay]
+
+    public static func write(_ value: [GateDay], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGateDay.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GateDay] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GateDay]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGateDay.read(from: &buf))
         }
         return seq
     }
@@ -4860,6 +5902,32 @@ public func weatherImpact(conditions: WeatherConditions) -> WeatherImpact  {
     )
 })
 }
+/**
+ * The likely departure delay before the airline moves its estimate; nil when the signals are weak,
+ * the flight left or ended, or the estimate already shows the delay.
+ */
+public func predictDelay(input: DelayInput) -> DelayPrediction?  {
+    return try!  FfiConverterOptionTypeDelayPrediction.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_predict_delay(
+        FfiConverterTypeDelayInput_lower(input),uniffiCallStatus
+    )
+})
+}
+/**
+ * The likely departure gate (or concourse, or terminal) from the flight number's recent days and the
+ * airline's usual gates at the airport; nil without a clear majority.
+ */
+public func predictGate(days: [GateDay], airline: [GateCount], airlineCode: String?) -> GatePrediction?  {
+    return try!  FfiConverterOptionTypeGatePrediction.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_flightcore_ffi_fn_func_predict_gate(
+        FfiConverterSequenceTypeGateDay.lower(days),
+        FfiConverterSequenceTypeGateCount.lower(airline),
+        FfiConverterOptionString.lower(airlineCode),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -4907,6 +5975,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_flightcore_ffi_checksum_func_weather_impact() != 47269) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_predict_delay() != 9484) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_flightcore_ffi_checksum_func_predict_gate() != 50583) {
         return InitializationResult.apiChecksumMismatch
     }
 

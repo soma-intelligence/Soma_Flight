@@ -7,6 +7,7 @@ use flightcore::geo::{Coord, MAX_SEGMENTS, distance_km, great_circle};
 use flightcore::impact::{Conditions, describe_weather, present_weather, weather_impact};
 use flightcore::passport::{PastFlight, compute_passport};
 use flightcore::passport_detail::{CountryInfo, compute_passport_detail};
+use flightcore::predict::{DelayInput, GateCount, GateDay, predict_delay, predict_gate};
 use flightcore::weather::flight_category;
 use serde::{Serialize, de::DeserializeOwned};
 use wasm_bindgen::prelude::*;
@@ -110,5 +111,27 @@ pub fn compute_aircraft_stats_js(
         Ok(compute_aircraft_stats(
             &flights, year, &types, &facts, as_of,
         ))
+    })())
+}
+
+/// Likely departure delay (`DelayInput` JSON, camelCase): a `DelayPrediction`, or `null` when the
+/// signals are weak.
+#[wasm_bindgen(js_name = predictDelay)]
+pub fn predict_delay_js(input_json: &str) -> String {
+    finish(parse::<DelayInput>("input", input_json).map(|i| predict_delay(&i)))
+}
+
+/// Likely departure gate from `GateDay` and `GateCount` JSON arrays (camelCase): a `GatePrediction`,
+/// or `null` without a clear majority.
+#[wasm_bindgen(js_name = predictGate)]
+pub fn predict_gate_js(
+    days_json: &str,
+    airline_json: &str,
+    airline_code: Option<String>,
+) -> String {
+    finish((|| {
+        let days: Vec<GateDay> = parse("days", days_json)?;
+        let airline: Vec<GateCount> = parse("airline", airline_json)?;
+        Ok(predict_gate(&days, &airline, airline_code.as_deref()))
     })())
 }

@@ -25,6 +25,9 @@ public struct AppEnvironment: Sendable {
     /// Security (TSA) waits for Good to Know and the airport sheet: the fakes with `-useFakes`,
     /// `security-wait` in live builds (free, so always on).
     public var security: any SecurityWaitService
+    /// Recent departure gates for the flight sheet's gate prediction: the fakes with `-useFakes`,
+    /// `gate_history` in live builds (free, so always on).
+    public var gates: any GateHistoryService = UnavailableGateHistoryService()
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -68,6 +71,7 @@ public struct AppEnvironment: Sendable {
                               brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
                               security: FakeSecurityWaitService(now: now),
                               passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
+            .with(gates: FakeGateHistoryService())
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -101,6 +105,14 @@ public struct AppEnvironment: Sendable {
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
                               notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
                               security: SupabaseSecurityWaitService(backend: backend))
+            .with(gates: SupabaseGateHistoryService(backend: backend))
+    }
+
+    /// A copy with `gates` set.
+    func with(gates: any GateHistoryService) -> AppEnvironment {
+        var env = self
+        env.gates = gates
+        return env
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
@@ -161,7 +173,7 @@ public struct AppEnvironment: Sendable {
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
         FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
-                          security: security, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
+                          security: security, gates: gates, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
                           lookup: directory.lookup, simulatesWallet: simulatesWallet)
     }
 

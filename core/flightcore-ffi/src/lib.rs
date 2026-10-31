@@ -9,6 +9,9 @@ use flightcore::{aircraft, delay, geo, impact, passport, passport_detail, weathe
 
 uniffi::setup_scaffolding!();
 
+mod predict;
+pub use predict::*;
+
 // Geo
 
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]

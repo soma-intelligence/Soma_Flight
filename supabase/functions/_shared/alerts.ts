@@ -11,6 +11,7 @@ export type AlertKind =
   | "arrival_delay"
   | "schedule_change"
   | "inbound_late"
+  | "predicted_delay"
   | "gate_assigned"
   | "gate_change"
   | "terminal_change"
@@ -37,6 +38,7 @@ export const CATEGORY: Record<AlertKind, AlertCategory> = {
   arrival_delay: "delays",
   schedule_change: "delays",
   inbound_late: "delays",
+  predicted_delay: "delays",
   gate_assigned: "gates",
   gate_change: "gates",
   terminal_change: "gates",
@@ -87,6 +89,9 @@ export interface Alert {
   /** Old and new value of what changed (gate, terminal, belt, airport, ISO time). */
   from?: string | null;
   to?: string | null;
+  /** predicted_delay: the prediction's summary and reason (core predict.rs). */
+  note?: string;
+  reason?: string;
 }
 
 /** What the event's payload says about one column. */
