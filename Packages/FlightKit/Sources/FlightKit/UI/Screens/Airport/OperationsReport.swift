@@ -55,6 +55,8 @@ public struct OperationsReportView: View {
             header(report)
             if let d = report.departures { boardSection(d, now: now) }
             if let a = report.arrivals { boardSection(a, now: now) }
+            FAAReportSections(programs: store.programs, notams: store.notams, code: code, timeZone: tz,
+                              clock: units.clock, now: now)
             if let impact = report.impact { impactSection(impact, cause: report.cause) }
             if let w = store.weather {
                 conditionsSection(report, weather: w, now: now)
@@ -175,7 +177,7 @@ public struct OperationsReportView: View {
                 sourceRow("Weather fetched", store.fetchedAt[.weather], now: now)
                 sourceRow("METAR observed", store.weather?.observedAt, now: now)
                 sourceRow("TAF issued", store.weather?.tafIssuedAt, now: now)
-                Text("Weather from aviationweather.gov (NOAA). Delays from the live boards in this app.")
+                Text("Weather from aviationweather.gov (NOAA). FAA programs and NOTAMs from the FAA. Delays from the live boards in this app.")
                     .scaledFont(13)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -436,7 +438,8 @@ struct OperationsReportPreview: View {
             }
         }
         .task {
-            let s = AirportStore(code: code, airports: FakeAirportService(now: PreviewData.now))
+            let s = AirportStore(code: code, airports: FakeAirportService(now: PreviewData.now),
+                                 faa: FakeFAAService(now: PreviewData.now))
             await s.load()
             store = s
         }

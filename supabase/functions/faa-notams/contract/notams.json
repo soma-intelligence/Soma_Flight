@@ -1,0 +1,86 @@
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "configured": true,
+  "stale": false,
+  "fetched_at": "2026-10-31T08:00:00.000Z",
+  "notams": [
+    {
+      "number": "10/101",
+      "kind": "runway_closed",
+      "title": "Runway 10L/28R closed",
+      "detail": null,
+      "relevance": 80,
+      "raw": "!SFO 10/101 SFO RWY 10L/28R CLSD 2610310500-2610311300",
+      "starts_at": "2026-10-31T05:00:00.000Z",
+      "ends_at": "2026-10-31T13:00:00.000Z",
+      "ends_estimated": false
+    },
+    {
+      "number": "10/104",
+      "kind": "ils_out",
+      "title": "ILS glide slope for runway 28L out of service",
+      "detail": "Landings in low cloud or fog may be slower.",
+      "relevance": 60,
+      "raw": "!SFO 10/104 SFO NAV ILS RWY 28L GP U/S 2610301600-2611011600",
+      "starts_at": "2026-10-30T16:00:00.000Z",
+      "ends_at": "2026-11-01T16:00:00.000Z",
+      "ends_estimated": false
+    },
+    {
+      "number": "10/102",
+      "kind": "runway_closed",
+      "title": "Runway 01R/19L closed in part",
+      "detail": null,
+      "relevance": 50,
+      "raw": "!SFO 10/102 SFO RWY 01R/19L CLSD EXC XNG 2610311400-2610312200",
+      "starts_at": "2026-10-31T14:00:00.000Z",
+      "ends_at": "2026-10-31T22:00:00.000Z",
+      "ends_estimated": false
+    },
+    {
+      "number": "10/103",
+      "kind": "taxiway_closed",
+      "title": "Taxiway C closed in part",
+      "detail": "Between A and B.",
+      "relevance": 25,
+      "raw": "!SFO 10/103 SFO TWY C BTN TWY A AND TWY B CLSD 2610300800-2611152359EST",
+      "starts_at": "2026-10-30T08:00:00.000Z",
+      "ends_at": "2026-11-15T23:59:00.000Z",
+      "ends_estimated": true
+    },
+    {
+      "number": "10/107",
+      "kind": "construction",
+      "title": "Construction on the apron",
+      "detail": null,
+      "relevance": 20,
+      "raw": "!SFO 10/107 SFO APRON TERMINAL 2 RAMP WIP 2610300600-2611302359",
+      "starts_at": "2026-10-30T06:00:00.000Z",
+      "ends_at": "2026-11-30T23:59:00.000Z",
+      "ends_estimated": false
+    },
+    {
+      "number": "10/105",
+      "kind": "obstacle_light",
+      "title": "Unlit tower",
+      "detail": "1.6 NM NW of the airport, 296 ft tall.",
+      "relevance": 5,
+      "raw": "!SFO 10/105 SFO OBST TOWER LGT (ASR 1234567) 373712.00N1222248.00W (1.6NM NW SFO) 412FT (296FT AGL) U/S 2610290000-2611120000",
+      "starts_at": "2026-10-29T00:00:00.000Z",
+      "ends_at": "2026-11-12T00:00:00.000Z",
+      "ends_estimated": false
+    },
+    {
+      "number": "10/106",
+      "kind": "airport_closed",
+      "title": "Closed to private and charter flights",
+      "detail": "Airline flights are not affected.",
+      "relevance": 2,
+      "raw": "!SFO 10/106 SFO AD AP CLSD TO NON SKED TRANSIENT GA ACFT EXC PPR 650-821-8211 2610010000-PERM",
+      "starts_at": "2026-10-01T00:00:00.000Z",
+      "ends_at": null,
+      "ends_estimated": false
+    }
+  ]
+}

@@ -3,7 +3,8 @@ import Foundation
 /// The alert categories a user wants, one row of `notification_preferences`. Everything is on until the
 /// user turns something off, and an account with no row reads as `.allOn`.
 public struct NotificationPreferences: Codable, Sendable, Hashable {
-    /// Delays, back on time, schedule changes and a late inbound aircraft.
+    /// Delays, back on time, schedule changes, a late inbound aircraft and FAA programs (ground stops,
+    /// ground delay programs, closures) at either airport.
     public var delays: Bool
     /// Gate assigned, gate changes and terminal changes.
     public var gates: Bool
@@ -55,7 +56,7 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
         /// What the row sends, in the grey line under the title.
         public var detail: String {
             switch self {
-            case .delays: "New delays, back on time, schedule changes, a late inbound plane"
+            case .delays: "New delays, back on time, schedule changes, a late inbound plane, FAA ground stops"
             case .gates: "Your gate, gate changes and terminal changes"
             case .takeoffLanding: "Left the gate, took off, landed, arrived at the gate"
             case .baggage: "The belt your bags come out on"

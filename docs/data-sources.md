@@ -198,3 +198,26 @@ sources that are public and whose terms allow reuse.
   passengers wait 15 to 30 minutes at that hour and mostly 5 to 10 through the day, and nothing passes 35.
   An airport with no rows gets a typical US day instead. Both are labelled estimates in the app and never
   shown as live.
+
+## FAA programs and NOTAMs
+
+Checked on 2026-10-31 for `faa-status` and `faa-notams`. Both are works of the US government, free, and
+offered for reuse.
+
+- NAS status (`faa-status`): `https://nasstatus.faa.gov/api/airport-events`, the JSON the FAA's own
+  status page (nasstatus.faa.gov) draws from: one entry per airport with a ground stop, ground delay program,
+  departure or arrival delay, closure, deicing or free-form notice, with ISO times and ids. No key, no stated
+  rate limit; we read it at most once per 5 minutes for all users. The XML at
+  `/api/airport-status-information` (the old fly.faa.gov feed, DTD at fly.faa.gov/AirportStatus.dtd) carries
+  the same programs with text times ("Oct 31 at 03:00 UTC.") and no ids, so it is not read. Neither is
+  formally documented: `_shared/fixtures/nas_airport_events_20261031.json` is a real answer (one closure,
+  three general aviation notices), and the program objects in `nas_airport_events_programs.json` follow the
+  field names of the status page's own code, because no program was active when the real answer was fetched.
+  When one is, refresh the fixture from a real answer.
+- NOTAMs (`faa-notams`): the FAA NOTAM API on the api.faa.gov developer portal, served from
+  `external-api.faa.gov/notamapi/v1/notams`. Free, but each call carries a client id and secret from a
+  registered FAA developer account (owner action, `docs/operations.md`). The FAA is moving NOTAMs to its new
+  NOTAM Management Service; should the endpoint move, `FAA_NOTAM_URL` points the function at it without a
+  code change if the answer keeps the same GeoJSON items. The sample notices in
+  `_shared/fixtures/notam_api_ksfo.json` use the FAA's published domestic format (FAA Order JO 7930.2 and
+  its contractions); the SBY, LAX and SAN texts in the decoder tests are real notices from the NAS feed.

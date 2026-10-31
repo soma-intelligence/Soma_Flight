@@ -435,6 +435,14 @@ verify_jwt = true
 verify_jwt = false
 static_files = ["./functions/_shared/brand/resvg/*"]
 
+# FAA programs (ground stops, delay programs, closures) at US airports; the sweep is service role only.
+[functions.faa-status]
+verify_jwt = true
+
+# Decoded NOTAMs (FAA NOTAM API); answers configured: false until the FAA key is set.
+[functions.faa-notams]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

@@ -1,0 +1,8 @@
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "configured": false,
+  "stale": false,
+  "fetched_at": "2026-10-31T08:00:00.000Z",
+  "notams": []
+}

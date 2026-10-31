@@ -207,6 +207,7 @@ public struct FlightDetailView: View {
                            security: securityRow(flight, now: now),
                            leave: store.isArchived ? nil : flight, now: now,
                            predictedDelay: store.delayPrediction(now: now), predictedGate: store.gatePrediction,
+                           advisories: FAAFacts.rows(store, flight: flight, clock: units.clock, now: now),
                            onAirport: onAirport)
                     .id("goodToKnow")
                 // Canceled or diverted: no arrival forecast and no inbound plane.

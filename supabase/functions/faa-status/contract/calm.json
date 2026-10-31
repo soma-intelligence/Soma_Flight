@@ -1,0 +1,9 @@
+{
+  "airport": "KAUS",
+  "iata": "AUS",
+  "available": true,
+  "reason": null,
+  "stale": false,
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "programs": []
+}

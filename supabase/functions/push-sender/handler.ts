@@ -1,4 +1,6 @@
 // POST /push-sender { flightId, eventId }: APNs alerts and Live Activity updates for one event.
+// POST /push-sender { flightId, program }: one airport program alert (faa-status's sweep), the same
+// claim in alert_log and the same delivery, with no event and no Live Activity update.
 // Service role only. The gateway checks the JWT signature (verify_jwt); this checks its role claim.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
@@ -31,6 +33,7 @@ import {
 } from "../_shared/prediction.ts";
 import { connectionAlert } from "../_shared/connections.ts";
 import { connectionsOf } from "./connections.ts";
+import { readProgramAlert } from "../_shared/faa_nas.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -290,8 +293,8 @@ interface SendCtx {
   fetchFn: typeof fetch;
   evict: () => void;
   expiration: number;
-  /** The event that triggered the call, carried in every alert's payload. */
-  eventId: string;
+  /** The event that triggered the call, carried in every alert's payload; null for a program alert. */
+  eventId: string | null;
 }
 
 /** The keys already sent for a flight and the newest delay sent per side (alert_log). */
@@ -449,7 +452,7 @@ async function deliver(
       kind: a.kind,
     };
     // Unique per alert of the event, under APNs' 64 bytes.
-    const collapseId = `${ctx.eventId}:${a.kind}${
+    const collapseId = `${ctx.eventId ?? flight.id}:${a.kind}${
       a.side ? `:${a.side[0]}` : ""
     }`;
     const t = await fanOut(
@@ -487,13 +490,16 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (!(await isServiceCaller(req, key))) {
       throw new ApiError("unauthorized", 401, "Service role only");
     }
-    let body: { flightId?: unknown; eventId?: unknown };
+    let body: { flightId?: unknown; eventId?: unknown; program?: unknown };
     try {
       body = await req.json();
     } catch {
       throw new ApiError("invalid_request", 400, "Invalid JSON");
     }
     const { flightId, eventId } = body;
+    if (body.program !== undefined) {
+      return await sendProgram(deps, flightId, body.program);
+    }
     if (
       typeof flightId !== "string" || !UUID.test(flightId) ||
       typeof eventId !== "string" || !UUID.test(eventId)
@@ -658,4 +664,55 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
   } catch (e) {
     return errorResponse(e);
   }
+}
+
+/** The program alert path: claim it for the flight and send it to the followers who want delays. */
+async function sendProgram(
+  deps: Deps,
+  flightId: unknown,
+  raw: unknown,
+): Promise<Response> {
+  const program = readProgramAlert(raw);
+  if (typeof flightId !== "string" || !UUID.test(flightId) || !program) {
+    throw new ApiError(
+      "invalid_request",
+      400,
+      "flightId must be a UUID and program a program alert",
+    );
+  }
+  const cfg = deps.config();
+  if (!cfg) {
+    console.error("push-sender: APNS secrets are not set");
+    throw new ApiError("provider_unavailable", 503, "APNs is not configured");
+  }
+  const { db } = deps;
+  const fl = await db.from("flights").select("*").eq("id", flightId)
+    .maybeSingle();
+  if (fl.error) throw new Error(`flight read failed: ${fl.error.message}`);
+  if (!fl.data) throw new ApiError("not_found", 404, "Flight not found");
+  const nowS = Math.floor(
+    (deps.now ?? (() => new Date()))().getTime() / 1000,
+  );
+  const ctx: SendCtx = {
+    db,
+    cfg,
+    jwt: await apnsJwt(cfg.teamId, cfg.keyId, cfg.p8, nowS),
+    fetchFn: deps.fetchFn ?? fetch,
+    evict: () => evictApnsJwt(cfg.teamId, cfg.keyId, cfg.p8),
+    expiration: nowS + 3600,
+    eventId: null,
+  };
+  const alert: Alert = {
+    kind: "airport_program",
+    category: "delays",
+    key: program.key,
+    program,
+  };
+  const { kinds, ...alerts } = await deliver(
+    ctx,
+    fl.data as Flight,
+    [alert],
+    null,
+  );
+  return json({ ok: true, alerts, kinds });
 }

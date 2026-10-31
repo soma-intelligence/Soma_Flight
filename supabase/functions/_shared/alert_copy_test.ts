@@ -213,3 +213,53 @@ Deno.test("every kind has short copy without dashes", () => {
     }
   }
 });
+
+Deno.test("airport programs: what the FAA holds, in the airport's own time", () => {
+  const program = (more: Partial<NonNullable<Alert["program"]>>) =>
+    alert("airport_program", {
+      key: "airport_program:KSFO:ground_delay:2026-11-04T05:00",
+      program: {
+        key: "airport_program:KSFO:ground_delay:2026-11-04T05:00",
+        kind: "ground_delay",
+        end: "destination",
+        code: "SFO",
+        reason: "low clouds",
+        average_minutes: 47,
+        ends_at: "2026-11-04T10:00:00Z",
+        ...more,
+      },
+    });
+  assertEquals(CATEGORY.airport_program, "delays");
+  assertEquals(text(program({})), {
+    title: "Ground delay program at SFO",
+    body:
+      "Flights to SFO are held before take-off, about 47m on average, because of low clouds. AF 84 may leave late.",
+  });
+  assertEquals(
+    text(program({ kind: "ground_stop", reason: "thunderstorms" })),
+    {
+      title: "Ground stop at SFO",
+      body:
+        "Flights to SFO are held before take-off because of thunderstorms until 2:00 AM. AF 84 may leave late.",
+    },
+  );
+  assertEquals(
+    text(program({
+      kind: "ground_stop",
+      end: "origin",
+      code: "CDG",
+      reason: null,
+      ends_at: "2026-11-03T21:00:00Z",
+    })),
+    {
+      title: "Ground stop at CDG",
+      body:
+        "Flights to CDG are held before take-off until 10:00 PM. Departures may run late too.",
+    },
+  );
+  assertEquals(text(program({ kind: "closure", ends_at: null })), {
+    title: "SFO airport closed",
+    body: "The FAA lists SFO as closed. Check with your airline about AF 84.",
+  });
+  assertEquals(text(alert("airport_program")).title, "AF 84 may be delayed");
+});

@@ -34,6 +34,9 @@ public struct AppEnvironment: Sendable {
     /// Live flight links for the flight sheet's Share (`share-flight`); `FlightScreen` puts it in
     /// `\.flightSharing`. None (text only) unless a builder sets it.
     public var sharing: any FlightShareService = UnavailableFlightShareService()
+    /// FAA programs and decoded NOTAMs for Good to Know, the airport sheet and the Operations Report: the
+    /// fakes with `-useFakes`, `faa-status` and `faa-notams` in live builds (free, so always on).
+    public var faa: any FAAService = UnavailableFAAService()
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -58,7 +61,9 @@ public struct AppEnvironment: Sendable {
                 insights: any InsightsService = UnavailableInsightsService(),
                 notificationPreferences: any NotificationPreferencesService = FakeNotificationPreferencesService(),
                 security: any SecurityWaitService = UnavailableSecurityWaitService(),
+                faa: any FAAService = UnavailableFAAService(),
                 passes: BoardingPassShelf = .inMemory(), simulatesWallet: Bool = false) {
+        self.faa = faa
         self.passes = passes; self.simulatesWallet = simulatesWallet
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.security = security; self.cache = cache
@@ -76,6 +81,7 @@ public struct AppEnvironment: Sendable {
                                  cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
                                  brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
                                  security: FakeSecurityWaitService(now: now),
+                                 faa: FakeFAAService(now: now),
                                  passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
             .with(gates: FakeGateHistoryService())
             .withAlternates(FakeAlternateFlightsService(flights: flights))
@@ -113,7 +119,8 @@ public struct AppEnvironment: Sendable {
                               brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)),
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
                               notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
-                              security: SupabaseSecurityWaitService(backend: backend))
+                              security: SupabaseSecurityWaitService(backend: backend),
+                              faa: SupabaseFAAService(backend: backend))
             .with(gates: SupabaseGateHistoryService(backend: backend))
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
         env.sharing = SupabaseFlightShareService(backend: backend)
@@ -182,12 +189,12 @@ public struct AppEnvironment: Sendable {
     }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore {
-        AirportStore(code: code, airports: airports, security: security)
+        AirportStore(code: code, airports: airports, security: security, faa: faa)
     }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
         let store = FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
-                          security: security, gates: gates, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
+                          security: security, gates: gates, faa: faa, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
                           lookup: directory.lookup, simulatesWallet: simulatesWallet)
         store.connections = ConnectionStore(id: id, flights: flights, airports: airports, alternates: alternates,
                                             lookup: directory.lookup)

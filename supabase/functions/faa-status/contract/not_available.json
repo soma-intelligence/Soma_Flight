@@ -1,0 +1,9 @@
+{
+  "airport": "LFPG",
+  "iata": "CDG",
+  "available": false,
+  "reason": "outside_us",
+  "stale": false,
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "programs": []
+}

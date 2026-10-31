@@ -1,0 +1,23 @@
+{
+  "airport": "KSBY",
+  "iata": "SBY",
+  "available": true,
+  "reason": null,
+  "stale": false,
+  "fetched_at": "2026-10-31T06:56:00.000Z",
+  "programs": [
+    {
+      "airport": "SBY",
+      "kind": "closure",
+      "reason": null,
+      "reason_raw": null,
+      "average_minutes": null,
+      "trend": null,
+      "extension": null,
+      "starts_at": "2026-10-31T03:00:00.000Z",
+      "ends_at": "2026-10-31T10:00:00.000Z",
+      "updated_at": "2026-10-31T02:07:28.000Z",
+      "advisory_url": null
+    }
+  ]
+}

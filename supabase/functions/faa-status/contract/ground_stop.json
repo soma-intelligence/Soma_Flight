@@ -1,0 +1,23 @@
+{
+  "airport": "KEWR",
+  "iata": "EWR",
+  "available": true,
+  "reason": null,
+  "stale": false,
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "programs": [
+    {
+      "kind": "ground_stop",
+      "trend": null,
+      "reason": "thunderstorms",
+      "airport": "EWR",
+      "ends_at": "2026-10-31T21:15:00.000Z",
+      "extension": "medium",
+      "starts_at": "2026-10-31T20:00:00.000Z",
+      "reason_raw": "WEATHER / THUNDERSTORMS",
+      "updated_at": "2026-10-31T20:02:31.000Z",
+      "advisory_url": "https://www.fly.faa.gov/adv/adv_otherdis.jsp?advn=41&adv_date=10312026&facId=ATCSCC&title=ATCSCC%20ADVZY%20041%20EWR/ZNY%2010/31/2026%20CDM%20GROUND%20STOP",
+      "average_minutes": null
+    }
+  ]
+}

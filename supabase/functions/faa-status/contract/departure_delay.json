@@ -1,0 +1,23 @@
+{
+  "airport": "KLGA",
+  "iata": "LGA",
+  "available": true,
+  "reason": null,
+  "stale": false,
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "programs": [
+    {
+      "kind": "departure_delay",
+      "trend": "increasing",
+      "reason": "heavy traffic",
+      "airport": "LGA",
+      "ends_at": null,
+      "extension": null,
+      "starts_at": null,
+      "reason_raw": "TM Initiatives:MIT:VOL",
+      "updated_at": "2026-10-31T19:47:00.000Z",
+      "advisory_url": null,
+      "average_minutes": 31
+    }
+  ]
+}
