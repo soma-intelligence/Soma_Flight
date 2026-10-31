@@ -85,7 +85,8 @@ struct CardTitle: View {
 }
 
 /// Good to Know: per airport, a header that opens the airport sheet with the disruption row under it when
-/// delays build, then that airport's weather; last, the time zone change.
+/// delays build, then (departure airport only, in the hours before the flight) the security wait, then that
+/// airport's weather; last, the time zone change.
 struct GoodToKnow: View {
     struct Side {
         var icao: String
@@ -103,6 +104,8 @@ struct GoodToKnow: View {
     var origin: Side
     var destination: Side?
     var timeZone: (title: String, text: String)?
+    /// The security wait at the departure airport; nil hides the row (outside its window, or none).
+    var security: SecurityRowData? = nil
     var onAirport: (String) -> Void
 
     var body: some View {
@@ -154,6 +157,7 @@ struct GoodToKnow: View {
                 .buttonStyle(.plain)
             }
         }
+        if side.departures, let security { SecurityWaitRow(data: security) }
         if let w = side.weather {
             DetailCard {
                 InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), multicolor: true,

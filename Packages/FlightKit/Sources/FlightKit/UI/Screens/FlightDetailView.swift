@@ -100,7 +100,7 @@ public struct FlightDetailView: View {
         }
         .sensoryFeedback(.error, trigger: pasteFailures)
         .task(id: store.flight?.id) {
-            if store.flight != nil { await store.loadExtras() }
+            if store.flight != nil { await store.loadExtras(now: fixedNow ?? .now) }
         }
     }
 
@@ -173,6 +173,7 @@ public struct FlightDetailView: View {
                                          weather: store.originWeather, departures: true),
                            destination: arrivalSide(flight),
                            timeZone: timeZoneChange(flight),
+                           security: securityRow(flight, now: now),
                            onAirport: onAirport)
                     .id("goodToKnow")
                 // Canceled or diverted: no arrival forecast and no inbound plane.
@@ -320,6 +321,12 @@ public struct FlightDetailView: View {
         return .init(icao: icao, code: code, stats: store.destinationStats, weather: store.destinationWeather,
                      departures: false, arrival: pending.contains(f.status) ? DetailFacts.bestIn(f) : nil,
                      timeZone: store.destination?.timeZone ?? .current)
+    }
+
+    /// The security row's data while the flight is in its window (`SecurityWaitFacts.isInWindow`).
+    private func securityRow(_ f: Flight, now: Date) -> SecurityRowData? {
+        guard !store.isArchived, let wait = store.securityWait, SecurityWaitFacts.isInWindow(f, now: now) else { return nil }
+        return SecurityRowData(wait: wait, terminal: f.terminalOrigin, timeZone: store.origin?.timeZone ?? .current)
     }
 
     private func timeZoneChange(_ f: Flight) -> (title: String, text: String)? {
