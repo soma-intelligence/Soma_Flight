@@ -34,6 +34,7 @@ public final class FriendsStore {
 
     private let service: any FriendsService
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var pendingInvite: Task<FriendInvite?, Never>?
 
     public init(service: any FriendsService) { self.service = service }
 
@@ -106,6 +107,52 @@ public final class FriendsStore {
         case .all: friends
         case .soon: friends.filter { id in flights(of: id.id).contains { Self.isSoon($0.flight, now: now) } }
         }
+    }
+
+    /// The flight a friend's row on the tab shows: the one in the air, else the next that has not landed
+    /// (a canceled or diverted one stays, it is news); nil when nothing is coming up.
+    public func upcomingFlight(of friend: Friend.ID) -> Flight? {
+        let mine = flights(of: friend).map(\.flight)
+        return mine.first { $0.status == .departed || $0.status == .enRoute }
+            ?? mine.first { $0.status != .landed && $0.status != .arrived }
+    }
+
+    /// Where a friend's row sits on the tab.
+    public enum Section: String, Hashable, Sendable, CaseIterable {
+        case inTheAir, upcoming, noFlights
+
+        public var title: String {
+            switch self {
+            case .inTheAir: "In the Air"
+            case .upcoming: "Upcoming"
+            case .noFlights: "No Upcoming Flights"
+            }
+        }
+    }
+
+    /// The tab's list: friends in the air (landing soonest first), then those with a flight coming up
+    /// (leaving soonest first), then everyone else by name. Empty sections are left out.
+    public func sections() -> [(section: Section, friends: [Friend])] {
+        var air: [(Friend, Date)] = [], soon: [(Friend, Date)] = [], rest: [Friend] = []
+        for friend in friends {
+            guard let f = upcomingFlight(of: friend.id) else { rest.append(friend); continue }
+            if f.status == .departed || f.status == .enRoute {
+                air.append((friend, DetailFacts.bestIn(f) ?? .distantFuture))
+            } else {
+                soon.append((friend, DetailFacts.bestOut(f) ?? .distantFuture))
+            }
+        }
+        func byTime(_ list: [(Friend, Date)]) -> [Friend] {
+            list.sorted { $0.1 == $1.1 ? Self.byName($0.0, $1.0) : $0.1 < $1.1 }.map(\.0)
+        }
+        let all: [(Section, [Friend])] = [(.inTheAir, byTime(air)), (.upcoming, byTime(soon)),
+                                          (.noFlights, rest.sorted(by: Self.byName))]
+        return all.filter { !$0.1.isEmpty }.map { (section: $0.0, friends: $0.1) }
+    }
+
+    private nonisolated static func byName(_ a: Friend, _ b: Friend) -> Bool {
+        let order = a.name.localizedCaseInsensitiveCompare(b.name)
+        return order == .orderedSame ? a.id.uuidString < b.id.uuidString : order == .orderedAscending
     }
 
     /// The friend who follows a flight shown on the globe.
@@ -196,6 +243,20 @@ public final class FriendsStore {
             self.error = error
             return nil
         }
+    }
+
+    /// The invitation link for a share or a QR code: a new single-use link each time, made only when it is
+    /// asked for. Calls that arrive while one is being made (a share sheet asking twice) get the same link.
+    public func shareInviteURL() async throws(APIError) -> URL {
+        let task: Task<FriendInvite?, Never>
+        if let pendingInvite { task = pendingInvite } else {
+            task = Task { await self.makeInvite() }
+            pendingInvite = task
+        }
+        let made = await task.value
+        if pendingInvite == task { pendingInvite = nil }
+        guard let made else { throw error ?? .providerUnavailable }
+        return made.url
     }
 
     /// Sends a request to a code's owner. Throws so the sheet can say what happened under the field.

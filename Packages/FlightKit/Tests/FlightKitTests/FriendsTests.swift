@@ -1,3 +1,4 @@
+import CoreImage
 import Foundation
 import SwiftUI
 import Testing
@@ -205,6 +206,125 @@ import Testing
         s.estimatedOut = s.scheduledOut!.addingTimeInterval(90 * 60)
         #expect(FriendFacts.lateText(s) == "1 h 30 min late")
     }
+
+    // MARK: Tab redesign
+
+    @Test func theListFallsIntoInTheAirUpcomingAndNothing() async {
+        let store = await loaded()
+        let groups = store.sections()
+        #expect(groups.map(\.section) == [.inTheAir, .upcoming])
+        #expect(groups[0].friends.map(\.id) == [FakeFriendsService.maya])
+        #expect(groups[1].friends.map(\.id) == [FakeFriendsService.theo])
+        #expect(FriendsStore.Section.allCases.map(\.title) == ["In the Air", "Upcoming", "No Upcoming Flights"])
+    }
+
+    @Test func sectionsSortByTimeThenNameAndDropLandedFlights() async {
+        let store = FriendsStore(service: FakeFriendsService(now: Self.now))
+        func friend(_ n: Int, _ name: String) -> Friend {
+            Friend(id: UUID(uuidString: "00000000-0000-4000-8000-00000000000\(n)")!, displayName: name, since: Self.now)
+        }
+        let ana = friend(1, "Ana"), ben = friend(2, "ben"), cleo = friend(3, "Cleo"), dan = friend(4, "Dan"), eve = friend(5, "Eve")
+        func flight(_ n: Int, _ status: FlightStatus, out hours: Double) -> Flight {
+            var f = PreviewData.enRoute
+            f.id = UUID(uuidString: "00000000-0000-4000-8000-0000000000F\(n)")!
+            f.status = status
+            f.scheduledOut = Self.now.addingTimeInterval(hours * 3600)
+            f.estimatedOut = nil; f.actualOut = nil
+            f.scheduledIn = f.scheduledOut!.addingTimeInterval(5 * 3600)
+            f.estimatedIn = nil; f.actualIn = nil
+            return f
+        }
+        store.seed(friends: [eve, dan, cleo, ben, ana], flights: [
+            FriendFlight(friendId: ana.id, flight: flight(1, .scheduled, out: 10)),
+            FriendFlight(friendId: ben.id, flight: flight(2, .scheduled, out: 2)),
+            FriendFlight(friendId: cleo.id, flight: flight(3, .landed, out: -8)),
+            FriendFlight(friendId: dan.id, flight: flight(4, .canceled, out: 4)),
+        ])
+        let groups = store.sections()
+        #expect(groups.map(\.section) == [.upcoming, .noFlights])
+        // A canceled flight stays news; a landed one is not upcoming.
+        #expect(groups[0].friends.map(\.name) == ["ben", "Dan", "Ana"])
+        #expect(groups[1].friends.map(\.name) == ["Cleo", "Eve"])
+        #expect(store.upcomingFlight(of: cleo.id) == nil)
+        #expect(store.nextFlight(of: cleo.id) != nil, "the friend page keeps every shared flight")
+    }
+
+    @Test func rowLineSaysRouteAndWhen() {
+        var f = PreviewData.enRoute
+        f.ident = "AF84"
+        let route = FriendFacts.route(f, lookup: { _ in nil })
+        #expect(route.hasPrefix("AF 84 · "))
+        #expect(route.contains(" → "))
+        let paris = Airport(id: f.originIcao, name: "Charles de Gaulle", city: "Paris", country: "FR", lat: 0, lon: 0, tz: "Europe/Paris")
+        #expect(FriendFacts.route(f, lookup: { $0 == f.originIcao ? paris : nil }) == "AF 84 · Paris → \(f.destinationCode)")
+
+        f.status = .scheduled
+        f.scheduledOut = PreviewData.now.addingTimeInterval(3 * 3600); f.estimatedOut = nil; f.actualOut = nil
+        #expect(FriendFacts.when(f, now: PreviewData.now).text == "departs in 3h")
+        f.estimatedOut = f.scheduledOut!.addingTimeInterval(25 * 60)
+        #expect(FriendFacts.when(f, now: PreviewData.now).text == "departs in 3h · 25 min late")
+        f.status = .enRoute
+        f.actualIn = nil; f.estimatedIn = PreviewData.now.addingTimeInterval(80 * 60)
+        #expect(FriendFacts.when(f, now: PreviewData.now).text == "in the air · lands in 1h 20m")
+        f.status = .canceled
+        #expect(FriendFacts.when(f, now: PreviewData.now).text == "canceled")
+    }
+
+    @Test func spansStayShort() {
+        #expect(FriendFacts.span(-5) == "0 min")
+        #expect(FriendFacts.span(40) == "40 min")
+        #expect(FriendFacts.span(100) == "1h 40m")
+        #expect(FriendFacts.span(120) == "2h")
+        #expect(FriendFacts.span(200) == "3h")
+        #expect(FriendFacts.span(1440) == "1 day")
+        #expect(FriendFacts.span(4 * 1440 + 30) == "4 days")
+    }
+
+    @Test func theCodeReadsAndTravelsWell() {
+        #expect(FriendFacts.spokenCode("K7M2X9QP") == "K 7 M 2, X 9 Q P")
+        #expect(FriendFacts.codePlaceholder.count == FriendsMe(friendCode: "K7M2X9QP").spacedCode.count)
+        #expect(FriendFacts.inviteMessage(code: "K7M2X9QP").hasSuffix("My friend code is K7M2 X9QP."))
+        #expect(!FriendFacts.inviteMessage(code: nil).contains("code"))
+    }
+
+    @Test func avatarTonesAreStable() {
+        let id = UUID(uuidString: "F7E4D000-0000-4000-8000-00000000A0A1")!
+        let tone = FriendAvatarText.tone(id, count: 6)
+        #expect((0..<6).contains(tone))
+        #expect(FriendAvatarText.tone(id, count: 6) == tone)
+        #expect(FriendAvatarText.tone(nil, count: 6) == 0)
+        let spread = Set((1...40).map { FriendAvatarText.tone(UUID(uuidString: String(format: "00000000-0000-4000-8000-%012d", $0))!, count: 6) })
+        #expect(spread.count > 3)
+    }
+
+    @Test func oneShareMakesOneInvitation() async throws {
+        let store = await loaded()
+        async let a = store.shareInviteURL()
+        async let b = store.shareInviteURL()
+        let (first, second) = try await (a, b)
+        #expect(first == second)
+        let third = try await store.shareInviteURL()
+        #expect(third != first, "each share after that gets its own single-use link")
+        #expect(third.absoluteString.hasPrefix("https://somalabs.me/i/"))
+    }
+
+    @Test func aFailedInvitationThrowsItsError() async {
+        let service = FakeFriendsService(now: Self.now)
+        let store = await loaded(service)
+        await service.setNextError(.offline)
+        await #expect(throws: APIError.offline) { try await store.shareInviteURL() }
+    }
+
+    #if canImport(AppKit)
+    @Test func theQRCodeOpensTheInvitation() throws {
+        let link = "https://somalabs.me/i/C0ntractExampleT0kenC0ntractExampleT0kenABC"
+        let image = try #require(FriendQR.image(link, scale: 8))
+        #expect(image.width == image.height && image.width % 8 == 0)
+        let detector = try #require(CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: nil))
+        let found = detector.features(in: CIImage(cgImage: image)).compactMap { ($0 as? CIQRCodeFeature)?.messageString }
+        #expect(found == [link])
+    }
+    #endif
 
     // MARK: Home
 

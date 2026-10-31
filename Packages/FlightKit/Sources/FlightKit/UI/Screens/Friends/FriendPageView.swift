@@ -54,7 +54,7 @@ public struct FriendPageView: View {
     private func page(_ friend: Friend, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .center, spacing: 14) {
-                FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 60)
+                FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 60, id: friend.id)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(friend.name).scaledFont(28, weight: .bold).foregroundStyle(Theme.primary).lineLimit(2)
                     Text(FriendFacts.since(friend.since)).scaledFont(15).foregroundStyle(Theme.secondary)
@@ -72,7 +72,7 @@ public struct FriendPageView: View {
 
             DetailCard {
                 CardTitle("You share", subtitle: store.me?.sharingPaused == true
-                          ? "Paused for every friend (Friends menu)" : "Only with \(friend.name)")
+                          ? "Paused for every friend (your friend code's menu)" : "Only with \(friend.name)")
                     .scaledPadding(.bottom, 4)
                 FriendToggleRow(icon: "airplane", title: "My Upcoming Flights",
                                 subtitle: "Route, times, status, gate and belt. Never your seat, booking code or notes.",

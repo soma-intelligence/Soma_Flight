@@ -84,6 +84,14 @@ public enum FriendAvatarText {
         let s = words.compactMap { $0.first.map { String($0).uppercased() } }.joined()
         return s.isEmpty ? "?" : s
     }
+
+    /// Which of `count` soft colours a friend's avatar takes: the same for a friend on every launch and
+    /// device (it reads the id's bytes, never a per-run hash), 0 without an id.
+    public static func tone(_ id: UUID?, count: Int) -> Int {
+        guard let id, count > 0 else { return 0 }
+        let bytes = withUnsafeBytes(of: id.uuid) { Array($0) }
+        return bytes.reduce(0) { ($0 &* 31 &+ Int($1)) & 0xFFFF } % count
+    }
 }
 
 /// One of a friend's upcoming or in-air flights (`friend_flights`): flight data only, never their seat,

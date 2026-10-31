@@ -29,6 +29,22 @@ extension ComponentSnapshotTests {
         }
     }
 
+    @Test func friendsScreens() async throws {
+        let store = FriendsStore(service: FakeFriendsService(now: now))
+        await store.load()
+        try screen("friends") {
+            FriendsView(store: store, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+        try screen("friends-light", light: true) {
+            FriendsView(store: store, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+        let empty = FriendsStore(service: FakeFriendsService(now: now))
+        empty.seed(friends: [], flights: [], me: FriendsMe(friendCode: "DB4GXA3N"))
+        try screen("friends-empty") {
+            FriendsView(store: empty, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+    }
+
     @Test func myFlightsScreens() async throws {
         let full = await MyFlightsPreview.makeStore(.full)
         try screen("my-flights") {
