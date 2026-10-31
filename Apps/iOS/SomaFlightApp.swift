@@ -54,6 +54,8 @@ struct SomaFlightApp: App {
                     // The home screen and lock screen widgets read My Flights from the App Group.
                     built.attachWidgets(WidgetSnapshotWriter(lookup: built.env.lookup))
                     built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
+                    // The Apple Watch gets the same list, with seats, belts and boarding passes.
+                    built.attachWatch(WatchSnapshotSender(transport: PhoneWatchSession(), lookup: built.env.lookup))
                     if Self.wantsLiveActivity {
                         built.attachLiveActivities(FlightActivityController(
                             host: SystemFlightActivityHost(), push: built.env.push, lookup: built.env.lookup))

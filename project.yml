@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     iOS: "26.0"
     macOS: "26.0"
+    watchOS: "26.0"
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -39,6 +40,8 @@ targets:
         product: FlightKit
       # The flight Live Activity and the home screen and lock screen widgets (embedded app extension).
       - target: SomaFlightWidgets
+      # The Apple Watch app (with its complications), fed My Flights over WatchConnectivity.
+      - target: SomaFlightWatch
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight
@@ -119,3 +122,50 @@ targets:
         INFOPLIST_FILE: Apps/Widgets/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+  SomaFlightWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Apps/Watch
+        excludes: ["*.entitlements"]
+    entitlements:
+      path: Apps/Watch/SomaFlightWatch.entitlements
+      properties:
+        # The watch's own container: keeps the snapshot from the iPhone for the complications.
+        com.apple.security.application-groups: [group.me.somalabs.flight]
+    dependencies:
+      # The snapshot and the watch's models: no Supabase, the watch only hears from the phone in v1.
+      - package: FlightKit
+        product: FlightWatchKit
+      - target: SomaFlightComplications
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.watchkitapp
+        PRODUCT_NAME: SomaFlightWatch
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: me.somalabs.flight
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SKIP_INSTALL: YES
+  SomaFlightComplications:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: Apps/WatchWidgets
+        excludes: ["Info.plist", "*.entitlements"]
+    entitlements:
+      path: Apps/WatchWidgets/SomaFlightComplications.entitlements
+      properties:
+        # Reads the snapshot the watch app keeps.
+        com.apple.security.application-groups: [group.me.somalabs.flight]
+    dependencies:
+      - package: FlightKit
+        product: FlightWatchKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.watchkitapp.complications
+        PRODUCT_NAME: SomaFlightComplications
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Apps/WatchWidgets/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Soma Flight
+        SKIP_INSTALL: YES
