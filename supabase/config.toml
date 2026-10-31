@@ -417,6 +417,10 @@ static_files = ["./functions/_shared/brand/resvg/*"]
 [functions.flight-insights]
 verify_jwt = true
 
+# Security (TSA) wait per checkpoint at US airports: a live source when one is allowed, else an estimate.
+[functions.security-wait]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

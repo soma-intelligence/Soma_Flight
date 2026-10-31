@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The airport sheet: header, issues card on bad days, departure and arrival performance with
-/// delay trends, weather, the day's totals, the most disrupted routes and airlines, traffic
+/// delay trends, weather, security waits (US airports), the day's totals, the most disrupted routes and airlines, traffic
 /// numbers, then the departures and arrivals boards. The sheet shell supplies the close button.
 public struct AirportView: View {
     var store: AirportStore
@@ -115,6 +115,9 @@ struct AirportSections: View {
                     freshness(.weather, AirportFacts.weatherTTL, bottom: 12)
                     WeatherBlock(weather: weather, timeZone: tz, now: now)
                 }
+            }
+            if let security = store.security {
+                section { AirportSecuritySection(wait: security, timeZone: tz) }
             }
             if store.stats != nil { daily }
             if let dep = store.departures?.flights, let arr = store.arrivals?.flights {
@@ -269,7 +272,7 @@ struct AirportPreview: View {
         }
         .task {
             let svc = FakeAirportService(now: PreviewData.now)
-            let s = AirportStore(code: code, airports: svc)
+            let s = AirportStore(code: code, airports: svc, security: FakeSecurityWaitService(now: PreviewData.now))
             await s.load()
             if let failSecondLoad {
                 await svc.setNextError(failSecondLoad)

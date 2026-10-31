@@ -105,6 +105,7 @@ No row means every category is on, so the app writes the row the first time some
 | `airport-board` | GET | `airport`, `kind` (below) | see below |
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
+| `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }` | service role only |
 | `maintenance` | POST | `?mode=alerts` or `?mode=prune` | service role only (pg_cron) |
@@ -299,6 +300,46 @@ Both modes:
 - Cost: an inbound refresh is 1 + legs calls to `/flights/{ident}` ($0.005 each). A forecast refresh is
   one `/history/flights/{ident}` result set per window, 9 at most; its price is not on the pricing page
   checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
+
+## security-wait
+
+The security (TSA) wait at a US airport, per checkpoint: the flight sheet's Good to Know row (departure
+airport, from 4 hours before departure until the flight leaves) and the airport sheet's Security section.
+Free: no paid provider is called. Sources and why: `docs/data-sources.md`, "Security wait times".
+
+`GET /security-wait?airport=SFO`
+
+```json
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "fetched_at": "2026-11-03T15:30:00.000Z",
+  "available": true,
+  "reason": null,
+  "live": false,
+  "source": { "id": "estimate_tsa_throughput", "name": "Estimate from TSA checkpoint traffic", "url": "https://www.tsa.gov/foia/readingroom" },
+  "checkpoints": [
+    { "id": "t1", "name": "Harvey Milk Terminal 1", "terminal": "1", "precheck": true, "standard_minutes": 15, "precheck_minutes": 5 },
+    { "id": "t3-e", "name": "Terminal 3 E", "terminal": "3", "precheck": false, "standard_minutes": 15, "precheck_minutes": null }
+  ]
+}
+```
+
+- `live` is true only when a live source measured the figures (`source` names it). There is no live source
+  today, so every answer is an estimate; the app says "Estimate" and never "Live" for it.
+- Estimates: `estimate_tsa_throughput` per checkpoint when the airport has rows in `security_checkpoints` and
+  `security_throughput` (a typical week of TSA's hourly throughput), else `estimate_typical_day`, one row
+  `id: "all"`, `name: "All checkpoints"`, for the airport's local hour. Minutes are rounded to 5, never below 5.
+- `terminal` is the airport's own name for the terminal ("1", "B", "International"), null when unknown or
+  shared. `precheck` is true with PreCheck lanes, false without (`precheck_minutes` then null), null unknown.
+- Checkpoints are sorted by terminal (numbers in order), then name.
+- Outside the US and its territories: `available: false`, `reason: "outside_us"`, `source: null`, no
+  checkpoints. An unknown or malformed code is 400 `invalid_request`.
+- Answers are cached whole for 5 minutes per airport (`security_wait_cache`, service role only, pruned daily).
+  A failing live source falls back to the estimate; an old live figure is never served.
+- Limit: 120 calls per user per hour (429 `rate_limited`).
+- The answers in `supabase/functions/security-wait/contract/` are written by the function's tests and decoded
+  by `SecurityWaitTests` in FlightKit.
 
 ## airport-board
 

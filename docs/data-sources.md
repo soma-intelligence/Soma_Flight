@@ -161,3 +161,31 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
 - Trademark: a copyright licence (or public domain status) does not grant trademark rights. Airline names and
   logos remain the airlines' trademarks, and 104 of the files carry the Commons "trademarked" notice. The Airhex
   licence replaces this library once signed; until then the legal note of the v1.1 spec (section 4) applies.
+
+## Security wait times
+
+Checked on 2026-10-30 for the `security-wait` function. A public app with no paid contract may only use
+sources that are public and whose terms allow reuse.
+
+- TSA MyTSA web service (`apps.tsa.dhs.gov/MyTSAWebService/GetConfirmedWaitTimes.ashx`,
+  `GetTSOWaitTimes.ashx`, `GetAirportCheckpoints.ashx`): every endpoint answered HTTP 302 to
+  `http://www.tsa.gov/` on 2026-10-30. The DHS page that documents it (dhs.gov/mytsa-api-documentation) is
+  still up, but the service is gone; the wait times now live only inside the MyTSA app. Not used.
+- Airports' own live waits: several large US airports show checkpoint waits on their websites (JFK, EWR and
+  LGA through the Port Authority, and others), fed by queue sensors. None publishes them as an open API, and
+  the sites are "all rights reserved" (for example the Port Authority's notices). The JSON behind those pages is
+  an internal backend, not offered for reuse, so it is not used. ACI publishes a standard for checkpoint wait
+  APIs (airportscouncil.org) and Swedavia and Copenhagen run documented ones, but none of those covers a US
+  airport. An airport that grants written permission can be added as a live provider (`LIVE_PROVIDERS` in
+  `supabase/functions/security-wait/handler.ts`).
+- Paid APIs, noted only, not used: FlightQueue (flightqueue.com/developers) Pro API $99 a month for 5,000 calls
+  then $3 per 1,000, Enterprise $499 a month for 100,000 calls then $1 per 1,000; its live checkpoint data
+  covers few airports (JFK in the US). Qsensor runs a REST API for queue times (price on request).
+- TSA FOIA throughput (used for the estimate): TSA's FOIA Reading Room (tsa.gov/foia/readingroom) posts a
+  weekly PDF of passengers screened per airport, checkpoint and hour; the latest seen covers 18 to 24 October
+  2026. The data.gov record lists it as public, a work of the US government
+  (usa.gov/government-works), so it may be reused. Reduced to a typical week per checkpoint it fills
+  `security_checkpoints` and `security_throughput` (migration 20261030000015), and `security-wait` turns the
+  hour's load into an estimated wait (`security-wait/model.ts`). No importer is written yet: the tables ship
+  empty, and an airport with no rows gets a typical US day instead. Both are labelled estimates in the app and
+  never shown as live.

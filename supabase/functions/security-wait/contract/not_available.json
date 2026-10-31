@@ -1,0 +1,10 @@
+{
+  "airport": "LFPG",
+  "iata": "CDG",
+  "fetched_at": "2026-11-03T15:30:00.000Z",
+  "available": false,
+  "reason": "outside_us",
+  "live": false,
+  "source": null,
+  "checkpoints": []
+}

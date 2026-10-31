@@ -22,6 +22,9 @@ public struct AppEnvironment: Sendable {
     public var insights: any InsightsService
     /// The account's alert categories (Settings > Notifications); the home's `notificationSettings`.
     public var notificationPreferences: any NotificationPreferencesService
+    /// Security (TSA) waits for Good to Know and the airport sheet: the fakes with `-useFakes`,
+    /// `security-wait` in live builds (free, so always on).
+    public var security: any SecurityWaitService
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -39,9 +42,10 @@ public struct AppEnvironment: Sendable {
                 aircraftFacts: (any AircraftFactsService)? = nil,
                 brand: any BrandAssetService = FakeBrandAssetService(),
                 insights: any InsightsService = UnavailableInsightsService(),
-                notificationPreferences: any NotificationPreferencesService = FakeNotificationPreferencesService()) {
+                notificationPreferences: any NotificationPreferencesService = FakeNotificationPreferencesService(),
+                security: any SecurityWaitService = UnavailableSecurityWaitService()) {
         self.flights = flights; self.airports = airports; self.auth = auth
-        self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
+        self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.security = security; self.cache = cache
         self.notificationPreferences = notificationPreferences
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
@@ -54,7 +58,8 @@ public struct AppEnvironment: Sendable {
         return AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
                               history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
                               cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
-                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights))
+                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
+                              security: FakeSecurityWaitService(now: now))
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -84,7 +89,8 @@ public struct AppEnvironment: Sendable {
                               aircraftFacts: SupabaseAircraftFactsService(backend: backend),
                               brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)),
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
-                              notificationPreferences: SupabaseNotificationPreferencesService(backend: backend))
+                              notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
+                              security: SupabaseSecurityWaitService(backend: backend))
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
@@ -137,11 +143,13 @@ public struct AppEnvironment: Sendable {
                       airports: directory.lookup)
     }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
-    @MainActor public func makeAirportStore(code: String) -> AirportStore { AirportStore(code: code, airports: airports) }
+    @MainActor public func makeAirportStore(code: String) -> AirportStore {
+        AirportStore(code: code, airports: airports, security: security)
+    }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
         FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
-                          cache: cache.scoped(for: owner))
+                          security: security, cache: cache.scoped(for: owner))
     }
 
     /// Hands the cache and recent searches over whenever the signed-in user changes.

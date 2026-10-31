@@ -40,6 +40,9 @@ public final class FlightDetailStore {
     public private(set) var forecast: ArrivalForecast?
     /// The aircraft's earlier flights, newest first (paid data; empty when insights are off or know none).
     public private(set) var inbound: [InboundLeg] = []
+    /// The security wait at the origin (free data; nil outside the US, when the flight is not leaving
+    /// within 12 hours, or on failure). The sheet shows it only inside `SecurityWaitFacts.window`.
+    public private(set) var securityWait: SecurityWait?
 
     /// What the server holds, to go back to when a save fails.
     private var confirmedDetails: FollowDetails?
@@ -53,16 +56,19 @@ public final class FlightDetailStore {
     private let airports: any AirportService
     private let history: (any HistoryService)?
     private let insights: any InsightsService
+    private let security: any SecurityWaitService
     private let cache: (any FlightListCache)?
 
     /// - Parameters:
     ///   - history: the user's past flights, for the history card; nil shows none.
     ///   - insights: the arrival forecast and inbound chain; the default asks nothing and shows nothing.
+    ///   - security: the security wait at the origin; the default asks nothing and shows nothing.
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
+                security: any SecurityWaitService = UnavailableSecurityWaitService(),
                 cache: (any FlightListCache)? = nil) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
-        self.insights = insights; self.cache = cache
+        self.insights = insights; self.security = security; self.cache = cache
         isArchived = false
     }
 
@@ -70,7 +76,7 @@ public final class FlightDetailStore {
     public init(past: PastFlight, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil) {
         id = past.id; self.flights = flights; self.airports = airports; self.history = history
-        insights = UnavailableInsightsService(); cache = nil
+        insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
         isArchived = true
         flight = past.asFlight
         details = past.details
@@ -134,10 +140,11 @@ public final class FlightDetailStore {
     }
 
     /// Fills Good to Know (each airport's delays and weather), the history card and the paid insights,
-    /// after `load()`. The seven calls run at once; each failure leaves only its own value nil or empty.
-    /// A cancelled load (the sheet closed or the flight changed) assigns nothing. A canceled or diverted
-    /// flight skips the two insights calls (`showsInsights`).
-    public func loadExtras() async {
+    /// after `load()`, and the security wait at the origin for a flight leaving within 12 hours. The calls
+    /// run at once; each failure leaves only its own value nil or empty. A cancelled load (the sheet closed
+    /// or the flight changed) assigns nothing. A canceled or diverted flight skips the two insights calls
+    /// (`showsInsights`).
+    public func loadExtras(now: Date = .now) async {
         guard let f = flight else { return }
         let airports = airports, history = history, id = id
         let insights: (any InsightsService)? = Self.showsInsights(f.status) ? self.insights : nil
@@ -150,7 +157,9 @@ public final class FlightDetailStore {
         async let past = Self.pastFlights(history)
         async let forecastValue = Self.forecast(insights, ident: f.ident)
         async let inboundValue = Self.inbound(insights, id: id)
-        let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue)
+        let security: (any SecurityWaitService)? = SecurityWaitFacts.worthLoading(f, now: now) ? self.security : nil
+        async let securityValue = Self.securityWait(security, airport: originCode)
+        let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue, securityValue)
         guard !Task.isCancelled else { return }
         originStats = results.0?.departures
         destinationStats = results.1?.arrivals
@@ -161,6 +170,12 @@ public final class FlightDetailStore {
         }
         forecast = results.5
         inbound = results.6 ?? []
+        securityWait = results.7
+    }
+
+    private nonisolated static func securityWait(_ service: (any SecurityWaitService)?, airport: String) async -> SecurityWait? {
+        guard let service else { return nil }
+        return try? await service.securityWait(airport: airport)
     }
 
     private nonisolated static func forecast(_ insights: (any InsightsService)?, ident: String) async -> ArrivalForecast? {

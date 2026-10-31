@@ -1,0 +1,55 @@
+{
+  "airport": "KSFO",
+  "iata": "SFO",
+  "fetched_at": "2026-11-03T15:30:00.000Z",
+  "available": true,
+  "reason": null,
+  "live": false,
+  "source": {
+    "id": "estimate_tsa_throughput",
+    "name": "Estimate from TSA checkpoint traffic",
+    "url": "https://www.tsa.gov/foia/readingroom"
+  },
+  "checkpoints": [
+    {
+      "id": "t1",
+      "name": "Harvey Milk Terminal 1",
+      "terminal": "1",
+      "precheck": true,
+      "standard_minutes": 15,
+      "precheck_minutes": 5
+    },
+    {
+      "id": "t2",
+      "name": "Terminal 2",
+      "terminal": "2",
+      "precheck": true,
+      "standard_minutes": 15,
+      "precheck_minutes": 5
+    },
+    {
+      "id": "t3-e",
+      "name": "Terminal 3 E",
+      "terminal": "3",
+      "precheck": false,
+      "standard_minutes": 15,
+      "precheck_minutes": null
+    },
+    {
+      "id": "t3-f",
+      "name": "Terminal 3 F",
+      "terminal": "3",
+      "precheck": true,
+      "standard_minutes": 15,
+      "precheck_minutes": 5
+    },
+    {
+      "id": "intl-g",
+      "name": "International G",
+      "terminal": "International",
+      "precheck": true,
+      "standard_minutes": 15,
+      "precheck_minutes": 5
+    }
+  ]
+}
