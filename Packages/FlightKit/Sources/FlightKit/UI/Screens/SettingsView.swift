@@ -9,6 +9,8 @@ public struct SettingsView: View {
     var onSignIn: (() -> Void)?
     var history: (any HistoryService)?
     var onDeleteAccount: (() async -> Bool)?
+    /// The Notifications screen's store; nil keeps the row opening the system settings.
+    var notifications: NotificationSettingsStore?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -23,6 +25,7 @@ public struct SettingsView: View {
     @State private var confirming: Confirmation?
     @State private var deleting = false
     @State private var showingAcknowledgements = false
+    @State private var showingNotifications = false
     /// The deletion failed and the account is still signed in.
     @State private var deleteFailure: APIError?
 
@@ -41,17 +44,22 @@ public struct SettingsView: View {
     ///     share sheet; nil hides the export rows.
     ///   - onDeleteAccount: runs after the user confirms deleting the account (`SessionStore.deleteAccount()`);
     ///     nil hides the row. When it returns false, the session's error is shown.
+    ///   - notifications: the alert categories (`HomeModel.notificationSettings`); the Notifications row
+    ///     opens its screen. Nil keeps the row opening the system settings.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil) {
+                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
+                notifications: NotificationSettingsStore? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
-                  onDeleteAccount: onDeleteAccount, scrolls: true)
+                  onDeleteAccount: onDeleteAccount, notifications: notifications, scrolls: true)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil, scrolls: Bool,
+         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
+         notifications: NotificationSettingsStore? = nil, scrolls: Bool,
          dataNote: Bool = SettingsView.defaultDataNote) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
-        self.onDeleteAccount = onDeleteAccount; self.scrolls = scrolls; self.dataNote = dataNote
+        self.onDeleteAccount = onDeleteAccount; self.notifications = notifications
+        self.scrolls = scrolls; self.dataNote = dataNote
     }
 
     static let privacyURL = URL(string: "https://somalabs.me/privacy")!
@@ -87,8 +95,12 @@ public struct SettingsView: View {
                 }
             }
             group("Alerts") {
-                SettingsRow(icon: "bell.badge.fill", title: "Notifications", subtitle: "Gate changes, delays, take-off and landing",
-                            last: true, action: openNotificationSettings) { RowChevron() }
+                SettingsRow(icon: "bell.badge.fill", title: "Notifications",
+                            subtitle: notifications == nil ? "Gate changes, delays, take-off and landing"
+                                : "Delays, gates, take-off and landing, bags, reminders",
+                            last: true, action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
+                    RowChevron()
+                }
             }
             group("Privacy") {
                 SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", action: { openURL(Self.privacyURL) }) { RowChevron() }
@@ -156,6 +168,14 @@ public struct SettingsView: View {
                 #if os(macOS)
                 .frame(minWidth: 420, minHeight: 520)
                 #endif
+        }
+        .sheet(isPresented: $showingNotifications) {
+            if let notifications {
+                NotificationSettingsView(store: notifications, onDone: { showingNotifications = false })
+                    #if os(macOS)
+                    .frame(minWidth: 420, minHeight: 560)
+                    #endif
+            }
         }
         .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteFailure != nil },
                                                                    set: { if !$0 { deleteFailure = nil } }),

@@ -40,6 +40,7 @@ struct SomaFlightApp: App {
                     // `-useFakes` on the command line runs on the seeded fakes with an in-memory cache.
                     let built = HomeModel(env: try await AppEnvironment.forLaunch())
                     built.attachPush(inbox: appDelegate.inbox) { UIApplication.shared.registerForRemoteNotifications() }
+                    built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
                     if Self.wantsLiveActivity {
                         built.attachLiveActivities(FlightActivityController(
                             host: SystemFlightActivityHost(), push: built.env.push, lookup: built.env.lookup))

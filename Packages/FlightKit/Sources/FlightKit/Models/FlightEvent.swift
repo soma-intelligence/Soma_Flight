@@ -3,6 +3,15 @@ import Foundation
 public enum FlightEventKind: String, Codable, Sendable, Hashable {
     case gateChange = "gate_change"
     case delay, departure, arrival, cancel, diversion, position
+    /// A change that is none of the others (take-off, a schedule or estimate move, a reinstated
+    /// flight). It drives push alerts; the timeline shows no row for it.
+    case update
+
+    /// A kind this build does not know decodes as `update`, so a newer backend never breaks the list.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = FlightEventKind(rawValue: raw) ?? .update
+    }
 }
 
 /// A row of `flight_events`: one change the backend observed on a flight.
