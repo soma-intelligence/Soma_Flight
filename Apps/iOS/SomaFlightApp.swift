@@ -50,6 +50,7 @@ struct SomaFlightApp: App {
                     built.attachPush(inbox: appDelegate.inbox) { UIApplication.shared.registerForRemoteNotifications() }
                     // The home screen and lock screen widgets read My Flights from the App Group.
                     built.attachWidgets(WidgetSnapshotWriter(lookup: built.env.lookup))
+                    built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
                     if Self.wantsLiveActivity {
                         built.attachLiveActivities(FlightActivityController(
                             host: SystemFlightActivityHost(), push: built.env.push, lookup: built.env.lookup))

@@ -644,7 +644,7 @@ enum DetailFacts {
         case .arrival: "Arrived at the gate"
         case .cancel: "Canceled"
         case .diversion: e.payload["destination"].map { "Diverted to \($0)" } ?? "Diverted"
-        case .position: nil
+        case .position, .update: nil
         }
     }
 
@@ -657,6 +657,7 @@ enum DetailFacts {
         case .cancel: "xmark.circle"
         case .diversion: "arrow.triangle.branch"
         case .position: "location"
+        case .update: "info.circle"
         }
     }
 }

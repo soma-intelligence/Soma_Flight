@@ -99,7 +99,8 @@ struct RootTabView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
-                          onDeleteAccount: { await home.session.deleteAccount() })
+                          onDeleteAccount: { await home.session.deleteAccount() },
+                          notifications: home.notificationSettings)
                 .environment(\.units, units)
         }
         .environment(\.units, units)
@@ -192,11 +193,13 @@ private struct SettingsSheet: View {
     @Binding var units: Units
     var history: any HistoryService
     var onDeleteAccount: () async -> Bool
+    var notifications: NotificationSettingsStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         // Signed out, the gate shows Sign In instead of the home, so this sheet closes with it.
-        SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount)
+        SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
+                     notifications: notifications)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             .presentationDetents([.large])
             .presentationBackground(Theme.background)

@@ -43,6 +43,9 @@ public final class HomeModel {
     public private(set) var myFlights: MyFlightsStore
     /// Past flights for the current owner, replaced on every account change.
     public private(set) var passport: PassportStore
+    /// Settings > Notifications for the current owner, replaced on every account change. Its Reminders
+    /// switch turns the local reminders on and off.
+    public private(set) var notificationSettings: NotificationSettingsStore
     /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
     /// The section on show. Choosing Passport raises the iOS sheet to full height, like the reference,
@@ -83,6 +86,8 @@ public final class HomeModel {
     /// The home screen and lock screen widgets' snapshot; nil until the iOS shell calls `attachWidgets`
     /// (never on the Mac, which has no widget extension).
     @ObservationIgnored public private(set) var widgets: WidgetSnapshotWriter?
+    /// Check-in, morning and leave reminders; nil until the iOS shell calls `attachReminders`.
+    @ObservationIgnored public private(set) var reminders: ReminderScheduler?
     /// `start()` has run: the stores have been built for an owner and loaded once.
     @ObservationIgnored private var started = false
     /// The owner and session state the session watch last acted on.
@@ -95,6 +100,7 @@ public final class HomeModel {
         session = env.makeSessionStore()
         myFlights = env.makeMyFlightsStore(owner: nil)
         passport = env.makePassportStore(owner: nil)
+        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
         seenAwaiting = awaitingSession
         watchSession()
     }
@@ -211,6 +217,7 @@ public final class HomeModel {
         await myFlights.load()
         myFlights.startUpdates()
         await passport.load()
+        if !env.requiresSignIn || owner != nil { await notificationSettings.load() }
     }
 
     /// Runs when the session's user changes (the session watch calls it): clears the panel's stack and
@@ -224,6 +231,8 @@ public final class HomeModel {
         rebuildStores()
         // Signed out too (nil): a sign-in as the same account later registers the token again.
         push?.accountChanged(owner: owner)
+        // The previous account's reminders go; the new account's list schedules its own once loaded.
+        reminders?.scheduleSync([])
         Task {
             // The previous account's activity goes, whoever signs in next (nobody, at sign-out).
             await reconcileActivities()
@@ -238,6 +247,7 @@ public final class HomeModel {
         myFlights.onListChange = nil
         myFlights = env.makeMyFlightsStore(owner: owner)
         passport = env.makePassportStore(owner: owner)
+        notificationSettings = NotificationSettingsStore(service: env.notificationPreferences)
         wireListChange()
     }
 
@@ -257,13 +267,26 @@ public final class HomeModel {
         wireListChange()
     }
 
-    /// Points My Flights' change callback at the Live Activity and the widgets, whichever are attached.
+    /// Hands the local reminders to the home: from now on every trusted change of My Flights schedules,
+    /// rewrites or removes them, and the Reminders switch turns them on and off. Call once, before
+    /// `start()`.
+    public func attachReminders(_ scheduler: ReminderScheduler) {
+        reminders = scheduler
+        wireListChange()
+    }
+
+    /// Points My Flights' change callback at the Live Activity, the widgets and the reminders, whichever
+    /// are attached, and the Notifications screen at the reminders.
     private func wireListChange() {
-        let activities = activities, widgets = widgets
-        guard activities != nil || widgets != nil else { return }
+        let activities = activities, widgets = widgets, reminders = reminders
+        if let reminders {
+            notificationSettings.onChange = { prefs in reminders.enabled = prefs.reminders }
+        }
+        guard activities != nil || widgets != nil || reminders != nil else { return }
         myFlights.onListChange = { [weak self] list in
-            // Scheduled synchronously, so the controller runs the lists in the order the store changed.
+            // Scheduled synchronously, so each runs the lists in the order the store changed.
             activities?.scheduleSync(list)
+            reminders?.scheduleSync(list)
             // Signed out, the widgets stay empty whatever a late load returns.
             guard let self, !(self.env.requiresSignIn && self.owner == nil) else { return }
             widgets?.write(list)

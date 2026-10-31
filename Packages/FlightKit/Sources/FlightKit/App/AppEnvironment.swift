@@ -20,6 +20,8 @@ public struct AppEnvironment: Sendable {
     /// The flight sheet's paid insights (arrival forecast, inbound chain): the fakes with `-useFakes`,
     /// `flight-insights` in live builds whose Info.plist turns them on (`INSIGHTS_ENABLED`), nothing otherwise.
     public var insights: any InsightsService
+    /// The account's alert categories (Settings > Notifications); the home's `notificationSettings`.
+    public var notificationPreferences: any NotificationPreferencesService
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -36,9 +38,11 @@ public struct AppEnvironment: Sendable {
                 recents: RecentsStorage = .memory, requiresSignIn: Bool = false,
                 aircraftFacts: (any AircraftFactsService)? = nil,
                 brand: any BrandAssetService = FakeBrandAssetService(),
-                insights: any InsightsService = UnavailableInsightsService()) {
+                insights: any InsightsService = UnavailableInsightsService(),
+                notificationPreferences: any NotificationPreferencesService = FakeNotificationPreferencesService()) {
         self.flights = flights; self.airports = airports; self.auth = auth
         self.history = history; self.detailHistory = CachedHistoryService(history); self.push = push; self.aircraftFacts = aircraftFacts; self.brand = brand; self.insights = insights; self.cache = cache
+        self.notificationPreferences = notificationPreferences
         self.directory = directory; self.reference = reference; self.recents = recents; self.requiresSignIn = requiresSignIn
     }
 
@@ -79,7 +83,8 @@ public struct AppEnvironment: Sendable {
                               recents: recents, requiresSignIn: true,
                               aircraftFacts: SupabaseAircraftFactsService(backend: backend),
                               brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)),
-                              insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService())
+                              insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
+                              notificationPreferences: SupabaseNotificationPreferencesService(backend: backend))
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes

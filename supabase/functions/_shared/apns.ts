@@ -1,6 +1,6 @@
-// APNs sending: provider token (ES256 JWT), one HTTP/2 request per device token, alert copy.
+// APNs sending: provider token (ES256 JWT), one HTTP/2 request per device token. What an event is
+// worth lives in alerts.ts, the words in alert_copy.ts.
 import { importPKCS8, SignJWT } from "npm:jose@5";
-import type { FlightRow } from "./aeroapi_types.ts";
 
 export type FlightEventKind =
   | "gate_change"
@@ -9,10 +9,8 @@ export type FlightEventKind =
   | "arrival"
   | "cancel"
   | "diversion"
-  | "position";
-
-/** A delay event exists from this many minutes. Below it, alertCopy returns null. */
-export const MIN_DELAY_ALERT_MIN = 15;
+  | "position"
+  | "update";
 
 const JWT_TTL_S = 50 * 60;
 const jwtCache = new Map<string, { jwt: string; iat: number }>();
@@ -184,175 +182,4 @@ export async function mapLimit<T, R>(
     Array.from({ length: Math.min(limit, items.length) }, worker),
   );
   return out;
-}
-
-// ---- copy ----
-
-type CopyFlight = Pick<
-  FlightRow,
-  | "ident"
-  | "status"
-  | "scheduled_out"
-  | "scheduled_in"
-  | "estimated_out"
-  | "estimated_in"
-  | "actual_out"
-  | "gate_origin"
-  | "gate_destination"
-  | "origin_iata"
-  | "origin_icao"
-  | "destination_iata"
-  | "destination_icao"
-  | "baggage_belt"
->;
-
-export interface CopyContext {
-  /** flight_events.payload, read for `delay_minutes` and `changes`. */
-  payload?: Record<string, unknown> | null;
-  /** IANA zones of the two airports, to show local times. UTC when missing. */
-  originTz?: string | null;
-  destinationTz?: string | null;
-}
-
-const ms = (v: string | null | undefined): number | null => {
-  if (!v) return null;
-  const t = Date.parse(v);
-  return Number.isFinite(t) ? t : null;
-};
-
-/** New delay in minutes: the event payload first, then the flight row. Null when unknown. */
-export function delayMinutes(
-  flight: CopyFlight,
-  payload?: Record<string, unknown> | null,
-): number | null {
-  const p = payload?.delay_minutes;
-  if (typeof p === "number" && Number.isFinite(p)) return Math.round(p);
-  const dep = diffMin(flight.estimated_out, flight.scheduled_out);
-  const arr = diffMin(flight.estimated_in, flight.scheduled_in);
-  return (flight.actual_out ? arr ?? dep : dep ?? arr);
-}
-
-function diffMin(
-  est: string | null | undefined,
-  sched: string | null | undefined,
-): number | null {
-  const e = ms(est), s = ms(sched);
-  return e === null || s === null ? null : Math.round((e - s) / 60_000);
-}
-
-function clock(iso: string, tz: string | null | undefined): string {
-  const fmt = (zone: string) =>
-    new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: zone,
-    }).format(new Date(iso));
-  try {
-    if (tz) return fmt(tz);
-  } catch { /* unknown zone: fall through to UTC */ }
-  return `${fmt("UTC")} UTC`;
-}
-
-const code = (iata: string | null, icao: string | null) => iata ?? icao ?? null;
-
-function changedTo(
-  payload: Record<string, unknown> | null | undefined,
-  key: string,
-): string | null {
-  const changes = payload?.changes as Record<string, unknown> | undefined;
-  const entry = changes?.[key] as { to?: unknown } | undefined;
-  return typeof entry?.to === "string" && entry.to ? entry.to : null;
-}
-
-function route(f: CopyFlight): string {
-  const o = code(f.origin_iata, f.origin_icao);
-  const d = code(f.destination_iata, f.destination_icao);
-  return o && d ? `${o} to ${d}` : "";
-}
-
-/**
- * Notification text for an event, or null when it gets no alert (position, small delays).
- * Short English, no dashes. Titles carry the IATA flight ident.
- */
-export function alertCopy(
-  kind: FlightEventKind,
-  flight: CopyFlight,
-  ctx: CopyContext = {},
-): { title: string; body: string } | null {
-  const id = flight.ident;
-  const dest = code(flight.destination_iata, flight.destination_icao);
-  const orig = code(flight.origin_iata, flight.origin_icao);
-  switch (kind) {
-    case "gate_change": {
-      const gateO = changedTo(ctx.payload, "gate_origin");
-      const gateD = changedTo(ctx.payload, "gate_destination");
-      // With the event's changes, say what moved. Without, the gate for the leg that is next.
-      const departed = flight.actual_out !== null ||
-        !["scheduled", "unknown"].includes(flight.status);
-      const originSide = gateO !== null && gateD === null
-        ? true
-        : gateD !== null && gateO === null
-        ? false
-        : !departed;
-      const gate = originSide
-        ? gateO ?? flight.gate_origin
-        : gateD ?? flight.gate_destination;
-      const body = gate
-        ? originSide
-          ? `Departure gate is now ${gate}${orig ? ` at ${orig}` : ""}.`
-          : `Arrival gate is now ${gate}${dest ? ` at ${dest}` : ""}.`
-        : "Your gate changed. Open the app for the new one.";
-      return { title: `${id} gate change`, body };
-    }
-    case "delay": {
-      const min = delayMinutes(flight, ctx.payload);
-      if (min === null || min < MIN_DELAY_ALERT_MIN) return null;
-      const late = `${min} min late`;
-      const departed = flight.actual_out !== null;
-      const at = departed ? flight.estimated_in : flight.estimated_out;
-      const verb = departed ? "arrive" : "depart";
-      const tz = departed ? ctx.destinationTz : ctx.originTz;
-      const when = at ? clock(at, tz) : null;
-      return {
-        title: `${id} delayed`,
-        body: when
-          ? `Now expected to ${verb} at ${when}, ${late}.`
-          : `Now running ${late}.`,
-      };
-    }
-    case "departure":
-      return {
-        title: `${id} departed`,
-        body: dest ? `On its way to ${dest}.` : "On its way.",
-      };
-    case "arrival": {
-      const belt = flight.baggage_belt
-        ? ` Baggage on belt ${flight.baggage_belt}.`
-        : "";
-      const gate = flight.gate_destination
-        ? ` Gate ${flight.gate_destination}.`
-        : "";
-      return {
-        title: `${id} landed`,
-        body: `${dest ? `Landed at ${dest}.` : "Landed."}${gate}${belt}`,
-      };
-    }
-    case "cancel": {
-      const r = route(flight);
-      return {
-        title: `${id} canceled`,
-        body: r
-          ? `The flight from ${r} was canceled.`
-          : "The flight was canceled.",
-      };
-    }
-    case "diversion":
-      return {
-        title: `${id} diverted`,
-        body:
-          "The flight is landing at a different airport. Open the app for details.",
-      };
-    case "position":
-      return null;
-  }
 }
