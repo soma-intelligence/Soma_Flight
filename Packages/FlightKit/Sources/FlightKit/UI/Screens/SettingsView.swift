@@ -34,6 +34,10 @@ public struct SettingsView: View {
     @State private var showingCalendar = false
     @State private var showingDocuments = false
     @State private var showingAppIcon = false
+    #if os(iOS)
+    /// The app icon in use, held here so the row's subtitle follows a change made on the App Icon page.
+    @State private var appIcon = AppIconModel(setter: SystemAppIconSetting())
+    #endif
     /// The travel documents vault; nil hides its row.
     @Environment(\.travelDocuments) private var documents
     /// Which security lane the leave time counts (`LeaveTimeSettings`).
@@ -135,7 +139,7 @@ public struct SettingsView: View {
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
         case .documents: if let documents { TravelDocumentsView(store: documents) }
-        case .appIcon: AppIconView()
+        case .appIcon: AppIconView(model: appIcon)
         case .acknowledgements: AcknowledgementsView()
         }
     }
@@ -164,7 +168,7 @@ public struct SettingsView: View {
             }
             #if os(iOS)
             group("Appearance") {
-                SettingsRow(icon: "app.badge.fill", title: "App Icon", subtitle: AppIcons.choice(for: UIApplication.shared.alternateIconName).name,
+                SettingsRow(icon: "app.badge.fill", title: "App Icon", subtitle: appIcon.current.name,
                             last: true, action: { showingAppIcon = true }) { RowChevron() }
             }
             #endif

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -17,6 +18,12 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
     }
 
     public var id: String { assetName ?? "AppIcon" }
+
+    /// The picture the picker shows: an ordinary image set ("Preview-ember", "Preview-orbit") in the iOS
+    /// app's asset catalog, because an app icon set cannot be loaded as an image.
+    public var previewName: String {
+        "Preview-" + (assetName.map { String($0.dropFirst("AppIcon-".count)) } ?? "orbit")
+    }
 }
 
 /// The iPhone app's icons. The Mac app keeps its one icon (no picker on macOS).
@@ -26,9 +33,11 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 ///    1024 px light, dark and tinted image (copy the `Contents.json` of an existing set). The iOS target
 ///    builds every app icon set in the catalog as an alternate icon
 ///    (`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS` in `project.yml`), so nothing else changes there.
-/// 2. Add one line to `all` below with its set name, name and tagline.
+/// 2. Add one `Preview-<slug>.imageset` beside it: the light image downscaled to about 180 px, which is
+///    what the picker draws (`AppIconChoice.previewName`).
+/// 3. Add one line to `all` below with its set name, name and tagline.
 ///
-/// `AppIconsTests` checks that every line has its set and every set has its line.
+/// `AppIconsTests` checks that every line has its set and its preview, and every set has its line.
 public enum AppIcons {
     public static let all: [AppIconChoice] = [
         AppIconChoice(nil, name: "Orbit", tagline: "A flight path circling the globe. The original."),
@@ -63,8 +72,10 @@ public final class AppIconModel {
     public private(set) var current: AppIconChoice
     /// True while the system changes the icon (it shows its own alert when done).
     public private(set) var isChanging = false
-    /// Why the last change failed; cleared by the next one.
-    public private(set) var failed = false
+    /// The error of the last change the system refused; cleared by the next one.
+    public private(set) var lastError: (any Error)?
+    /// True when the last change failed.
+    public var failed: Bool { lastError != nil }
     @ObservationIgnored private let setter: any AppIconSetting
 
     public init(setter: any AppIconSetting) {
@@ -78,14 +89,16 @@ public final class AppIconModel {
         guard choice != current, !isChanging else { return }
         let before = current
         current = choice
-        failed = false
+        lastError = nil
         isChanging = true
         defer { isChanging = false }
         do {
             try await setter.setIcon(choice.assetName)
         } catch {
             current = before
-            failed = true
+            lastError = error
+            Logger(subsystem: "me.somalabs.flight", category: "appicon")
+                .error("Changing the app icon failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

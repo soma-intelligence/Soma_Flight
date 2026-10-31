@@ -5,7 +5,8 @@ import UIKit
 /// Settings > App Icon: every icon with its name and tagline, the one in use checked. Tapping one asks the
 /// system to change it (iOS then shows its own short notice).
 struct AppIconView: View {
-    @State private var model = AppIconModel(setter: SystemAppIconSetting())
+    /// Owned by Settings, so its subtitle follows a change made here.
+    var model: AppIconModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -60,6 +61,7 @@ struct AppIconRow: View {
                         .scaledFont(22)
                         .foregroundStyle(Theme.accent)
                         .opacity(selected ? 1 : 0)
+                        .accessibilityHidden(true)
                 }
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.vertical, 12)
@@ -67,14 +69,16 @@ struct AppIconRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
+            .accessibilityHint("Changes the app icon")
             .accessibilityAddTraits(selected ? .isSelected : [])
             if !last { Hairline().scaledPadding(.leading, 90).scaledPadding(.trailing, 16) }
         }
     }
 }
 
-/// The icon itself, read from the app's asset catalog by its set name; a plain tile with the first letter
-/// when the catalog has no image under that name.
+/// The icon itself, read from the app's asset catalog by its preview image set (`AppIconChoice.previewName`);
+/// a plain tile with the first letter when the catalog has no image under that name. The app's own bundle is
+/// named on purpose: that is where the catalog is, whatever bundle this view is compiled into.
 struct AppIconThumbnail: View {
     var choice: AppIconChoice
     @Environment(\.metricsScale) private var scale
@@ -83,7 +87,7 @@ struct AppIconThumbnail: View {
         let side = Theme.metric(60, scale)
         let shape = RoundedRectangle(cornerRadius: side * 0.225, style: .continuous)
         Group {
-            if let image = UIImage(named: choice.assetName ?? "AppIcon") {
+            if let image = UIImage(named: choice.previewName, in: .main, with: nil) {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 ZStack {
