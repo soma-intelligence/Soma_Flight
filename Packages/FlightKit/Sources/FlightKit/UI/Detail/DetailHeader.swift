@@ -192,7 +192,8 @@ struct CountdownCard: View {
 /// alert bell (followed flights only) as glass circles on the left, a blue Share capsule on the right.
 /// `compact` is the Mac panel's form: share, bell and menu as small circles in the header.
 struct DetailBottomBar<Menu: View>: View {
-    var shareText: String
+    /// The live link and the flight in words (`FlightShareItem`).
+    var share: FlightShareItem
     /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts).
     var notify: Bool?
     var onNotify: (Bool) -> Void
@@ -203,7 +204,7 @@ struct DetailBottomBar<Menu: View>: View {
     var body: some View {
         if compact {
             HStack(spacing: 6) {
-                ShareLink(item: shareText) { icon("square.and.arrow.up") }
+                ShareLink(item: share, preview: SharePreview(share.title)) { icon("square.and.arrow.up") }
                     .accessibilityLabel("Share Flight")
                 bell
                 more
@@ -218,7 +219,7 @@ struct DetailBottomBar<Menu: View>: View {
                         .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .circle)
                 }
                 Spacer(minLength: 12)
-                ShareLink(item: shareText) {
+                ShareLink(item: share, preview: SharePreview(share.title)) {
                     Label("Share", systemImage: "square.and.arrow.up")
                         .font(.system(size: Theme.fontSize(18, scale), weight: .semibold))
                         .foregroundStyle(.white)

@@ -25,6 +25,9 @@ public struct AppEnvironment: Sendable {
     /// Security (TSA) waits for Good to Know and the airport sheet: the fakes with `-useFakes`,
     /// `security-wait` in live builds (free, so always on).
     public var security: any SecurityWaitService
+    /// Live flight links for the flight sheet's Share (`share-flight`); `FlightScreen` puts it in
+    /// `\.flightSharing`. None (text only) unless a builder sets it.
+    public var sharing: any FlightShareService = UnavailableFlightShareService()
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -62,12 +65,14 @@ public struct AppEnvironment: Sendable {
     /// - Parameter pastLimit: keeps only the newest flights of the past history (`-fakePast <n>`).
     @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil) async throws -> AppEnvironment {
         let flights = FakeFlightService(now: now)
-        return AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
-                              history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
-                              cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
-                              brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
-                              security: FakeSecurityWaitService(now: now),
-                              passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
+        var env = AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
+                                 history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
+                                 cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
+                                 brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
+                                 security: FakeSecurityWaitService(now: now),
+                                 passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
+        env.sharing = FakeFlightShareService(now: now)
+        return env
     }
 
     /// The configuration a normal launch uses: the Supabase services, the on-disk cache and persisted
@@ -90,7 +95,7 @@ public struct AppEnvironment: Sendable {
         let backend = SupabaseBackend(config: config, authStorage: authStorage)
         let lookup = directory.lookup
         let push = SupabasePushService(backend: backend, defaults: recents == .memory ? nil : .standard)
-        return AppEnvironment(flights: SupabaseFlightService(backend: backend, airport: lookup),
+        var env = AppEnvironment(flights: SupabaseFlightService(backend: backend, airport: lookup),
                               airports: SupabaseAirportService(backend: backend, airport: lookup),
                               auth: SupabaseAuthService(backend: backend, push: push),
                               history: SupabaseHistoryService(backend: backend),
@@ -101,6 +106,8 @@ public struct AppEnvironment: Sendable {
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
                               notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
                               security: SupabaseSecurityWaitService(backend: backend))
+        env.sharing = SupabaseFlightShareService(backend: backend)
+        return env
     }
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
