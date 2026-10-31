@@ -112,6 +112,19 @@ public final class FlightDetailStore {
         confirmedDetails = details
     }
 
+    /// A friend's flight (the Friends tab), read only like a Passport flight: the flight as the friend shared it,
+    /// only the airports load, and nothing of the friend's own (seat, booking code, notes, pass) is there to show.
+    /// The user's own history on the route is left out too: the sheet is about the friend's trip.
+    public init(friend flight: Flight, flights: any FlightService, airports: any AirportService) {
+        id = flight.id; self.flights = flights; self.airports = airports; history = nil
+        insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
+        gates = UnavailableGateHistoryService(); faa = UnavailableFAAService()
+        passes = nil; lookup = { _ in nil }
+        simulatesWallet = false
+        isArchived = true
+        self.flight = flight
+    }
+
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
     /// failed shows no destination rather than the planned one.
     public func load() async {

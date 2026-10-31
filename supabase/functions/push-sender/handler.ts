@@ -35,6 +35,7 @@ import { connectionAlert } from "../_shared/connections.ts";
 import { connectionsOf } from "./connections.ts";
 import { readProgramAlert } from "../_shared/faa_nas.ts";
 import { smsHook, type SmsHookDeps } from "../_shared/sms_alerts.ts";
+import { forFriends, friendAlertText } from "../_shared/friend_alerts.ts";
 
 export const SEND_CONCURRENCY = 10;
 /**
@@ -407,7 +408,8 @@ export async function mutedBy(
   return out;
 }
 
-type Sent = Tally & { kinds: string[] };
+/** What a delivery sent, and the alerts it claimed (the ones this call is the first to send). */
+type Sent = Tally & { kinds: string[]; won: Alert[] };
 
 /** Who else an alert concerns: a connection's users and its onward flight. */
 interface DeliverOpts {
@@ -425,8 +427,8 @@ async function deliver(
   inbound: Flight | null,
   opts: DeliverOpts = {},
 ): Promise<Sent> {
-  const tally: Sent = { sent: 0, failed: 0, removed: 0, kinds: [] };
   const won = await claim(ctx.db, flight.id, alerts);
+  const tally: Sent = { sent: 0, failed: 0, removed: 0, kinds: [], won };
   if (won.length === 0) return tally;
   const users = await pagedUsers(ctx.db, flight.id, true);
   if (opts.only) {
@@ -586,7 +588,24 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       nowDate,
     );
     if (predicted) detected.push(predicted);
-    const alertTally = await deliver(send, flight, detected, inbound);
+    const { won, ...alertTally } = await deliver(
+      send,
+      flight,
+      detected,
+      inbound,
+    );
+
+    // Friends who asked for alerts about the people following this flight: take-off, landing and big
+    // delays among the alerts this call claimed, so a retry never sends them twice.
+    try {
+      const t = await deliverToFriends(send, flight, won);
+      alertTally.sent += t.sent;
+      alertTally.failed += t.failed;
+      alertTally.removed += t.removed;
+      alertTally.kinds.push(...t.kinds);
+    } catch (e) {
+      console.error("friend alerts failed", (e as Error).message);
+    }
 
     // Flights this one brings the aircraft for: their inbound late and predicted delay alerts, to
     // their own followers.
@@ -721,11 +740,88 @@ async function sendProgram(
     key: program.key,
     program,
   };
-  const { kinds, ...alerts } = await deliver(
+  const { kinds, won: _won, ...alerts } = await deliver(
     ctx,
     fl.data as Flight,
     [alert],
     null,
   );
   return json({ ok: true, alerts, kinds });
+}
+
+interface Watcher {
+  watcher_id: string;
+  owner_id: string;
+  owner_name: string | null;
+  owner_emoji: string | null;
+}
+
+/**
+ * Sends the friend-worthy alerts among `won` (forFriends) to the friends who turned alerts on for someone
+ * following `flight` (friend_alert_watchers checks both rows, the owner's flight switch and pause, and leaves
+ * out a watcher who follows the flight too). Each watcher's own Delays and Take-off and Landing switches
+ * apply. One push per owner and alert, so two friends on one flight are two pushes.
+ */
+export async function deliverToFriends(
+  ctx: SendCtx,
+  flight: Flight,
+  won: Alert[],
+): Promise<Sent> {
+  const tally: Sent = { sent: 0, failed: 0, removed: 0, kinds: [], won: [] };
+  const alerts = forFriends(won);
+  if (alerts.length === 0) return tally;
+  const { data, error } = await ctx.db.rpc("friend_alert_watchers", {
+    p_flight: flight.id,
+  });
+  if (error) throw new Error(`friend watchers read failed: ${error.message}`);
+  const watchers = (data ?? []) as Watcher[];
+  if (watchers.length === 0) return tally;
+  const users = new Set(watchers.map((w) => w.watcher_id));
+  const [tokens, muted] = await Promise.all([
+    tokensFor(ctx.db, "alert", users),
+    mutedBy(ctx.db, users),
+  ]);
+  for (const a of alerts) {
+    const off = muted.get(a.category)!;
+    for (const w of watchers) {
+      if (off.has(w.watcher_id)) continue;
+      const to = tokens.filter((t) => t.user_id === w.watcher_id);
+      if (to.length === 0) continue;
+      const body = {
+        aps: {
+          alert: friendAlertText(a, flight, w.owner_name, w.owner_emoji),
+          sound: "default",
+          "thread-id": `friend:${w.owner_id}`,
+        },
+        flightId: flight.id,
+        friendId: w.owner_id,
+        eventId: ctx.eventId,
+        kind: a.kind,
+      };
+      const t = await fanOut(
+        ctx.db,
+        "friend_alert",
+        "alert",
+        to,
+        (tok) =>
+          sendApns(tok, body, {
+            pushType: "alert",
+            topic: ctx.cfg.bundleId,
+            sandbox: ctx.cfg.sandbox,
+            jwt: ctx.jwt,
+            priority: 10,
+            expiration: ctx.expiration,
+            collapseId: `f:${ctx.eventId ?? flight.id}:${
+              w.owner_id.slice(0, 8)
+            }:${a.kind}`.slice(0, 64),
+          }, ctx.fetchFn),
+        { onProviderRejected: ctx.evict },
+      );
+      tally.sent += t.sent;
+      tally.failed += t.failed;
+      tally.removed += t.removed;
+      tally.kinds.push(`friend:${a.kind}`);
+    }
+  }
+  return tally;
 }

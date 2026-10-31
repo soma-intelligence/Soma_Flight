@@ -10,18 +10,21 @@ public struct FlightAnnotationModel: Identifiable, Hashable, Sendable {
     /// Degrees clockwise from north.
     public var heading: Double
     public var level: DelayLevel
+    /// A friend's plane (the Friends tab): drawn in the friends colour.
+    public var isFriend: Bool
 
-    public init(id: Flight.ID, ident: String, coordinate: CLLocationCoordinate2D, heading: Double, level: DelayLevel) {
-        self.id = id; self.ident = ident
+    public init(id: Flight.ID, ident: String, coordinate: CLLocationCoordinate2D, heading: Double, level: DelayLevel,
+                isFriend: Bool = false) {
+        self.id = id; self.ident = ident; self.isFriend = isFriend
         self.latitude = coordinate.latitude; self.longitude = coordinate.longitude
         self.heading = heading; self.level = level
     }
 
     /// From a flight's last position; nil when the flight has none.
-    public init?(flight: Flight) {
+    public init?(flight: Flight, isFriend: Bool = false) {
         guard let p = flight.position else { return nil }
         self.init(id: flight.id, ident: flight.ident, coordinate: CLLocationCoordinate2D(latitude: p.lat, longitude: p.lon),
-                  heading: p.heading ?? 0, level: flight.level)
+                  heading: p.heading ?? 0, level: flight.level, isFriend: isFriend)
     }
 
     public var coordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: latitude, longitude: longitude) }
@@ -40,7 +43,7 @@ public struct FlightAnnotation: View {
         // The SF Symbol points east; rotate so 0 means north.
         Image(systemName: "airplane")
             .scaledFont(selected ? 22 : 17, weight: .bold)
-            .foregroundStyle(model.level == .onTime ? Color.white : model.level.color)
+            .foregroundStyle(model.isFriend ? Theme.friend : model.level == .onTime ? Color.white : model.level.color)
             .shadow(color: .black.opacity(0.6), radius: 1.5)
             .rotationEffect(.degrees(model.heading - 90))
             .padding(6)

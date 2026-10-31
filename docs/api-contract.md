@@ -130,6 +130,7 @@ No row means every category is on, so the app writes the row the first time some
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
 | `flight-page` | GET | `/flight-page/<token>[/og.png]`, public (no JWT) | the share page (HTML) or its preview image (PNG) |
+| `friends` | POST | `{ action, token?, code?, invitation_id?, accept? }` | per action (below) |
 | `faa-status` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, stale, fetched_at, programs }` (below) |
 | `faa-status` | POST | `?mode=sweep` | service role only (pg_cron); `{ ok, mode, stale, programs, flights, sent, failed }` |
 | `faa-notams` | GET | `airport` (IATA or ICAO) | `{ airport, iata, configured, stale, fetched_at, notams }` (below) |
@@ -468,6 +469,37 @@ Cached 30 s (page) and 300 s (image) by the CDN in front.
 
 Environment: `SHARE_BASE_URL` (default `https://somalabs.me/f/`), `GET_APP_URL` (default
 `https://somalabs.me/flight`), `PUBLIC_SUPABASE_URL` (the project URL browsers reach, for signed logo URLs).
+
+## friends (and the Friends RPCs)
+
+Mutual friends, made only by invitation: a single-use link `https://somalabs.me/i/<token>` (32 random bytes,
+SHA-256 kept, open 7 days) or the 8-character friend code shown in the Friends tab (Crockford base32). No
+contacts, no phone or email lookup. Migration `20261031000022_friends.sql`, tests `supabase/tests/friends_test.sql`.
+
+`POST /friends` (signed in; 60 calls per user per hour, codes typed 10 per hour; 429 `rate_limited`):
+
+- `{ "action": "invite" }` -> `{ "id", "url", "expires_at" }`. At most 20 open links per user.
+- `{ "action": "preview", "token" }` -> `{ "state": "open|expired|used|self|friends", "display_name", "emoji" }`;
+  `token` may be the bare token or the whole link. Unknown: 404 `not_found`.
+- `{ "action": "accept" | "decline", "token" }` -> `{ "friend_id": "<uuid>" | null }`. The first answer closes
+  the link; a used or expired link is 409 `out_of_window`, one's own link 400 `invalid_request`.
+- `{ "action": "request", "code" }` -> `{ "result": "sent" | "accepted" | "friends" }`: a request to the
+  code's owner (`accepted` when they had asked the caller already). Unknown code: 404 `not_found`.
+- `{ "action": "respond", "invitation_id", "accept" }` -> `{ "answered" }` (a request made to the caller).
+- `{ "action": "revoke", "invitation_id" }` -> `{ "revoked" }` (a link or request the caller made).
+- `{ "action": "reset_code" }` -> `{ "code" }`: the old code stops working.
+
+Reads and own changes go straight to PostgREST, as the signed-in user: `rpc/friends_me` (code, pause, name,
+emoji), `rpc/friends_list`, `rpc/friend_requests`, `rpc/friend_flights { p_friend }` (upcoming and in-air
+followed flights, flight columns only, never seat, booking code, notes or pass), `rpc/friend_passport
+{ p_friend }` (totals only), `rpc/friend_remove { p_friend }`; `PATCH friendships` (`share_flights`,
+`share_passport`, `alerts` on the caller's own rows), `PATCH friend_settings` (`sharing_paused`), `PATCH
+profiles` (`display_name`, `emoji`). Each read checks both rows of the friendship, the friend's switch and
+their pause. push-sender sends a friend's take-off, landing and delays of 30 minutes or more to friends who
+turned alerts on for them, in the Delays and Take-off and Landing categories.
+
+Environment: `INVITE_BASE_URL` (default `https://somalabs.me/i/`). The landing site must send `/i/*` to the
+app (universal link, `applinks:somalabs.me`) or to `somaflight://i/<token>`.
 
 somalabs.me routes `/f/*` to the function (landing site's repository). Supabase rewrites a `text/html` answer
 to `text/plain` on its own domain, so the landing must serve the HTML with its own content type: a route

@@ -37,6 +37,9 @@ public struct AppEnvironment: Sendable {
     /// FAA programs and decoded NOTAMs for Good to Know, the airport sheet and the Operations Report: the
     /// fakes with `-useFakes`, `faa-status` and `faa-notams` in live builds (free, so always on).
     public var faa: any FAAService = UnavailableFAAService()
+    /// The Friends tab: friends, their shared flights, invitations. The fakes (two friends) with `-useFakes`,
+    /// `friends` and the friend database functions in live builds (free, so always on).
+    public var friends: any FriendsService = UnavailableFriendsService()
     public var cache: CacheStore
     public var directory: AirportDirectory
     /// Airlines, aircraft types and countries.
@@ -86,6 +89,7 @@ public struct AppEnvironment: Sendable {
             .with(gates: FakeGateHistoryService())
             .withAlternates(FakeAlternateFlightsService(flights: flights))
         env.sharing = FakeFlightShareService(now: now)
+        env.friends = FakeFriendsService(now: now)
         return env
     }
 
@@ -124,6 +128,7 @@ public struct AppEnvironment: Sendable {
             .with(gates: SupabaseGateHistoryService(backend: backend))
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
         env.sharing = SupabaseFlightShareService(backend: backend)
+        env.friends = SupabaseFriendsService(backend: backend)
         return env
     }
 
@@ -187,6 +192,7 @@ public struct AppEnvironment: Sendable {
         PassportStore(history: history, cache: cache.scoped(for: owner), reference: reference, facts: aircraftFacts,
                       airports: directory.lookup)
     }
+    @MainActor public func makeFriendsStore() -> FriendsStore { FriendsStore(service: friends) }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore {
         AirportStore(code: code, airports: airports, security: security, faa: faa)

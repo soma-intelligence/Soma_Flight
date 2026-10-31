@@ -37,6 +37,8 @@ public enum Theme {
     public static let veryLate = Color(light: 0xE5372C, dark: 0xFF453A)
     public static let canceled = Color(light: 0x8E8E93, dark: 0xFFFFFF)
     public static let diverted = Color(light: 0x9C3DD6, dark: 0xBF5AF2)
+    /// Friends' arcs and planes on the globe, and their avatars: a teal no delay colour uses.
+    public static let friend = Color(light: 0x0F9BAE, dark: 0x3CD3E6)
 
     // MARK: Performance split and delay trend (softer, as in the airport sheet)
     public static let splitGreen = Color(light: 0x34A15A, dark: 0x54B471)

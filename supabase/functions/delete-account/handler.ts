@@ -53,6 +53,7 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       await db.from("profiles").update({
         status: "deleted",
         display_name: null,
+        emoji: null,
       })
         .eq("user_id", userId),
       "profile update",

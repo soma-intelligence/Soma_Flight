@@ -94,8 +94,14 @@ struct RootTabView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
                           onDeleteAccount: { await home.session.deleteAccount() },
-                          notifications: home.notificationSettings, calendar: home.calendar)
+                          notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends)
                 .environment(\.units, units)
+        }
+        // An invitation link the app was opened with: accept or decline.
+        .sheet(item: $home.pendingInvite) { invite in
+            FriendInviteSheet(invite: invite, onAnswer: { await home.answerInvite(accept: $0) },
+                              onClose: { home.pendingInvite = nil })
+                .presentationDetents([.medium])
         }
         // A boarding pass opened from Mail, Files or an airline app.
         .passImportSheet(home)
@@ -108,6 +114,8 @@ struct RootTabView: View {
             case .flights:
                 MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                               lookup: env.lookup)
+            case .friends:
+                FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
             case .passport:
                 PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
                                  onOpenFlight: home.open(past:))
@@ -226,6 +234,7 @@ private struct SettingsSheet: View {
     var onDeleteAccount: () async -> Bool
     var notifications: NotificationSettingsStore
     var calendar: CalendarSync?
+    var friends: FriendsStore?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -233,7 +242,7 @@ private struct SettingsSheet: View {
         // Notifications, Calendar and Acknowledgements slide up as cards inside this sheet, each with
         // its own X over this one.
         SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
-                     notifications: notifications, calendar: calendar, onClose: { dismiss() })
+                     notifications: notifications, calendar: calendar, friends: friends, onClose: { dismiss() })
         .presentationDetents([.large])
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)

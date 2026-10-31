@@ -7,6 +7,10 @@ public enum SheetRoute: Hashable, Sendable {
     /// A flight from the Passport history, shown with the same sheet as a followed flight.
     case pastFlight(PastFlight)
     case airport(String)
+    /// A friend's page: their flights, the switches about them, their Passport totals.
+    case friend(UUID)
+    /// One of a friend's flights in the flight sheet, read only.
+    case friendFlight(FriendFlight)
 }
 
 /// Navigation state of the iOS home: what the sheet shows, its detent, and where the globe looks.
@@ -35,6 +39,25 @@ public final class ShellModel {
     public func open(past flight: PastFlight, route: Route?) {
         if path == [.pastFlight(flight)] { recenter += 1 } else { path = [.pastFlight(flight)] }
         if let route { lastRoute = (flight.id, route) }
+        raiseIfCollapsed()
+    }
+
+    /// Opens a friend's page as the only screen.
+    public func open(friend id: UUID) {
+        if path == [.friend(id)] { recenter += 1 } else { path = [.friend(id)] }
+        raiseIfCollapsed()
+    }
+
+    /// Opens a friend's flight: over their page when it is on top, else as the only screen.
+    public func open(friendFlight ff: FriendFlight, route: Route?) {
+        if path.last == .friendFlight(ff) {
+            recenter += 1
+        } else if path.last == .friend(ff.friendId) {
+            path.append(.friendFlight(ff))
+        } else {
+            path = [.friendFlight(ff)]
+        }
+        if let route { lastRoute = (ff.flight.id, route) }
         raiseIfCollapsed()
     }
 
@@ -69,7 +92,9 @@ public final class ShellModel {
             (lastRoute?.id == f.id ? lastRoute?.route : nil).map(GlobeFocus.route)
         case .airport(let code):
             airport(code).map(GlobeFocus.airport)
-        case nil:
+        case .friendFlight(let ff):
+            (route(ff.flight.id) ?? (lastRoute?.id == ff.flight.id ? lastRoute?.route : nil)).map(GlobeFocus.route)
+        case .friend, nil:
             nil
         }
     }

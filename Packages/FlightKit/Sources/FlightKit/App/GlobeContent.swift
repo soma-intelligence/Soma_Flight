@@ -14,8 +14,22 @@ public struct GlobeContent: Sendable, Equatable {
     /// Followed flights: one arc each, coloured by delay, planes for the ones with a position.
     public static func followed(_ flights: [Flight], lookup: (String) -> Airport?) -> GlobeContent {
         let routes = flights.compactMap { route(for: $0, lookup: lookup) }
-        let planes = flights.compactMap(FlightAnnotationModel.init(flight:))
+        let planes = flights.compactMap { FlightAnnotationModel(flight: $0) }
         let codes = flights.flatMap { [$0.originIcao, $0.destinationIcao] }
+        return GlobeContent(routes: routes, planes: planes, airports: endpoints(codes, lookup: lookup))
+    }
+
+    /// Friends' flights (the Friends tab): one dashed arc each and their planes, in the friends colour.
+    public static func friends(_ flights: [FriendFlight], lookup: (String) -> Airport?) -> GlobeContent {
+        var seen: Set<Flight.ID> = []
+        let unique = flights.map(\.flight).filter { seen.insert($0.id).inserted }
+        let routes = unique.compactMap { f in
+            route(for: f, lookup: lookup).map {
+                Route(id: "friend-\($0.id)", from: $0.from, to: $0.to, level: $0.level, isPast: false, isFriend: true)
+            }
+        }
+        let planes = unique.compactMap { FlightAnnotationModel(flight: $0, isFriend: true) }
+        let codes = unique.flatMap { [$0.originIcao, $0.destinationIcao] }
         return GlobeContent(routes: routes, planes: planes, airports: endpoints(codes, lookup: lookup))
     }
 

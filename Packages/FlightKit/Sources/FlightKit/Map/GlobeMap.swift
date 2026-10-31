@@ -10,11 +10,14 @@ public struct Route: Identifiable, Hashable, Sendable {
     public let to: CLLocationCoordinate2D
     public var level: DelayLevel
     public var isPast: Bool
+    /// A friend's flight (the Friends tab): drawn dashed in the friends colour.
+    public var isFriend: Bool
     /// Great-circle runs from the Rust core, normalised and split at the antimeridian for MapKit.
     public let runs: [[CLLocationCoordinate2D]]
 
-    public init(id: String? = nil, from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, level: DelayLevel, isPast: Bool) {
-        self.from = from; self.to = to; self.level = level; self.isPast = isPast
+    public init(id: String? = nil, from: CLLocationCoordinate2D, to: CLLocationCoordinate2D, level: DelayLevel, isPast: Bool,
+                isFriend: Bool = false) {
+        self.from = from; self.to = to; self.level = level; self.isPast = isPast; self.isFriend = isFriend
         self.id = id ?? "\(from.latitude),\(from.longitude)-\(to.latitude),\(to.longitude)-\(isPast)"
         let n = max(16, min(128, Int(distanceKm(from, to) / 80)))
         self.runs = mapSegments(greatCircle(from: from, to: to, segments: n))
@@ -22,13 +25,13 @@ public struct Route: Identifiable, Hashable, Sendable {
 
     // Runs derive from the endpoints, so equality skips them.
     public static func == (a: Route, b: Route) -> Bool {
-        a.id == b.id && a.level == b.level && a.isPast == b.isPast
+        a.id == b.id && a.level == b.level && a.isPast == b.isPast && a.isFriend == b.isFriend
             && a.from.latitude == b.from.latitude && a.from.longitude == b.from.longitude
             && a.to.latitude == b.to.latitude && a.to.longitude == b.to.longitude
     }
 
     public func hash(into h: inout Hasher) {
-        h.combine(id); h.combine(level); h.combine(isPast)
+        h.combine(id); h.combine(level); h.combine(isPast); h.combine(isFriend)
         h.combine(from.latitude); h.combine(from.longitude); h.combine(to.latitude); h.combine(to.longitude)
     }
 }
@@ -396,6 +399,16 @@ public struct GlobeMap: View {
         }
     }
 
+    /// A friend's arc is dashed in the friends colour; a past one thin and white; a followed one in its delay colour.
+    static func stroke(_ route: Route) -> Color {
+        route.isFriend ? Theme.friend : route.isPast ? Color.white.opacity(0.55) : route.level.color
+    }
+
+    static func strokeStyle(_ route: Route) -> StrokeStyle {
+        StrokeStyle(lineWidth: route.isPast ? 1.2 : route.isFriend ? 2 : 2.5, lineCap: .round, lineJoin: .round,
+                    dash: route.isFriend ? [6, 5] : [])
+    }
+
     public var body: some View {
         let layers = GlobeLayers(routes: routes, planes: planes, airports: airports, isolation: shown, fade: fade)
         Map(position: $position, selection: $selection) {
@@ -403,8 +416,7 @@ public struct GlobeMap: View {
                 let route = item.route
                 ForEach(Array(route.runs.enumerated()), id: \.offset) { _, run in
                     MapPolyline(coordinates: run, contourStyle: .straight)
-                        .stroke((route.isPast ? Color.white.opacity(0.55) : route.level.color).opacity(item.opacity),
-                                style: StrokeStyle(lineWidth: route.isPast ? 1.2 : 2.5, lineCap: .round, lineJoin: .round))
+                        .stroke(Self.stroke(route).opacity(item.opacity), style: Self.strokeStyle(route))
                 }
             }
             ForEach(layers.airports) { item in
@@ -520,7 +532,7 @@ public struct GlobeMap: View {
             Route(from: coord("RJTT"), to: coord("KSFO"), level: .onTime, isPast: true),
             Route(from: coord("EGLL"), to: coord("KJFK"), level: .onTime, isPast: true),
         ],
-        planes: PreviewData.followed.compactMap(FlightAnnotationModel.init(flight:)),
+        planes: PreviewData.followed.compactMap { FlightAnnotationModel(flight: $0) },
         airports: PreviewData.airports,
         selection: $selection
     )

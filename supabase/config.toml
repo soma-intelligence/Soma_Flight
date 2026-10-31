@@ -429,6 +429,10 @@ verify_jwt = true
 [functions.share-flight]
 verify_jwt = true
 
+# Friends: invitation links, friend codes and their answers for the signed-in user (rate limited).
+[functions.friends]
+verify_jwt = true
+
 # The public page behind https://somalabs.me/f/<token> (the landing site rewrites /f/* here): anyone with
 # the link, no account. The resvg WASM that draws the preview image is read at runtime, so it ships too.
 [functions.flight-page]

@@ -110,7 +110,8 @@ struct SomaFlightMacApp: App {
                     SettingsView(session: home.session, units: $units, history: home.needsSignIn ? nil : home.env.history,
                                  onDeleteAccount: { await home.session.deleteAccount() },
                                  notifications: home.needsSignIn ? nil : home.notificationSettings,
-                                 calendar: home.needsSignIn ? nil : home.calendar)
+                                 calendar: home.needsSignIn ? nil : home.calendar,
+                                 friends: home.needsSignIn ? nil : home.friends)
                 } else {
                     // Settings opened before the window has built its environment.
                     LaunchPlaceholder(failure: failure, showsProgress: true)
@@ -125,6 +126,7 @@ struct SomaFlightMacApp: App {
     /// A URL the system opened the app with: a boarding pass (Open With, or a file dropped on the Dock
     /// icon) goes to the pass import, anything else is a sign-in link.
     @MainActor static func open(_ url: URL, in home: HomeModel) async {
+        if await home.handleInvite(url: url) { return }
         if PassFile.isPassFile(url) {
             await home.importPass(from: url)
         } else {
