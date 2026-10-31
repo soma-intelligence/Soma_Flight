@@ -7,7 +7,9 @@ public enum ReminderKind: String, Sendable, CaseIterable {
     case checkIn = "check-in"
     /// 7:00 at the departure airport on the travel day, a summary of the flight.
     case morning
-    /// 3 hours before an international departure, 2 before a domestic one.
+    /// When to leave for the airport: computed from the drive, the security queue, the bag drop and
+    /// boarding when the device measured them (`LeaveTimePlanner`), else 3 hours before an international
+    /// departure and 2 before a domestic one.
     case leave
 }
 
@@ -47,14 +49,18 @@ public enum ReminderPlanner {
     /// the gate, is canceled or diverted, or has no scheduled departure. Check-in follows the schedule
     /// (airlines open it from there); the morning summary and leaving follow the latest estimate. The
     /// morning summary is skipped when 7:00 is not before the time to leave (an early flight).
+    /// `leave` is the flight's computed leave time (`LeaveTimePlanner`); nil or a fixed one keeps the
+    /// fixed rule and its words.
     public static func plan(for flight: Flight, origin: Airport?, destination: Airport?, now: Date,
-                            clock: TimeStyle = .h24) -> [PlannedReminder] {
+                            clock: TimeStyle = .h24, leave: LeaveTime? = nil) -> [PlannedReminder] {
         guard flight.actualOut == nil, flight.status == .scheduled || flight.status == .unknown,
               let scheduled = flight.scheduledOut else { return [] }
         let departure = flight.estimatedOut ?? scheduled
         let tz = origin?.timeZone ?? .gmt
         let international = isInternational(origin: origin, destination: destination)
-        let leaveAt = departure.addingTimeInterval(-(international ? internationalLead : domesticLead))
+        let computed = leave?.breakdown
+        let leaveAt = (computed != nil ? leave?.leaveAt : nil)
+            ?? departure.addingTimeInterval(-(international ? internationalLead : domesticLead))
 
         var out: [PlannedReminder] = []
         func add(_ kind: ReminderKind, _ at: Date, _ text: ReminderCopy.Text) {
@@ -68,8 +74,12 @@ public enum ReminderPlanner {
             add(.morning, morning, ReminderCopy.morning(flight, departure: departure, tz: tz,
                                                          arrivalTz: destination?.timeZone, clock: clock))
         }
-        add(.leave, leaveAt, ReminderCopy.leave(flight, departure: departure, tz: tz, clock: clock,
-                                                international: international))
+        if let computed {
+            add(.leave, leaveAt, ReminderCopy.leave(flight, breakdown: computed, tz: tz, clock: clock))
+        } else {
+            add(.leave, leaveAt, ReminderCopy.leave(flight, departure: departure, tz: tz, clock: clock,
+                                                    international: international))
+        }
         return out.sorted { $0.fireDate < $1.fireDate }
     }
 

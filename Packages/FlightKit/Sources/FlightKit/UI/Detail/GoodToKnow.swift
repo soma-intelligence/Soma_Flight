@@ -106,6 +106,9 @@ struct GoodToKnow: View {
     var timeZone: (title: String, text: String)?
     /// The security wait at the departure airport; nil hides the row (outside its window, or none).
     var security: SecurityRowData? = nil
+    /// The followed flight, for the "Leave by" row under the security wait; nil hides the row.
+    var leave: Flight? = nil
+    var now: Date = .now
     var onAirport: (String) -> Void
 
     var body: some View {
@@ -158,6 +161,7 @@ struct GoodToKnow: View {
             }
         }
         if side.departures, let security { SecurityWaitRow(data: security) }
+        if side.departures, let leave { LeaveByRow(flight: leave, now: now) }
         if let w = side.weather {
             DetailCard {
                 InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), multicolor: true,

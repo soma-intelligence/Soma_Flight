@@ -54,6 +54,10 @@ targets:
         # callback and NSSupportsLiveActivities. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/iOS/Info.plist
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # Settings > Calendar (asked when the switch is turned on) and the "Leave by" time (asked from its
+        # breakdown, while the app is in use only).
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date. Nothing leaves your device.
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
       configs:
         Debug:
@@ -84,6 +88,10 @@ targets:
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig) and the somaflight:// sign-in
         # callback. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/macOS/Info.plist
+        # Settings > Calendar and the "Leave by" time; the sandbox entitlements are in both .entitlements files.
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date. Nothing leaves your Mac.
+        INFOPLIST_KEY_NSLocationUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Soma Flight uses your location while the app is open to time when to leave for the airport. It is never stored or sent to Soma Flight.
         ENABLE_APP_SANDBOX: YES
         ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
       configs:

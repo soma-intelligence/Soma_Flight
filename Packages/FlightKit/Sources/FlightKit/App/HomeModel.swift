@@ -93,6 +93,10 @@ public final class HomeModel {
     @ObservationIgnored public private(set) var watch: WatchSnapshotSender?
     /// Check-in, morning and leave reminders; nil until the iOS shell calls `attachReminders`.
     @ObservationIgnored public private(set) var reminders: ReminderScheduler?
+    /// One calendar event per followed flight (Settings > Calendar); nil until a shell calls `attachCalendar`.
+    @ObservationIgnored public private(set) var calendar: CalendarSync?
+    /// The flight sheet's "Leave by" time and the leave reminder's; nil until a shell calls `attachLeaveTimes`.
+    @ObservationIgnored public private(set) var leaveTimes: LeaveTimeEstimator?
     /// `start()` has run: the stores have been built for an owner and loaded once.
     @ObservationIgnored private var started = false
     /// The owner and session state the session watch last acted on.
@@ -239,6 +243,7 @@ public final class HomeModel {
         push?.accountChanged(owner: owner)
         // The previous account's reminders go; the new account's list schedules its own once loaded.
         reminders?.scheduleSync([])
+        calendar?.scheduleSync([])
         Task {
             // The previous account's activity goes, whoever signs in next (nobody, at sign-out).
             await reconcileActivities()
@@ -293,18 +298,38 @@ public final class HomeModel {
         wireListChange()
     }
 
-    /// Points My Flights' change callback at the Live Activity, the widgets and the reminders, whichever
-    /// are attached, and the Notifications screen at the reminders.
+    /// Hands the calendar sync to the home: from now on every trusted change of My Flights adds, rewrites
+    /// or removes its events. Call once, before `start()`.
+    public func attachCalendar(_ sync: CalendarSync) {
+        calendar = sync
+        wireListChange()
+    }
+
+    /// Hands the leave time estimator to the home: the leave reminder uses its computed times, and a new
+    /// measure re-runs the reminders. Call once, before `start()`.
+    public func attachLeaveTimes(_ estimator: LeaveTimeEstimator) {
+        leaveTimes = estimator
+        wireListChange()
+    }
+
+    /// Points My Flights' change callback at the Live Activity, the widgets, the reminders and the
+    /// calendar, whichever are attached, the Notifications screen at the reminders, and the leave times
+    /// at the reminders.
     private func wireListChange() {
-        let activities = activities, widgets = widgets, reminders = reminders, watch = watch
+        let activities = activities, widgets = widgets, reminders = reminders, watch = watch, calendar = calendar
         if let reminders {
             notificationSettings.onChange = { prefs in reminders.enabled = prefs.reminders }
+            if let leaveTimes {
+                reminders.leaveTime = { leaveTimes.leaveTime(for: $0) }
+                leaveTimes.onChange = { reminders.resync() }
+            }
         }
-        guard activities != nil || widgets != nil || reminders != nil || watch != nil else { return }
+        guard activities != nil || widgets != nil || reminders != nil || watch != nil || calendar != nil else { return }
         myFlights.onListChange = { [weak self] list in
             // Scheduled synchronously, so each runs the lists in the order the store changed.
             activities?.scheduleSync(list)
             reminders?.scheduleSync(list)
+            calendar?.scheduleSync(list)
             // Signed out, the widgets stay empty whatever a late load returns.
             guard let self, !(self.env.requiresSignIn && self.owner == nil) else { return }
             widgets?.write(list)
