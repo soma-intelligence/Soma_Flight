@@ -24,11 +24,12 @@ import Testing
     }()
 
     @Test func airportSearch() {
-        let all = Self.directory.all
-        #expect(PastFlightEditorModel.airports(matching: "sfo", in: all).first?.id == "KSFO")
-        #expect(PastFlightEditorModel.airports(matching: "KJFK", in: all).first?.id == "KJFK")
-        #expect(PastFlightEditorModel.airports(matching: "paris", in: all).map(\.id) == ["LFPG"])
-        #expect(PastFlightEditorModel.airports(matching: "", in: all).isEmpty)
+        #expect(PastFlightEditorModel.airports(matching: "sfo").first?.id == "KSFO")
+        #expect(PastFlightEditorModel.airports(matching: "KJFK").first?.id == "KJFK")
+        // The whole seed: Paris's two big airports first, then the smaller fields.
+        #expect(PastFlightEditorModel.airports(matching: "paris").prefix(2).map(\.id) == ["LFPG", "LFPO"])
+        #expect(PastFlightEditorModel.airports(matching: "").isEmpty)
+        #expect(PastFlightEditorModel.airports(matching: "x").count <= 20)
     }
 
     @Test func airlineSearch() {

@@ -2,7 +2,8 @@ import Foundation
 import Supabase
 import Synchronization
 
-/// Flights from the backend: `flight-lookup` and `airport-board` for search, `follow-flight` to follow,
+/// Flights from the backend: `flight-lookup` and `airport-board` for search (a route is the origin's
+/// departures board kept to its destination), `follow-flight` to follow,
 /// the `flights`, `flight_events` and `user_flights` tables to read, Realtime on `flights` for updates.
 ///
 /// Board rows and real flights carry different ids. A board row's `id` is a UUID v5 of its
@@ -39,6 +40,7 @@ public final class SupabaseFlightService: FlightService {
 
     public func lookup(_ query: FlightQuery) async throws(APIError) -> [Flight] {
         if case .airport(let code) = query { return try await airportFlights(code) }
+        if case .route(let origin, let destination, _) = query { return try await routeFlights(origin, destination) }
         guard let body = SupabaseBackend.lookupBody(for: query, timeZone: timeZone()) else { throw .notFound }
         let found = try await backend.call("flight-lookup", body: body, decode: Self.decodeLookup)
         guard !found.isEmpty else { throw .notFound }
@@ -63,6 +65,24 @@ public final class SupabaseFlightService: FlightService {
         guard !rows.isEmpty else { throw .notFound }
         boardRows.withLock { $0.merge(rows) { $1 } }
         return rows.values.sorted { ($0.scheduledOut ?? .distantFuture, $0.id.uuidString) < ($1.scheduledOut ?? .distantFuture, $1.id.uuidString) }
+    }
+
+    /// A route today: the origin's departures board (shared and cached by `airport-board`, so cheaper
+    /// than a route lookup), kept to the flights bound for the destination.
+    private func routeFlights(_ origin: String, _ destination: String) async throws(APIError) -> [Flight] {
+        let board = try await SupabaseAirportService(backend: backend, airport: airport).board(origin, .departures)
+        let rows = Self.flights(in: board.flights, to: destination, airport: airport)
+        guard !rows.isEmpty else { throw .notFound }
+        boardRows.withLock { for f in rows { $0[f.id] = f } }
+        return rows
+    }
+
+    /// The board rows bound for `destination` (ICAO or IATA), by departure time.
+    static func flights(in board: [Flight], to destination: String, airport: (String) -> Airport?) -> [Flight] {
+        let code = destination.trimmingCharacters(in: .whitespaces).uppercased()
+        let icao = airport(code)?.id ?? code
+        return board.filter { $0.destinationIcao.uppercased() == icao || $0.destinationIata?.uppercased() == code }
+            .sorted { ($0.scheduledOut ?? .distantFuture, $0.id.uuidString) < ($1.scheduledOut ?? .distantFuture, $1.id.uuidString) }
     }
 
     private static func capture<T: Sendable>(_ body: @Sendable () async throws(APIError) -> T) async -> Result<T, APIError> {

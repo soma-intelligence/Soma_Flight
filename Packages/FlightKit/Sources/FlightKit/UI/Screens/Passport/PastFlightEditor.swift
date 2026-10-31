@@ -146,17 +146,10 @@ final class PastFlightEditorModel {
 
     // MARK: Search
 
-    /// Airports for a search: by code (ICAO or IATA, exact matches first), then by city or name. Twenty at most.
-    static func airports(matching text: String, in all: [Airport]) -> [Airport] {
-        let q = key(text)
-        guard !q.isEmpty else { return [] }
-        let code = text.trimmingCharacters(in: .whitespaces).uppercased()
-        let exact = all.filter { $0.id == code || $0.iata == code }
-        let rest = all.filter { a in
-            !exact.contains(a) && (a.id.hasPrefix(code) || (a.iata?.hasPrefix(code) ?? false)
-                || key(a.city).contains(q) || key(a.name).contains(q))
-        }
-        return Array((exact + rest.sorted { $0.city < $1.city }).prefix(20))
+    /// Airports for a search, ranked as the search field ranks them (`SearchSuggester`): the code, the city,
+    /// the name, then typos, large airports first. Twenty at most.
+    static func airports(matching text: String, suggester: SearchSuggester = .bundled()) -> [Airport] {
+        suggester.airports(matching: text, limit: 20)
     }
 
     /// Airlines for a search: by code (ICAO or IATA, exact first), then by name. Twenty at most.
@@ -442,7 +435,7 @@ struct AirportPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let matches = PastFlightEditorModel.airports(matching: text, in: PastFlightDirectory.shared.all)
+        let matches = PastFlightEditorModel.airports(matching: text)
         let typed = PastFlightRules.airportCode(text)
         PickerList(title: title, prompt: "Code, city or airport", text: $text, onCancel: { dismiss() }) {
             ForEach(matches) { a in
