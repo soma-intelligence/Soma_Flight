@@ -14,6 +14,8 @@ struct BoardSection: View {
     var rowLimit: Int?
     /// Rows in a LazyVStack (inside a ScrollView). Off for ImageRenderer, which draws no lazy content.
     var lazy = true
+    /// A board picked from outside (the airport card's bottom bar); a new `id` switches again.
+    var request: BoardRequest?
 
     @State private var kind: BoardKind = .departures
     @State private var filter = AirportFacts.Filter()
@@ -96,6 +98,7 @@ struct BoardSection: View {
             }
         }
         .onChange(of: kind) { filter.place = nil; showEarlier = false }
+        .onChange(of: request) { if let request { kind = request.kind } }
         .onChange(of: key, initial: true) { chartCache = (key, DelayStats.compute(filtered, kind: kind).perHour) }
     }
 
@@ -143,4 +146,10 @@ struct BoardSection: View {
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.separator).frame(height: 1) }
         .accessibilityElement(children: .combine)
     }
+}
+
+/// Asks the board to show departures or arrivals; `id` changes on each ask.
+struct BoardRequest: Equatable {
+    var kind: BoardKind
+    var id: Int
 }

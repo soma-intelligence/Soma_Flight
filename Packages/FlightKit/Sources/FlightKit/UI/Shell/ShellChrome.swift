@@ -77,15 +77,18 @@ public struct FriendFlightScreen: View {
 public struct AirportScreen: View {
     @State private var store: AirportStore
     var lookup: (String) -> Airport?
+    var favorites: AirportFavorites?
+    var pastFlights: [PastFlight]
     var onClose: () -> Void
 
-    public init(env: AppEnvironment, code: String, onClose: @escaping () -> Void) {
+    public init(env: AppEnvironment, code: String, favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = [],
+                onClose: @escaping () -> Void) {
         _store = State(initialValue: env.makeAirportStore(code: code))
-        self.lookup = env.lookup; self.onClose = onClose
+        self.lookup = env.lookup; self.favorites = favorites; self.pastFlights = pastFlights; self.onClose = onClose
     }
 
     public var body: some View {
-        AirportView(store: store, lookup: lookup)
+        AirportView(store: store, lookup: lookup, favorites: favorites, pastFlights: pastFlights)
             .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
             .task { await store.load() }
     }
@@ -120,12 +123,16 @@ public struct HomeDestination: View {
         case .pastFlight(let flight):
             PastFlightScreen(env: home.env, flight: flight, onAirport: home.open(airport:), onClose: home.shell.close)
         case .airport(let code):
-            AirportScreen(env: home.env, code: code, onClose: home.shell.close)
+            AirportScreen(env: home.env, code: code, favorites: home.airportsList.favorites,
+                          pastFlights: home.passport.allFlights, onClose: home.shell.close)
         case .friend(let id):
             FriendPageView(store: home.friends, friendID: id, lookup: home.env.lookup,
                            onOpenFlight: home.open(friendFlight:), onClose: home.shell.close)
         case .friendFlight(let ff):
             FriendFlightScreen(env: home.env, flight: ff.flight, onAirport: home.open(airport:), onClose: home.shell.close)
+        case .airports:
+            AirportsListView(store: home.airportsList, onOpen: home.open(airport:), onClose: home.shell.close)
+                .task { await home.airportsList.load() }
         }
     }
 }

@@ -11,6 +11,8 @@ public enum SheetRoute: Hashable, Sendable {
     case friend(UUID)
     /// One of a friend's flights in the flight sheet, read only.
     case friendFlight(FriendFlight)
+    /// The Airports list (the map's control tower button); airports open over it.
+    case airports
 }
 
 /// Navigation state of the iOS home: what the sheet shows, its detent, and where the globe looks.
@@ -72,6 +74,12 @@ public final class ShellModel {
         raiseIfCollapsed()
     }
 
+    /// Opens the Airports list as the only screen; opening it again recentres the globe.
+    public func openAirports() {
+        if path == [.airports] { recenter += 1 } else { path = [.airports] }
+        raiseIfCollapsed()
+    }
+
     public func close() {
         if !path.isEmpty { path.removeLast() }
     }
@@ -94,7 +102,7 @@ public final class ShellModel {
             airport(code).map(GlobeFocus.airport)
         case .friendFlight(let ff):
             (route(ff.flight.id) ?? (lastRoute?.id == ff.flight.id ? lastRoute?.route : nil)).map(GlobeFocus.route)
-        case .friend, nil:
+        case .friend, .airports, nil:
             nil
         }
     }

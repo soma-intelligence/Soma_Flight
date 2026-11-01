@@ -33,6 +33,10 @@ struct RootTabView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
             }
             .overlay(alignment: .topTrailing) { mapButtons }
+            // Airports: its own round button under the map controls (kept apart from mapButtons).
+            .overlay(alignment: .topTrailing) {
+                AirportsMapButton { home.openAirports() }.padding(.trailing, 12).padding(.top, 8 + 89 + 10)
+            }
             .sheet(isPresented: .constant(true)) { sheet }
             .onChange(of: selection) { _, picked in
                 guard let picked else { return }
@@ -195,7 +199,8 @@ private struct HomeGlobe: View {
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
                  focus: home.focus, recenter: home.shell.recenter, labels: labels, threeD: threeD,
                  isolation: home.isolation,
-                 bottomInset: ShellModel.mapInset(for: home.shell.detent, screenHeight: screenHeight))
+                 bottomInset: ShellModel.mapInset(for: home.shell.detent, screenHeight: screenHeight),
+                 airportStatus: content.status)
             // Down to the screen's bottom edge; the status bar's inset stays, so MapKit keeps its compass clear.
             .ignoresSafeArea(edges: .bottom)
     }
