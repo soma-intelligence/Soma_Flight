@@ -101,7 +101,8 @@ struct RootTabView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
                           onDeleteAccount: { await home.session.deleteAccount() },
-                          notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends)
+                          notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends,
+                          profile: home.profile)
                 .environment(\.units, units)
         }
         // An invitation link the app was opened with: accept or decline.
@@ -131,7 +132,7 @@ struct RootTabView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            RoundButton(systemImage: "gearshape", label: "Settings") { showSettings = true }
+            ProfileButton(profile: home.profile) { showSettings = true }
                 .padding(.top, 19)
                 .padding(.trailing, 16)
         }
@@ -247,6 +248,7 @@ private struct SettingsSheet: View {
     var notifications: NotificationSettingsStore
     var calendar: CalendarSync?
     var friends: FriendsStore?
+    var profile: ProfileStore?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -254,7 +256,8 @@ private struct SettingsSheet: View {
         // Notifications, Calendar and Acknowledgements slide up as cards inside this sheet, each with
         // its own X over this one.
         SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
-                     notifications: notifications, calendar: calendar, friends: friends, onClose: { dismiss() })
+                     notifications: notifications, calendar: calendar, friends: friends, profile: profile,
+                     onClose: { dismiss() })
         .presentationDetents([.large])
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)

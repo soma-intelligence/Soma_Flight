@@ -311,14 +311,24 @@ public struct SignInGate<Home: View>: View {
     public var body: some View {
         Group {
             if home.needsSignIn {
-                SignInView(session: home.session, onEmail: { await home.session.signInWithEmail($0) })
-            } else if home.awaitingSession {
+                SignInView(session: home.session, onEmail: { await home.session.signInWithEmail($0) },
+                           onGoogle: home.env.googleSignIn ? { await home.session.signInWithGoogle() } : nil)
+            } else if home.awaitingSession || home.profile.gate == .unknown {
                 LaunchPlaceholder(failure: nil, showsProgress: showsProgress)
+            } else if home.profile.gate == .show {
+                // Once, after the first sign-in: the name and photo friends will see. Later skips it.
+                ProfileOnboardingView(store: home.profile)
+                    .transition(CardMotion.transition)
             } else {
                 content()
+                    .transition(.opacity)
             }
         }
+        .animation(CardMotion.animation, value: home.profile.gate)
+        .environment(\.friendPhotos, home.profile.friendPhotos)
         .task { home.session.startIfNeeded() }
+        // Each account's profile: whether onboarding shows, the header's avatar.
+        .task(id: home.profileOwner) { await home.prepareProfile() }
         // Above the gate, so it runs signed out too: an activity can only start in the foreground, and
         // one a previous account left must end even while Sign In is on screen.
         .onChange(of: scenePhase) { _, phase in

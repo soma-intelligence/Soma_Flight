@@ -15,6 +15,8 @@ public struct SettingsView: View {
     var calendar: CalendarSync?
     /// The name and emoji friends see (Account); nil hides the rows.
     var friends: FriendsStore?
+    /// The name and photo (Profile); it replaces the plain name field when set.
+    var profile: ProfileStore?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -60,22 +62,24 @@ public struct SettingsView: View {
     ///     opens its screen. Nil keeps the row opening the system settings.
     ///   - calendar: the calendar sync (`HomeModel.calendar`); the Calendar row opens its screen. Nil hides the row.
     ///   - friends: the Friends store (`HomeModel.friends`); Account then holds the name and emoji friends see.
+    ///   - profile: the user's name and photo (`HomeModel.profile`); Profile then shows them and opens the editor.
     ///   - onClose: closes Settings from the round X at the top right (the phone's sheet); nil leaves it out.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
                 notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
-                friends: FriendsStore? = nil, onClose: (() -> Void)? = nil) {
+                friends: FriendsStore? = nil, profile: ProfileStore? = nil, onClose: (() -> Void)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
                   onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, friends: friends,
-                  scrolls: true, onClose: onClose)
+                  profile: profile, scrolls: true, onClose: onClose)
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
          history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
          notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, friends: FriendsStore? = nil,
+         profile: ProfileStore? = nil,
          scrolls: Bool, dataNote: Bool = SettingsView.defaultDataNote, onClose: (() -> Void)? = nil) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
-        self.friends = friends
+        self.friends = friends; self.profile = profile
         self.onDeleteAccount = onDeleteAccount; self.notifications = notifications; self.calendar = calendar
         self.scrolls = scrolls; self.dataNote = dataNote; self.onClose = onClose
     }
@@ -150,7 +154,9 @@ public struct SettingsView: View {
             }
             AccountRow(session: session.session, onSignIn: onSignIn)
             Hairline()
-            if let friends {
+            if let profile, profile.owner != nil {
+                group("Profile") { ProfileSummaryRow(store: profile) }
+            } else if let friends {
                 group("Profile") { ProfileRows(store: friends) }
             }
 
