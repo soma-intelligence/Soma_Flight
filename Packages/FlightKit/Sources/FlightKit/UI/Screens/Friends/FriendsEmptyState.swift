@@ -1,49 +1,52 @@
 import SwiftUI
 
-/// The Friends tab with no friend yet: a small drawing, one line, one sentence and Invite a Friend, which
-/// opens the share sheet with the invitation link (made when it is tapped, reused until it nears its end).
+/// The Friends tab with no friend yet, under the code row: a small drawing, one line, one sentence and Invite
+/// a Friend, the tab's one strong button, which opens the share sheet with the invitation link (made when it
+/// is tapped, reused until it nears its end).
 struct FriendsEmptyState: View {
     var store: FriendsStore
 
     var body: some View {
         VStack(spacing: 0) {
-            FriendsIllustration()
-                .scaledPadding(.top, 24)
+            FriendsIllustration(width: 168)
+                .scaledPadding(.top, 14)
             Text(FriendFacts.emptyTitle)
-                .scaledFont(22, weight: .bold)
+                .scaledFont(19, weight: .semibold)
                 .foregroundStyle(Theme.primary)
-                .scaledPadding(.top, 22)
+                .scaledPadding(.top, 18)
             Text(FriendFacts.emptyText)
-                .scaledFont(15)
+                .scaledFont(14)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.top, 6)
+                .scaledPadding(.top, 4)
             InviteShareButton(store: store) {
                 Label("Invite a Friend", systemImage: "paperplane.fill")
-                    .scaledFont(17, weight: .semibold)
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.white)
-                    .scaledPadding(.horizontal, 26)
-                    .scaledPadding(.vertical, 14)
+                    .scaledPadding(.horizontal, 20)
+                    .scaledPadding(.vertical, 11)
                     .background(Capsule().fill(Theme.accent))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
-            .scaledPadding(.top, 24)
+            .scaledPadding(.top, 18)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .scaledPadding(.horizontal, 24)
-        .scaledPadding(.bottom, 8)
+        .scaledPadding(.horizontal, 32)
     }
 }
 
 /// Two friends, one on each side, joined by a dashed flight arc (the globe's friend route) with a small
 /// plane at its top: drawn in SwiftUI, in the accent and friends colours.
 struct FriendsIllustration: View {
+    /// Its width in reference points; the height and every stroke follow.
+    var width: CGFloat = 232
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        let w = Theme.metric(232, scale), h = Theme.metric(112, scale), r = Theme.metric(30, scale)
+        let k = width / 232
+        let w = Theme.metric(width, scale), h = Theme.metric(112 * k, scale), r = Theme.metric(30 * k, scale)
         let left = CGPoint(x: r + 2, y: h - r - 2), right = CGPoint(x: w - r - 2, y: h - r - 2)
         // The arc leaves each circle near its top and peaks over the middle.
         let start = CGPoint(x: left.x + r * 0.7, y: left.y - r * 0.8)
@@ -57,24 +60,24 @@ struct FriendsIllustration: View {
                 p.addQuadCurve(to: end, control: control)
             }
             .stroke(Theme.friend.opacity(0.85),
-                    style: StrokeStyle(lineWidth: Theme.metric(2.5, scale), lineCap: .round, dash: [6, 6]))
+                    style: StrokeStyle(lineWidth: Theme.metric(2.5 * k, scale), lineCap: .round, dash: [6 * k, 6 * k]))
             Image(systemName: "airplane")
-                .font(.system(size: Theme.metric(17, scale), weight: .semibold))
+                .font(.system(size: Theme.metric(17 * k, scale), weight: .semibold))
                 .foregroundStyle(Theme.primary)
-                .padding(Theme.metric(7, scale))
+                .padding(Theme.metric(7 * k, scale))
                 .background(Circle().fill(Theme.background))
                 .position(top)
-            avatar(Theme.accent, at: left, radius: r)
-            avatar(Theme.friend, at: right, radius: r)
+            avatar(Theme.accent, at: left, radius: r, k: k)
+            avatar(Theme.friend, at: right, radius: r, k: k)
         }
         .frame(width: w, height: h)
         .accessibilityHidden(true)
     }
 
-    private func avatar(_ tone: Color, at point: CGPoint, radius r: CGFloat) -> some View {
+    private func avatar(_ tone: Color, at point: CGPoint, radius r: CGFloat, k: CGFloat) -> some View {
         ZStack {
             Circle().fill(tone.opacity(0.18))
-            Circle().strokeBorder(tone.opacity(0.45), lineWidth: Theme.metric(1.5, scale))
+            Circle().strokeBorder(tone.opacity(0.45), lineWidth: Theme.metric(1.5 * k, scale))
             Image(systemName: "person.fill")
                 .font(.system(size: r * 0.9, weight: .medium))
                 .foregroundStyle(tone)

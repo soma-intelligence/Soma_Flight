@@ -16,79 +16,72 @@ enum FriendQR {
     }
 }
 
-// MARK: - Code card
+// MARK: - Code row
 
-/// The user's friend code as a card: the code large, Copy and Share, a quiet caption, and a menu with the
-/// tab's other actions (pause every share, a new code, refresh). Tapping the code shows it as a QR code.
-struct FriendCodeCard: View {
+/// The user's friend code as one slim row at the top of the tab: "Your code" over the code in monospaced
+/// digits, then QR, Copy (a check for a moment once copied) and Share, which makes the invitation link
+/// when tapped. The tab's quieter actions (pause every share, a new code, refresh) sit in the trailing
+/// menu and on a long press of the row.
+struct FriendCodeRow: View {
     var store: FriendsStore
     var onShowQR: () -> Void
     @State private var copied = false
     @State private var resetCopied: Task<Void, Never>?
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
         let code = store.me?.friendCode
-        DetailCard {
-            HStack(alignment: .center) {
-                Text("Your Friend Code").scaledFont(15, weight: .semibold).foregroundStyle(Theme.secondary)
-                Spacer(minLength: 8)
-                menu
+        HStack(spacing: Theme.metric(8, scale)) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Your code")
+                    .scaledFont(12, weight: .medium)
+                    .foregroundStyle(Theme.secondary)
+                Text(store.me?.spacedCode ?? FriendFacts.codePlaceholder)
+                    .scaledFont(18, weight: .semibold, design: .monospaced)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            Button(action: onShowQR) {
-                HStack(alignment: .center, spacing: 12) {
-                    Text(store.me?.spacedCode ?? FriendFacts.codePlaceholder)
-                        .font(.system(size: 34, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Theme.primary)
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Image(systemName: "qrcode")
-                        .scaledFont(22, weight: .medium)
-                        .foregroundStyle(Theme.secondary)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(code == nil)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
-            .accessibilityHint("Shows it as a QR code")
-            .scaledPadding(.top, 6)
-
-            HStack(spacing: 10) {
-                Button { copy() } label: {
-                    pill(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
-                }
-                .buttonStyle(.plain)
+            Spacer(minLength: 4)
+            icon("qrcode", label: "Show QR Code", action: onShowQR)
                 .disabled(code == nil)
-                InviteShareButton(store: store) {
-                    pill("Share", systemImage: "square.and.arrow.up")
-                }
+            icon(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy Friend Code",
+                 tint: copied ? Theme.onTime : Theme.primary, action: copy)
+                .disabled(code == nil)
+            InviteShareButton(store: store) { circle("square.and.arrow.up", tint: Theme.primary) }
                 .buttonStyle(.plain)
-            }
-            .scaledPadding(.top, 14)
-
-            Text("Friends add you with it, and you accept each request. Tap the code to show a QR code.")
-                .scaledFont(13)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.top, 12)
+                .accessibilityLabel("Share Invitation")
+            menu
         }
+        .scaledPadding(.leading, 16)
+        .scaledPadding(.trailing, 6)
+        .frame(height: Theme.metric(54, scale))
+        .background(Capsule().fill(Theme.card.opacity(0.5)))
+        .overlay(Capsule().strokeBorder(Theme.separator, lineWidth: 1))
+        .contentShape(Capsule())
+        .contextMenu { options }
         .onDisappear { resetCopied?.cancel(); resetCopied = nil }
     }
 
+    @ViewBuilder private var options: some View {
+        if let me = store.me {
+            Button("Show QR Code", systemImage: "qrcode", action: onShowQR)
+            Divider()
+            Toggle("Pause All Sharing", systemImage: "pause.circle",
+                   isOn: Binding(get: { me.sharingPaused }, set: { v in Task { await store.setPaused(v) } }))
+            Button("New Friend Code", systemImage: "arrow.triangle.2.circlepath") { Task { await store.resetCode() } }
+        }
+        Button("Refresh", systemImage: "arrow.clockwise") { Task { await store.load() } }
+    }
+
     private var menu: some View {
-        Menu {
-            if let me = store.me {
-                Toggle("Pause All Sharing", systemImage: "pause.circle",
-                       isOn: Binding(get: { me.sharingPaused }, set: { v in Task { await store.setPaused(v) } }))
-                Button("New Friend Code", systemImage: "arrow.triangle.2.circlepath") { Task { await store.resetCode() } }
-            }
-            Button("Refresh", systemImage: "arrow.clockwise") { Task { await store.load() } }
-        } label: {
+        Menu { options } label: {
             Image(systemName: "ellipsis")
-                .scaledFont(17, weight: .semibold)
+                .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
-                .frame(width: 32, height: 32)
+                .frame(width: Theme.metric(28, scale), height: Theme.metric(40, scale))
                 .contentShape(Rectangle())
         }
         .menuIndicator(.hidden)
@@ -96,25 +89,32 @@ struct FriendCodeCard: View {
         .accessibilityLabel("Friend Code Options")
     }
 
-    private func pill(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .scaledFont(15, weight: .semibold)
-            .foregroundStyle(Theme.primary)
-            .frame(maxWidth: .infinity)
-            .scaledPadding(.vertical, 10)
-            .background(Capsule().fill(Theme.pill))
-            .contentShape(Capsule())
+    private func icon(_ systemImage: String, label: String, tint: Color = Theme.primary,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) { circle(systemImage, tint: tint) }
+            .buttonStyle(.plain)
+            .accessibilityLabel(label)
+    }
+
+    private func circle(_ systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .scaledFont(14, weight: .semibold)
+            .foregroundStyle(tint)
+            .contentTransition(.symbolEffect(.replace))
+            .frame(width: Theme.metric(36, scale), height: Theme.metric(36, scale))
+            .background(Circle().fill(Theme.pill))
+            .contentShape(Circle())
     }
 
     private func copy() {
         guard let code = store.me?.friendCode else { return }
         Pasteboard.copy(code, sensitive: true)
-        copied = true
+        withAnimation(.snappy) { copied = true }
         resetCopied?.cancel()
         resetCopied = Task {
             try? await Task.sleep(for: .seconds(1.5))
             guard !Task.isCancelled else { return }
-            copied = false
+            withAnimation(.snappy) { copied = false }
         }
     }
 }

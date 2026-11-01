@@ -30,18 +30,34 @@ extension ComponentSnapshotTests {
     }
 
     @Test func friendsScreens() async throws {
+        // With friends: the code row on top, then the groups.
+        let loaded = FriendsStore(service: FakeFriendsService(now: now))
+        await loaded.load()
         let store = FriendsStore(service: FakeFriendsService(now: now))
-        await store.load()
+        store.seed(friends: loaded.friends, flights: loaded.flights, me: loaded.me)
         try screen("friends") {
             FriendsView(store: store, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
         }
         try screen("friends-light", light: true) {
             FriendsView(store: store, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
         }
+        // Pending requests: the banner sits under the code row.
+        let pending = FriendsStore(service: FakeFriendsService(now: now))
+        let sent = FriendRequest(id: UUID(), incoming: false, createdAt: now, expiresAt: now.addingTimeInterval(30 * 86_400))
+        pending.seed(friends: loaded.friends, flights: loaded.flights, requests: loaded.requests + [sent], me: loaded.me)
+        try screen("friends-requests") {
+            FriendsView(store: pending, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
         let empty = FriendsStore(service: FakeFriendsService(now: now))
         empty.seed(friends: [], flights: [], me: FriendsMe(friendCode: "DB4GXA3N"))
         try screen("friends-empty") {
             FriendsView(store: empty, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+        // The empty tab at the home sheet's medium height with the tab pill under it, as the shell lays it
+        // out: the invitation must end above the pill.
+        try screen("friends-empty-sheet", height: 520) {
+            FriendsView(store: empty, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+                .safeAreaInset(edge: .bottom, spacing: 0) { HomeTabPill(tab: .constant(.friends), bottom: 20, onSearch: {}) }
         }
     }
 

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The Friends tab: the title with one Add Friend button (the shell's Settings gear sits beside it), requests
+/// The Friends tab: the title with one Add Friend button (the shell's profile button sits beside it), the
+/// user's friend code as one slim row (QR, Copy, Share, and the tab's other actions in its menu), requests
 /// waiting for an answer as a compact banner, then friends in three groups (in the air, a flight coming up,
-/// nothing coming up), each row with their next flight in its status colour. The user's friend code closes
-/// the list as a card, with the tab's other actions in its menu. With no friend yet, a short invitation opens
-/// the share sheet. A friend's row opens their page; a long press holds the sharing switches and Remove. Their
+/// nothing coming up), each row with their next flight in its status colour. With no friend yet, a short
+/// invitation opens the share sheet. A friend's row opens their page; a long press holds the sharing switches and Remove. Their
 /// flights draw on the globe in the friends colour while this tab is open (the shell's `HomeModel.globe`).
 ///
 /// The shell owns loading (`HomeModel.load()`); the view reloads on pull to refresh and the banner's retry.
@@ -36,7 +36,7 @@ public struct FriendsView: View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
                 // Same title and spacing as My Flights and Passport; the add button sits left of the
-                // shell's Settings gear, which keeps the last 60 points.
+                // shell's profile button, which keeps the last 60 points.
                 ScreenTitle("Friends")
                     .overlay(alignment: .trailing) {
                         RoundButton(systemImage: "person.badge.plus", label: "Add Friend") { adding = true }
@@ -75,15 +75,30 @@ public struct FriendsView: View {
 
     @ViewBuilder private func content(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            // The code first, where it is quickest to share; everything else follows under it.
+            if store.me != nil {
+                FriendCodeRow(store: store, onShowQR: { showingQR = true })
+                    .scaledPadding(.bottom, 14)
+            }
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
                     .scaledPadding(.bottom, 12)
             }
             if store.me?.sharingPaused == true {
-                Label("Sharing is paused for every friend", systemImage: "pause.circle.fill")
-                    .scaledFont(14, weight: .medium)
-                    .foregroundStyle(Theme.late)
-                    .scaledPadding(.bottom, 12)
+                HStack(spacing: 8) {
+                    Label("Sharing is paused for every friend", systemImage: "pause.circle.fill")
+                        .scaledFont(14, weight: .medium)
+                        .foregroundStyle(Theme.late)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 4)
+                    Button("Resume") { Task { await store.setPaused(false) } }
+                        .scaledFont(14, weight: .semibold)
+                        .foregroundStyle(Theme.primary)
+                        .buttonStyle(.plain)
+                }
+                .scaledPadding(.horizontal, 4)
+                .scaledPadding(.bottom, 12)
             }
             FriendRequestsBanner(store: store)
             if store.friends.isEmpty {
@@ -108,13 +123,10 @@ public struct FriendsView: View {
                     Spacer().frame(height: 0).scaledPadding(.bottom, 18)
                 }
             }
-            if store.me != nil {
-                FriendCodeCard(store: store, onShowQR: { showingQR = true })
-                    .scaledPadding(.top, store.friends.isEmpty ? 28 : 6)
-            }
         }
         .scaledPadding(.horizontal, 16)
-        .scaledPadding(.bottom, 32)
+        // Clears the floating tab pill (the shell's bottom inset) with room to spare, as on the other tabs.
+        .scaledPadding(.bottom, 40)
     }
 
     /// A row's long press: what the user shares with this friend, alerts for their flights, Remove.
@@ -170,7 +182,7 @@ struct FriendRequestsBanner: View {
                     HStack(spacing: 10) {
                         Image(systemName: "paperplane.fill").scaledFont(14).foregroundStyle(Theme.secondary)
                             .frame(width: 34)
-                        Text("Request sent, waiting for an answer").scaledFont(14).foregroundStyle(Theme.secondary)
+                        Text("Request sent, no answer yet").scaledFont(14).foregroundStyle(Theme.secondary)
                             .lineLimit(1)
                         Spacer(minLength: 6)
                         Button("Cancel") { Task { await store.cancel(r) } }

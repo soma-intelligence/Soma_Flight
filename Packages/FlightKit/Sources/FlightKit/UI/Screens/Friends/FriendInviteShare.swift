@@ -29,6 +29,8 @@ struct InviteShareButton<Label: View>: View {
     @State private var sheet: ShareSheetItems?
     #else
     @State private var anchor = ShareAnchor.Holder()
+    /// Snapshots: ImageRenderer draws an AppKit view as a yellow box, so renders leave the anchor out.
+    @Environment(\.airportStaticControls) private var staticControls
     #endif
 
     var body: some View {
@@ -42,7 +44,7 @@ struct InviteShareButton<Label: View>: View {
                     .ignoresSafeArea()
             }
             #else
-            .background(ShareAnchor(holder: anchor))
+            .background { if !staticControls { ShareAnchor(holder: anchor) } }
             #endif
             .onDisappear { making?.cancel(); making = nil }
     }
