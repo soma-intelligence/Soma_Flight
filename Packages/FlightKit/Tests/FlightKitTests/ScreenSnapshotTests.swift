@@ -168,7 +168,7 @@ extension ComponentSnapshotTests {
     }
 
     @Test func settingsAndSignIn() async throws {
-        let session = SettingsPreview.makeSession(plan: .free, failDelete: false)
+        let session = SettingsPreview.makeSession(signedIn: true, failDelete: false)
         #expect(session.session != nil)
         try screen("settings") {
             SettingsView(session: session, units: .constant(Units()), scrolls: false, dataNote: false)

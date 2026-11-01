@@ -40,9 +40,8 @@ struct SupabaseIntegrationTests {
         var signedIn: UserSession?
         for await s in sessions where s != nil { signedIn = s; break }
         let user = try #require(signedIn)
-        print("INTEGRATION signed in \(user.userId) plan=\(user.plan)")
+        print("INTEGRATION signed in \(user.userId)")
         #expect(user.email == email)
-        #expect(user.plan == .free)
 
         var failure: (any Error)?
         do { try await checks(auth: auth, flights: flights, airports: airports, history: history) } catch { failure = error }

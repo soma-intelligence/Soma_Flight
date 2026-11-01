@@ -170,7 +170,7 @@ private final class SilentDeleteAuth: AuthService {
     let session: AsyncStream<UserSession?>
     init() {
         let (stream, cont) = AsyncStream<UserSession?>.makeStream()
-        cont.yield(UserSession(userId: UUID(), email: "a@b.c", plan: .free))
+        cont.yield(UserSession(userId: UUID(), email: "a@b.c"))
         session = stream
         // The continuation is dropped on purpose: no further event ever arrives.
     }

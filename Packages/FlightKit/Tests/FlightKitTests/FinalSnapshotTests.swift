@@ -84,12 +84,12 @@ extension ComponentSnapshotTests {
     }
 
     @Test func finalSettingsAndSignIn() async throws {
-        let session = SettingsPreview.makeSession(plan: .free, failDelete: false)
+        let session = SettingsPreview.makeSession(signedIn: true, failDelete: false)
         try both("settings") {
             SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(), onDeleteAccount: { true },
                          scrolls: false, dataNote: false)
         }
-        let failed = SettingsPreview.makeSession(plan: .pro, failDelete: true)
+        let failed = SettingsPreview.makeSession(signedIn: true, failDelete: true)
         try both("settings-delete-failed", maxHeight: 400) {
             SettingsView(session: failed, units: .constant(Units(distance: .mi, clock: .h12)), history: FakeHistoryService(),
                          onDeleteAccount: { true }, scrolls: false, dataNote: false)

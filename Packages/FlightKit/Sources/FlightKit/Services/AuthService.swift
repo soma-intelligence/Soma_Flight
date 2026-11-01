@@ -1,16 +1,11 @@
 import Foundation
 
-public enum Plan: String, Sendable, Hashable, Codable {
-    case free, pro
-}
-
 public struct UserSession: Sendable, Equatable {
     public var userId: UUID
     public var email: String?
-    public var plan: Plan
 
-    public init(userId: UUID, email: String?, plan: Plan) {
-        self.userId = userId; self.email = email; self.plan = plan
+    public init(userId: UUID, email: String?) {
+        self.userId = userId; self.email = email
     }
 }
 

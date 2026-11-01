@@ -156,11 +156,9 @@ public struct SettingsView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.bottom, 12)
             }
-            AccountRow(session: session.session, onSignIn: onSignIn)
+            AccountRow(session: session.session, profile: profile, onSignIn: onSignIn)
             Hairline()
-            if let profile, profile.owner != nil {
-                group("Profile") { ProfileSummaryRow(store: profile) }
-            } else if let friends {
+            if profile?.owner == nil, let friends {
                 group("Profile") { ProfileRows(store: friends) }
             }
 
@@ -205,7 +203,7 @@ public struct SettingsView: View {
             group("Privacy") {
                 SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", action: { openURL(Self.privacyURL) }) { RowChevron() }
                 SettingsRow(icon: "lock.shield.fill", title: "What We Keep",
-                            subtitle: "Flights you follow and your flight history, nothing else", last: true) { EmptyView() }
+                            subtitle: "Your email, name and photo, the flights you follow and your flight history", last: true) { EmptyView() }
             }
             if let history {
                 group("Your Data") {
@@ -339,51 +337,50 @@ public struct SettingsView: View {
 
 // MARK: - Rows
 
-/// Plan badge and the signed-in account.
+/// Who is signed in: with a profile, the photo and name over the account's email, tapping through to the
+/// editor; without one, the email alone; signed out, the Sign In button.
 struct AccountRow: View {
     var session: UserSession?
+    var profile: ProfileStore?
     var onSignIn: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 14) {
-            let pro = session?.plan == .pro
-            if session != nil {
-                Text(pro ? "PRO" : "FREE")
-                    .scaledFont(13, weight: .bold)
-                    .foregroundStyle(Theme.diverted)
-                    .scaledPadding(.horizontal, 7)
-                    .scaledPadding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.diverted.opacity(0.18)))
+        if let session, let profile, profile.owner != nil {
+            ProfileSummaryRow(store: profile, detail: Self.detail(session))
+                .scaledPadding(.vertical, 6)
+        } else {
+            HStack(spacing: 14) {
+                UserAvatar(photo: nil, name: nil, id: session?.userId, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session == nil ? "Not signed in" : session?.email ?? "Signed in")
+                        .scaledFont(17, weight: .semibold)
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(1)
+                    Text(session.map { $0.email == nil ? "Signed in with Apple" : "Signed in" }
+                         ?? "Sign in to keep your flights on every device")
+                        .scaledFont(13)
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                if session == nil, let onSignIn {
+                    Button("Sign In", action: onSignIn)
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(.white)
+                        .scaledPadding(.horizontal, 14)
+                        .scaledPadding(.vertical, 8)
+                        .background(Capsule().fill(Theme.accent))
+                        .buttonStyle(.plain)
+                }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session == nil ? "Not signed in" : pro ? "Soma Flight Pro" : "Soma Flight Free")
-                    .scaledFont(19, weight: .semibold)
-                    .foregroundStyle(Theme.diverted)
-                Text(detail)
-                    .scaledFont(15)
-                    .foregroundStyle(Theme.diverted.opacity(0.75))
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 0)
-            if session == nil, let onSignIn {
-                Button("Sign In", action: onSignIn)
-                    .scaledFont(15, weight: .semibold)
-                    .foregroundStyle(.white)
-                    .scaledPadding(.horizontal, 14)
-                    .scaledPadding(.vertical, 8)
-                    .background(Capsule().fill(Theme.accent))
-                    .buttonStyle(.plain)
-            }
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.vertical, 18)
+            .accessibilityElement(children: .combine)
         }
-        .scaledPadding(.horizontal, 16)
-        .scaledPadding(.vertical, 18)
-        .accessibilityElement(children: .combine)
     }
 
-    private var detail: String {
-        guard let session else { return "Sign in to keep your flights on every device" }
-        return session.email ?? "Signed in with Apple"
-    }
+    /// The line under the name: the account's email, or how it signed in when Apple hid the email.
+    static func detail(_ session: UserSession) -> String { session.email ?? "Signed in with Apple" }
 }
 
 /// A history export row: opens the share sheet with `soma-flight-history-YYYY-MM-DD.<ext>`, built on
@@ -419,7 +416,7 @@ struct MinimalDataNote: View {
                 Text("Soma Flight keeps minimal data")
                     .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Theme.onTime)
-                Text("Your email, the flights you follow and your flight history. No location, no contacts, no tracking. Exports are built on this device.")
+                Text("Your email, your name and photo, the flights you follow and your flight history. Your location stays on this device. No contacts, no tracking. Exports are built on this device.")
                     .scaledFont(14)
                     .foregroundStyle(Theme.primary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
@@ -481,7 +478,7 @@ struct SettingsRow<Accessory: View>: View {
 // MARK: - Previews
 
 struct SettingsPreview: View {
-    var plan: Plan? = .free
+    var signedIn = true
     var failDelete = false
     var full = false
     @State private var units = Units()
@@ -500,21 +497,21 @@ struct SettingsPreview: View {
                 ProgressView()
             }
         }
-        .task { session = Self.makeSession(plan: plan, failDelete: failDelete) }
+        .task { session = Self.makeSession(signedIn: signedIn, failDelete: failDelete) }
     }
 
-    @MainActor static func makeSession(plan: Plan?, failDelete: Bool) -> SessionStore {
-        let s = SessionStore(auth: FakeAuthService(plan: plan ?? .free))
-        let user = plan.map { UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!,
-                                           email: "quentin@somalabs.me", plan: $0) }
+    @MainActor static func makeSession(signedIn: Bool, failDelete: Bool) -> SessionStore {
+        let s = SessionStore(auth: FakeAuthService())
+        let user = signedIn ? UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!,
+                                          email: "quentin@somalabs.me") : nil
         s.seed(session: user, error: failDelete ? .providerUnavailable : nil)
         return s
     }
 }
 
-#Preview("Free, dark") { SettingsPreview().preferredColorScheme(.dark) }
-#Preview("Pro, light, all rows") { SettingsPreview(plan: .pro, full: true).preferredColorScheme(.light) }
-#Preview("Signed out") { SettingsPreview(plan: nil).preferredColorScheme(.dark) }
+#Preview("Signed in, dark") { SettingsPreview().preferredColorScheme(.dark) }
+#Preview("Signed in, light, all rows") { SettingsPreview(full: true).preferredColorScheme(.light) }
+#Preview("Signed out") { SettingsPreview(signedIn: false).preferredColorScheme(.dark) }
 #Preview("Delete failed") { SettingsPreview(failDelete: true, full: true).preferredColorScheme(.dark) }
 #endif
 

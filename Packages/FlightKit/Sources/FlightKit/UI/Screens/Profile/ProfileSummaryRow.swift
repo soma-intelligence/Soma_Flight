@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Settings > Profile: the photo and the name friends see, opening the profile editor (the onboarding
-/// screen in edit mode).
+/// Settings' account header: the photo and the name friends see over the account's email, opening the
+/// profile editor (the onboarding screen in edit mode).
 struct ProfileSummaryRow: View {
     var store: ProfileStore
+    /// The grey line under the name (the account's email).
+    var detail: String
     @State private var editing = false
 
     var body: some View {
@@ -16,7 +18,7 @@ struct ProfileSummaryRow: View {
                         .scaledFont(17, weight: name.isEmpty ? .regular : .semibold)
                         .foregroundStyle(name.isEmpty ? Theme.accent : Theme.primary)
                         .lineLimit(1)
-                    Text("Only friends you accept see this").scaledFont(13).foregroundStyle(Theme.secondary)
+                    Text(detail).scaledFont(13).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")

@@ -179,7 +179,7 @@ import Testing
         #expect(await it.next() == .some(nil))
         try await auth.signInWithApple(idToken: "t", nonce: "n")
         let s = await it.next()
-        #expect(s??.plan == .free)
+        #expect(s??.userId != nil)
         await auth.signOut()
         #expect(await it.next() == .some(nil))
         await auth.setNextError(.unauthorized)

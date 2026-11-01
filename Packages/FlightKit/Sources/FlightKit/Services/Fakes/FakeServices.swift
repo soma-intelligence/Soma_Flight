@@ -295,7 +295,6 @@ public actor FakeAirportService: AirportService {
 
 public actor FakeAuthService: AuthService {
     public var nextError: APIError?
-    private var plan: Plan
     private let state = SessionState()
 
     private final class SessionState: Sendable {
@@ -318,10 +317,9 @@ public actor FakeAuthService: AuthService {
         }
     }
 
-    public init(plan: Plan = .free) { self.plan = plan }
+    public init() {}
 
     public func setNextError(_ error: APIError?) { nextError = error }
-    public func setPlan(_ plan: Plan) { self.plan = plan }
 
     private func check() throws(APIError) {
         if let e = nextError { nextError = nil; throw e }
@@ -335,17 +333,17 @@ public actor FakeAuthService: AuthService {
     public func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws(APIError) {
         try check()
         appleName = fullName
-        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!, email: nil, plan: plan))
+        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!, email: nil))
     }
 
     public func signInWithEmail(_ email: String) async throws(APIError) {
         try check()
-        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000002")!, email: email, plan: plan))
+        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000002")!, email: email))
     }
 
     public func signInWithGoogle() async throws(APIError) {
         try check()
-        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000003")!, email: "noa.levi@gmail.com", plan: plan))
+        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000003")!, email: "noa.levi@gmail.com"))
     }
 
     public func signOut() async { state.set(nil) }

@@ -33,7 +33,7 @@ import Testing
         #expect(APIError.providerUnavailable.message == "Flight data is temporarily unavailable. Showing the last update.")
         #expect(APIError.notFound.message == "No flight found. Check the number and date.")
         #expect(APIError.rateLimited.message == "Too many searches. Try again in a few minutes.")
-        #expect(APIError.planLimit.message == "Free accounts follow up to 3 flights at a time.")
+        #expect(APIError.planLimit.message == "You can follow up to 3 flights at a time.")
         #expect(APIError.unauthorized.message == "Please sign in again.")
         #expect(APIError.offline.message == "You're offline. Showing the last update.")
     }

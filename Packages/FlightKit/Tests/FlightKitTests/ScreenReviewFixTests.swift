@@ -154,7 +154,7 @@ import Testing
     }
 
     @Test func settingsHidesRowsWithoutActions() async throws {
-        let session = SettingsPreview.makeSession(plan: .free, failDelete: false)
+        let session = SettingsPreview.makeSession(signedIn: true, failDelete: false)
         let units = Binding.constant(Units())
         let bare = try render(SettingsView(session: session, units: units, scrolls: false))
         let full = try render(SettingsView(session: session, units: units, history: FakeHistoryService(), onDeleteAccount: { true },

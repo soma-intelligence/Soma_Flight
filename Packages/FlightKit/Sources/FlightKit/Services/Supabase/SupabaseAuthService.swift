@@ -16,39 +16,19 @@ public final class SupabaseAuthService: AuthService {
 
     private var auth: AuthClient { backend.client.auth }
 
-    private struct ProfileRow: Decodable { var plan: Plan }
-
-    /// The account's plan from `profiles`; nil when it cannot be read (offline), so it is read again later.
-    private func plan(for user: UUID) async -> Plan? {
-        let id = user.uuidString.lowercased()
-        guard let data = try? await backend.rows({ $0.from("profiles").select("plan").eq("user_id", value: id).limit(1) }),
-              let row = try? FlightJSON.decoder.decode([ProfileRow].self, from: data).first else { return nil }
-        return row.plan
-    }
-
     /// Follows Supabase's auth state. The stored session is reported at once, expired or not: it is
     /// refreshed in the background, and reporting nobody while offline would hand the device's saved
-    /// flights to nobody. The plan is read once per user, once a read succeeds.
+    /// flights to nobody.
     public var session: AsyncStream<UserSession?> {
         let (stream, continuation) = AsyncStream<UserSession?>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let changes = auth.authStateChanges
         let task = Task { [weak self] in
-            var plans: [UUID: Plan] = [:]
             var last: UserSession??
             for await (_, session) in changes {
-                guard let self else { break }
+                guard self != nil else { break }
                 var next: UserSession?
                 if let user = session?.user {
-                    // A plan that could not be read shows as free and is read again on the next auth event
-                    // (token refreshes come at least hourly).
-                    let plan: Plan
-                    if let known = plans[user.id] { plan = known } else if let read = await self.plan(for: user.id) {
-                        plan = read
-                        plans[user.id] = read
-                    } else {
-                        plan = .free
-                    }
-                    next = UserSession(userId: user.id, email: user.email, plan: plan)
+                    next = UserSession(userId: user.id, email: user.email)
                 }
                 if last != .some(next) {
                     last = .some(next)
