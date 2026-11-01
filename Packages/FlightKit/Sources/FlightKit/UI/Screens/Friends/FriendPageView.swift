@@ -72,7 +72,7 @@ public struct FriendPageView: View {
 
             DetailCard {
                 CardTitle("You share", subtitle: store.me?.sharingPaused == true
-                          ? "Paused for every friend (your friend code's menu)" : "Only with \(friend.name)")
+                          ? "Paused for every friend (the menu by your friend code)" : "Only with \(friend.name)")
                     .scaledPadding(.bottom, 4)
                 FriendToggleRow(icon: "airplane", title: "My Upcoming Flights",
                                 subtitle: "Route, times, status, gate and belt. Never your seat, booking code or notes.",
