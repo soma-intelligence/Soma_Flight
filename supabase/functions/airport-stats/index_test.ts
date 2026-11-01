@@ -247,3 +247,15 @@ Deno.test("contract examples match the handler's answers", async () => {
   const none = deps({ provider: "none" }).d;
   await checkContract("no_provider", (await ask("airport=SFO", none)).body);
 });
+
+Deno.test("detail: the most disrupted routes and airlines, worst first", async () => {
+  const { d } = deps();
+  const r = await ask<Detail>("airport=SFO", d);
+  const routes = r.body.departures!.worst_routes.map((x) => x.icao);
+  assert(routes.includes("KJFK") && routes.includes("RJTT"), routes.join());
+  assert(
+    r.body.departures!.worst_airlines.some((a) =>
+      a.operator === "ACA" && a.canceled === 1
+    ),
+  );
+});

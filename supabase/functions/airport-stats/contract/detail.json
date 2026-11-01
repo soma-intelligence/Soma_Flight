@@ -30,6 +30,40 @@
         "flights": 1,
         "estimated": true
       }
+    ],
+    "worst_routes": [
+      {
+        "icao": "CYVR",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "icao": "KJFK",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "icao": "RJTT",
+        "delayed": 1,
+        "canceled": 0
+      }
+    ],
+    "worst_airlines": [
+      {
+        "operator": "ACA",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "operator": "DAL",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "operator": "UAL",
+        "delayed": 1,
+        "canceled": 0
+      }
     ]
   },
   "arrivals": {
@@ -38,7 +72,9 @@
     "delayed": 0,
     "canceled": 0,
     "avg_delay_minutes": 0,
-    "trend": []
+    "trend": [],
+    "worst_routes": [],
+    "worst_airlines": []
   },
   "today": {
     "departures": 5,

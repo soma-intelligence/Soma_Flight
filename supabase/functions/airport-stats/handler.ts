@@ -67,6 +67,9 @@ export interface TrendHour {
 
 export interface Summary extends Brief {
   trend: TrendHour[];
+  /** The routes and airlines with the most delayed (15 min+) and canceled flights, worst first. */
+  worst_routes: { icao: string; delayed: number; canceled: number }[];
+  worst_airlines: { operator: string; delayed: number; canceled: number }[];
 }
 
 export interface Traffic {
@@ -126,6 +129,25 @@ export function brief(flights: BoardRow[], kind: Direction, now: Date): Brief {
     delayed: s.delayed15,
     canceled: s.canceled,
     avg_delay_minutes: Math.round(s.avgDelayMinutes),
+  };
+}
+
+/** The full direction: counts, the trend and the most disrupted routes and airlines (the Rust core). */
+export function summary(
+  flights: BoardRow[],
+  kind: Direction,
+  now: Date,
+): Summary {
+  const s = computeStats(flights, kind, now);
+  return {
+    total: s.total,
+    on_time: s.onTime,
+    delayed: s.delayed15,
+    canceled: s.canceled,
+    avg_delay_minutes: Math.round(s.avgDelayMinutes),
+    trend: trend(flights, kind),
+    worst_routes: s.worstRoutes.slice(0, TOP),
+    worst_airlines: s.worstAirlines.slice(0, TOP),
   };
 }
 
@@ -215,14 +237,8 @@ async function detail(
     icao: row.icao,
     fetched_at: dep.fetchedAt < arr.fetchedAt ? dep.fetchedAt : arr.fetchedAt,
     stale: dep.stale || arr.stale,
-    departures: {
-      ...brief(dep.flights, "departures", now),
-      trend: trend(dep.flights, "departures"),
-    },
-    arrivals: {
-      ...brief(arr.flights, "arrivals", now),
-      trend: trend(arr.flights, "arrivals"),
-    },
+    departures: summary(dep.flights, "departures", now),
+    arrivals: summary(arr.flights, "arrivals", now),
     today: traffic(dep.flights, (icao) => country.get(icao) ?? null),
     next_7_days: null,
   };
