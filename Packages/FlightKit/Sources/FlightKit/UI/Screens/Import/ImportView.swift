@@ -15,7 +15,16 @@ private struct ImportPresenter: ViewModifier {
     var suspended: Bool
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: Binding(get: { home.showImport && !suspended }, set: { home.showImport = $0 }),
+        content
+        .overlay(alignment: .top) {
+            // An import that ended while its screen was closed.
+            if let text = home.imports.toast, !home.showImport {
+                ImportToast(text: text) { withAnimation { home.imports.clearToast() } }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: home.imports.toast)
+        .sheet(isPresented: Binding(get: { home.showImport && !suspended }, set: { home.showImport = $0 }),
                       onDismiss: { if case .done = home.imports.phase { home.imports.reset() } }) {
             ImportView(store: home.imports, lookup: home.env.lookup) { home.showImport = false }
                 #if os(macOS)
@@ -41,16 +50,21 @@ public struct ImportView: View {
 
     @State private var step: Step = .sources
     @State private var pasted = ""
-    @State private var picking: Picker?
-    @State private var csv: PastFlightImportState?
+    @State private var picker = ImportPicker<Picker>()
 
-    enum Picker: Identifiable {
+    enum Picker: Hashable {
         case flighty, email, csv
-        var id: Self { self }
         var types: [UTType] {
             switch self {
-            case .flighty, .csv: PastFlightImportState.contentTypes
+            case .flighty, .csv: ImportFile.csvTypes
             case .email: HomeModel.emailFileTypes
+            }
+        }
+        var source: ImportStore.Source {
+            switch self {
+            case .flighty: .flighty
+            case .email: .email
+            case .csv: .csv
             }
         }
     }
@@ -66,22 +80,16 @@ public struct ImportView: View {
             footer
         }
         .background(Theme.background)
-        .fileImporter(isPresented: Binding(get: { picking != nil }, set: { if !$0 { picking = nil } }),
-                      allowedContentTypes: picking?.types ?? [.data]) { result in
-            let kind = picking
-            picking = nil
-            guard case .success(let url) = result, let kind else { return }
-            read(url, as: kind)
-        }
-        .sheet(item: Binding(get: { csv.flatMap { if case .preview(let p) = $0 { CSVItem(preview: p) } else { nil } } },
-                             set: { if $0 == nil { csv = nil } })) { item in
-            PastFlightImportSheet(preview: item.preview, store: store.passport, lookup: lookup)
-        }
-        .alert("Can't Import This File", isPresented: Binding(
-            get: { if case .failed = csv { true } else { false } }, set: { if !$0 { csv = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if case .failed(let message) = csv { Text(message) }
+        .onAppear { store.isScreenVisible = true }
+        .onDisappear { store.isScreenVisible = false }
+        // The source stays in `picker` while the picker closes: SwiftUI clears `isPresented` before it calls
+        // back (see `ImportPicker`).
+        .fileImporter(isPresented: $picker.isPresented, allowedContentTypes: picker.kind?.types ?? ImportFile.csvTypes) { result in
+            guard let kind = picker.take() else { return }
+            switch result {
+            case .success(let url): read(url, as: kind)
+            case .failure(let error): store.fail(kind.source, "The file couldn't be opened: \(error.localizedDescription)")
+            }
         }
         #if os(macOS)
         // A confirmation email dropped on the screen.
@@ -93,25 +101,19 @@ public struct ImportView: View {
         #endif
     }
 
-    private struct CSVItem: Identifiable {
-        var preview: PastFlightImport.Preview
-        var id: Int { preview.hashValue }
-    }
-
+    /// Opens the picked file off the main actor (inside its security scope, downloading it from iCloud
+    /// when needed), then reads it.
     private func read(_ url: URL, as kind: Picker) {
-        if kind == .csv {
-            csv = PastFlightImportState.read(url, store: store.passport)
-            return
+        store.beginReading(kind.source)
+        Task {
+            switch await ImportFile.read(url) {
+            case .failure(let f):
+                store.fail(kind.source, f.message)
+            case .success(let data):
+                if kind == .email { store.readEmailFile(data, name: url.lastPathComponent) }
+                else { await store.read(data, as: kind.source, name: url.lastPathComponent) }
+            }
         }
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-              size <= PastFlightImportState.maxBytes * 2, let data = try? Data(contentsOf: url) else {
-            store.fail(kind == .flighty ? .flighty : .email, "This file could not be read, or is larger than 10 MB.")
-            return
-        }
-        if kind == .flighty { store.readFlighty(data, name: url.lastPathComponent) }
-        else { store.readEmailFile(data, name: url.lastPathComponent) }
     }
 
     // MARK: Chrome
@@ -125,7 +127,8 @@ public struct ImportView: View {
             case .email: "From an Email"
             case .csv: "From a CSV File"
             }
-        case .done: "Imported"
+        case .importing: "Importing"
+        case .done: "Import Finished"
         default:
             switch step {
             case .sources: "Import Flights"
@@ -139,7 +142,7 @@ public struct ImportView: View {
         switch store.phase {
         case .review, .failed: true
         case .idle: step != .sources
-        case .reading, .done: false
+        case .reading, .importing, .done: false
         }
     }
 
@@ -171,6 +174,12 @@ public struct ImportView: View {
         switch store.phase {
         case .review:
             commitBar
+        case .importing:
+            bar {
+                Button("Stop", role: .destructive) { store.cancel() }
+                    .buttonStyle(.bordered).buttonBorderShape(.capsule)
+                    .accessibilityHint("Stops after the flights being saved now; the ones saved stay")
+            }
         case .done:
             bar {
                 Button("Import More") { store.reset(); step = .sources }
@@ -217,12 +226,15 @@ public struct ImportView: View {
             case .email: emailEntry
             case .calendar: calendarEntry
             }
-        case .reading:
+        case .reading(let source):
             HStack(spacing: 10) {
                 ProgressView()
-                Text("Reading your calendar").scaledFont(16).foregroundStyle(Theme.secondary)
+                Text(source == .calendar ? "Reading your calendar" : "Reading the file")
+                    .scaledFont(16).foregroundStyle(Theme.secondary)
             }
             .frame(maxWidth: .infinity, minHeight: 200)
+        case .importing(let progress):
+            ImportProgressPanel(progress: progress)
         case .failed(_, let message):
             Text(message)
                 .scaledFont(16)
@@ -233,12 +245,7 @@ public struct ImportView: View {
         case .review(let review):
             ImportReviewList(review: review, selected: store.selected, lookup: lookup, toggle: store.toggle)
         case .done(let summary):
-            Text(summary.message)
-                .scaledFont(17)
-                .foregroundStyle(Theme.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.top, 20)
+            ImportResultPanel(summary: summary, lookup: lookup) { Task { await store.retryFailed() } }
         }
     }
 
@@ -253,7 +260,7 @@ public struct ImportView: View {
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.bottom, 12)
             OptionRow(icon: "tablecells", title: "Import from Flighty",
-                      subtitle: "Pick the CSV file you exported from its settings") { picking = .flighty }
+                      subtitle: "Pick the CSV file you exported from its settings") { picker.open(.flighty) }
             Hairline(leading: 60)
             if store.offersCalendar {
                 OptionRow(icon: "calendar", title: "From Your Calendar",
@@ -264,7 +271,7 @@ public struct ImportView: View {
                       subtitle: "Share it to Soma Flight, or paste it here") { step = .email }
             Hairline(leading: 60)
             OptionRow(icon: "doc.text", title: "From a CSV File",
-                      subtitle: "Any file with a date, from and to") { picking = .csv }
+                      subtitle: "Any file with a date, from and to") { picker.open(.csv) }
             Text(Self.privacyLine)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
@@ -318,7 +325,7 @@ public struct ImportView: View {
                 Button("Find Flights") { store.readEmail(pasted) }
                     .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(Theme.accent)
                     .disabled(pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Button("Choose File\u{2026}") { picking = .email }
+                Button("Choose File\u{2026}") { picker.open(.email) }
                     .buttonStyle(.bordered).buttonBorderShape(.capsule)
             }
             .scaledFont(16, weight: .semibold)
@@ -357,15 +364,17 @@ struct ImportReviewList: View {
     var toggle: (ImportCandidate.ID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Self.summary(review))
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.horizontal, 20)
+        // Lazy: a file of 2,000 flights lays out only the rows on screen.
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ImportReviewSummary(review: review)
+            ImportDisclosure(title: "Can't read", items: review.unreadable, startsOpen: review.unreadable.count <= 5) { s in
+                ImportReasonRow(label: s.label, reason: s.reason)
+            }
+            ImportDisclosure(title: "Already in your Passport", items: review.duplicates) { s in
+                ImportReasonRow(label: s.label, reason: s.reason)
+            }
             section("Past flights", "Added to your Passport", review.past)
             section("Upcoming", "Followed now, or two days before they leave", review.upcoming)
-            leftOut
         }
     }
 
@@ -388,37 +397,6 @@ struct ImportReviewList: View {
             ForEach(rows) { c in
                 Hairline()
                 CandidateRow(candidate: c, ticked: selected.contains(c.id), lookup: lookup) { toggle(c.id) }
-            }
-        }
-    }
-
-    @ViewBuilder private var leftOut: some View {
-        if !review.left.isEmpty || !review.skipped.isEmpty {
-            CapsHeader("Left out", trailing: "\(review.left.count + review.skipped.count)")
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.top, 24)
-                .scaledPadding(.bottom, 4)
-            ForEach(review.left) { c in
-                Hairline()
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(CandidateRow.headline(c.source)).scaledFont(15, weight: .medium).foregroundStyle(Theme.primary)
-                    Text("\(c.label) \u{00B7} \(Self.reason(c.action))").scaledFont(13).foregroundStyle(Theme.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.vertical, 8)
-                .accessibilityElement(children: .combine)
-            }
-            ForEach(review.skipped) { s in
-                Hairline()
-                HStack(spacing: 12) {
-                    Text(s.label).scaledFont(15, weight: .medium).monospacedDigit().foregroundStyle(Theme.secondary)
-                    Text(s.reason).scaledFont(15).foregroundStyle(Theme.primary)
-                    Spacer(minLength: 0)
-                }
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.vertical, 8)
-                .accessibilityElement(children: .combine)
             }
         }
     }

@@ -13,21 +13,17 @@ enum PastFlightImportState: Identifiable {
         }
     }
 
-    /// The largest file read (a history of a few thousand flights is well under 1 MB).
-    static let maxBytes = 5_000_000
+    /// The file types the picker offers (`ImportFile.csvTypes`: CSV, delimited or plain text, or data).
+    static let contentTypes = ImportFile.csvTypes
 
-    /// The file types the picker offers: CSV, and plain text for files saved with a .txt name.
-    static let contentTypes: [UTType] = [.commaSeparatedText, .plainText]
-
-    /// Reads the picked file (inside its security scope) and previews it against the store's history.
-    @MainActor static func read(_ url: URL, store: PassportStore) -> PastFlightImportState {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= maxBytes,
-              let data = try? Data(contentsOf: url) else {
-            return .failed("This file could not be read, or is larger than 5 MB.")
+    /// Reads the picked file off the main actor (`ImportFile`: security scope, iCloud download, size) and
+    /// previews it against the store's history.
+    @MainActor static func read(_ url: URL, store: PassportStore) async -> PastFlightImportState {
+        switch await ImportFile.read(url) {
+        case .failure(let f): return .failed(f.message)
+        case .success(let data):
+            do { return .preview(try store.importPreview(data)) } catch { return .failed(error.message) }
         }
-        do { return .preview(try store.importPreview(data)) } catch { return .failed(error.message) }
     }
 }
 

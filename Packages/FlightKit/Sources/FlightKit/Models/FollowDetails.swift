@@ -72,7 +72,8 @@ public struct FollowDetails: Codable, Sendable, Hashable {
     /// Trimmed, upper-cased seat. `.some(nil)` for empty input (clear the field), nil when it is not a
     /// seat ("12A": one to three digits and a letter A to K).
     public static func normalizedSeat(_ s: String) -> String?? {
-        normalized(s, pattern: /[0-9]{1,3}[A-K]/)
+        // "12 A" and "12a" as some exports and boarding passes write them.
+        normalized(s.filter { !$0.isWhitespace }, pattern: /[0-9]{1,3}[A-K]/)
     }
 
     /// Trimmed, upper-cased booking code of five to eight letters and digits. `.some(nil)` for empty

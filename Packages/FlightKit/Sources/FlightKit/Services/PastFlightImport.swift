@@ -286,12 +286,21 @@ public enum PastFlightImport {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return nil }
         if let known = reference.type(t) { return known.id }
+        func match(_ key: String) -> String? {
+            // The list's names carry the maker ("Boeing 777-300ER"); a file may leave it out.
+            reference.types.first {
+                let name = normalized($0.name)
+                return name == key || name == normalized($0.manufacturer) + key
+            }?.id
+        }
         let key = normalized(t)
-        // The list's names carry the maker ("Boeing 777-300ER"); a file may leave it out.
-        return reference.types.first {
-            let name = normalized($0.name)
-            return name == key || name == normalized($0.manufacturer) + key
-        }?.id
+        if let hit = match(key) { return hit }
+        // A range variant the list does not name apart shares its base's designator: "737-900ER" is a
+        // B739, "777-200 ER" a B772. A variant it does name ("777-300ER", B77W) matched above.
+        for suffix in ["er", "wl"] where key.hasSuffix(suffix) && key.count > suffix.count + 3 {
+            if let hit = match(String(key.dropLast(suffix.count))) { return hit }
+        }
+        return nil
     }
 
     static let classWords: [String: String] = [
@@ -357,12 +366,36 @@ public enum PastFlightImport {
 
     // MARK: CSV
 
-    /// The file as text: UTF-8 (a byte order mark dropped), else Windows Latin 1, which every byte decodes as.
+    /// The file as text. UTF-16 when it starts with that byte order mark, or when one byte in two is zero
+    /// (what a spreadsheet's "Unicode text" saves); else UTF-8 (a byte order mark dropped), else Windows
+    /// Latin 1, which every byte decodes as.
     static func text(_ data: Data) -> String {
-        var bytes = data
-        if bytes.starts(with: PastFlight.csvBOM) { bytes = bytes.dropFirst(PastFlight.csvBOM.count) }
-        return String(data: bytes, encoding: .utf8) ?? String(data: bytes, encoding: .windowsCP1252)
-            ?? String(decoding: bytes, as: UTF8.self)
+        let bytes = Data(data)
+        if bytes.starts(with: [0xFF, 0xFE]) || bytes.starts(with: [0xFE, 0xFF]) {
+            let little = bytes.first == 0xFF
+            if let s = String(data: bytes.dropFirst(2), encoding: little ? .utf16LittleEndian : .utf16BigEndian) { return s }
+        } else if let little = utf16WithoutMark(bytes),
+                  let s = String(data: bytes, encoding: little ? .utf16LittleEndian : .utf16BigEndian) {
+            return s
+        }
+        var body = bytes
+        if body.starts(with: PastFlight.csvBOM) { body = body.dropFirst(PastFlight.csvBOM.count) }
+        return String(data: body, encoding: .utf8) ?? String(data: body, encoding: .windowsCP1252)
+            ?? String(decoding: body, as: UTF8.self)
+    }
+
+    /// Whether text without a byte order mark is UTF-16, and its byte order: little endian when most odd
+    /// bytes of its start are zero (ASCII in UTF-16LE), big endian when most even ones are. Nil for UTF-8,
+    /// which has no zero bytes.
+    private static func utf16WithoutMark(_ bytes: Data) -> Bool? {
+        let head = Array(bytes.prefix(512))
+        guard head.count >= 4 else { return nil }
+        var evenZero = 0, oddZero = 0
+        for (i, b) in head.enumerated() where b == 0 { if i % 2 == 0 { evenZero += 1 } else { oddZero += 1 } }
+        let half = head.count / 2
+        if oddZero * 10 >= half * 7, evenZero * 10 < half { return true }
+        if evenZero * 10 >= half * 7, oddZero * 10 < half { return false }
+        return nil
     }
 
     /// RFC 4180 records: fields split on the file's delimiter (comma, semicolon or tab, whichever the first

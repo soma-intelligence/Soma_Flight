@@ -47,7 +47,10 @@ import Testing
 
     @Test func mapsPostgrestAndAuthErrors() {
         #expect(SupabaseBackend.map(PostgrestError(code: "PGRST301", message: "JWT expired")) == .unauthorized)
-        #expect(SupabaseBackend.map(PostgrestError(code: "42501", message: "denied")) == .providerUnavailable)
+        // A row policy refusing the write is said as such, not as the server being down.
+        #expect(SupabaseBackend.map(PostgrestError(code: "42501", message: "denied"))
+            == .rejected("Your account can't save this flight. Sign in again and retry."))
+        #expect(SupabaseBackend.map(PostgrestError(code: "XX000", message: "internal")) == .providerUnavailable)
         #expect(SupabaseBackend.map(AuthError.sessionMissing) == .unauthorized)
     }
 

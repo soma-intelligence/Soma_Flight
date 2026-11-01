@@ -88,6 +88,8 @@ struct SomaFlightMacApp: App {
                     // The flight sheet's "Leave by" time and Settings > Calendar.
                     built.attachLeaveTimes(LeaveTimeEstimator.forLaunch(env: built.env))
                     built.attachCalendar(CalendarSync.forLaunch(env: built.env))
+                    // A long import finishes in the background and says so.
+                    built.attachImportNotifier(SystemImportNotifier())
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil
