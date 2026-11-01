@@ -104,7 +104,7 @@ import Testing
     @Test func globeContentIsBuiltOncePerChangeOfFlights() async throws {
         let home = try await loaded()
         let first = home.globe
-        home.shell.detent = ShellModel.collapsed
+        home.shell.detent = .collapsed
         home.shell.detent = .medium
         let again = home.globe
         // Same arcs, from the cache: the same great-circle runs, not rebuilt ones.
@@ -122,8 +122,8 @@ import Testing
         let cdg = airport("LFPG", 49.0097, 2.5479), sfo = airport("KSFO", 37.6188, -122.3750)
         let route = Route(from: cdg.coordinate, to: sfo.coordinate, level: .late, isPast: false)
         let screen = CGSize(width: 402, height: 874)
-        for inset in [ShellModel.mapInset(for: .medium, screenHeight: 874),
-                      ShellModel.mapInset(for: ShellModel.collapsed, screenHeight: 874)] {
+        for inset in [ShellModel.mapInset(for: .medium, in: .standard),
+                      ShellModel.mapInset(for: .collapsed, in: .standard)] {
             let vp = GlobeViewport(size: screen, visible: CGRect(x: 0, y: 62, width: 402, height: 874 - 62 - inset))
             let cam = GlobeMap.camera(for: .route(route), in: vp)
             #expect(cam.distance <= GlobeMap.maximumDistance(at: cam.centerCoordinate.latitude, in: vp))

@@ -17,14 +17,14 @@ public enum SheetRoute: Hashable, Sendable {
 @MainActor @Observable
 public final class ShellModel {
     public var path: [SheetRoute] = []
-    public var detent: PresentationDetent = .medium
+    /// The sheet's resting height. Each tab keeps its own for the session (`showTab(_:from:)`).
+    public var detent: SheetDetent = .medium
+    /// The detent each tab was left in, this session. A tab not seen yet opens at medium.
+    @ObservationIgnored private var tabDetents: [HomeTab: SheetDetent] = [:]
     /// Bumped when the screen on top is opened again, so the globe comes back onto it.
     public private(set) var recenter = 0
     /// The arc of the open flight, kept so the camera holds it if the flight drops out of the list.
     @ObservationIgnored private var lastRoute: (id: Flight.ID, route: Route)?
-
-    public static let detents: Set<PresentationDetent> = [collapsed, .medium, .large]
-    public static let collapsed = PresentationDetent.height(120)
 
     public init() {}
 
@@ -99,15 +99,24 @@ public final class ShellModel {
         }
     }
 
+    /// Leaving `old` for `new`: remembers the detent `old` was in and puts back the one `new` was left in
+    /// (medium the first time).
+    public func showTab(_ new: HomeTab, from old: HomeTab) {
+        guard new != old else { return }
+        tabDetents[old] = detent
+        detent = tabDetents[new] ?? .medium
+    }
+
     /// How much of the full-screen map the sheet hides at the bottom (the map's bottom safe area), from the
     /// settled detent rather than the live sheet height, so a drag never touches the map: only a detent
-    /// that settled glides the globe to its new place. `.large` keeps the medium inset: the globe is hidden
-    /// then, and the map keeps a sane content area for the way back.
-    public static func mapInset(for detent: PresentationDetent, screenHeight: CGFloat) -> CGFloat {
-        detent == collapsed ? 120 : (screenHeight / 2).rounded()
+    /// that settled glides the globe to its new place, framing the open flight above the sheet's top.
+    /// Expanded keeps the medium inset: the globe is hidden then, and the map keeps a sane content area
+    /// for the way back.
+    public static func mapInset(for detent: SheetDetent, in geometry: SheetGeometry) -> CGFloat {
+        geometry.height(of: min(detent, .medium))
     }
 
     private func raiseIfCollapsed() {
-        if detent == Self.collapsed { detent = .medium }
+        if detent == .collapsed { detent = .medium }
     }
 }

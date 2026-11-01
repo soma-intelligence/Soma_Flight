@@ -24,10 +24,12 @@ public extension EnvironmentValues {
 // MARK: - Titles and labels
 
 /// Large bold sheet title ("My Flights", "Passport"), with an optional grey line under it.
-/// The trailing 60 pt stay free for the shell's buttons.
+/// The trailing 60 pt stay free for the shell's buttons. On the iOS home sheet it is the sheet's header,
+/// and VoiceOver's actions on it ("Expand", "Collapse") move the sheet a detent.
 struct ScreenTitle: View {
     var title: String
     var subtitle: String?
+    @Environment(\.sheetDetentActions) private var detentActions
 
     init(_ title: String, subtitle: String? = nil) {
         self.title = title; self.subtitle = subtitle
@@ -39,6 +41,10 @@ struct ScreenTitle: View {
                 .scaledFont(32, weight: .bold, relativeTo: .largeTitle)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityActions {
+                    if let expand = detentActions?.expand { Button("Expand", action: expand) }
+                    if let collapse = detentActions?.collapse { Button("Collapse", action: collapse) }
+                }
             if let subtitle {
                 Text(subtitle).scaledFont(17).foregroundStyle(Theme.secondary)
             }

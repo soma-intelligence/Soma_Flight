@@ -220,12 +220,12 @@ import Testing
 
     @Test func closePopsAndOpeningRaisesACollapsedSheet() {
         let shell = ShellModel()
-        shell.detent = ShellModel.collapsed
+        shell.detent = .collapsed
         shell.open(airport: "KAUS")
         #expect(shell.detent == .medium)
-        shell.detent = .large
+        shell.detent = .expanded
         shell.open(airport: "KSFO")
-        #expect(shell.detent == .large)
+        #expect(shell.detent == .expanded)
         shell.close()
         #expect(shell.path == [.airport("KAUS")])
         shell.close(); shell.close()
@@ -251,8 +251,9 @@ import Testing
     }
 
     @Test func mapInsetFollowsTheSettledDetentCappedAtMedium() {
-        #expect(ShellModel.mapInset(for: ShellModel.collapsed, screenHeight: 874) == 120)
-        #expect(ShellModel.mapInset(for: .medium, screenHeight: 874) == 437)
-        #expect(ShellModel.mapInset(for: .large, screenHeight: 874) == 437)
+        let g = SheetGeometry.standard
+        #expect(ShellModel.mapInset(for: .collapsed, in: g) == g.height(of: .collapsed))
+        #expect(ShellModel.mapInset(for: .medium, in: g) == g.height(of: .medium))
+        #expect(ShellModel.mapInset(for: .expanded, in: g) == g.height(of: .medium))
     }
 }

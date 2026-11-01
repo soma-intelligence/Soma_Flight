@@ -70,10 +70,10 @@ public final class HomeModel {
     public let connectivity: Connectivity
     /// Moves once a minute while a followed flight is estimated, so its plane advances on the globe.
     public private(set) var estimateClock = Date.now
-    /// The section on show. Choosing Passport raises the iOS sheet to full height, like the reference,
-    /// so its three cards show at once.
+    /// The section on show. Each tab gets back the sheet detent it was left in this session (medium the
+    /// first time).
     public var tab: HomeTab = .flights {
-        didSet { if tab == .passport, oldValue != .passport { shell.detent = .large } }
+        didSet { shell.showTab(tab, from: oldValue) }
     }
     /// The Passport page open over the home, if any.
     public var fullPage: FullPage?
@@ -669,8 +669,8 @@ public final class HomeModel {
 
     /// Opens a screen without taps, for screenshot runs: `-toast <text>`, `-tab passport`, `-open flight` (the first one
     /// in the air) or `-open airport:KAUS`, `-fullPage passport|delays|aircraftStats` (the Passport tab
-    /// with that page over it), `-year 2025` (the Passport's year), and on iOS `-detent large` or
-    /// `-detent small`. Call after the first load, from DEBUG builds only.
+    /// with that page over it), `-year 2025` (the Passport's year), and on iOS `-detent expanded`,
+    /// `-detent medium` or `-detent collapsed` (`large` and `small` still work). Call after the first load, from DEBUG builds only.
     public func applyLaunchArguments(_ args: UserDefaults = .standard) {
         // `-toast "Following UA 990"` holds that toast on screen (no timer) for a capture.
         if let text = args.string(forKey: "toast") { toast = text }
@@ -689,8 +689,9 @@ public final class HomeModel {
             fullPage = page
         }
         switch args.string(forKey: "detent") {
-        case "large": shell.detent = .large
-        case "small": shell.detent = ShellModel.collapsed
+        case "large", "expanded": shell.detent = .expanded
+        case "medium": shell.detent = .medium
+        case "small", "collapsed": shell.detent = .collapsed
         default: break
         }
         guard let target = args.string(forKey: "open") else { return }
