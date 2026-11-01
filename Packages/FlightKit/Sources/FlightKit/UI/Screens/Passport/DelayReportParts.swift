@@ -33,7 +33,8 @@ enum DelayInk {
 // MARK: - Split-flap board
 
 /// One character on a split-flap board: two halves around a hinge line, the top half falling into place
-/// when it appears (straight away with Reduce Motion, and in a rendered image).
+/// when it appears and again each time its character changes (a new year), the tiles one after another.
+/// Straight away with Reduce Motion, and in a rendered image.
 struct FlapTile: View {
     var character: Character
     /// Letters of a unit sit dimmer than the digits.
@@ -41,7 +42,8 @@ struct FlapTile: View {
     var delay: Double = 0
     @ScaledMetric(relativeTo: .largeTitle) private var height: CGFloat = 78
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var angle: Double = 0
+    /// Goes up once per flip: on appear, then on every new character.
+    @State private var flips = 0
 
     var body: some View {
         let w = height * 0.68
@@ -50,7 +52,16 @@ struct FlapTile: View {
             // The falling top half, a copy of the face cut at the hinge.
             face.frame(width: w, height: height)
                 .mask(VStack(spacing: 0) { Rectangle(); Color.clear })
-                .rotation3DEffect(.degrees(angle), axis: (1, 0, 0), anchor: .center, perspective: 0.5)
+                .keyframeAnimator(initialValue: 0.0, trigger: flips) { half, angle in
+                    half.rotation3DEffect(.degrees(angle), axis: (1, 0, 0), anchor: .center, perspective: 0.5)
+                } keyframes: { _ in
+                    // Up out of sight, held for this tile's turn, then falling onto the hinge.
+                    KeyframeTrack {
+                        MoveKeyframe(-90)
+                        LinearKeyframe(-90, duration: 0.15 + delay)
+                        SpringKeyframe(0, duration: 0.7, spring: .init(response: 0.55, dampingRatio: 0.62))
+                    }
+                }
             // The hinge: a dark split and the two pins at the sides.
             Rectangle().fill(.black.opacity(0.65)).frame(height: max(1.5, height * 0.02))
             HStack {
@@ -60,11 +71,8 @@ struct FlapTile: View {
             }
         }
         .frame(width: w, height: height)
-        .onAppear {
-            guard !reduceMotion else { return }
-            angle = -90
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.62).delay(0.15 + delay)) { angle = 0 }
-        }
+        .onAppear { if !reduceMotion { flips += 1 } }
+        .onChange(of: character) { if !reduceMotion { flips += 1 } }
     }
 
     private var face: some View {
@@ -79,6 +87,8 @@ struct FlapTile: View {
                     .fontWidth(.condensed)
                     .foregroundStyle(dim ? Color.white.opacity(0.38) : Color(white: 0.97))
                     .minimumScaleFactor(0.5)
+                    // The flap carries the change: the letter itself swaps at once, never rolls or fades.
+                    .contentTransition(.identity)
             }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
     }
@@ -98,7 +108,7 @@ struct FlapBoard: View {
         ViewThatFits(in: .horizontal) {
             row(chars, gap: 8)
             row(chars, gap: 4).scaleEffect(0.82, anchor: .leading)
-            Text(value + " " + unit).scaledFont(56, weight: .heavy).foregroundStyle(.white)
+            Text(value + " " + unit).scaledFont(56, weight: .heavy).monospacedDigit().foregroundStyle(.white)
         }
     }
 

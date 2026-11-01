@@ -40,6 +40,8 @@ struct FullPassportView: View {
                 .scaledPadding(.horizontal, 12)
                 .scaledPadding(.bottom, 26)
         }
+        // Every figure, date and MRZ character rolls as the year changes.
+        .rollingDigits()
         .background(Self.panel)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28, style: .continuous))
         .overlay(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28, style: .continuous)
@@ -68,6 +70,7 @@ struct FullPassportView: View {
                 PassportRoutesSection(rankings: rankings, year: store.year)
                 PassportCountriesSection(detail: detail, year: store.year)
             }
+            .rollingDigits()
         }
     }
 }

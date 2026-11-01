@@ -56,6 +56,8 @@ struct DelayReportHero: View {
                 .scaledPadding(.top, 18)
                 .accessibilityHidden(true)
         }
+        // Every figure rolls as the year changes; the flap board flips its own tiles.
+        .rollingDigits()
         .scaledPadding(.horizontal, 20)
         .scaledPadding(.top, 14)
         .scaledPadding(.bottom, 14)
@@ -74,6 +76,7 @@ struct DelayReportHero: View {
                 Spacer(minLength: 8)
                 Text("\(year.map(String.init) ?? "All-time") delay report")
                     .scaledFont(15, weight: .semibold)
+                    .monospacedDigit()
                     .foregroundStyle(DelayInk.amber)
                     .lineLimit(1)
             }
@@ -88,12 +91,14 @@ struct DelayReportHero: View {
             Text(report.withTimes == 0 ? "No times yet" : "\(s.percent)%")
                 .scaledFont(64, weight: .bold)
                 .monospacedDigit()
+                .rollingDigits(Double(s.percent))
                 .foregroundStyle(.white)
             Text("of my flights landed late")
                 .scaledFont(24, weight: .bold)
                 .foregroundStyle(.white)
             Text(DelayFacts.shareLine(s))
                 .scaledFont(17)
+                .monospacedDigit()
                 .foregroundStyle(DelayInk.soft)
                 .scaledPadding(.top, 4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -113,6 +118,7 @@ struct DelayReportHero: View {
                 .scaledPadding(.top, 8)
             Text(DelayFacts.averageLine(report.averageLateMinutes, late: report.lateArrivals.late))
                 .scaledFont(17)
+                .monospacedDigit()
                 .foregroundStyle(DelayInk.soft)
         }
         .accessibilityElement(children: .ignore)
@@ -143,6 +149,7 @@ struct DelayReportHero: View {
                 .foregroundStyle(.white)
             Text("\(name) \u{00B7} \(DelayFacts.hoursShort(top.minutes)) late in all")
                 .scaledFont(17)
+                .monospacedDigit()
                 .foregroundStyle(DelayInk.soft)
                 .lineLimit(2)
             AirlineLossBar(losses: report.airlineLosses)
@@ -179,6 +186,7 @@ struct DelayReportSections: View {
             ReportSection(title: "Airport Performance", key: key) { airports(expanded: moreAirports) }
             ReportSection(title: "Arrival Delays", key: key) { delays(expanded: moreDelays) }
         }
+        .rollingDigits()
     }
 
     // MARK: My performance
@@ -298,6 +306,7 @@ struct BigFigure: View {
 
     private var number: some View {
         Text(value).scaledFont(54, weight: .bold).monospacedDigit().foregroundStyle(Theme.primary).lineLimit(1)
+            .rollingDigits()
     }
 
     private var label: some View {

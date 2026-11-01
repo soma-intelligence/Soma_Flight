@@ -1,42 +1,5 @@
 import SwiftUI
 
-/// Year chips: All-Time then each year with flights, the chosen one in a grey capsule.
-struct YearChips: View {
-    var years: [Int]
-    @Binding var selection: Int?
-    /// The chosen chip's fill and the other chips' text.
-    var fill: Color = Theme.pill
-    var ink: Color = Theme.secondary
-    @Environment(\.airportStaticControls) private var staticControls
-
-    var body: some View {
-        HorizontalStrip(scrolls: !staticControls) {
-            HStack(spacing: 4) {
-                chip(nil, "All-Time")
-                ForEach(years, id: \.self) { chip($0, String($0)) }
-            }
-            .scaledPadding(.horizontal, 16)
-        }
-    }
-
-    private func chip(_ year: Int?, _ label: String) -> some View {
-        let on = year == selection
-        return Button { selection = year } label: {
-            Text(label)
-                .scaledFont(17, weight: .medium)
-                .monospacedDigit()
-                .foregroundStyle(on ? Theme.primary : ink)
-                .scaledPadding(.horizontal, 15)
-                .frame(minHeight: 38)
-                .background(Capsule().fill(on ? fill : .clear))
-                .overlay(Capsule().strokeBorder(on ? Theme.primary.opacity(0.08) : .clear, lineWidth: 1))
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-}
-
 /// The deep blue card with the totals for the chosen period. The whole card opens the full Passport.
 struct PassportCard: View {
     var stats: PassportStats
@@ -101,6 +64,7 @@ struct PassportCard: View {
             }
         }
         .monospacedDigit()
+        .rollingDigits()
         .scaledPadding(.horizontal, 18)
         .scaledPadding(.top, 20)
         .scaledPadding(.bottom, row ? 16 : 22)
@@ -111,12 +75,14 @@ struct PassportCard: View {
     }
 
     private var flightsStat: some View {
-        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) long haul" : nil)
+        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) long haul" : nil,
+             value: Double(stats.flights))
     }
 
     private var distanceStat: some View {
         stat("Distance", TravelFacts.distance(stats.distanceKm, units.distance), big: true,
-             caption: stats.distanceKm > 0 ? TravelFacts.aroundTheWorld(stats.distanceKm) : nil)
+             caption: stats.distanceKm > 0 ? TravelFacts.aroundTheWorld(stats.distanceKm) : nil,
+             value: Double(stats.distanceKm))
     }
 
     static var background: some View {
@@ -130,7 +96,9 @@ struct PassportCard: View {
         }
     }
 
-    private func stat(_ label: String, _ value: String, big: Bool = false, caption: String? = nil) -> some View {
+    /// `number` sets which way the figure rolls when the period changes.
+    private func stat(_ label: String, _ value: String, big: Bool = false, caption: String? = nil,
+                      value number: Double? = nil) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label.uppercased())
                 .scaledFont(14)
@@ -140,6 +108,7 @@ struct PassportCard: View {
                 .foregroundStyle(Self.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .rollingDigits(number)
             if let caption {
                 Text(caption)
                     .scaledFont(15)
@@ -174,13 +143,17 @@ struct DelaysCard: View {
             Text(lost.value)
                 .scaledFont(64, weight: .bold)
                 .monospacedDigit()
+                .rollingDigits(Double(report.lostMinutes))
                 .foregroundStyle(.white)
                 .scaledPadding(.bottom, -4)
             Text(lost.caption)
                 .scaledFont(20, weight: .semibold)
+                .rollingDigits()
                 .foregroundStyle(.white)
             Text(TravelFacts.delayedAverageLine(report.averageLateMinutes, delayed: report.lateArrivals.late))
                 .scaledFont(17)
+                .monospacedDigit()
+                .rollingDigits()
                 .foregroundStyle(Self.soft)
                 .scaledPadding(.top, 4)
             if row {
@@ -242,6 +215,8 @@ struct AircraftCard: View {
                 .scaledPadding(.top, 2)
             Text(flightsText)
                 .scaledFont(17)
+                .monospacedDigit()
+                .rollingDigits(Double(count))
                 .foregroundStyle(Self.ink.opacity(0.6))
                 .scaledPadding(.top, 2)
             AircraftImage(type: type, airline: airline, height: 72)
@@ -340,23 +315,27 @@ struct PastFlightsSection: View {
             .scaledPadding(.top, 12)
             .scaledPadding(.bottom, 10)
 
-            ForEach(TravelFacts.groups(flights, by: sort, city: city)) { group in
-                HStack {
-                    Text(group.title).scaledFont(17, weight: .bold).foregroundStyle(Theme.primary)
-                    Spacer()
-                    Text((group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights").uppercased())
-                        .scaledFont(13, weight: .semibold)
-                        .foregroundStyle(Theme.secondary)
-                }
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.top, 18)
-                .scaledPadding(.bottom, 10)
-                .accessibilityElement(children: .combine)
-                ForEach(group.flights) { f in
-                    Hairline()
-                    row(f)
+            // Rows come and go with the year: they swap at once, outside the period's animation.
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(TravelFacts.groups(flights, by: sort, city: city)) { group in
+                    HStack {
+                        Text(group.title).scaledFont(17, weight: .bold).foregroundStyle(Theme.primary)
+                        Spacer()
+                        Text((group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights").uppercased())
+                            .scaledFont(13, weight: .semibold)
+                            .foregroundStyle(Theme.secondary)
+                    }
+                    .scaledPadding(.horizontal, 20)
+                    .scaledPadding(.top, 18)
+                    .scaledPadding(.bottom, 10)
+                    .accessibilityElement(children: .combine)
+                    ForEach(group.flights) { f in
+                        Hairline()
+                        row(f)
+                    }
                 }
             }
+            .transaction { $0.animation = nil }
         }
     }
 

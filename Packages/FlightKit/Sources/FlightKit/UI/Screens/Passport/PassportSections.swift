@@ -175,6 +175,7 @@ private struct FlightsBody: View {
             Text(PassportFacts.count(detail.flights))
                 .scaledFont(46, weight: .bold)
                 .monospacedDigit()
+                .rollingDigits(Double(detail.flights))
                 .foregroundStyle(Theme.primary)
             VStack(alignment: .leading, spacing: 2) {
                 line(detail.domestic, "domestic")
@@ -362,6 +363,7 @@ struct ExtremeBlock: View {
                     .minimumScaleFactor(0.7)
                 Text("\(PassportFacts.spacedIdent(f.ident)) \u{2022} \(date)")
                     .scaledFont(15)
+                    .monospacedDigit()
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(1)
             }
