@@ -16,7 +16,7 @@ import json, os, re, subprocess, sys, tempfile
 from PIL import Image
 
 here = os.path.dirname(os.path.abspath(__file__))
-art = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "../../../../../aircraft-art")
+art = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "../../../aircraft-art")
 src = os.path.join(art, "ai")
 out = os.path.join(here, "../Sources/FlightKit/Resources/SideViews")
 os.makedirs(out, exist_ok=True)
@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as tmp:
         pairs.append(f"{m[1]}-{m[2]}")
 
 with open(os.path.join(out, "index.json"), "w") as fh:
-    json.dump({"version": "aircraft-art-2026-10-30", "pairs": pairs}, fh, indent=0)
+    json.dump({"version": "aircraft-art-2026-10-31", "pairs": pairs}, fh, indent=0)
     fh.write("\n")
 print(len(pairs), "side views")
 
