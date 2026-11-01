@@ -128,7 +128,7 @@ struct EmptyFlights: View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
             // Smaller than Passport's: the home sheet opens at half height and Search should stay in view.
-            EmptyStateIllustration(variant: .climb, size: 200)
+            EmptyStateIllustration(variant: .climb, size: 240)
                 .scaledPadding(.bottom, 10)
             Text("Where to next?")
                 .scaledFont(20, weight: .semibold)
