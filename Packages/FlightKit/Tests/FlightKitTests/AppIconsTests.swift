@@ -33,7 +33,8 @@ import Testing
         }
         #expect(listed.count == Set(listed).count)
         #expect(AppIcons.all.first?.assetName == nil, "the primary comes first")
-        #expect(AppIcons.all.first?.name == "Orbit")
+        #expect(AppIcons.all.first?.name == "Jet")
+        #expect(AppIcons.choice(for: "AppIcon-orbit").name == "Orbit", "the old globe stays as an alternate")
         for name in sets {
             let json = try Data(contentsOf: Self.catalog.appending(path: "\(name).appiconset/Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])
@@ -46,7 +47,8 @@ import Testing
     }
 
     @Test func previewNamesFollowTheSetNames() {
-        #expect(AppIcons.all[0].previewName == "Preview-orbit")
+        #expect(AppIcons.all[0].previewName == "Preview-jet")
+        #expect(AppIcons.choice(for: "AppIcon-orbit").previewName == "Preview-orbit")
         #expect(AppIcons.choice(for: "AppIcon-ember").previewName == "Preview-ember")
         #expect(AppIcons.choice(for: "AppIcon-lastcall").previewName == "Preview-lastcall")
     }
@@ -56,7 +58,8 @@ import Testing
             #expect(!icon.name.isEmpty && icon.tagline.count <= 60)
             #expect(!icon.tagline.contains("\u{2014}"))
         }
-        #expect(AppIcons.choice(for: "AppIcon-gone").name == "Orbit")
+        #expect(AppIcons.choice(for: "AppIcon-gone").name == "Jet")
+        #expect(AppIcons.choice(for: "AppIcon-orbit-jet").name == "Jet", "the retired jet alternate falls back to the primary")
         #expect(AppIcons.choice(for: "AppIcon-ember").name == "Ember")
     }
 
@@ -96,7 +99,7 @@ import Testing
     @Test func theCurrentIconFollowsAChange() async {
         let setter = FakeSetter(nil)
         let model = AppIconModel(setter: setter)
-        #expect(model.current.name == "Orbit")
+        #expect(model.current.name == "Jet")
         await model.select(AppIcons.choice(for: "AppIcon-sweep"))
         #expect(model.current.name == "Sweep", "Settings reads this for its row's subtitle")
     }

@@ -104,7 +104,7 @@ public struct SignInView: View {
         .scaledPadding(.horizontal, 28)
     }
 
-    /// The app's own icon (Resources/brand-app-icon.png, from assets/icon), so the first screen shows the
+    /// The app's own icon (Resources/brand-app-icon.png, the Jet from assets/icon-set-v4), so the first screen shows the
     /// mark the Home Screen does.
     static var appIcon: Image {
         #if os(iOS)
@@ -114,7 +114,7 @@ public struct SignInView: View {
         if let url = Bundle.module.url(forResource: "brand-app-icon", withExtension: "png"),
            let image = NSImage(contentsOf: url) { return Image(nsImage: image) }
         #endif
-        return Image(systemName: "globe.americas.fill")
+        return Image(systemName: "airplane")
     }
 
     private var form: some View {

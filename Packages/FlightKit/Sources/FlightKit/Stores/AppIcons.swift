@@ -19,10 +19,10 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 
     public var id: String { assetName ?? "AppIcon" }
 
-    /// The picture the picker shows: an ordinary image set ("Preview-ember", "Preview-orbit") in the iOS
-    /// app's asset catalog, because an app icon set cannot be loaded as an image.
+    /// The picture the picker shows: an ordinary image set ("Preview-ember", "Preview-jet" for the primary)
+    /// in the iOS app's asset catalog, because an app icon set cannot be loaded as an image.
     public var previewName: String {
-        "Preview-" + (assetName.map { String($0.dropFirst("AppIcon-".count)) } ?? "orbit")
+        "Preview-" + (assetName.map { String($0.dropFirst("AppIcon-".count)) } ?? AppIcons.primarySlug)
     }
 }
 
@@ -37,10 +37,18 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 ///    what the picker draws (`AppIconChoice.previewName`).
 /// 3. Add one line to `all` below with its set name, name and tagline.
 ///
+/// The primary icon (the Jet, the app's logo) lives in `AppIcon.appiconset`, the set `project.yml` names,
+/// and its picker picture in `Preview-<primarySlug>.imageset`. The same art is in the macOS and watch
+/// `AppIcon` sets and in FlightKit's `Resources/brand-app-icon.png` (sign-in screen); change them together.
+///
 /// `AppIconsTests` checks that every line has its set and its preview, and every set has its line.
 public enum AppIcons {
+    /// The primary icon's preview slug: `Preview-jet`.
+    static let primarySlug = "jet"
+
     public static let all: [AppIconChoice] = [
-        AppIconChoice(nil, name: "Orbit", tagline: "A flight path circling the globe. The original."),
+        AppIconChoice(nil, name: "Jet", tagline: "A long-range business jet on charcoal. Nothing else to say."),
+        AppIconChoice("AppIcon-orbit", name: "Orbit", tagline: "A flight path circling the globe. The original."),
         AppIconChoice("AppIcon-ember", name: "Ember", tagline: "A white jet over a warm coral glow."),
         AppIconChoice("AppIcon-redeye", name: "Red Eye", tagline: "Red to port, green to starboard, wheels up at midnight."),
         AppIconChoice("AppIcon-sweep", name: "Sweep", tagline: "One coral sweep, every blip a flight."),
@@ -48,7 +56,6 @@ public enum AppIcons {
         AppIconChoice("AppIcon-spectrum", name: "Spectrum", tagline: "Fly proud and leave a rainbow behind."),
         AppIconChoice("AppIcon-mach", name: "Mach Two", tagline: "Afterburners on, breakfast in another time zone."),
         AppIconChoice("AppIcon-nightside", name: "Night Side", tagline: "Cities glowing below at cruising altitude."),
-        AppIconChoice("AppIcon-orbit-jet", name: "Jet", tagline: "A long-range business jet on charcoal. Nothing else to say."),
     ]
 
     /// The choice for an alternate icon name as the system reports it; the primary for nil or a name no
