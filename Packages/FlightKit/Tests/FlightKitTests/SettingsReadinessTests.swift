@@ -174,7 +174,7 @@ private final class SilentDeleteAuth: AuthService {
         session = stream
         // The continuation is dropped on purpose: no further event ever arrives.
     }
-    func signInWithApple(idToken: String, nonce: String) async throws(APIError) {}
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws(APIError) {}
     func signInWithEmail(_ email: String) async throws(APIError) {}
     func signOut() async {}
     func deleteAccount() async throws(APIError) {}

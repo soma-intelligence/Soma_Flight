@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Supabase
 
@@ -60,9 +61,54 @@ public final class SupabaseAuthService: AuthService {
         return stream
     }
 
-    public func signInWithApple(idToken: String, nonce: String) async throws(APIError) {
+    public func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws(APIError) {
+        let session: Session
         do {
-            _ = try await auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce))
+            session = try await auth.signInWithIdToken(credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce))
+        } catch { throw SupabaseBackend.map(error) }
+        if let name = Self.appleName(fullName) {
+            await saveAppleName(name, user: session.user.id)
+        }
+    }
+
+    /// Apple's given and family names, trimmed; nil when Apple gave none (every sign-in after the first).
+    static func appleName(_ components: PersonNameComponents?) -> (given: String?, family: String?, full: String)? {
+        func clean(_ s: String?) -> String? {
+            let t = s?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return t.isEmpty ? nil : String(t.prefix(DisplayName.maxLength))
+        }
+        let given = clean(components?.givenName), family = clean(components?.familyName)
+        guard given != nil || family != nil else { return nil }
+        return (given, family, DisplayName.join(first: given ?? "", last: family ?? ""))
+    }
+
+    /// Keeps Apple's one-time name: in the account's metadata (`full_name`, `given_name`, `family_name`, what
+    /// Google fills too) and in the profile's names when they are still empty. Best effort: sign-in has
+    /// already succeeded, and the session store keeps the name in memory for onboarding if a write fails.
+    private func saveAppleName(_ name: (given: String?, family: String?, full: String), user: UUID) async {
+        var data: [String: AnyJSON] = ["full_name": .string(name.full)]
+        if let g = name.given { data["given_name"] = .string(g) }
+        if let f = name.family { data["family_name"] = .string(f) }
+        _ = try? await auth.update(user: UserAttributes(data: data))
+        struct Row: Encodable, Sendable {
+            var first_name: String?
+            var last_name: String?
+            var display_name: String
+        }
+        let id = user.uuidString.lowercased()
+        let row = Row(first_name: name.given, last_name: name.family, display_name: name.full)
+        _ = try? await backend.write {
+            try $0.from("profiles").update(row).eq("user_id", value: id).is("first_name", value: nil).is("last_name", value: nil)
+        }
+    }
+
+    /// Google through the web: an `ASWebAuthenticationSession` on Supabase's authorize URL (PKCE), back
+    /// through `somaflight://auth-callback`. Works once the owner turns the provider on (docs/profile-onboarding.md).
+    public func signInWithGoogle() async throws(APIError) {
+        do {
+            _ = try await auth.signInWithOAuth(provider: .google, redirectTo: SupabaseBackend.authCallback)
+        } catch let e as ASWebAuthenticationSessionError where e.code == .canceledLogin {
+            return
         } catch { throw SupabaseBackend.map(error) }
     }
 

@@ -8,6 +8,7 @@ import SwiftUI
 public struct SignInView: View {
     var session: SessionStore
     var onEmail: ((String) async -> Bool)?
+    var onGoogle: (() async -> Void)?
 
     private enum EmailState: Equatable { case idle, sending, sent(String), failed }
 
@@ -25,8 +26,9 @@ public struct SignInView: View {
     /// - Parameters:
     ///   - onEmail: sends a sign-in link to the (trimmed) address and returns whether it went out. The
     ///     button is disabled while it runs, and nil disables the email path.
-    public init(session: SessionStore, onEmail: ((String) async -> Bool)? = nil) {
-        self.session = session; self.onEmail = onEmail
+    ///   - onGoogle: Google sign-in; nil hides the button (it stays hidden until the owner turns Google on).
+    public init(session: SessionStore, onEmail: ((String) async -> Bool)? = nil, onGoogle: (() async -> Void)? = nil) {
+        self.session = session; self.onEmail = onEmail; self.onGoogle = onGoogle
     }
 
     private var trimmed: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -121,6 +123,17 @@ public struct SignInView: View {
                 ErrorBanner(error: error)
             }
             appleButton
+            if let onGoogle {
+                Button { Task { await onGoogle() } } label: {
+                    Label("Continue with Google", systemImage: "g.circle.fill")
+                        .scaledFont(17, weight: .semibold)
+                        .foregroundStyle(Theme.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: controlHeight)
+                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.pill))
+                }
+                .buttonStyle(.plain)
+            }
             if appleFailed {
                 Text("Sign in with Apple didn't work. You can use your email instead.")
                     .scaledFont(13)
@@ -242,7 +255,9 @@ public struct SignInView: View {
                 return
             }
             appleFailed = false
-            Task { await session.signInWithApple(idToken: token, nonce: raw) }
+            // Apple's name comes only on the very first authorization: hand it over now or lose it.
+            let name = credential.fullName
+            Task { await session.signInWithApple(idToken: token, nonce: raw, fullName: name) }
         case .failure(let error):
             appleFailed = (error as? ASAuthorizationError)?.code != .canceled
         }
@@ -261,7 +276,7 @@ public struct SignInView: View {
             SignInWithAppleButton(.signIn) { request in
                 let fresh = AppleNonce.random()
                 nonce = fresh
-                request.requestedScopes = [.email]
+                request.requestedScopes = [.fullName, .email]
                 request.nonce = fresh.hashed
             } onCompletion: { result in
                 completeApple(result)

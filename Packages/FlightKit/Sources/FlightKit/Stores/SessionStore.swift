@@ -87,9 +87,25 @@ public final class SessionStore {
 
     /// Sign in with Apple: the identity token and the raw nonce whose hash the request carried. The session
     /// arrives through the auth stream; on failure `error` is set.
-    public func signInWithApple(idToken: String, nonce: String) async {
+    public func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents? = nil) async {
+        // Apple gives the name once: kept here too, so onboarding can prefill it even if saving it failed.
+        if let fullName, fullName.givenName?.isEmpty == false || fullName.familyName?.isEmpty == false {
+            appleName = fullName
+        }
         do {
-            try await auth.signInWithApple(idToken: idToken, nonce: nonce)
+            try await auth.signInWithApple(idToken: idToken, nonce: nonce, fullName: fullName)
+            error = nil
+        } catch { self.error = error }
+    }
+
+    /// The name Apple handed over at this launch's sign-in, if any (Apple gives it only on the first
+    /// authorization). Onboarding adds it to what the account's metadata says.
+    public private(set) var appleName: PersonNameComponents?
+
+    /// Google sign-in (web OAuth); the session arrives through the auth stream. On failure `error` is set.
+    public func signInWithGoogle() async {
+        do {
+            try await auth.signInWithGoogle()
             error = nil
         } catch { self.error = error }
     }

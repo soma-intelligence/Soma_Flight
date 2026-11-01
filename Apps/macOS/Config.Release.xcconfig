@@ -12,3 +12,6 @@ SUPABASE_ANON_KEY =
 INSIGHTS_ENABLED = NO
 
 #include? "Config.local.xcconfig"
+
+// Sign in with Google (docs/profile-onboarding.md). NO until the owner turns the provider on in Supabase.
+GOOGLE_SIGN_IN_ENABLED = NO

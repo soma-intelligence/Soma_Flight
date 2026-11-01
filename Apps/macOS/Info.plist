@@ -8,6 +8,8 @@
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>InsightsEnabled</key>
 	<string>$(INSIGHTS_ENABLED)</string>
+	<key>GoogleSignInEnabled</key>
+	<string>$(GOOGLE_SIGN_IN_ENABLED)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
