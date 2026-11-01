@@ -139,7 +139,7 @@ public struct PassportView: View {
             } else {
                 PassportCard(stats: stats, year: store.year, units: units) { onOpen(.passport) }
                     .fullPageSource(.passport)
-                DelaysCard(stats: stats) { onOpen(.delays) }
+                DelaysCard(report: store.delayReport) { onOpen(.delays) }
                     .fullPageSource(.delays)
                 if let most = store.aircraft.mostFlown {
                     AircraftCard(typeCode: most.icaoType, type: store.mostFlownType, airline: store.mostFlownAirline,

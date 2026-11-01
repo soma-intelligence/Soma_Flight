@@ -103,8 +103,9 @@ public enum PastFlightImport {
         guard missing.isEmpty else { throw .missingColumns(missing.map(\.1)) }
         guard records.count - 1 <= maxRows else { throw .tooManyRows(limit: maxRows) }
 
-        let format: Format = header.map(normalized) == PastFlight.csvHeader.split(separator: ",").map { normalized(String($0)) }
-            ? .somaFlight : .generic
+        let ours = [PastFlight.csvHeader, PastFlight.legacyCsvHeader]
+            .map { $0.split(separator: ",").map { normalized(String($0)) } }
+        let format: Format = ours.contains(header.map(normalized)) ? .somaFlight : .generic
         let body = Array(records.dropFirst())
         let dateColumn = columns[.date]!
         let dayFirst = slashDayFirst(body.compactMap { dateColumn < $0.count ? $0[dateColumn] : nil })
@@ -190,6 +191,18 @@ public enum PastFlightImport {
         if let m = Int(cell(.blockMinutes)), m >= 0 { f.blockMinutes = m }
         if let m = Int(cell(.delayMinutes)) { f.delayMinutes = m }
         if let s = PastFlightStatus(rawValue: cell(.status).lowercased()) { f.status = s }
+        // Signed (negative: early), within the two days the column allows.
+        func signed(_ field: Field, _ label: String) -> Int? {
+            let text = cell(field)
+            guard !text.isEmpty else { return nil }
+            guard let m = Int(text), (-2880...2880).contains(m) else {
+                warnings.append("\(label) \u{201C}\(text)\u{201D} left out")
+                return nil
+            }
+            return m
+        }
+        f.arrivalDelayMinutes = signed(.arrivalDelayMinutes, "Arrival delay")
+        f.departureDelayMinutes = signed(.departureDelayMinutes, "Departure delay")
         return .success((f, warnings))
     }
 
@@ -197,7 +210,7 @@ public enum PastFlightImport {
 
     enum Field: CaseIterable {
         case date, time, ident, origin, destination, airline, aircraft, registration, seat, seatClass, reason,
-             seatPosition, notes, distanceKm, blockMinutes, delayMinutes, status
+             seatPosition, notes, distanceKm, blockMinutes, delayMinutes, status, arrivalDelayMinutes, departureDelayMinutes
 
         /// Header names this field answers to, after `normalized` (lower case letters and digits only).
         var names: [String] {
@@ -225,6 +238,8 @@ public enum PastFlightImport {
             case .blockMinutes: ["blockminutes"]
             case .delayMinutes: ["delayminutes"]
             case .status: ["status"]
+            case .arrivalDelayMinutes: ["arrivaldelayminutes"]
+            case .departureDelayMinutes: ["departuredelayminutes"]
             }
         }
     }

@@ -48,6 +48,39 @@ import Testing
         #expect(again.duplicates.map(\.reason) == [.alreadyInHistory, .alreadyInHistory])
     }
 
+    @Test func signedDelaysRoundTrip() throws {
+        let flights = [
+            PastFlight(date: Self.iso("2025-03-14T06:05:00Z"), ident: "AF84", originIcao: "LFPG", destinationIcao: "KSFO",
+                       distanceKm: 8_954, arrivalDelayMinutes: -17, departureDelayMinutes: 12),
+            PastFlight(date: Self.iso("2025-04-02T09:00:00Z"), ident: "AF10", originIcao: "KJFK", destinationIcao: "EGLL",
+                       distanceKm: 5_540, arrivalDelayMinutes: 0, departureDelayMinutes: nil),
+            PastFlight(date: Self.iso("2025-05-02T09:00:00Z"), ident: "AF11", originIcao: "KJFK", destinationIcao: "KLAX",
+                       distanceKm: 3_970),
+        ]
+        let csv = String(decoding: PastFlight.csv(flights), as: UTF8.self)
+        let p = try Self.preview(csv)
+        #expect(p.format == .somaFlight)
+        #expect(p.rows.map(\.flight.arrivalDelayMinutes) == [-17, 0, nil])
+        #expect(p.rows.map(\.flight.departureDelayMinutes) == [12, nil, nil])
+        #expect(p.rows.allSatisfy { $0.warnings.isEmpty })
+
+        // An older export (no delay columns) still reads as ours, with the fields unset.
+        let old = """
+        \(PastFlight.legacyCsvHeader)
+        2025-03-14T06:05:00Z,AF84,LFPG,KSFO,,,,,8954,,25,completed
+        """
+        let q = try Self.preview(old)
+        #expect(q.format == .somaFlight)
+        #expect(q.rows.first?.flight.arrivalDelayMinutes == nil && q.rows.first?.flight.departureDelayMinutes == nil)
+
+        // Out of range is left out with a warning.
+        let wild = "\(PastFlight.csvHeader)\n2025-03-14T06:05:00Z,AF84,LFPG,KSFO,,,,,8954,,0,completed,99999,-3"
+        let r = try Self.preview(wild)
+        #expect(r.rows.first?.flight.arrivalDelayMinutes == nil)
+        #expect(r.rows.first?.flight.departureDelayMinutes == -3)
+        #expect(r.rows.first?.warnings.count == 1)
+    }
+
     // MARK: Generic files
 
     @Test func looseHeadersAndIATACodes() throws {

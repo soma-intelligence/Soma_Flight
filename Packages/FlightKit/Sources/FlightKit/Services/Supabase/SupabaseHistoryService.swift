@@ -11,6 +11,7 @@ public final class SupabaseHistoryService: HistoryService {
     /// True once migration 20261031000041 (signed arrival and departure delays) is on the server the app
     /// talks to. Off, the two columns are neither read nor written, so a project without them keeps
     /// working; the Delay Report then reads arrival delays from `delay_minutes` and has no departures.
+    /// Flip to true once migration 20261031000041 is applied in the cloud (the owner decides when).
     static let delayColumns = false
 
     static let columns = "id, date, ident, origin_icao, destination_icao, airline, aircraft_type, registration, seat, "
