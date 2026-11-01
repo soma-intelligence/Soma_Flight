@@ -158,6 +158,13 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   serving this folder, since the edge runtime cannot read the repo), else the repo copy. Kind `logo` is the
   symbol when there is one, else the wordmark; kind `wordmark` (provider only, not yet a sync kind) is the
   wordmark for wide slots. No dark variant, no tail, no brand colours.
+- In the app (2026-10-31): the whole library ships in FlightKit as `Resources/Logos/commons-wordmark-<ICAO>.webp`
+  (109) and `commons-symbol-<ICAO>.webp` (37), the 192 px PNGs above converted to lossless WebP (pixels
+  unchanged, about 0.4 MB), plus `commons-logos.json`; built by `python3 -I Scripts/logos/bundle_logos.py`,
+  which refuses to write when a file and the credits in `airline-logos.json` disagree. 192 px is about 3x the
+  largest square the app draws a mark in (48 pt). `BundledLogos` wraps the backend service: the backend
+  answers first, and when it has no mark or cannot answer (offline) the bundled one answers `.logo` (symbol,
+  else wordmark) and `.wordmark`. The trademark note below applies to the bundled copy too.
 - Trademark: a copyright licence (or public domain status) does not grant trademark rights. Airline names and
   logos remain the airlines' trademarks, and 104 of the files carry the Commons "trademarked" notice. The Airhex
   licence replaces this library once signed; until then the legal note of the v1.1 spec (section 4) applies.

@@ -101,7 +101,7 @@ public struct AppEnvironment: Sendable {
         var env = AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
                                  history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
                                  cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
-                                 brand: BundledSideViews(over: FakeBrandAssetService.bundled()), insights: FakeInsightsService(flights: flights),
+                                 brand: BundledSideViews(over: BundledLogos(over: FakeBrandAssetService.bundled())), insights: FakeInsightsService(flights: flights),
                                  security: FakeSecurityWaitService(now: now),
                                  faa: FakeFAAService(now: now),
                                  passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
@@ -145,7 +145,7 @@ public struct AppEnvironment: Sendable {
                               push: push, cache: cache, directory: directory,
                               recents: recents, requiresSignIn: true,
                               aircraftFacts: SupabaseAircraftFactsService(backend: backend),
-                              brand: BundledSideViews(over: SupabaseBrandAssetService(backend: backend)),
+                              brand: BundledSideViews(over: BundledLogos(over: SupabaseBrandAssetService(backend: backend))),
                               insights: insights ? SupabaseInsightsService(backend: backend) : UnavailableInsightsService(),
                               notificationPreferences: SupabaseNotificationPreferencesService(backend: backend),
                               security: SupabaseSecurityWaitService(backend: backend),

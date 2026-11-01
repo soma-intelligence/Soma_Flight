@@ -120,8 +120,8 @@ public struct FakeBrandAssetService: BrandAssetService {
 
     /// The airlines whose marks ship with the package for the fakes (Resources/Fakes/Logos): the fake
     /// history's and boards' airlines, plus three wide or tall shapes. Copied from assets/logos/commons
-    /// (all public domain except the KLM crown, CC BY-SA 3.0, credited in Acknowledgements); the full
-    /// library never ships in the app.
+    /// (all public domain except the KLM crown, CC BY-SA 3.0, credited in Acknowledgements). The full
+    /// library ships too, behind `BundledLogos`, which answers when this set has no mark.
     public static let bundledAirlines = ["AAL", "ACA", "AFR", "AMX", "ASA", "BAW", "DAL", "FFT", "JBU", "NKS",
                                          "SWA", "UAL", "DLH", "KLM", "UAE"]
 
