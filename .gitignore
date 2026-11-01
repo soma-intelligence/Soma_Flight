@@ -6,3 +6,8 @@ core/target/
 xcuserdata/
 .build/
 Config.local.xcconfig
+
+# Generated aircraft art workspace (6.5 GB of model output); the shipped side views live in the app bundle.
+aircraft-art/
+# Agent worktrees.
+.claude/worktrees/

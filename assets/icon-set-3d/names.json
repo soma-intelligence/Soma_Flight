@@ -1,0 +1,37 @@
+[
+  {
+    "slug": "ember",
+    "name": "Ember",
+    "tagline": "Our porcelain jet, banking through the coral."
+  },
+  {
+    "slug": "redeye",
+    "name": "Red Eye",
+    "tagline": "Wingtips lit for the overnight crossing."
+  },
+  {
+    "slug": "sweep",
+    "name": "Sweep",
+    "tagline": "Every ring a mile, every blip a story."
+  },
+  {
+    "slug": "lastcall",
+    "name": "Last Call",
+    "tagline": "The board flips, the gate closes, you're on."
+  },
+  {
+    "slug": "spectrum",
+    "name": "Spectrum",
+    "tagline": "Fly proud and leave a rainbow behind."
+  },
+  {
+    "slug": "mach",
+    "name": "Mach Two",
+    "tagline": "Afterburners on, breakfast in another time zone."
+  },
+  {
+    "slug": "nightside",
+    "name": "Night Side",
+    "tagline": "Cities glowing below at cruising altitude."
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "slug": "orbit-chrome",
+    "name": "Chrome",
+    "tagline": "Polished metal on charcoal. Nothing else to say."
+  },
+  {
+    "slug": "ember",
+    "name": "Ember",
+    "tagline": "Chrome wings over a warm coral glow."
+  },
+  {
+    "slug": "redeye",
+    "name": "Red Eye",
+    "tagline": "Red to port, green to starboard, wheels up at midnight."
+  },
+  {
+    "slug": "sweep",
+    "name": "Sweep",
+    "tagline": "One coral sweep, every blip a flight."
+  },
+  {
+    "slug": "lastcall",
+    "name": "Last Call",
+    "tagline": "The board flips, the gate closes, you're on."
+  },
+  {
+    "slug": "spectrum",
+    "name": "Spectrum",
+    "tagline": "Fly proud and leave a rainbow behind."
+  },
+  {
+    "slug": "mach",
+    "name": "Mach Two",
+    "tagline": "Afterburners on, breakfast in another time zone."
+  },
+  {
+    "slug": "nightside",
+    "name": "Night Side",
+    "tagline": "Cities glowing below at cruising altitude."
+  }
+]
