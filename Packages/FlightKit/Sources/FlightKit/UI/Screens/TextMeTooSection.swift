@@ -14,18 +14,14 @@ struct TextMeTooSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            CapsHeader("Text Me Too")
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 34)
-                .scaledPadding(.bottom, 8)
-            Hairline().scaledPadding(.horizontal, 16)
-            switch store.step {
-            case .unavailable: unavailable
-            case .number: numberStep
-            case .code: codeStep
-            case .verified: verifiedStep
+            SettingsSection("Text Me Too") {
+                switch store.step {
+                case .unavailable: unavailable
+                case .number: numberStep
+                case .code: codeStep
+                case .verified: verifiedStep
+                }
             }
-            Hairline().scaledPadding(.horizontal, 16)
             if let error = store.error {
                 Text(error.message)
                     .scaledFont(13)
@@ -130,7 +126,7 @@ struct TextMeTooSection: View {
                     .labelsHidden().tint(Theme.accent).disabled(store.isWorking)
             }
             .accessibilityElement(children: .combine)
-            SettingsRow(icon: "trash", title: "Forget My Number", tint: Theme.veryLate, last: true,
+            SettingsRow(icon: "trash", title: "Forget My Number", tone: .destructive, last: true,
                         action: { Task { await store.forget() } }) { EmptyView() }
         }
     }

@@ -100,7 +100,7 @@ public struct TravelDocumentsView: View {
                         copyButton(n.number, label: "Copy \(n.number)") { Clipboard.copy(n.number, sensitive: false) }
                     }
                 }
-                SettingsRow(icon: "plus.circle.fill", title: "Add Loyalty Number", tint: Theme.accent, last: true,
+                SettingsRow(icon: "plus.circle.fill", title: "Add Loyalty Number", last: true,
                             action: { editing = .loyalty(nil) }) { EmptyView() }
             }
             group("Passport and Trusted Traveler") {
@@ -144,7 +144,7 @@ public struct TravelDocumentsView: View {
             }
             if !store.profile.isEmpty || !store.identityKinds.isEmpty {
                 group("Remove") {
-                    SettingsRow(icon: "trash.fill", title: "Delete All Travel Documents", tint: Theme.veryLate, last: true,
+                    SettingsRow(icon: "trash.fill", title: "Delete All Travel Documents", tone: .destructive, last: true,
                                 action: { confirmingDelete = true }) { EmptyView() }
                 }
             }
@@ -201,15 +201,7 @@ public struct TravelDocumentsView: View {
     }
 
     private func group<C: View>(_ title: String, @ViewBuilder _ rows: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CapsHeader(title)
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 34)
-                .scaledPadding(.bottom, 8)
-            Hairline().scaledPadding(.horizontal, 16)
-            rows()
-            Hairline().scaledPadding(.horizontal, 16)
-        }
+        SettingsSection(title) { rows() }
     }
 }
 

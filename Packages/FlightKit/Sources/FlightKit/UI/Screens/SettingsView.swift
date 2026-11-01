@@ -21,6 +21,8 @@ public struct SettingsView: View {
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
     var onClose: (() -> Void)?
+    /// The App Icon picker's model; the phone builds its own on the system setting, snapshots pass a fake.
+    var iconModel: AppIconModel?
 
     #if os(macOS)
     static let defaultDataNote = true
@@ -35,10 +37,9 @@ public struct SettingsView: View {
     @State private var showingNotifications = false
     @State private var showingCalendar = false
     @State private var showingDocuments = false
-    @State private var showingAppIcon = false
     #if os(iOS)
-    /// The app icon in use, held here so the row's subtitle follows a change made on the App Icon page.
-    @State private var appIcon = AppIconModel(setter: SystemAppIconSetting())
+    /// The app icon in use on the phone.
+    @State private var systemIcon = AppIconModel(setter: SystemAppIconSetting())
     #endif
     /// The travel documents vault; nil hides its row.
     @Environment(\.travelDocuments) private var documents
@@ -81,11 +82,21 @@ public struct SettingsView: View {
          history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
          notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, friends: FriendsStore? = nil,
          profile: ProfileStore? = nil,
-         scrolls: Bool, dataNote: Bool = SettingsView.defaultDataNote, onClose: (() -> Void)? = nil) {
+         scrolls: Bool, dataNote: Bool = SettingsView.defaultDataNote, onClose: (() -> Void)? = nil,
+         iconModel: AppIconModel? = nil) {
         self.session = session; self._units = units; self.onSignIn = onSignIn; self.history = history
         self.friends = friends; self.profile = profile
         self.onDeleteAccount = onDeleteAccount; self.notifications = notifications; self.calendar = calendar
-        self.scrolls = scrolls; self.dataNote = dataNote; self.onClose = onClose
+        self.scrolls = scrolls; self.dataNote = dataNote; self.onClose = onClose; self.iconModel = iconModel
+    }
+
+    /// The App Icon picker's model: the one passed in, else the phone's own; nil (the Mac) hides the picker.
+    private var appIcon: AppIconModel? {
+        #if os(iOS)
+        iconModel ?? systemIcon
+        #else
+        iconModel
+        #endif
     }
 
     static let privacyURL = URL(string: "https://somalabs.me/legal/soma-flight-privacy")!
@@ -121,20 +132,19 @@ public struct SettingsView: View {
 
     #if os(iOS)
     /// A page of Settings opened over the list.
-    enum Page: Hashable { case notifications, calendar, documents, appIcon, acknowledgements }
+    enum Page: Hashable { case notifications, calendar, documents, acknowledgements }
 
     /// The page on show, as a card stack's path (one page at most).
     var openPages: [Page] {
         if showingNotifications { [.notifications] }
         else if showingCalendar { [.calendar] }
         else if showingDocuments { [.documents] }
-        else if showingAppIcon { [.appIcon] }
         else if showingAcknowledgements { [.acknowledgements] }
         else { [] }
     }
 
     private func closePage() {
-        showingNotifications = false; showingCalendar = false; showingDocuments = false; showingAppIcon = false
+        showingNotifications = false; showingCalendar = false; showingDocuments = false
         showingAcknowledgements = false
     }
 
@@ -143,7 +153,6 @@ public struct SettingsView: View {
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
         case .documents: if let documents { TravelDocumentsView(store: documents) }
-        case .appIcon: AppIconView(model: appIcon)
         case .acknowledgements: AcknowledgementsView()
         }
     }
@@ -156,35 +165,31 @@ public struct SettingsView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.bottom, 12)
             }
-            AccountRow(session: session.session, profile: profile, onSignIn: onSignIn)
-            Hairline()
-            if profile?.owner == nil, let friends {
-                group("Profile") { ProfileRows(store: friends) }
-            }
+            SettingsHero(session: session.session, profile: profile, onSignIn: onSignIn)
 
-            group("Units") {
-                SettingsRow(icon: "ruler", title: "Distance") {
+            if let appIcon {
+                SettingsSection("App Icon") {
+                    AppIconPicker(model: appIcon, scrolls: scrolls)
+                }
+            }
+            if profile?.owner == nil, let friends {
+                SettingsSection("Profile", footer: "Only friends see your name and emoji.") { ProfileRows(store: friends) }
+            }
+            SettingsSection("Units") {
+                SettingsRow(icon: "ruler.fill", title: "Distance") {
                     PillPicker(options: [(DistanceUnit.km, "Kilometers"), (.mi, "Miles")], selection: $units.distance)
                 }
                 SettingsRow(icon: "clock.fill", title: "Time", last: true) {
                     PillPicker(options: [(TimeStyle.h24, "24-Hour"), (.h12, "12-Hour")], selection: $units.clock)
                 }
             }
-            #if os(iOS)
-            group("Appearance") {
-                SettingsRow(icon: "app.badge.fill", title: "App Icon", subtitle: appIcon.current.name,
-                            last: true, action: { showingAppIcon = true }) { RowChevron() }
-            }
-            #endif
-            group("Alerts") {
+            SettingsSection("Alerts and Travel") {
                 SettingsRow(icon: "bell.badge.fill", title: "Notifications",
                             subtitle: notifications == nil ? "Gate changes, delays, take-off and landing"
                                 : "Delays, gates, take-off and landing, bags, reminders",
-                            last: true, action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
+                            action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
                     RowChevron()
                 }
-            }
-            group("Travel") {
                 if calendar != nil {
                     SettingsRow(icon: "calendar", title: "Calendar", subtitle: "Put followed flights in your calendar",
                                 action: { showingCalendar = true }) { RowChevron() }
@@ -194,29 +199,24 @@ public struct SettingsView: View {
                                 subtitle: "Loyalty, passport and trusted traveler numbers, on this device only",
                                 action: { showingDocuments = true }) { RowChevron() }
                 }
-                SettingsRow(icon: "person.badge.shield.checkmark", title: "I Have TSA PreCheck",
+                SettingsRow(icon: "checkmark.shield.fill", title: "I Have TSA PreCheck",
                             subtitle: "Leave times count the PreCheck lane", last: true) {
                     Toggle("I Have TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
                 }
                 .accessibilityElement(children: .combine)
             }
-            group("Privacy") {
-                SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", action: { openURL(Self.privacyURL) }) { RowChevron() }
-                SettingsRow(icon: "lock.shield.fill", title: "What We Keep",
-                            subtitle: "Your email, name and photo, the flights you follow and your flight history", last: true) { EmptyView() }
-            }
             if let history {
-                group("Your Data") {
+                SettingsSection("Your Data", footer: "Exports are built on this device.") {
                     ExportRow(icon: "curlybraces", title: "Export History as JSON", format: .json, history: history)
                     ExportRow(icon: "tablecells.fill", title: "Export History as CSV", format: .csv, history: history, last: true)
                 }
             }
             if session.session != nil {
-                group("Account") {
-                    SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out",
+                SettingsSection("Account") {
+                    SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign Out", tone: .neutral,
                                 last: onDeleteAccount == nil, action: { confirming = .signOut }) { EmptyView() }
                     if onDeleteAccount != nil, session.session != nil {
-                        SettingsRow(icon: "trash.fill", title: "Delete Account", tint: Theme.veryLate, last: true,
+                        SettingsRow(icon: "trash.fill", title: "Delete Account", tone: .destructive, last: true,
                                     action: deleting ? nil : { confirming = .deleteAccount }) {
                             if deleting {
                                 ProgressView().controlSize(.small)
@@ -227,17 +227,20 @@ public struct SettingsView: View {
                     }
                 }
             }
-            group("About") {
-                SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", action: { openURL(Self.supportURL) }) {
-                    RowChevron()
-                }
-                SettingsRow(icon: "doc.text.fill", title: "Acknowledgements", action: { showingAcknowledgements = true }) {
-                    RowChevron()
-                }
-                SettingsRow(icon: "info.circle.fill", title: "Soma Flight", last: true) {
-                    Text(Self.version).scaledFont(17).foregroundStyle(Theme.secondary)
-                }
+            SettingsSection("Privacy and Support",
+                            footer: "We keep your email, name and photo, the flights you follow and your flight history.") {
+                SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", tone: .neutral,
+                            action: { openURL(Self.privacyURL) }) { RowLink() }
+                SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", tone: .neutral,
+                            action: { openURL(Self.supportURL) }) { RowLink() }
+                SettingsRow(icon: "doc.text.fill", title: "Acknowledgements", tone: .neutral, last: true,
+                            action: { showingAcknowledgements = true }) { RowChevron() }
             }
+            Text("Soma Flight \(Self.version)")
+                .scaledFont(12)
+                .foregroundStyle(Theme.secondary.opacity(0.8))
+                .frame(maxWidth: .infinity)
+                .scaledPadding(.top, 26)
             if dataNote {
                 MinimalDataNote()
                     .scaledPadding(.horizontal, 16)
@@ -314,18 +317,6 @@ public struct SettingsView: View {
         return b.map { "\(v) (\($0))" } ?? v
     }
 
-    private func group<C: View>(_ title: String, @ViewBuilder _ rows: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CapsHeader(title)
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 34)
-                .scaledPadding(.bottom, 8)
-            Hairline().scaledPadding(.horizontal, 16)
-            rows()
-            Hairline().scaledPadding(.horizontal, 16)
-        }
-    }
-
     private func openNotificationSettings() {
         #if os(iOS)
         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
@@ -337,50 +328,139 @@ public struct SettingsView: View {
 
 // MARK: - Rows
 
-/// Who is signed in: with a profile, the photo and name over the account's email, tapping through to the
-/// editor; without one, the email alone; signed out, the Sign In button.
-struct AccountRow: View {
+/// Who is signed in, as the head of Settings: a large photo, the name and the account's email, centred, with
+/// Edit Profile under them (the profile editor); without a profile, the email alone; signed out, Sign In.
+struct SettingsHero: View {
     var session: UserSession?
     var profile: ProfileStore?
     var onSignIn: (() -> Void)?
+    @State private var editing = false
 
     var body: some View {
-        if let session, let profile, profile.owner != nil {
-            ProfileSummaryRow(store: profile, detail: Self.detail(session))
-                .scaledPadding(.vertical, 6)
-        } else {
-            HStack(spacing: 14) {
-                UserAvatar(photo: nil, name: nil, id: session?.userId, size: 48)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(session == nil ? "Not signed in" : session?.email ?? "Signed in")
-                        .scaledFont(17, weight: .semibold)
-                        .foregroundStyle(Theme.primary)
-                        .lineLimit(1)
-                    Text(session.map { $0.email == nil ? "Signed in with Apple" : "Signed in" }
-                         ?? "Sign in to keep your flights on every device")
-                        .scaledFont(13)
-                        .foregroundStyle(Theme.secondary)
-                        .lineLimit(2)
+        let editable = session != nil && profile?.owner != nil
+        let name = editable ? (profile?.displayName ?? "") : ""
+        VStack(spacing: 0) {
+            UserAvatar(photo: editable ? profile?.photo : nil, name: name.isEmpty ? nil : name,
+                       id: profile?.owner ?? session?.userId, size: 84)
+                .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
+            Text(title(name))
+                .scaledFont(22, weight: .bold)
+                .foregroundStyle(Theme.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .scaledPadding(.top, 12)
+            Text(detail)
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .scaledPadding(.top, 3)
+            if editable {
+                Button { editing = true } label: {
+                    Text(name.isEmpty ? "Add Name and Photo" : "Edit Profile")
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(Theme.accent)
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.vertical, 8)
+                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
+                        .contentShape(Capsule())
                 }
-                Spacer(minLength: 0)
-                if session == nil, let onSignIn {
-                    Button("Sign In", action: onSignIn)
+                .buttonStyle(.plain)
+                .scaledPadding(.top, 14)
+                .accessibilityHint("Edit your name and photo")
+            } else if session == nil, let onSignIn {
+                Button(action: onSignIn) {
+                    Text("Sign In")
                         .scaledFont(15, weight: .semibold)
                         .foregroundStyle(.white)
-                        .scaledPadding(.horizontal, 14)
-                        .scaledPadding(.vertical, 8)
+                        .scaledPadding(.horizontal, 22)
+                        .scaledPadding(.vertical, 9)
                         .background(Capsule().fill(Theme.accent))
-                        .buttonStyle(.plain)
+                        .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
+                .scaledPadding(.top, 14)
             }
-            .scaledPadding(.horizontal, 16)
-            .scaledPadding(.vertical, 18)
-            .accessibilityElement(children: .combine)
         }
+        .frame(maxWidth: .infinity)
+        .scaledPadding(.horizontal, 24)
+        .scaledPadding(.top, 4)
+        .scaledPadding(.bottom, 6)
+        .accessibilityElement(children: .contain)
+        .sheet(isPresented: $editing) {
+            if let profile {
+                ProfileOnboardingView(store: profile, mode: .edit) { editing = false }
+                    .presentationBackground(Theme.background)
+                    #if os(macOS)
+                    .frame(minWidth: 420, minHeight: 560)
+                    #endif
+            }
+        }
+    }
+
+    private func title(_ name: String) -> String {
+        guard let session else { return "Not Signed In" }
+        if !name.isEmpty { return name }
+        return session.email ?? "Signed In"
+    }
+
+    private var detail: String {
+        guard let session else { return "Sign in to keep your flights on every device." }
+        if profile?.owner != nil, !(profile?.displayName ?? "").isEmpty { return Self.detail(session) }
+        return session.email == nil ? "Signed in with Apple" : "Signed in"
     }
 
     /// The line under the name: the account's email, or how it signed in when Apple hid the email.
     static func detail(_ session: UserSession) -> String { session.email ?? "Signed in with Apple" }
+}
+
+/// A titled group of rows on a rounded card, inset from the screen's edges, with an optional grey note under it
+/// (the inset grouped look of the system's own settings).
+struct SettingsSection<Content: View>: View {
+    var title: String?
+    var footer: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title; self.footer = footer; self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let title {
+                Text(title.uppercased())
+                    .scaledFont(13)
+                    .tracking(0.2)
+                    .foregroundStyle(Theme.secondary)
+                    .scaledPadding(.horizontal, 32)
+                    .scaledPadding(.bottom, 7)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            VStack(spacing: 0) { content }
+                .background(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous).fill(Theme.card))
+                .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
+                .scaledPadding(.horizontal, 16)
+            if let footer {
+                Text(footer)
+                    .scaledFont(13)
+                    .foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .scaledPadding(.horizontal, 32)
+                    .scaledPadding(.top, 7)
+            }
+        }
+        .scaledPadding(.top, 28)
+    }
+}
+
+/// Settings' shared measures and its icon palette: one blue for what the app does, one graphite for the
+/// account, privacy and support links, red only for deleting.
+enum SettingsStyle {
+    static let radius: CGFloat = 12
+    static let iconSide: CGFloat = 30
+    /// Where a row's text starts, so the separators between rows start there too.
+    static let textInset: CGFloat = 16 + iconSide + 14
+    static let graphite = Color(light: 0x8E8E93, dark: 0x636366)
 }
 
 /// A history export row: opens the share sheet with `soma-flight-history-YYYY-MM-DD.<ext>`, built on
@@ -430,36 +510,53 @@ struct MinimalDataNote: View {
     }
 }
 
-/// Icon, title (and optional grey line), trailing accessory; a hairline under it from the title.
+/// One row of a Settings card: a white glyph in a tinted rounded square, the title (and an optional grey
+/// line), the trailing accessory; a separator under it from the title on, except on the last row.
 struct SettingsRow<Accessory: View>: View {
+    /// The square's colour: blue for the app's features, graphite for account and support, red for deleting.
+    enum Tone { case feature, neutral, destructive }
+
     var icon: String
     var title: String
     var subtitle: String?
-    var tint: Color = Theme.primary
+    var tone: Tone = .feature
     var last = false
     var action: (() -> Void)?
     @ViewBuilder var accessory: Accessory
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
         VStack(spacing: 0) {
             if let action {
-                Button(action: action) { row.contentShape(Rectangle()) }.buttonStyle(.plain)
+                Button(action: action) { row.contentShape(Rectangle()) }.buttonStyle(SettingsRowStyle())
             } else {
                 row
             }
-            if !last { Hairline().scaledPadding(.leading, 60).scaledPadding(.trailing, 16) }
+            if !last {
+                Rectangle().fill(Theme.separator).frame(height: 0.5)
+                    .padding(.leading, Theme.metric(SettingsStyle.textInset, scale))
+            }
+        }
+    }
+
+    private var fill: Color {
+        switch tone {
+        case .feature: Theme.accent
+        case .neutral: SettingsStyle.graphite
+        case .destructive: Theme.veryLate
         }
     }
 
     private var row: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             Image(systemName: icon)
-                .scaledFont(18, weight: .medium)
-                .foregroundStyle(tint)
-                .frame(width: 28)
+                .scaledFont(15, weight: .semibold)
+                .foregroundStyle(.white)
+                .frame(width: Theme.metric(SettingsStyle.iconSide, scale), height: Theme.metric(SettingsStyle.iconSide, scale))
+                .background(RoundedRectangle(cornerRadius: Theme.metric(7.5, scale), style: .continuous).fill(fill))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).scaledFont(17).foregroundStyle(tint)
+                Text(title).scaledFont(17).foregroundStyle(tone == .destructive ? Theme.veryLate : Theme.primary)
                 if let subtitle {
                     Text(subtitle).scaledFont(13).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 }
@@ -467,10 +564,27 @@ struct SettingsRow<Accessory: View>: View {
             Spacer(minLength: 8)
             accessory
         }
-        .scaledPadding(.leading, 16)
-        .scaledPadding(.trailing, 16)
-        .frame(minHeight: 60)
-        .padding(.vertical, subtitle == nil ? 0 : 6)
+        .scaledPadding(.horizontal, 16)
+        .frame(minHeight: subtitle == nil ? 52 : 60)
+        .padding(.vertical, subtitle == nil ? 0 : 8)
+    }
+}
+
+/// A row pressed: the card darkens under the finger, as the system's lists do.
+private struct SettingsRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Theme.primary.opacity(0.08) : .clear)
+    }
+}
+
+/// The arrow at the end of a row that leaves the app for a web page.
+struct RowLink: View {
+    var body: some View {
+        Image(systemName: "arrow.up.right")
+            .scaledFont(13, weight: .semibold)
+            .foregroundStyle(Theme.secondary.opacity(0.7))
+            .accessibilityHidden(true)
     }
 }
 

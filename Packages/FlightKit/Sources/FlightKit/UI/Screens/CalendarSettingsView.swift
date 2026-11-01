@@ -83,7 +83,7 @@ public struct CalendarSettingsView: View {
             if sync.access == .denied || sync.access == .writeOnly {
                 group("Access") {
                     SettingsRow(icon: "exclamationmark.triangle.fill", title: Self.deniedTitle, subtitle: Self.deniedText,
-                                tint: Theme.late, last: true, action: openSystemSettings) { RowChevron() }
+                                tone: .neutral, last: true, action: openSystemSettings) { RowChevron() }
                 }
             }
             if sync.isEnabled, sync.access == .full {
@@ -144,15 +144,7 @@ public struct CalendarSettingsView: View {
     }
 
     private func group<C: View>(_ title: String, @ViewBuilder _ rows: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CapsHeader(title)
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 34)
-                .scaledPadding(.bottom, 8)
-            Hairline().scaledPadding(.horizontal, 16)
-            rows()
-            Hairline().scaledPadding(.horizontal, 16)
-        }
+        SettingsSection(title) { rows() }
     }
 
     private func openSystemSettings() {
@@ -175,11 +167,11 @@ struct CalendarChoiceRow: View {
     var body: some View {
         VStack(spacing: 0) {
             Button(action: action) {
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
                     Circle()
                         .fill(Color(.sRGB, red: calendar.red, green: calendar.green, blue: calendar.blue))
                         .frame(width: 14, height: 14)
-                        .frame(width: 28)
+                        .frame(width: SettingsStyle.iconSide)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(calendar.title).scaledFont(17).foregroundStyle(Theme.primary)
@@ -204,7 +196,7 @@ struct CalendarChoiceRow: View {
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(selected ? .isSelected : [])
-            if !last { Hairline().scaledPadding(.leading, 60).scaledPadding(.trailing, 16) }
+            if !last { Rectangle().fill(Theme.separator).frame(height: 0.5).padding(.leading, SettingsStyle.textInset) }
         }
     }
 }

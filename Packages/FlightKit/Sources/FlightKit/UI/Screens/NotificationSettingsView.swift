@@ -68,27 +68,19 @@ public struct NotificationSettingsView: View {
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 8)
-            VStack(alignment: .leading, spacing: 0) {
-                Hairline().scaledPadding(.horizontal, 16)
+                .scaledPadding(.horizontal, 32)
+                .scaledPadding(.top, 7)
+            SettingsSection {
                 SettingsRow(icon: "gearshape.fill", title: "System Notification Settings",
-                            subtitle: "Allow notifications, sounds and the Lock Screen", last: true,
+                            subtitle: "Allow notifications, sounds and the Lock Screen", tone: .neutral, last: true,
                             action: openSystemSettings) { RowChevron() }
-                Hairline().scaledPadding(.horizontal, 16)
             }
-            .scaledPadding(.top, 34)
         }
         .scaledPadding(.bottom, 32)
     }
 
     private func group(_ title: String, _ categories: [NotificationPreferences.Category]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            CapsHeader(title)
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 34)
-                .scaledPadding(.bottom, 8)
-            Hairline().scaledPadding(.horizontal, 16)
+        SettingsSection(title) {
             ForEach(categories) { c in
                 SettingsRow(icon: c.icon, title: c.title, subtitle: c.detail, last: c == categories.last) {
                     Toggle(c.title, isOn: Binding(get: { store.preferences[c] },
@@ -99,7 +91,6 @@ public struct NotificationSettingsView: View {
                 }
                 .accessibilityElement(children: .combine)
             }
-            Hairline().scaledPadding(.horizontal, 16)
         }
     }
 
