@@ -11,7 +11,7 @@ struct EmptyStateIllustration: View {
         case stamp
         /// The jet seen three-quarters from the front, climbing (My Flights).
         case climb
-        /// Two of the same jets climbing together, one ahead and one behind (Friends).
+        /// Two private jets of different types climbing together, a large one ahead and a light one behind (Friends).
         case pair
 
         var asset: String {

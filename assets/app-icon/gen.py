@@ -32,6 +32,43 @@ JET = (
 ICON = ("This is for an app icon, so the silhouette must stay bold and readable when tiny: a compact, chunky, "
         "confident aircraft, slightly shorter wings than real, thick fuselage. The whole aircraft fits in the frame "
         "with generous equal margins, centred. ")
+STYLE = (
+    "The reference image only shows the rendering style to copy: glossy pure white paint with soft silver shading, "
+    "a realistic but slightly stylised premium product illustration, like an Apple product render, clean studio "
+    "lighting from the upper left, smooth gloss, crisp edges, very few panel lines, dark cockpit glass. Do NOT copy the "
+    "reference aircraft's type. Absolutely no livery, no stripes, no logo, no text, no registration, no flag on any "
+    "aircraft. Landing gear retracted, in flight. Rigid perfectly straight fuselages, correct perspective. Isolated on "
+    "a fully transparent background: no sky, no ground, no clouds, no shadow, no reflection, no contrails, no frame, "
+    "no watermark. "
+)
+# Friends, round 2: the owner wants two private jets of different types, each recognisably its own type,
+# never the Falcon trijet look twice. Options A-D for the owner to choose from.
+SAME_ANGLE = ("Both aircraft fully inside the frame with generous margins, not overlapping each other, each type "
+              "obvious at a glance from its shape and size. ")
+MIXED = {
+    "friends-a": SAME_ANGLE + "Draw TWO clearly different private business jets flying together, both in "
+        "three-quarter front view climbing gently to the upper RIGHT. In front, higher and nearer: a large "
+        "ultra-long-range jet like a Gulfstream G650, long fuselage with big oval windows, T-tail, two large engines "
+        "on the rear fuselage, long swept wings with tall winglets. Behind, lower and smaller: a light jet like an "
+        "Embraer Phenom 300, short stubby fuselage, T-tail, two small engines on the rear fuselage, straight-ish "
+        "wings with small winglets.",
+    "friends-b": SAME_ANGLE + "Draw TWO clearly different private business jets flying together, both in "
+        "three-quarter front view climbing gently to the upper RIGHT. Behind, higher and farther, smaller: a "
+        "compact light jet like a Cessna Citation CJ4, slim short fuselage, T-tail, two small engines on the rear "
+        "fuselage. In front, lower and nearer, larger: a very large long-range jet like a Bombardier Global 7500, "
+        "very long fuselage, T-tail, two big engines on the rear fuselage, long wings with a gentle upturned tip.",
+    "friends-c": SAME_ANGLE + "Draw TWO clearly different private business jets flying side by side in loose "
+        "formation, both in three-quarter front view climbing gently to the upper RIGHT. Left and slightly behind: a "
+        "very light jet like a HondaJet, small fuselage, its two engines mounted on pylons ABOVE the wings, sharp "
+        "pointed nose. Right and slightly ahead, larger: a super-midsize jet like a Bombardier Challenger 350, "
+        "T-tail, two engines on the rear fuselage, swept wings with winglets.",
+    "friends-d": SAME_ANGLE + "Draw TWO clearly different private business jets crossing paths at different "
+        "heights, both in level flight seen from the side with a slight three-quarter angle: the upper one, a large "
+        "long-range jet like a Gulfstream G700 with T-tail and two rear engines, heading to the RIGHT; the lower one, "
+        "a light jet like an Embraer Phenom 300, smaller, heading to the LEFT, slightly offset so they pass like two "
+        "friends crossing paths in the sky.",
+}
+
 VIEWS = {
     # three-quarter climb like the My Flights empty state, more compact for a square tile
     "icon-climb": (ICON + "View: three-quarter front view, camera slightly below and about 35 degrees ahead of the "
@@ -69,9 +106,13 @@ def key():
 
 
 def run(view, tag, k):
-    text, size = VIEWS[view]
+    if view in MIXED:
+        prompt, size = STYLE + MIXED[view], "1536x1024"
+    else:
+        text, size = VIEWS[view]
+        prompt = JET + text
     b = uuid.uuid4().hex
-    fields = {"prompt": JET + text, "size": size, "quality": "high",
+    fields = {"prompt": prompt, "size": size, "quality": "high",
               "background": "transparent", "output_format": "png", "n": "1"}
     body = b"".join(f"--{b}\r\nContent-Disposition: form-data; name=\"{f}\"\r\n\r\n{v}\r\n".encode()
                     for f, v in fields.items())
