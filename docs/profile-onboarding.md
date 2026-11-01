@@ -22,7 +22,7 @@ A short screen right after the first sign-in: a photo, a first name and a last n
 
 1. **Push the migration** (needs your yes): `supabase db push` applies `20261031000030_profile_onboarding.sql` (renumber it if another 30 lands first). Then deploy `delete-account` (`supabase functions deploy delete-account`), which now removes the photo. Order: migration first, then the function.
 2. **Google sign-in** (optional, off today):
-   1. Google Cloud console: create an OAuth consent screen (app name Soma Flight, support email, privacy policy `https://somalabs.me/privacy`, scopes `openid`, `email`, `profile` only).
+   1. Google Cloud console: create an OAuth consent screen (app name Soma Flight, support email, privacy policy `https://somalabs.me/legal/soma-flight-privacy`, scopes `openid`, `email`, `profile` only).
    2. Create an OAuth client ID of type **Web application**. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
    3. Supabase dashboard > Authentication > Providers > Google: enable, paste the web client ID and secret.
    4. Supabase > Authentication > URL Configuration: add `somaflight://auth-callback` to the redirect allow list (already needed by the email link).

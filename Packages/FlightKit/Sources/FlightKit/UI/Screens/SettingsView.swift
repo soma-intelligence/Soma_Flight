@@ -88,7 +88,7 @@ public struct SettingsView: View {
         self.scrolls = scrolls; self.dataNote = dataNote; self.onClose = onClose
     }
 
-    static let privacyURL = URL(string: "https://somalabs.me/privacy")!
+    static let privacyURL = URL(string: "https://somalabs.me/legal/soma-flight-privacy")!
     static let supportURL = URL(string: "https://somalabs.me/support")!
 
     public var body: some View {
