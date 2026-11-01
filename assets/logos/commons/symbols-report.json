@@ -38,6 +38,19 @@
     "name": "Lufthansa",
     "symbol_named_in_category": []
   },
+  "FBZ": {
+    "candidates": [
+      {
+        "file": "Flybondi monogram logo.svg",
+        "source": "commons category (Flybondi)",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "Flybondi",
+    "symbol_named_in_category": [
+      "Flybondi monogram logo.svg"
+    ]
+  },
   "FIN": {
     "candidates": [
       {
@@ -56,12 +69,12 @@
       {
         "file": "ZIPAIR Tokyo Monogram with corporate colour.svg",
         "source": "commons category (Japan Airlines)",
-        "verdict": "reject: ZIPAIR, a different airline"
+        "verdict": "reject: same monogram on an opaque grey box"
       },
       {
         "file": "ZIPAIR Tokyo Monogram.svg",
         "source": "commons category (Japan Airlines)",
-        "verdict": "reject: ZIPAIR, a different airline"
+        "verdict": "shipped"
       }
     ],
     "name": "Japan Airlines",
@@ -138,6 +151,25 @@
     "symbol_named_in_category": [
       "TAROM Logo tail (blue).svg",
       "TAROM Logo tail.svg"
+    ]
+  },
+  "TZP": {
+    "candidates": [
+      {
+        "file": "ZIPAIR Tokyo Monogram with corporate colour.svg",
+        "source": "commons category (ZIPAIR Tokyo)",
+        "verdict": "reject: same monogram on an opaque grey box"
+      },
+      {
+        "file": "ZIPAIR Tokyo Monogram.svg",
+        "source": "commons category (ZIPAIR Tokyo)",
+        "verdict": "shipped"
+      }
+    ],
+    "name": "ZIPAIR Tokyo",
+    "symbol_named_in_category": [
+      "ZIPAIR Tokyo Monogram with corporate colour.svg",
+      "ZIPAIR Tokyo Monogram.svg"
     ]
   }
 }

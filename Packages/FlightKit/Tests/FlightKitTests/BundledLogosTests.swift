@@ -14,8 +14,8 @@ import Testing
 
     @MainActor @Test func everyBundledMarkDecodesAndIsCredited() async throws {
         let words = BundledLogos.wordmarks, symbols = BundledLogos.symbols
-        #expect(words.count == 109)
-        #expect(symbols.count == 37)
+        #expect(words.count == 196)
+        #expect(symbols.count == 63)
         #expect(symbols.isSubset(of: words))
         // What ships is exactly what Settings > Acknowledgements credits.
         let credits = AcknowledgementsView.logoCredits

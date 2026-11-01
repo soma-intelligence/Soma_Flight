@@ -1,8 +1,8 @@
 # Data sources
 
 Reference data that ships in the repo, where it comes from, under which licence, and when it was retrieved.
-No dataset here is share-alike. Three airline logo files are CC BY-SA (see Airline logos): the `OMA` and
-`ROT` wordmarks, shipped unchanged or only scaled and rasterized, and the `KLM` crown symbol, which we cropped
+No dataset here is share-alike. Six airline logo files are CC BY-SA (see Airline logos): the `OMA`, `ROT`,
+`SZN`, `VKG` and `VOE` wordmarks, shipped unchanged or only scaled and rasterized, and the `KLM` crown symbol, which we cropped
 (a tighter viewBox). The crop is an adaptation: it carries the same license (CC BY-SA 3.0), and Acknowledgements
 shows its author, a link to the license deed, its source and "Modified: cropped". The other cropped symbols
 all come from public domain files.
@@ -152,6 +152,15 @@ OurAirports (public domain) and Wikidata (CC0) instead, and write nothing derive
   the stored PNG is 192 px wide so the crop would be under 192 px (`CEB`, `KZR`, `OMA`, `RWD`), no symbol in the
   logo (`UAL`). Review sheet: `docs/logos/crops-review.png` (source logo, symbol at 64 and 24 pt, dark and
   light). About 0.4 MB. 37 airlines now have a symbol.
+- Expansion (2026-10-31): the airline list grew to 291 (the airlines that already had side views), and the same
+  pipeline ran again (staged by `aircraft-art/scripts/logos_stage.py`, which calls `fetch_commons.py` and
+  `crop_symbols.py` unchanged with their output in `aircraft-art/logos-new/`). 196 wordmarks (new CC BY-SA:
+  `SZN`, `VKG`, `VOE`, shipped unchanged), 63 symbols. Two more reviewed Commons symbols (`FBZ` Flybondi monogram,
+  `TZP` ZIPAIR monogram) and 24 more crops, each checked by eye: `AEA` `AKJ` `AMU` `ANA` `AWI` `AZU` `BBC` `CCM`
+  `CFG` `FAD` `FBU` `FFM` `FWI` `IAW` `IBS` `JAF` `NBT` `PDT` `RXI` `SNJ` `TAM` `TFL` `TKJ` `TUI`
+  (all public domain sources). `ICE`'s crop now keeps only the tail mark. The `AAL`, `KLM` and `TZP` symbol PNGs
+  had their transparent margin trimmed. 228 airlines still have no symbol-only mark on Commons
+  (`aircraft-art/logos-new/symbols-manifest.json`, `no_symbol`).
 - Size: about 2.3 MB for `assets/logos` with the crops.
 - Use: `LOGO_PROVIDER=commons` makes `brand-assets-sync` load this library into the private `brand-assets`
   bucket (`supabase/functions/_shared/brand/commons.ts`), from `COMMONS_LOGO_BASE` when set (an http URL

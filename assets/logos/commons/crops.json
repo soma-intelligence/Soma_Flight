@@ -124,7 +124,7 @@
       "keep": [
         "11"
       ],
-      "symbol": "the tail with the Icelandair wing"
+      "symbol": "the tail mark right of the name"
     },
     "KQA": {
       "source": "KQA.svg",
@@ -297,12 +297,278 @@
         "4"
       ],
       "symbol": "the three maple leaves"
+    },
+    "FBU": {
+      "source": "FBU.svg",
+      "source_sha256": "29ed3b77a1b8330ad35978b65d43289a7fd03db156a1b6e0ebc248ead7e25411",
+      "keep": [
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "NBT": {
+      "source": "NBT.svg",
+      "source_sha256": "8752fec360697ad36aa4021ab5716cd32038cceeb6290bb001f497289bc49ef6",
+      "keep": [
+        "0/0"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "CFG": {
+      "source": "CFG.svg",
+      "source_sha256": "62e1d118352625e8180d89edca93ebc4e9ac678344dd8aed71bbb4c9c83cb726",
+      "keep": [
+        "0/1"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "FWI": {
+      "source": "FWI.svg",
+      "source_sha256": "1cf0d36bec44c8f782023b6710e279e367d8671ada01adf6f3b7f46ebb2d59b4",
+      "keep": [
+        "8",
+        "9",
+        "11",
+        "14",
+        "16",
+        "17",
+        "19",
+        "20",
+        "22",
+        "23",
+        "25",
+        "26",
+        "28",
+        "29"
+      ],
+      "symbol": "the palm left of the name"
+    },
+    "AEA": {
+      "source": "AEA.svg",
+      "source_sha256": "0008b6d2ee6527cd83f6c06e35e4577bb5c17551c93dc759e7a2e5a39968812b",
+      "keep": [
+        "4/0/0/10"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "AKJ": {
+      "source": "AKJ.svg",
+      "source_sha256": "dc4c5462a49e55fdd7d36e8aa31317ffd8474ead036b3339a7e71572bf80b892",
+      "keep": [
+        "0/1",
+        "0/2"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "AMU": {
+      "source": "AMU.svg",
+      "source_sha256": "6022bf3ee191d449a482faf83bd41d8c89dedb14a07fb895fdf03a5662772a03",
+      "keep": [
+        "1/0/0",
+        "1/0/1",
+        "1/0/2"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "ANA": {
+      "source": "ANA.svg",
+      "source_sha256": "57c509c3da018db87e18416acfdb7ac71a13c77a55f67c7224a09c4c1353954b",
+      "keep": [
+        "2",
+        "3"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "AWI": {
+      "source": "AWI.svg",
+      "source_sha256": "a51ab569df95bb2d70e274913fb4d6ae2f358d74a43fe58e192d574f80f236b9",
+      "keep": [
+        "1/0/0",
+        "1/0/1",
+        "1/0/2",
+        "1/0/3",
+        "1/0/4"
+      ],
+      "symbol": "auto: the elements T of the widest gap, checked by eye 2026-10-31"
+    },
+    "AZU": {
+      "source": "AZU.svg",
+      "source_sha256": "4a30ef0c0e84c1c5d6e742869a0ddfe668d68f7caf74e7eb1e6e694aee4ea2fc",
+      "keep": [
+        "0/1",
+        "0/2",
+        "0/3",
+        "0/4",
+        "0/5",
+        "0/6",
+        "0/7",
+        "0/8",
+        "0/9",
+        "0/10",
+        "0/11",
+        "0/12",
+        "0/13",
+        "0/14",
+        "0/15",
+        "0/16",
+        "0/17",
+        "0/18",
+        "0/19",
+        "0/20",
+        "0/21",
+        "0/22",
+        "0/23",
+        "0/24",
+        "0/25",
+        "0/26",
+        "0/27",
+        "0/28",
+        "0/29",
+        "0/30",
+        "0/31"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "BBC": {
+      "source": "BBC.svg",
+      "source_sha256": "764cba4b02a16aef7a7c790eec306c457cd8694cb626791e556501aa09319107",
+      "keep": [
+        "2/0/0/0/0",
+        "2/0/0/1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "CCM": {
+      "source": "CCM.svg",
+      "source_sha256": "c6c48df454a28cb304fd3de08f018608237884d637236610fdb8f67451e63d92",
+      "keep": [
+        "1/1"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "FAD": {
+      "source": "FAD.svg",
+      "source_sha256": "9aae982a630962fe15923d3a18506126fa7a2631acdd4c39a19c7959d2ef6cab",
+      "keep": [
+        "3/0/0/0/0/0",
+        "3/0/0/0/1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "FFM": {
+      "source": "FFM.svg",
+      "source_sha256": "070d02c79a70613b5ea657f80205444281f4424e99073d3bf54cb1e8fb93ce8e",
+      "keep": [
+        "0/0",
+        "0/9",
+        "1/0",
+        "1/1",
+        "2/0",
+        "2/1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "IAW": {
+      "source": "IAW.svg",
+      "source_sha256": "36e5eb89a5ad5b4fb319d49f07b01545316f2ffd6ecfe94bbcca8c5604d8ace2",
+      "keep": [
+        "4/0"
+      ],
+      "symbol": "auto: the elements T of the widest gap, checked by eye 2026-10-31"
+    },
+    "IBS": {
+      "source": "IBS.svg",
+      "source_sha256": "7c1c9c54a5079452ed1f4982112029cd637b8d75317bcb910a9b6d9676c4e52b",
+      "keep": [
+        "0/4",
+        "0/6"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "JAF": {
+      "source": "JAF.svg",
+      "source_sha256": "b392ba02ca39de8cb33e9541ca5625adc02ca574297b56842a9249d2272258dd",
+      "keep": [
+        "0",
+        "1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "TFL": {
+      "source": "TFL.svg",
+      "source_sha256": "b392ba02ca39de8cb33e9541ca5625adc02ca574297b56842a9249d2272258dd",
+      "keep": [
+        "0",
+        "1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "TUI": {
+      "source": "TUI.svg",
+      "source_sha256": "b392ba02ca39de8cb33e9541ca5625adc02ca574297b56842a9249d2272258dd",
+      "keep": [
+        "0",
+        "1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "PDT": {
+      "source": "PDT.svg",
+      "source_sha256": "2db903594a637af200829635dfa5ca998e5f06e14519e46994507691662ee0d8",
+      "keep": [
+        "1"
+      ],
+      "symbol": "auto: the elements T of the widest gap, checked by eye 2026-10-31"
+    },
+    "RXI": {
+      "source": "RXI.svg",
+      "source_sha256": "5d13b91e350bf4a2967ba99c2c7e956c62f144278a0a6de658068bbf8e77bba6",
+      "keep": [
+        "3/1"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "SNJ": {
+      "source": "SNJ.svg",
+      "source_sha256": "ad8af37a7264db2e72b4e11d1ea1027618fbca8893e2cded3345b2fc8afb9188",
+      "keep": [
+        "2",
+        "3"
+      ],
+      "symbol": "auto: the elements R of the widest gap, checked by eye 2026-10-31"
+    },
+    "TAM": {
+      "source": "TAM.svg",
+      "source_sha256": "5df87c63fdd4521699c8d9c0579a82c2b7d849b99245197b197cdd1a3d4617d7",
+      "keep": [
+        "1/1/0",
+        "1/1/1",
+        "1/1/2",
+        "1/2/0",
+        "1/2/1",
+        "1/2/2",
+        "1/2/3"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
+    },
+    "TKJ": {
+      "source": "TKJ.svg",
+      "source_sha256": "a1b8d6d95e1336b5d5a16b34afa2ce931cf84b5e597b67360670698193d88857",
+      "keep": [
+        "1/0",
+        "1/1",
+        "1/2",
+        "1/3"
+      ],
+      "symbol": "auto: the elements L of the widest gap, checked by eye 2026-10-31"
     }
   },
   "skipped": {
     "AUA": "the arrow is one path with the letters of \"Austrian\" (path 0/2): no element boundary to cut on",
     "CEB": "PNG source stored at 192 x 51 px: the symbol crop would be under 192 px on its long side (no upscaling)",
-    "CPA": "the brushwing is one path with the letters of \"CATHAY\" (path 4/2/0/0): no element boundary to cut on",
     "ETH": "the red feather is one path with \"Ethiopian\" and the Amharic name (path 2); the other two feathers alone are not the mark",
     "EWG": "the two maroon stripes are one path with \"Eurowings\" (path 1); only the blue stripe stands alone, half the mark",
     "KZR": "PNG source stored at 192 x 76 px: the bird crop would be under 192 px on its long side (no upscaling)",
@@ -310,6 +576,7 @@
     "OMA": "PNG source stored at 192 x 47 px: the mark crop would be under 192 px on its long side (no upscaling)",
     "RAM": "the emblem is one path with \"royal air maroc\" (path 0/0)",
     "RWD": "PNG source stored at 192 x 45 px: the sun crop would be under 192 px on its long side (no upscaling)",
-    "UAL": "the stored logo is the wordmark only, no symbol to cut out"
+    "UAL": "the stored logo is the wordmark only, no symbol to cut out",
+    "CPA": "the brushwing is one path with the letters of \"CATHAY\" (path 4/2/0/0): no element boundary to cut on"
   }
 }

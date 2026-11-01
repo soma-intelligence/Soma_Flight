@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" id="Capa_1" x="0px" y="0px" width="167.1" height="125.6" viewBox="426.2 336.6 167.1 125.6" enable-background="new 0 336.6 595.3 125.6" xml:space="preserve">
+<!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Iberia_Express.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><g>
+	
+		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="293.8896" y1="417.2779" x2="293.8896" y2="580.3712" gradientTransform="matrix(0.7071 0 0 -0.7071 0 805.7593)">
+		<stop offset="0" style="stop-color:#A80E1F" />
+		<stop offset="0.8" style="stop-color:#D7192C" />
+	</linearGradient>
+	<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="609.9721" y1="473.5875" x2="825.3782" y2="597.9523" gradientTransform="matrix(0.7071 0 0 -0.7071 0 805.7593)">
+		<stop offset="0" style="stop-color:#A80E1F" />
+		<stop offset="0.5" style="stop-color:#D7192C" />
+	</linearGradient>
+	<path fill="url(#SVGID_2_)" d="M455.8,432.3c36.4-36.6,88.4-56.9,122.9-57.8l-11.9,30.9c-14.1,32.8-38.2,56.8-140.6,56.8   L455.8,432.3z" />
+	
+		<linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="693.2077" y1="582.0481" x2="837.8525" y2="665.5588" gradientTransform="matrix(0.7071 0 0 -0.7071 0 805.7593)">
+		<stop offset="0" style="stop-color:#F68400" />
+		<stop offset="0.85" style="stop-color:#FCD100" />
+	</linearGradient>
+	<path fill="url(#SVGID_3_)" d="M491.4,396.3l33.2-33.6c16-15.9,22.4-26.1,68.7-26.1l-7.6,19.9C554.3,360,522.9,373.7,491.4,396.3z" />
+</g>
+</svg>

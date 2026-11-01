@@ -148,8 +148,8 @@ struct AcknowledgementsTests {
                 #expect(note.hasPrefix("Modified: cropped") && note.contains(entry.license))
             }
         }
-        // docs/data-sources.md and the App Store checklist: OMA, ROT and the KLM crown; one cropped (KLM).
-        #expect(shareAlike == 3)
+        // docs/data-sources.md: the OMA, ROT, SZN, VKG and VOE wordmarks and the KLM crown; one cropped (KLM).
+        #expect(shareAlike == 6)
         #expect(derived == 1)
         #expect(credits["KLM"]?.symbol?.modificationNote?.contains("CC BY-SA 3.0") == true)
     }

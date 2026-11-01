@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" id="svg2" version="1.1" inkscape:version="0.91 r13725" width="90.9232" height="64.651" viewBox="0.8079 0.5998 90.9232 64.651" sodipodi:docname="20151020_air_europa_logo_nuevo.svg">
+  <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Air_Europa_Logo_(2015).svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><metadata id="metadata8">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs id="defs6" />
+  <sodipodi:namedview pagecolor="#ffffff" bordercolor="#666666" borderopacity="1" objecttolerance="10" gridtolerance="10" guidetolerance="10" inkscape:pageopacity="0" inkscape:pageshadow="2" inkscape:window-width="1366" inkscape:window-height="705" id="namedview4" showgrid="false" inkscape:snap-global="false" showguides="false" inkscape:zoom="1.08" inkscape:cx="216.59425" inkscape:cy="7.7567681" inkscape:window-x="-8" inkscape:window-y="-8" inkscape:window-maximized="1" inkscape:current-layer="g3408" units="px" width="550px" guidehicolor="#f10000" guidehiopacity="0.49803922" />
+  <g id="g3408" transform="translate(0,-42)">
+    <g id="g3480" transform="matrix(0.60505713,0,0,0.60505713,0.31907744,42.357952)">
+      <g id="g3493">
+        <path id="path3445" style="opacity:1;fill:#0970cb;fill-opacity:1;stroke:none;stroke-width:0.75000006;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" d="m 60.981369,79.549088 c -2.220976,-14.304804 1.697458,-29.027904 5.128615,-39.333204 7.051451,-17.351661 3.653917,-34.5591419 -15.849202,-26.027 -5.550398,2.554621 -14.033869,11.3618 -17.944479,18.7218 -12.061425,22.7003 -8.00614,57.014204 6.763624,57.230704 6.011434,-0.230449 14.074707,-6.037902 21.901442,-10.5923 z M 19.111554,105.87539 C 13.739552,104.16369 6.7123598,96.633888 4.0015288,89.684788 -0.33137719,77.083588 -0.31488119,59.731284 4.4158728,45.684784 11.07311,26.524484 25.574566,9.6615835 39.655698,4.2423831 52.58395,-0.70951685 72.566074,-0.99141685 85.65494,13.184784 95.826967,3.5081831 110.92995,0.34548315 119.32189,0.46828313 c 20.86436,-0.92129998 31.75804,7.48149997 31.75804,23.19830087 0,5.633 -4.25187,13.7801 -9.34479,17.9058 -5.99447,4.856 -43.263533,28.2815 -45.051343,28.2815 l -0.10386,-11.0542 11.000003,-7.7643 c 14.17826,-10.0078 18.98913,-15.2087 20.55965,-22.2265 4.01436,-17.938 -14.58747,-22.9533009 -28.351853,-7.644 -13.836417,15.3895 -19.006611,47.5015 -10.105357,62.764404 6.843117,11.7338 20.4166,8.0959 41.87614,-4.6435 l 8.26184,-5.299404 5.83718,8.141604 c -8.30177,7.1557 -16.88139,13.3401 -25.57761,18.841502 -7.7545,4.3006 -15.14811,6.2153 -23.999993,6.2153 -16.465481,-0.2623 -26.870071,-4.5601 -31.725259,-15.938902 -0.379504,-0.034 -4.230455,3.116021 -9.075951,6.375221 -11.081766,7.429211 -24.708672,12.094611 -36.167173,8.254281 z" inkscape:connector-curvature="0" />
+      </g>
+    </g>
+  </g>
+</svg>

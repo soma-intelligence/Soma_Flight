@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" version="1.1" id="svg5690" width="104.9133" height="75.9921" viewBox="194.0867 1 104.9133 75.9921">
+    <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:All_Nippon_Airways_Logo.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><metadata id="metadata5707">
+        <rdf:RDF>
+            <cc:Work rdf:about="">
+                <dc:format>image/svg+xml</dc:format>
+                <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+                <dc:title />
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <defs id="defs5692">
+        <clipPath id="a">
+            <path id="path5695" d="m 714.047,23.099 99.853,0 0,34.16 -99.853,0 0,-34.16 z" />
+        </clipPath>
+    </defs>
+    <path style="fill:#00b3f0" id="path5697" d="m 286.79486,1 -43.89162,75.990752 12.22166,0 L 299,1 286.79486,1 Z" />
+    <path style="fill:#223f9a" id="path5699" d="m 242.90391,76.992078 43.89161,-75.9907517 -48.82715,0 -43.88169,75.9907517 48.81723,0 z" />
+    </svg>

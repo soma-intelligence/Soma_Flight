@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" width="590.13" height="226.1296" viewBox="7.05 1.3749 590.13 226.1296" version="1.0" id="svg3015" sodipodi:version="0.32" inkscape:version="0.46" sodipodi:docname="Iraqi_Airways_Logo.svg" inkscape:output_extension="org.inkscape.output.svg.inkscape">
+  <!-- Symbol cropped from https://commons.wikimedia.org/wiki/File:Iraqi_Airways_Logo.svg by Scripts/logos/crop_symbols.py: wordmark elements removed, viewBox tightened; path data and colours as published. --><metadata id="metadata3081">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs id="defs3079">
+    <inkscape:perspective sodipodi:type="inkscape:persp3d" inkscape:vp_x="0 : 245.625 : 1" inkscape:vp_y="0 : 1000 : 0" inkscape:vp_z="750 : 245.625 : 1" inkscape:persp3d-origin="375 : 163.75 : 1" id="perspective3083" />
+  </defs>
+  <sodipodi:namedview inkscape:window-height="669" inkscape:window-width="640" inkscape:pageshadow="2" inkscape:pageopacity="0.0" guidetolerance="10.0" gridtolerance="10.0" objecttolerance="10.0" borderopacity="1.0" bordercolor="#666666" pagecolor="#ffffff" id="base" showgrid="false" inkscape:zoom="0.72533333" inkscape:cx="375" inkscape:cy="245.625" inkscape:window-x="115" inkscape:window-y="95" inkscape:current-layer="svg3015" />
+  <g id="#12470dff">
+    <path d="M 211.54,9.31 C 238.5,5.1 265.76,3.25 293.01,2.34 C 299.29,1.34 305.66,1.53 312,1.42 C 324.99,1.55 338.06,0.87 350.99,2.36 C 433.64,4.83 516.25,13.54 597.18,30.73 C 584.46,30.43 571.79,28.93 559.07,28.58 C 503.99,26.03 448.58,28.97 394.23,38.48 C 386.68,39.69 379.37,42.01 372.01,44.01 C 351.3,49.98 330.65,56.65 311.39,66.43 C 301.94,71.47 292.37,77.16 285.77,85.79 C 283.83,88.59 281.33,91.94 282.47,95.54 C 284.11,99.51 288.41,101.33 292.15,102.79 C 303.98,106.91 316.59,107.93 328.98,109.1 C 368.14,113.01 407.27,117.14 446.35,121.8 C 473.44,125.19 500.59,128.37 527.41,133.58 C 533.36,135.01 539.75,135.74 544.97,139.21 C 531.27,141.62 517.34,142.63 503.53,144.3 C 441.15,150.9 378.58,155.48 316,159.57 C 309.96,160.2 303.61,161.02 298.39,164.37 C 294.76,166.64 292.62,171.54 294.43,175.62 C 296.14,179.39 299.73,181.87 303.26,183.81 C 312.11,188.51 321.93,190.92 331.64,193.17 C 352.19,197.6 373.11,200.02 394.01,202.05 C 421.71,204.69 449.51,206.16 477.3,207.48 C 474.54,210.47 470.49,211.6 466.75,212.83 C 455.53,216.09 443.92,217.7 432.37,219.27 C 400.04,223.3 367.5,225.36 334.98,227.17 C 311.31,227.73 287.59,227.74 263.96,225.99 C 247.3,224.61 230.51,222.71 214.55,217.51 C 207.14,214.96 199.61,211.65 194.19,205.8 C 190.57,201.88 188.67,196.44 189.36,191.12 C 190.28,183.57 194.47,176.91 199.02,171 C 203.9,164.84 211.14,161.37 218.2,158.34 C 163.15,156.48 108.04,154.89 53.17,149.79 C 41.8,148.64 30.41,147.41 19.23,144.99 C 14.88,143.88 9.9,143.02 7.05,139.16 C 12.06,134.79 18.71,133.39 24.96,131.78 C 39.46,128.39 54.19,126.19 68.91,124.05 C 101.27,119.48 133.79,116.13 166.28,112.72 C 149.09,105.8 131.68,99.03 115.94,89.09 C 108.8,84.46 101.66,79.25 96.99,72 C 93.82,67.24 92.93,60.83 95.5,55.61 C 98.54,49.25 104.38,44.87 110.18,41.17 C 121.69,34.15 134.41,29.45 147.18,25.28 C 168.26,18.59 189.86,13.62 211.54,9.31 z" id="path3019" style="opacity:1;fill:#12470d" />
+    </g>
+  </svg>
