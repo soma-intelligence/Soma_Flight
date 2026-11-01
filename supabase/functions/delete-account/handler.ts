@@ -7,6 +7,10 @@ import { checkRate } from "../_shared/limits.ts";
 
 export const DELETE_MAX_PER_HOUR = 5;
 
+/** The private bucket of profile photos (migration 20261031000030), one file per user. */
+export const AVATARS_BUCKET = "avatars";
+export const avatarPath = (userId: string) => `${userId}/avatar.jpg`;
+
 export interface Deps {
   db: SupabaseClient;
   aero: AlertApi;
@@ -20,7 +24,7 @@ function must(r: { error: { message: string } | null }, what: string): void {
 /**
  * Order matters and every step is safe to repeat, so a retry finishes an interrupted deletion:
  * unfollow (releases alerts nobody else needs; a provider failure keeps alert_id for the sweep and
- * never blocks the deletion), erase user rows, strip and mark the profile, then delete the auth
+ * never blocks the deletion), erase user rows, remove the profile photo, strip and mark the profile, then delete the auth
  * user last. The profile row has no FK to auth.users and is kept with status 'deleted'.
  */
 export async function handler(req: Request, deps: Deps): Promise<Response> {
@@ -49,11 +53,20 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       await db.from("push_tokens").delete().eq("user_id", userId),
       "push tokens delete",
     );
+    // The profile photo goes first (removing a missing file is not an error, so a retry passes).
+    must(
+      await db.storage.from(AVATARS_BUCKET).remove([avatarPath(userId)]),
+      "avatar delete",
+    );
     must(
       await db.from("profiles").update({
         status: "deleted",
         display_name: null,
         emoji: null,
+        first_name: null,
+        last_name: null,
+        avatar_path: null,
+        onboarded_at: null,
       })
         .eq("user_id", userId),
       "profile update",

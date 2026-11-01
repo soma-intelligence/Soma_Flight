@@ -113,7 +113,9 @@ struct SomaFlightMacApp: App {
                                  onDeleteAccount: { await home.session.deleteAccount() },
                                  notifications: home.needsSignIn ? nil : home.notificationSettings,
                                  calendar: home.needsSignIn ? nil : home.calendar,
-                                 friends: home.needsSignIn ? nil : home.friends)
+                                 friends: home.needsSignIn ? nil : home.friends,
+                                 profile: home.needsSignIn ? nil : home.profile)
+                        .environment(\.friendPhotos, home.profile.friendPhotos)
                 } else {
                     // Settings opened before the window has built its environment.
                     LaunchPlaceholder(failure: failure, showsProgress: true)

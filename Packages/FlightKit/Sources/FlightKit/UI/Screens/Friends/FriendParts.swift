@@ -139,12 +139,16 @@ struct FriendAvatar: View {
 
     /// The soft colours avatars take, the friends colour first.
     static let tones: [Color] = [Theme.friend, Theme.accent, Theme.diverted, Theme.late, Theme.onTime, Theme.passportAccent]
+    /// Friends' photos (`ProfileStore.friendPhotos`); a friend with one shows it instead of emoji or initials.
+    @Environment(\.friendPhotos) private var photos
 
     var body: some View {
         let tone = Self.tones[FriendAvatarText.tone(id, count: Self.tones.count)]
         ZStack {
             Circle().fill(tone.opacity(0.2))
-            if let emoji, !emoji.isEmpty {
+            if let id, let photo = Image.from(data: photos[id]) {
+                photo.resizable().interpolation(.high).scaledToFill().clipShape(Circle())
+            } else if let emoji, !emoji.isEmpty {
                 Text(emoji).font(.system(size: size * 0.52))
             } else {
                 Text(FriendAvatarText.initials(name))

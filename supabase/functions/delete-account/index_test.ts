@@ -8,7 +8,7 @@ import {
   trackFlightId,
 } from "../_shared/test_util.ts";
 import { ensureAlert } from "../_shared/follow.ts";
-import { handler } from "./handler.ts";
+import { avatarPath, AVATARS_BUCKET, handler } from "./handler.ts";
 
 const db = await testDb();
 
@@ -95,9 +95,19 @@ async function seed(user: string, flight: string) {
           flight_id: flight,
         },
       ]),
-      await db.from("profiles").update({ display_name: "Ada Lovelace" }).eq(
-        "user_id",
-        user,
+      await db.from("profiles").update({
+        display_name: "Ada Lovelace",
+        first_name: "Ada",
+        last_name: "Lovelace",
+        avatar_path: avatarPath(user),
+        onboarded_at: new Date().toISOString(),
+      }).eq("user_id", user),
+      await db.storage.from(AVATARS_BUCKET).upload(
+        avatarPath(user),
+        new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], {
+          type: "image/jpeg",
+        }),
+        { contentType: "image/jpeg", upsert: true },
       ),
     ]
   ) if (r.error) throw r.error;
@@ -129,6 +139,23 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
   const p = await db.from("profiles").select("*").eq("user_id", user).single();
   assertEquals(p.data?.status, "deleted");
   assertEquals(p.data?.display_name, null);
+  assertEquals(
+    [
+      p.data?.first_name,
+      p.data?.last_name,
+      p.data?.avatar_path,
+      p.data?.onboarded_at,
+    ],
+    [null, null, null, null],
+  );
+  const photos = await db.storage.from(AVATARS_BUCKET).list(user);
+  assertEquals((photos.data ?? []).map((f) => f.name), [], "the photo is gone");
+  const kept = await db.storage.from(AVATARS_BUCKET).list(other);
+  assertEquals(
+    (kept.data ?? []).map((f) => f.name),
+    ["avatar.jpg"],
+    "another user's photo stays",
+  );
   assert((await db.auth.admin.getUserById(user)).error !== null);
   const events = await db.from("rate_events").select("endpoint").eq(
     "user_id",
@@ -143,6 +170,7 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
     .single();
   assertEquals(o.data?.status, "active");
   assertEquals(o.data?.display_name, "Ada Lovelace");
+  await db.storage.from(AVATARS_BUCKET).remove([avatarPath(other)]);
 });
 
 test(

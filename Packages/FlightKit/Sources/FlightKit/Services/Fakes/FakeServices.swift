@@ -329,14 +329,23 @@ public actor FakeAuthService: AuthService {
 
     public nonisolated var session: AsyncStream<UserSession?> { state.stream() }
 
-    public func signInWithApple(idToken: String, nonce: String) async throws(APIError) {
+    /// The name Apple handed over on the last sign-in, for tests.
+    public private(set) var appleName: PersonNameComponents?
+
+    public func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws(APIError) {
         try check()
+        appleName = fullName
         state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!, email: nil, plan: plan))
     }
 
     public func signInWithEmail(_ email: String) async throws(APIError) {
         try check()
         state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000002")!, email: email, plan: plan))
+    }
+
+    public func signInWithGoogle() async throws(APIError) {
+        try check()
+        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000003")!, email: "noa.levi@gmail.com", plan: plan))
     }
 
     public func signOut() async { state.set(nil) }

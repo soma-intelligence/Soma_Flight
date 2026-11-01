@@ -159,7 +159,7 @@ struct RootSidebarView: View {
         }
         .overlay(alignment: .topTrailing) {
             if !showSearch {
-                RoundButton(systemImage: "gearshape", label: "Settings") { openSettings() }
+                ProfileButton(profile: home.profile) { openSettings() }
                     .scaledPadding(.top, 19)
                     .scaledPadding(.trailing, 16)
             }

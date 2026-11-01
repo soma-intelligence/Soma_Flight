@@ -8,6 +8,8 @@
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>InsightsEnabled</key>
 	<string>$(INSIGHTS_ENABLED)</string>
+	<key>GoogleSignInEnabled</key>
+	<string>$(GOOGLE_SIGN_IN_ENABLED)</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -27,7 +29,7 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Soma Flight uses the camera to scan the barcode on your boarding pass. The picture stays on your device.</string>
+	<string>Soma Flight uses the camera to scan the barcode on your boarding pass, and to take your profile photo if you choose to. A pass picture stays on your device; a profile photo is shown only to friends you accept.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
