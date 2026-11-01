@@ -35,6 +35,7 @@ import Testing
         #expect(AppIcons.all.first?.assetName == nil, "the primary comes first")
         #expect(AppIcons.all.first?.name == "Jet")
         #expect(AppIcons.choice(for: "AppIcon-orbit").name == "Orbit", "the old globe stays as an alternate")
+        #expect(AppIcons.choice(for: "AppIcon-overhead").name == "Overhead", "the top-view jet stays as an alternate")
         for name in sets {
             let json = try Data(contentsOf: Self.catalog.appending(path: "\(name).appiconset/Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])

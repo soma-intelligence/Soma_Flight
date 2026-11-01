@@ -37,7 +37,8 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 ///    what the picker draws (`AppIconChoice.previewName`).
 /// 3. Add one line to `all` below with its set name, name and tagline.
 ///
-/// The primary icon (the Jet, the app's logo) lives in `AppIcon.appiconset`, the set `project.yml` names,
+/// The primary icon (the Jet, the app's logo: the jet climbing in three-quarter view, built by
+/// assets/app-icon/build.py) lives in `AppIcon.appiconset`, the set `project.yml` names,
 /// and its picker picture in `Preview-<primarySlug>.imageset`. The same art is in the macOS and watch
 /// `AppIcon` sets and in FlightKit's `Resources/brand-app-icon.png` (sign-in screen); change them together.
 ///
@@ -47,7 +48,8 @@ public enum AppIcons {
     static let primarySlug = "jet"
 
     public static let all: [AppIconChoice] = [
-        AppIconChoice(nil, name: "Jet", tagline: "A long-range business jet on charcoal. Nothing else to say."),
+        AppIconChoice(nil, name: "Jet", tagline: "Our business jet climbing out over charcoal."),
+        AppIconChoice("AppIcon-overhead", name: "Overhead", tagline: "The same jet seen from above. Nothing else to say."),
         AppIconChoice("AppIcon-orbit", name: "Orbit", tagline: "A flight path circling the globe. The original."),
         AppIconChoice("AppIcon-ember", name: "Ember", tagline: "A white jet over a warm coral glow."),
         AppIconChoice("AppIcon-redeye", name: "Red Eye", tagline: "Red to port, green to starboard, wheels up at midnight."),

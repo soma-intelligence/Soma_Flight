@@ -104,7 +104,7 @@ public struct SignInView: View {
         .scaledPadding(.horizontal, 28)
     }
 
-    /// The app's own icon (Resources/brand-app-icon.png, the Jet from assets/icon-set-v4), so the first screen shows the
+    /// The app's own icon (Resources/brand-app-icon.png, the climbing Jet from assets/app-icon), so the first screen shows the
     /// mark the Home Screen does.
     static var appIcon: Image {
         #if os(iOS)
