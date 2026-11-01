@@ -95,6 +95,9 @@ struct RootTabView: View {
             set: { shell.detent = geometry.detent(for: $0) }))
         // The grab handle shows the sheet can be dragged between its three heights (owner's call, 2026-11-01).
         .presentationDragIndicator(.visible)
+        // Below the top height a swipe raises the sheet instead of scrolling its page; the page scrolls only
+        // once the sheet is fully up (owner's call, 2026-11-01).
+        .presentationContentInteraction(.resizes)
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
