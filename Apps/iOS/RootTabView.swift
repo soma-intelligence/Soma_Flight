@@ -83,7 +83,8 @@ struct RootTabView: View {
     private var sheet: some View {
         @Bindable var shell = home.shell
         // Each screen slides up over the one below as a card, and its X drops it back down.
-        return CardStack(path: shell.path, onPop: shell.close) {
+        // A Passport past flight zooms out of its row and back into it; the other cards crossfade.
+        return CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
             tabRoot
         } card: { route in
             HomeDestination(home: home, route: route)

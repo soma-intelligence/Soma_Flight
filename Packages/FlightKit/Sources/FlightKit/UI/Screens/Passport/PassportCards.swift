@@ -368,7 +368,10 @@ struct PastFlightsSection: View {
         let plain = PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
         let tappable = Group {
             if let onOpen {
-                Button { onOpen(f) } label: { plain.contentShape(Rectangle()) }.buttonStyle(.plain)
+                Button { onOpen(f) } label: { plain.contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+                    // The flight's page zooms out of this row and back into it (iOS home sheet).
+                    .cardZoomSource(f.id)
             } else {
                 plain
             }
