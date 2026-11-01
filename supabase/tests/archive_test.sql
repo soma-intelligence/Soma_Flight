@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(58);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -35,6 +35,11 @@ select results_eq(
   $$values ('AFR84'::text, 'LFPG'::text, 'KSFO'::text, 'AFR'::text, 'A359'::text, 'F-HTYM'::text,
        'completed'::text, 'Europe/Paris'::text, 660, 0)$$,
   'archived row carries the PastFlight fields, origin_tz from airports, early arrival is delay 0');
+select results_eq(
+  $$select arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id = 'f1000000-0000-0000-0000-000000000001' order by user_id$$,
+  $$values (-20, 0), (-20, 0)$$,
+  'signed delays: 20 minutes early stays -20 (delay_minutes floors it at 0), on time out is 0');
 select is((select date from past_flights where flight_id = 'f1000000-0000-0000-0000-000000000001' limit 1),
   now() - interval '36 hours', 'date is the departure instant');
 select is((select count(*) from push_tokens where token = 'arch-la-1'), 0::bigint,
@@ -91,6 +96,21 @@ select results_eq(
     where flight_id = 'f5000000-0000-0000-0000-000000000005'$$,
   $$values ('canceled'::text, null::int, 0)$$,
   'canceled flight: status canceled, block null');
+select results_eq(
+  $$select arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id = 'f3000000-0000-0000-0000-000000000003'$$,
+  $$values (null::int, 0)$$,
+  'diverted: no arrival delay (the scheduled arrival never happened), departure delay kept');
+select results_eq(
+  $$select arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id = 'f4000000-0000-0000-0000-000000000004'$$,
+  $$values (10, 0)$$,
+  'overnight flight: arrival delay 10, departure 0');
+select results_eq(
+  $$select arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id = 'f5000000-0000-0000-0000-000000000005'$$,
+  $$values (null::int, null::int)$$,
+  'canceled flight: neither delay');
 select is((select count(*) from user_flights where user_id = 'a9a9a9a9-0000-0000-0000-000000000001'),
   1::bigint, 'only the recent follow is left');
 
@@ -150,6 +170,14 @@ select results_eq(
     where flight_id = 'e5000000-0000-0000-0000-000000000005'$$,
   $$values ('completed'::text, null::int, 0, true)$$,
   'stuck flight that left: completed, block null, delay 0');
+select results_eq(
+  $$select flight_id::text, arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id in ('e3000000-0000-0000-0000-000000000003', 'e4000000-0000-0000-0000-000000000004',
+      'e5000000-0000-0000-0000-000000000005') order by flight_id$$,
+  $$values ('e3000000-0000-0000-0000-000000000003'::text, null::int, 0),
+           ('e4000000-0000-0000-0000-000000000004'::text, 0, 120),
+           ('e5000000-0000-0000-0000-000000000005'::text, null::int, 0)$$,
+  'runway actual without a scheduled runway time: no arrival; bad data gives a departure of 120; stuck flight: departure only');
 select is((select count(*) from past_flights where flight_id = 'e6000000-0000-0000-0000-000000000006'),
   0::bigint, 'stuck flight never seen leaving: no row');
 select is((select count(*) from user_flights where flight_id = 'e6000000-0000-0000-0000-000000000006'),
@@ -216,6 +244,31 @@ select is((select array_agg(icao) from airport_snapshots where icao in ('LFPG', 
   array['KSFO'], 'snapshots not viewed for 7 days pruned');
 select is((select count(*) from route_cache where origin_icao = 'LFPG' and destination_icao = 'KSFO'),
   0::bigint, 'expired route cache pruned');
+
+-- Signed delays, gate versus runway. G1: runway times only, 12 minutes early. G2: gate says 5 late, runway says
+-- 8 early (gate wins). G3: departure 70 hours late (clamped to the column's 2880), landed 3 minutes early.
+insert into flights (id, provider_id, ident, origin_icao, destination_icao, status,
+  scheduled_off, actual_off, scheduled_on, actual_on, scheduled_out, scheduled_in, actual_out, actual_in)
+values
+  ('a1000000-0000-0000-0000-000000000001', 'ARCH-G1', 'GG1', 'KSFO', 'KLAX', 'arrived',
+   now() - interval '40 hours', now() - interval '41 hours', now() - interval '38 hours', now() - interval '38 hours 12 minutes',
+   null, null, null, null),
+  ('a2000000-0000-0000-0000-000000000002', 'ARCH-G2', 'GG2', 'KSFO', 'KLAX', 'arrived',
+   now() - interval '40 hours', now() - interval '40 hours', now() - interval '38 hours', now() - interval '38 hours 8 minutes',
+   now() - interval '41 hours', now() - interval '38 hours', now() - interval '41 hours 10 minutes', now() - interval '37 hours 55 minutes'),
+  ('a3000000-0000-0000-0000-000000000003', 'ARCH-G3', 'GG3', 'KSFO', 'KLAX', 'arrived',
+   null, null, null, null,
+   now() - interval '100 hours', now() - interval '30 hours 3 minutes', now() - interval '30 hours', now() - interval '30 hours 6 minutes');
+insert into user_flights (user_id, flight_id)
+select 'b9b9b9b9-0000-0000-0000-000000000002', id from flights where provider_id like 'ARCH-G%';
+select is(archive_landed_flights(), 3, 'G1 to G3 archived');
+select results_eq(
+  $$select ident, arrival_delay_minutes, departure_delay_minutes from past_flights
+    where flight_id::text like 'a_000000-0000-0000-0000-00000000000_' order by ident$$,
+  $$values ('GG1'::text, -12, -60), ('GG2'::text, 5, -10), ('GG3'::text, -3, 2880)$$,
+  'runway fallback, gate wins over runway, departure clamped to 2880');
+select ok((select bool_and(delay_minutes >= 0) from past_flights where ident in ('GG1', 'GG2', 'GG3')),
+  'delay_minutes keeps its floor at 0 beside the signed columns');
 
 -- Grants: service role only, and new public functions start closed to clients.
 select ok(not has_function_privilege('anon', 'public.archive_landed_flights()', 'execute')

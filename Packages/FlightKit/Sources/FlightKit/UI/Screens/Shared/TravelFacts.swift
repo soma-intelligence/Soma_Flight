@@ -95,9 +95,9 @@ enum TravelFacts {
         return ("\(m)", m == 1 ? "minute lost to delays" : "minutes lost to delays")
     }
 
-    /// The delays card's line under the hours: how late the delayed flights arrived on average (arrival delay).
+    /// The delays card's line under the hours: how late the delayed flights arrived on average (arrival delay; any minute after schedule counts as late, as in the Delay Report).
     static func delayedAverageLine(_ minutes: Int, delayed: Int) -> String {
-        delayed == 0 ? "None of your flights arrived 15 minutes late or more" : "Delayed flights arrived \(Format.minutes(minutes)) late on average"
+        delayed == 0 ? "None of your flights arrived late" : "Delayed flights arrived \(Format.minutes(minutes)) late on average"
     }
 
     // MARK: Past flights list

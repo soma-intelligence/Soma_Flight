@@ -4,7 +4,7 @@ import Testing
 
 /// The history export built on the device: CSV (RFC 4180) and JSON, dates in ISO 8601 UTC.
 @Suite struct ExportTests {
-    static let header = "date,flight,from,to,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status"
+    static let header = "date,flight,from,to,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status,arrival_delay_minutes,departure_delay_minutes"
 
     /// 2025-03-14 06:05:00 UTC.
     static let date = Date(timeIntervalSince1970: 1_741_932_300)
@@ -37,9 +37,9 @@ import Testing
         let rows = Self.records(PastFlight.csv([Self.flight(), Self.flight(airline: nil, seat: nil, block: nil, status: .canceled)]))
         #expect(rows.count == 3)
         #expect(rows[0] == Self.header)
-        #expect(rows[1] == "2025-03-14T06:05:00Z,AFR84,LFPG,KSFO,Air France,B77W,F-GSQA,12A,8954,690,25,completed")
+        #expect(rows[1] == "2025-03-14T06:05:00Z,AFR84,LFPG,KSFO,Air France,B77W,F-GSQA,12A,8954,690,25,completed,,")
         // Missing values are empty fields, never "nil".
-        #expect(rows[2] == "2025-03-14T06:05:00Z,AFR84,LFPG,KSFO,,B77W,F-GSQA,,8954,,25,canceled")
+        #expect(rows[2] == "2025-03-14T06:05:00Z,AFR84,LFPG,KSFO,,B77W,F-GSQA,,8954,,25,canceled,,")
     }
 
     @Test func csvEscapesCommas() {
@@ -144,6 +144,6 @@ import Testing
         var f = ExportTests.flight()
         f.delayMinutes = -5
         let row = ExportTests.records(PastFlight.csv([f]))[1]
-        #expect(row.hasSuffix(",690,-5,completed"))
+        #expect(row.contains(",690,-5,completed,"))
     }
 }

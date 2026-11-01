@@ -119,7 +119,20 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         #expect(DelayReport.Share(late: 2, of: 3).percent == 67)
         #expect(DelayReport.Share(late: 0, of: 0).percent == 0)
         #expect(TravelFacts.delayedAverageLine(23, delayed: 2) == "Delayed flights arrived 23m late on average")
-        #expect(TravelFacts.delayedAverageLine(0, delayed: 0) == "None of your flights arrived 15 minutes late or more")
+        #expect(TravelFacts.delayedAverageLine(0, delayed: 0) == "None of your flights arrived late")
+    }
+
+    /// The Passport delays card reads the Delay Report, not the core's 15 minute rule: a 10 minute delay
+    /// counts as late on the card and in the report alike.
+    @Test func delaysCardAgreesWithReport() async {
+        let s = await store([flight(1, delay: 10), flight(2, delay: 20), flight(3, delay: 0)])
+        let r = s.delayReport
+        #expect(r.lateArrivals.late == 2)
+        #expect(r.lostMinutes == 30)
+        #expect(r.averageLateMinutes == 15)
+        #expect(s.stats.delayedFlights == 1) // the core's 15 minute rule, no longer shown on the card
+        #expect(TravelFacts.delayedAverageLine(r.averageLateMinutes, delayed: r.lateArrivals.late)
+                == "Delayed flights arrived 15m late on average")
     }
 
     @Test func mostDelayedTopTen() async {

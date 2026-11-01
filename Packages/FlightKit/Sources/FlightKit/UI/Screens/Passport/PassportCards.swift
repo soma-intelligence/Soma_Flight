@@ -153,13 +153,14 @@ struct PassportCard: View {
 /// The red card: time lost to delays and how late the delayed flights were. The whole card opens the
 /// delay stats page.
 struct DelaysCard: View {
-    var stats: PassportStats
+    /// The Delay Report's figures, so the card and the report page agree (any minute after schedule is late).
+    var report: DelayReport
     var onOpen: () -> Void = {}
 
     static let soft = Color(red: 1.0, green: 0.70, blue: 0.68)
 
     var body: some View {
-        let lost = TravelFacts.delayLost(stats.delayLost)
+        let lost = TravelFacts.delayLost(.seconds(Int64(report.lostMinutes) * 60))
         Button(action: onOpen) { face() }
             .buttonStyle(CardPressStyle())
             .accessibilityLabel("Delays, all delay stats")
@@ -168,7 +169,7 @@ struct DelaysCard: View {
 
     /// The card without its button, also the delay page's header and what it shares.
     func face(row: Bool = true) -> some View {
-        let lost = TravelFacts.delayLost(stats.delayLost)
+        let lost = TravelFacts.delayLost(.seconds(Int64(report.lostMinutes) * 60))
         return VStack(alignment: .leading, spacing: 0) {
             Text(lost.value)
                 .scaledFont(64, weight: .bold)
@@ -178,7 +179,7 @@ struct DelaysCard: View {
             Text(lost.caption)
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(.white)
-            Text(TravelFacts.delayedAverageLine(stats.avgDelayedMinutes, delayed: stats.delayedFlights))
+            Text(TravelFacts.delayedAverageLine(report.averageLateMinutes, delayed: report.lateArrivals.late))
                 .scaledFont(17)
                 .foregroundStyle(Self.soft)
                 .scaledPadding(.top, 4)

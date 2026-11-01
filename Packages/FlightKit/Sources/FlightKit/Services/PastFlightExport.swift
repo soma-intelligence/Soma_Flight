@@ -44,7 +44,10 @@ extension PastFlight {
     static let csvBOM = Data([0xEF, 0xBB, 0xBF])
 
     /// The CSV header, one column per field.
-    static let csvHeader = "date,flight,from,to,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status"
+    static let csvHeader = legacyCsvHeader + ",arrival_delay_minutes,departure_delay_minutes"
+
+    /// The header before the signed arrival and departure delay columns; files with it still read as ours.
+    static let legacyCsvHeader = "date,flight,from,to,airline,aircraft,registration,seat,distance_km,block_minutes,delay_minutes,status"
 
     /// RFC 4180 CSV: CRLF between records, a field holding a comma, a double quote, CR or LF is wrapped in
     /// double quotes with its quotes doubled. Dates are ISO 8601 in UTC; a missing value is an empty field.
@@ -58,6 +61,7 @@ extension PastFlight {
                         p.registration ?? "", p.seat ?? ""].map(csvText)
             let fields: [String] = [PastFlightExport.utc.string(from: p.date)] + text + [
                 String(p.distanceKm), p.blockMinutes.map(String.init) ?? "", String(p.delayMinutes), p.status.rawValue,
+                p.arrivalDelayMinutes.map(String.init) ?? "", p.departureDelayMinutes.map(String.init) ?? "",
             ]
             records.append(fields.map(csvField).joined(separator: ","))
         }
