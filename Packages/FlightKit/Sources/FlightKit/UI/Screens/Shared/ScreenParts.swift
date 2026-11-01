@@ -115,18 +115,32 @@ struct RowChevron: View {
 
 /// A screen body that scrolls in the app and lays out flat for snapshots (ImageRenderer cannot
 /// draw a ScrollView's content).
+///
+/// In a collapsed home sheet the page does not scroll: a swipe raises the sheet, and the page goes back
+/// to its top (owner's call, 2026-11-01). It scrolls again from medium up.
 struct ScreenScroll<Content: View>: View {
     var scrolls: Bool
     /// Pull to refresh; nil leaves the scroll view without it.
     var refresh: (() async -> Void)?
     @ViewBuilder var content: Content
+    @Environment(\.sheetDetent) private var detent
+    @State private var position = ScrollPosition(edge: .top)
+
+    private var locked: Bool { detent == .collapsed }
 
     var body: some View {
         if scrolls {
-            if let refresh {
-                ScrollView { content }.refreshable { await refresh() }
-            } else {
-                ScrollView { content }
+            Group {
+                if let refresh {
+                    ScrollView { content }.refreshable { await refresh() }
+                } else {
+                    ScrollView { content }
+                }
+            }
+            .scrollPosition($position)
+            .scrollDisabled(locked)
+            .onChange(of: locked) { _, now in
+                if now { withAnimation(.smooth) { position.scrollTo(edge: .top) } }
             }
         } else {
             VStack(spacing: 0) { content; Spacer(minLength: 0) }

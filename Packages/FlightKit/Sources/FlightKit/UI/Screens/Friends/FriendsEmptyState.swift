@@ -5,8 +5,8 @@ import SwiftUI
 /// is tapped, reused until it nears its end).
 struct FriendsEmptyState: View {
     var store: FriendsStore
-    /// A collapsed home sheet: the jets come smaller so the whole pair fits its few points (they grow
-    /// back as the sheet rises, with the code row's spring).
+    /// A collapsed home sheet: the jets alone, smaller so the pair fits its few points. The line, the
+    /// sentence and Invite a Friend come in as the sheet rises, with the code row's spring.
     var compact = false
 
     var body: some View {
@@ -14,6 +14,18 @@ struct FriendsEmptyState: View {
             EmptyStateIllustration(variant: .pair, size: compact ? 176 : 240)
                 // Its full height even where the sheet is short: the rest is cut, never the jets squeezed.
                 .fixedSize(horizontal: false, vertical: true)
+            if !compact {
+                details.transition(.opacity.combined(with: .offset(y: 12)))
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .scaledPadding(.horizontal, 32)
+        .animation(.spring(duration: 0.4, bounce: 0.15), value: compact)
+    }
+
+    @ViewBuilder private var details: some View {
+        VStack(spacing: 0) {
             Text(FriendFacts.emptyTitle)
                 .scaledFont(19, weight: .semibold)
                 .foregroundStyle(Theme.primary)
@@ -35,8 +47,5 @@ struct FriendsEmptyState: View {
             .buttonStyle(.plain)
             .scaledPadding(.top, 18)
         }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity)
-        .scaledPadding(.horizontal, 32)
     }
 }
