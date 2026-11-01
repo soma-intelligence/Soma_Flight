@@ -98,6 +98,36 @@ struct BrandAssetTests {
         #expect(AirlineLogo.tintSource(airline: united, code: "UA") == .brand(r: 0, g: 0x33 / 255.0, b: 0xA0 / 255.0))
     }
 
+    @Test func lookupCodeFallsBackToIcaoShapedCode() {
+        let united = Airline(id: "UAL", iata: "UA", name: "United", colorPrimary: "#0033A0")
+        #expect(AirlineLogo.lookupCode(airline: united, code: "UA") == "UAL")
+        // Not in the reference list: an ICAO-shaped code still asks the service, so a bundled mark answers.
+        #expect(AirlineLogo.lookupCode(airline: nil, code: "fbu ") == "FBU")
+        #expect(AirlineLogo.lookupCode(airline: nil, code: "BF") == nil)
+        #expect(AirlineLogo.lookupCode(airline: nil, code: "B6X1") == nil)
+        #expect(AirlineLogo.lookupCode(airline: nil, code: "U2X") == nil)
+    }
+
+    /// The French bee case (FBU 710): the reference list knows the airline by ICAO and IATA, so the side
+    /// view and the badge are asked for under FBU.
+    @Test func frenchBeeResolves() {
+        let reference = ReferenceData.bundled()
+        #expect(reference.airline("FBU")?.iata == "BF")
+        #expect(reference.airline("BF")?.id == "FBU")
+        #expect(reference.airline(ident: "FBU710")?.id == "FBU")
+        #expect(reference.airline(ident: "BF710")?.id == "FBU")
+    }
+
+    /// Every airline with a bundled side view is in the reference list, so `AircraftImage` (which needs an
+    /// `Airline`) can reach it.
+    @Test func everySideViewAirlineIsKnown() {
+        let reference = ReferenceData.bundled()
+        let airlines = Set(BundledSideViews.pairs.compactMap { $0.split(separator: "-").first.map(String.init) })
+            .subtracting([BundledSideViews.plainAirline])
+        let unknown = airlines.filter { reference.airline($0)?.id != $0 }.sorted()
+        #expect(unknown.isEmpty, "side views for airlines the reference list does not know: \(unknown)")
+    }
+
     @Test func unknownAirlineMonogram() {
         #expect(AirlineLogo.monogram(airline: nil, code: "ZED") == "ZE")
         #expect(AirlineLogo.monogram(airline: nil, code: "Q") == "Q")
@@ -524,5 +554,22 @@ final class RedirectStub: URLProtocol, @unchecked Sendable {
         #expect(await service.lookup(" ual ", .sideView, type: "b38m ").asset != nil)
         #expect(await service.lookup("UAL", .sideView, type: "ZZZZ") == .missing)
         #expect(await service.asset("UAL", .sideView, type: nil) == nil)
+    }
+
+    /// A pair neither the bundle nor the wrapped service has gets the type's plain side view; the wrapped
+    /// service's own side view still wins over the plain one.
+    @Test func missingPairFallsBackToThePlainType() async throws {
+        let plainTypes = BundledSideViews.pairs.filter { $0.hasPrefix(BundledSideViews.plainAirline + "-") }
+            .map { String($0.dropFirst(4)) }
+        let service = BundledSideViews(over: FakeBrandAssetService())
+        for type in plainTypes.sorted().prefix(5) {
+            let plain = try #require(await service.asset(BundledSideViews.plainAirline, .sideView, type: type))
+            #expect(await service.asset("QQQ", .sideView, type: type) == plain, "\(type)")
+        }
+        let served = BrandAsset(data: Data([2]), format: "webp", version: "provider")
+        let wrapped = BundledSideViews(over: FakeBrandAssetService(seeded: [("QQQ", .sideView, served)], type: "A359"))
+        #expect(await wrapped.asset("QQQ", .sideView, type: "A359") == served)
+        // No plain view for an unknown type: the wrapped service's answer stands.
+        #expect(await service.lookup("QQQ", .sideView, type: "ZZZZ") == .missing)
     }
 }

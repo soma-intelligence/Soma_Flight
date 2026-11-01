@@ -208,6 +208,15 @@ public struct AirlineLogo: View {
         airline?.iata ?? String(code.prefix(2))
     }
 
+    /// The ICAO code to ask the brand service with: the airline's, else `code` when it reads as an ICAO
+    /// designator (three letters), so an airline the reference list does not know still gets its bundled
+    /// or served mark instead of the monogram. nil when there is nothing to ask for.
+    public nonisolated static func lookupCode(airline: Airline?, code: String) -> String? {
+        if let airline { return airline.id.uppercased() }
+        let t = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return t.count == 3 && t.allSatisfy({ $0.isASCII && $0.isLetter }) ? t : nil
+    }
+
     /// Where the fallback's fill comes from: the brand colour, else the hash palette keyed on the ICAO
     /// code when the airline is known, on `code` when not.
     enum TintSource: Equatable, Sendable {
@@ -299,7 +308,7 @@ public struct AirlineLogo: View {
 
     public var body: some View {
         let dark = scheme == .dark
-        let icao = airline?.id
+        let icao = AirlineLogo.lookupCode(airline: airline, code: code)
         let pixels = Int((size * displayScale).rounded(.up))
         // Read so a stored logo redraws the view.
         let _ = revision
@@ -386,7 +395,7 @@ public struct AirlineWordmark: View {
 
     public var body: some View {
         let dark = scheme == .dark
-        let icao = airline?.id
+        let icao = AirlineLogo.lookupCode(airline: airline, code: code)
         let pixels = Int((height * 4 * displayScale).rounded(.up))
         let _ = revision
         let art = icao.flatMap { BrandArtMemo.shared.art($0, .wordmark) }

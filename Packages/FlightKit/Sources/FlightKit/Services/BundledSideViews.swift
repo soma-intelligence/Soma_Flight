@@ -3,7 +3,8 @@ import Foundation
 /// Side views that ship with the app (Resources/SideViews, written by Scripts/bundle_side_views.py from the
 /// reviewed aircraft-art renders): one WebP per airline and type, nose left, margins already cut. They
 /// answer `.sideView` before the wrapped service is asked; every other kind, and a pair not in the bundle,
-/// goes to the wrapped service.
+/// goes to the wrapped service. When that service has no side view either, the type's plain one answers
+/// (`ZZZ-<TYPE>`: white, grey belly, no titles), so a known type never falls back to the vector drawing.
 public struct BundledSideViews: BrandAssetService {
     private let base: any BrandAssetService
     private let catalog: Catalog
@@ -48,13 +49,22 @@ public struct BundledSideViews: BrandAssetService {
         return BrandAsset(data: data, format: "webp", version: catalog.version)
     }
 
+    /// The airline code of the plain, unbranded side views ("ZZZ-A359"); ICAO's placeholder designator, no
+    /// airline's.
+    public static let plainAirline = "ZZZ"
+
+    /// The plain side view of this type, nil when the bundle has none.
+    func plain(type: String?) -> BrandAsset? { bundled(Self.plainAirline, type: type) }
+
     public func asset(_ icao: String, _ kind: BrandAssetKind, type: String?) async -> BrandAsset? {
-        if kind == .sideView, let asset = bundled(icao, type: type) { return asset }
-        return await base.asset(icao, kind, type: type)
+        await lookup(icao, kind, type: type).asset
     }
 
     public func lookup(_ icao: String, _ kind: BrandAssetKind, type: String?) async -> BrandLookup {
-        if kind == .sideView, let asset = bundled(icao, type: type) { return .found(asset) }
-        return await base.lookup(icao, kind, type: type)
+        guard kind == .sideView else { return await base.lookup(icao, kind, type: type) }
+        if let asset = bundled(icao, type: type) { return .found(asset) }
+        let answer = await base.lookup(icao, kind, type: type)
+        if case .found = answer { return answer }
+        return plain(type: type).map { .found($0) } ?? answer
     }
 }
