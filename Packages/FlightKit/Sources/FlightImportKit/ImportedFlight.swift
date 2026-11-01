@@ -93,6 +93,8 @@ public struct ImportedFlight: Codable, Sendable, Hashable {
     public var bookingReference: String?
     /// Minutes the flight reached the gate after (or, negative, before) its schedule, when the source says.
     public var delayMinutes: Int?
+    /// Minutes the flight left after (or, negative, before) its schedule, when the source says.
+    public var departureDelayMinutes: Int?
     public var canceled: Bool
     /// The airport the flight landed at instead, when it was diverted.
     public var divertedTo: String?
@@ -105,13 +107,13 @@ public struct ImportedFlight: Codable, Sendable, Hashable {
                 registration: String? = nil, seat: String? = nil, cabin: String? = nil, seatPosition: String? = nil,
                 reason: String? = nil, notes: String? = nil, bookingReference: String? = nil, delayMinutes: Int? = nil,
                 canceled: Bool = false,
-                divertedTo: String? = nil, evidence: [String] = []) {
+                divertedTo: String? = nil, evidence: [String] = [], departureDelayMinutes: Int? = nil) {
         self.airline = airline; self.number = number; self.origin = origin; self.destination = destination
         self.day = day; self.departureTime = departureTime; self.arrivalDay = arrivalDay; self.arrivalTime = arrivalTime
         self.departure = departure; self.aircraft = aircraft; self.registration = registration; self.seat = seat
         self.cabin = cabin; self.seatPosition = seatPosition; self.reason = reason; self.notes = notes
         self.bookingReference = bookingReference; self.delayMinutes = delayMinutes; self.canceled = canceled; self.divertedTo = divertedTo
-        self.evidence = evidence
+        self.evidence = evidence; self.departureDelayMinutes = departureDelayMinutes
     }
 
     /// The flight number as one word, upper case, leading zeros of the number dropped ("AF0084" gives

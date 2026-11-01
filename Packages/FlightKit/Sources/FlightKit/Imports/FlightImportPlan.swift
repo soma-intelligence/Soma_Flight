@@ -221,7 +221,8 @@ public enum FlightImportPlan {
             p.notes = String(String.UnicodeScalarView(notes.unicodeScalars.prefix(FollowDetails.maxNotes)))
             if notes.unicodeScalars.count > FollowDetails.maxNotes { warnings.append("Notes cut to 2,000 characters") }
         }
-        if let d = f.delayMinutes { p.delayMinutes = d }
+        if let d = f.delayMinutes { p.delayMinutes = d; p.arrivalDelayMinutes = d }
+        p.departureDelayMinutes = f.departureDelayMinutes
         if f.canceled {
             p.status = .canceled
         } else if let diverted = f.divertedTo {

@@ -116,9 +116,8 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         #expect(s.stats.delayedFlights == 2)
         #expect(s.stats.avgDelayedMinutes == 23) // 22.5 rounds half up
         #expect(s.stats.delayLost == .seconds(55 * 60))
-        #expect(DelayFacts.share(delayed: s.stats.delayedFlights, of: s.stats.flights) == "67%")
-        #expect(DelayFacts.shareCaption(delayed: 2, of: 3) == "2 of 3 flights")
-        #expect(DelayFacts.share(delayed: 0, of: 0) == "0%")
+        #expect(DelayReport.Share(late: 2, of: 3).percent == 67)
+        #expect(DelayReport.Share(late: 0, of: 0).percent == 0)
         #expect(TravelFacts.delayedAverageLine(23, delayed: 2) == "Delayed flights arrived 23m late on average")
         #expect(TravelFacts.delayedAverageLine(0, delayed: 0) == "None of your flights arrived 15 minutes late or more")
     }
@@ -206,6 +205,6 @@ private func flight(_ day: Int, airline: String? = "United", type: String? = "B7
         home.applyLaunchArguments(args)
         #expect(home.tab == .passport)
         #expect(home.fullPage == .delays)
-        #expect(FullPage.allCases.map(\.title) == ["Soma Flight Passport", "Delay stats", "Aircraft stats"])
+        #expect(FullPage.allCases.map(\.title) == ["Soma Flight Passport", "Delay Report", "Aircraft stats"])
     }
 }

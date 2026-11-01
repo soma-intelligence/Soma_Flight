@@ -23,7 +23,7 @@ public enum FullPage: String, Identifiable, Hashable, Sendable, CaseIterable {
     public var title: String {
         switch self {
         case .passport: "Soma Flight Passport"
-        case .delays: "Delay stats"
+        case .delays: "Delay Report"
         case .aircraftStats: "Aircraft stats"
         }
     }

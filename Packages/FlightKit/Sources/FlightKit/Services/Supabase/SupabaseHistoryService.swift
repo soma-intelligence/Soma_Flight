@@ -8,9 +8,15 @@ public final class SupabaseHistoryService: HistoryService {
 
     public init(backend: SupabaseBackend) { self.backend = backend }
 
+    /// True once migration 20261031000041 (signed arrival and departure delays) is on the server the app
+    /// talks to. Off, the two columns are neither read nor written, so a project without them keeps
+    /// working; the Delay Report then reads arrival delays from `delay_minutes` and has no departures.
+    static let delayColumns = false
+
     static let columns = "id, date, ident, origin_icao, destination_icao, airline, aircraft_type, registration, seat, "
         + "distance_km, block_minutes, delay_minutes, status, origin_tz, seat_class, reason, booking_code, notes, "
         + "origin_country, destination_country, air_minutes, seat_position, source"
+        + (delayColumns ? ", arrival_delay_minutes, departure_delay_minutes" : "")
 
     /// Rows per insert request of an import.
     static let batchSize = 200
@@ -45,6 +51,7 @@ public final class SupabaseHistoryService: HistoryService {
             case originTz = "origin_tz", seatClass = "seat_class", reason, bookingCode = "booking_code", notes
             case originCountry = "origin_country", destinationCountry = "destination_country"
             case airMinutes = "air_minutes", seatPosition = "seat_position", source
+            case arrivalDelayMinutes = "arrival_delay_minutes", departureDelayMinutes = "departure_delay_minutes"
         }
 
         func encode(to encoder: any Encoder) throws {
@@ -69,6 +76,10 @@ public final class SupabaseHistoryService: HistoryService {
             try c.encode(f.notes, forKey: .notes)
             try c.encode(f.airMinutes, forKey: .airMinutes)
             try c.encode(f.seatPosition, forKey: .seatPosition)
+            if SupabaseHistoryService.delayColumns {
+                try c.encode(f.arrivalDelayMinutes, forKey: .arrivalDelayMinutes)
+                try c.encode(f.departureDelayMinutes, forKey: .departureDelayMinutes)
+            }
             // A client row is manual or imported, never archived (the server refuses that anyway).
             try c.encode(f.source == .import ? PastFlightSource.import : .manual, forKey: .source)
             try c.encodeNil(forKey: .originTz)

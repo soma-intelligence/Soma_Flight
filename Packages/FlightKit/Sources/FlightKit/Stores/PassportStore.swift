@@ -23,6 +23,8 @@ public final class PassportStore {
     public private(set) var detail: PassportDetail = .empty
     /// The aircraft figures for the chosen year (core `computeAircraftStats`).
     public private(set) var aircraft: AircraftStats = .empty
+    /// The Delay Report for the chosen year (`DelayReport`, airlines as ICAO codes).
+    public private(set) var delayReport: DelayReport = .empty
     /// Goes up every time the figures are recomputed; what a rendered copy (the share image) keys on.
     public private(set) var revision = 0
 
@@ -249,6 +251,7 @@ public final class PassportStore {
     private func recompute() {
         let y = year.map(Int32.init)
         stats = PassportStats.compute(core: core, year: year)
+        delayReport = DelayReport.compute(mapped, year: year)
         detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)
         aircraft = FlightCore.computeAircraftStats(flights: core, year: y, types: types, facts: facts.map(\.coreFact),
                                                    asOf: Int64(asOf.timeIntervalSince1970))
