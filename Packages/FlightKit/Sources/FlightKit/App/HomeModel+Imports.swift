@@ -26,6 +26,13 @@ extension HomeModel {
         }
     }
 
+    /// Hands the import its notification and background time: from now on a long import the traveller
+    /// leaves keeps going and posts "Import finished" when done. Call once, at start (the shells do).
+    public func attachImportNotifier(_ notifier: any ImportNotifier) {
+        importNotifier = notifier
+        imports.notifier = notifier
+    }
+
     /// Opens the Import screen on the flights in a confirmation email (shared to the app, opened with
     /// it, dropped on it): read here, on the device.
     public func openImport(email text: String, name: String? = nil) {

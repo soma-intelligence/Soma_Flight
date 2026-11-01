@@ -64,6 +64,8 @@ struct SomaFlightApp: App {
                     // The home screen and lock screen widgets read My Flights from the App Group.
                     built.attachWidgets(WidgetSnapshotWriter(lookup: built.env.lookup))
                     built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
+                    // A long import finishes in the background and says so.
+                    built.attachImportNotifier(SystemImportNotifier())
                     // The Apple Watch gets the same list, with seats, belts and boarding passes.
                     built.attachWatch(WatchSnapshotSender(transport: PhoneWatchSession(), lookup: built.env.lookup))
                     // The flight sheet's "Leave by" time (the leave reminder uses it) and Settings > Calendar.

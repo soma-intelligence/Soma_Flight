@@ -24,6 +24,7 @@ public extension APIError {
         case .unauthorized: "Please sign in again."
         case .offline: "You're offline. Showing the last update."
         case .localData: "The flights saved on this device couldn't be cleared. Try again, or restart the app."
+        case .rejected(let why): why
         }
     }
 }

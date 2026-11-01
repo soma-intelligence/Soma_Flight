@@ -322,9 +322,9 @@ import FlightImportKit
         let review = try #require(s.review)
         #expect(review.past.count == 3 && review.upcoming.count == 1)
         #expect(review.skipped.map(\.label) == ["Row 5", "Row 6"])
-        #expect(s.commitTitle == "Add 3, Follow 1")
+        #expect(s.commitTitle == "Import 3, Follow 1")
         s.toggle(review.past[1].id)
-        #expect(s.commitTitle == "Add 2, Follow 1")
+        #expect(s.commitTitle == "Import 2, Follow 1")
         await s.commit()
         guard case .done(let summary) = s.phase else { Issue.record("not done"); return }
         #expect(summary.added == 2 && summary.later == 1)

@@ -85,7 +85,7 @@ public struct PassportView: View {
         }
         .fileImporter(isPresented: $choosingFile, allowedContentTypes: PastFlightImportState.contentTypes) { result in
             guard case .success(let url) = result else { return }
-            importState = PastFlightImportState.read(url, store: store)
+            Task { importState = await PastFlightImportState.read(url, store: store) }
         }
         .sheet(item: Binding(get: { importState.flatMap { if case .preview(let p) = $0 { p } else { nil } }.map(PreviewItem.init) },
                              set: { if $0 == nil { importState = nil } })) { item in

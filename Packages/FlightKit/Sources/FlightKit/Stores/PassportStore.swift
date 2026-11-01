@@ -165,19 +165,26 @@ public final class PassportStore {
         try PastFlightImport.preview(data, existing: all, airport: airport, reference: reference, now: now)
     }
 
-    /// Stores the flights of an import; the number stored, nil when a batch failed (the history is
-    /// reloaded then, so the batches already stored show).
+    /// Stores the flights of an import; the number stored, nil when any flight was not (`writeError`
+    /// says why; the ones stored stay).
     public func importFlights(_ flights: [PastFlight]) async -> Int? {
         guard !flights.isEmpty else { return 0 }
-        do {
-            let stored = try await history.addAll(flights)
-            await applied { $0 += stored }
-            return stored.count
-        } catch {
-            writeError = error
+        let outcome = await importFlights(flights, batchSize: HistoryImport.batchSize)
+        return outcome.failed.isEmpty && !outcome.canceled ? outcome.stored.count : nil
+    }
+
+    /// Stores the flights of an import a batch at a time (`HistoryImport`), reporting progress after each.
+    /// What was stored joins the history at the end, in one change, so the Passport's figures are worked
+    /// out once; after any failure the history is loaded again, so it shows exactly what the server has.
+    public func importFlights(_ flights: [PastFlight], batchSize: Int,
+                              progress: @MainActor (HistoryImport.Progress) -> Void = { _ in }) async -> HistoryImport.Outcome {
+        let outcome = await HistoryImport.run(flights, into: history, batchSize: batchSize, progress: progress)
+        if !outcome.stored.isEmpty { await applied { $0 += outcome.stored } }
+        if let first = outcome.failed.first {
+            writeError = first.error
             await load()
-            return nil
         }
+        return outcome
     }
 
     /// After a write the server accepted: applies its change to the loaded history (the figures follow)

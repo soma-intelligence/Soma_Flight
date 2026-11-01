@@ -5,6 +5,9 @@ public enum APIError: Error, Equatable, Sendable {
     case decoding(String)
     /// The flights saved on this device could not be wiped (sign-out, account change).
     case localData
+    /// The database refused a write: a check, a key or a row policy. The text says what, for the screen
+    /// ("A seat, code or date it does not accept"); the import lists it next to the flight.
+    case rejected(String)
 
     /// Maps the backend's error `code` strings. Unknown codes become `.providerUnavailable`.
     public init(code: String) {

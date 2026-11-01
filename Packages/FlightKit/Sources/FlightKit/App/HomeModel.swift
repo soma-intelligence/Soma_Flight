@@ -112,6 +112,8 @@ public final class HomeModel {
     @ObservationIgnored public private(set) var watch: WatchSnapshotSender?
     /// Check-in, morning and leave reminders; nil until the iOS shell calls `attachReminders`.
     @ObservationIgnored public private(set) var reminders: ReminderScheduler?
+    /// How a long import says it is done while the app is in the background (`attachImportNotifier`).
+    @ObservationIgnored var importNotifier: (any ImportNotifier)?
     /// One calendar event per followed flight (Settings > Calendar); nil until a shell calls `attachCalendar`.
     @ObservationIgnored public private(set) var calendar: CalendarSync?
     /// The flight sheet's "Leave by" time and the leave reminder's; nil until a shell calls `attachLeaveTimes`.
@@ -427,9 +429,11 @@ public final class HomeModel {
 
     /// The Import screen's store over the Passport and the calendar sync of now.
     private func makeImports() -> ImportStore {
-        ImportStore(passport: passport, flights: env.flights, queue: followLater, calendar: calendar,
-                    followed: { [weak self] in self?.followed ?? [] }, airport: env.lookup, reference: env.reference,
-                    onFollowed: { [weak self] _ in await self?.didFollow() })
+        let store = ImportStore(passport: passport, flights: env.flights, queue: followLater, calendar: calendar,
+                                followed: { [weak self] in self?.followed ?? [] }, airport: env.lookup, reference: env.reference,
+                                onFollowed: { [weak self] _ in await self?.didFollow() })
+        store.notifier = importNotifier
+        return store
     }
 
     // MARK: Live Activity

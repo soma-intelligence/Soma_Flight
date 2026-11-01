@@ -193,8 +193,9 @@ import Testing
         // The same file again: both rows are now duplicates.
         #expect(try store.importPreview(Data(csv.utf8), now: Self.now).duplicates.count == 2)
 
-        await svc.setNextError(.providerUnavailable)
+        // Offline: nothing more is sent and the import says so.
+        await svc.setNextError(.offline)
         #expect(await store.importFlights(preview.flights) == nil)
-        #expect(store.writeError == .providerUnavailable)
+        #expect(store.writeError == .offline)
     }
 }

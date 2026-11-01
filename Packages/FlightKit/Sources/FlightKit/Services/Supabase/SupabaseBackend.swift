@@ -152,7 +152,7 @@ public final class SupabaseBackend: Sendable {
             // PGRST301/302: the JWT is missing, expired or invalid.
             if e.code == "PGRST301" || e.code == "PGRST302" { return .unauthorized }
             if e.code == "PGRST116" { return .notFound }
-            return .providerUnavailable
+            return rejection(code: e.code, message: e.message) ?? .providerUnavailable
         case let e as AuthError:
             switch e {
             case .sessionMissing, .jwtVerificationFailed: return .unauthorized
@@ -170,6 +170,24 @@ public final class SupabaseBackend: Sendable {
             let ns = error as NSError
             if ns.domain == NSURLErrorDomain { return map(URLError(URLError.Code(rawValue: ns.code))) }
             return .providerUnavailable
+        }
+    }
+
+    /// What a Postgres error a write met means to the user, nil for one that is not about the row sent
+    /// (the server is down, a query is wrong). Until 2026-10-31 these all read "Flight data is temporarily
+    /// unavailable", so an import refused by a check said nothing of why.
+    static func rejection(code: String?, message: String) -> APIError? {
+        switch code {
+        case "23514":
+            if message.contains("seat_check") { return .rejected("The seat isn't one the server accepts") }
+            if message.contains("booking_code") { return .rejected("The booking code isn't one the server accepts") }
+            if message.contains("notes") { return .rejected("The notes are longer than 2,000 characters") }
+            return .rejected("An airport code, the flight number, the aircraft or the date isn't accepted")
+        case "23505": return .rejected("Already in your Passport")
+        case "23502": return .rejected("A required value is missing")
+        case "42501": return .rejected("Your account can't save this flight. Sign in again and retry.")
+        case let c? where c.hasPrefix("22"): return .rejected("A value is in a format the server doesn't read")
+        default: return nil
         }
     }
 
