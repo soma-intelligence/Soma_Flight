@@ -56,6 +56,9 @@ public final class HomeModel {
     public private(set) var notificationSettings: NotificationSettingsStore
     /// Friends, their shared flights and the invitations for the current owner, replaced on every account change.
     public private(set) var friends: FriendsStore
+    /// The user's name and photo (the header's avatar, Settings > Profile, the onboarding) and friends'
+    /// photos. One store for the home's life, pointed at each account by `prepareProfile()`.
+    public let profile: ProfileStore
     /// An invitation link the app was opened with, waiting for the user's answer (the shells show a sheet).
     public var pendingInvite: PendingFriendInvite?
     /// A link opened before anyone was signed in, previewed once someone is.
@@ -136,6 +139,7 @@ public final class HomeModel {
                               reference: env.reference)
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
         friends = env.makeFriendsStore()
+        profile = env.makeProfileStore()
         seenAwaiting = awaitingSession
         imports = makeImports()
         watchSession()
@@ -169,6 +173,21 @@ public final class HomeModel {
         } else if ownerChanged || resolved {
             Task { await reconcileActivities() }
         }
+    }
+
+    /// Whose profile shows: the signed-in account, or with the fakes (no sign-in) the fake account.
+    public var profileOwner: UUID? {
+        owner ?? (env.requiresSignIn ? nil : FakeProfileService.userId)
+    }
+
+    /// Points the profile at the account now signed in and decides whether onboarding shows. After a save
+    /// the Friends tab reads the user's own card again (it shows their name).
+    public func prepareProfile() async {
+        profile.onSaved = { [weak self] in await self?.friends.load() }
+        await profile.prepare(owner: profileOwner, appleName: session.appleName)
+        #if DEBUG
+        if UserDefaults.standard.string(forKey: "onboarding") != nil { profile.forceOnboarding() }
+        #endif
     }
 
     /// The account the stores read and write for.
@@ -348,6 +367,7 @@ public final class HomeModel {
         if !env.requiresSignIn || owner != nil {
             await notificationSettings.load()
             await friends.load()
+            await profile.loadFriendPhotos()
             await previewWaitingInvite()
             await followWaiting()
         }

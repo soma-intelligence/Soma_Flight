@@ -43,6 +43,12 @@ public struct AppEnvironment: Sendable {
     /// Text Me Too and in-flight texts (`sms-verify`): the fakes (nothing sent) with `-useFakes`, the backend in
     /// live builds, which answers "not available" until the owner turns texts on (docs/sms-alerts.md).
     public var textAlerts: any TextAlertsService = UnavailableTextAlertsService()
+    /// The user's profile (names, photo, onboarding) and friends' photos: the fakes with `-useFakes`
+    /// (`-onboarding apple|email|google` picks a first sign-in), the backend in live builds.
+    public var profiles: any ProfileService = UnavailableProfileService()
+    /// Shows "Continue with Google" on Sign In. Off until the owner turns Google on in Supabase and sets
+    /// `GOOGLE_SIGN_IN_ENABLED = YES` (docs/profile-onboarding.md).
+    public var googleSignIn = false
     /// A connection state that never changes (the fakes: online, offline with `-fakeOffline`); nil watches the
     /// device's own (`Connectivity.shared`).
     public var fixedConnectivity: Bool?
@@ -97,6 +103,7 @@ public struct AppEnvironment: Sendable {
         env.sharing = FakeFlightShareService(now: now)
         env.friends = FakeFriendsService(now: now)
         env.textAlerts = FakeTextAlertsService()
+        env.profiles = FakeProfileService(now: now)
         env.fixedConnectivity = true
         return env
     }
@@ -107,6 +114,7 @@ public struct AppEnvironment: Sendable {
         var env = try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
                                insights: SupabaseInsightsService.isEnabled())
         env.passes = .onDisk()
+        env.googleSignIn = (Bundle.main.object(forInfoDictionaryKey: "GoogleSignInEnabled") as? String)?.uppercased() == "YES"
         return env
     }
 
@@ -138,6 +146,7 @@ public struct AppEnvironment: Sendable {
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
         env.textAlerts = SupabaseTextAlertsService(backend: backend)
+        env.profiles = SupabaseProfileService(backend: backend)
         return env
     }
 
@@ -161,6 +170,10 @@ public struct AppEnvironment: Sendable {
         var env = try await fake(pastLimit: limit)
         env.fixedConnectivity = !arguments.contains("-fakeOffline")
         if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
+        if let i = arguments.firstIndex(of: "-onboarding"), arguments.indices.contains(i + 1),
+           let scenario = FakeProfileService.Scenario(rawValue: arguments[i + 1]) {
+            env.profiles = FakeProfileService(scenario)
+        }
         return env
         #else
         return try await fake()
@@ -203,6 +216,9 @@ public struct AppEnvironment: Sendable {
                       airports: directory.lookup)
     }
     @MainActor public func makeFriendsStore() -> FriendsStore { FriendsStore(service: friends) }
+    @MainActor public func makeProfileStore() -> ProfileStore {
+        ProfileStore(service: profiles, defaults: recentsDefaults)
+    }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore {
         AirportStore(code: code, airports: airports, security: security, faa: faa)
