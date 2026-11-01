@@ -1,0 +1,49 @@
+{
+  "available": true,
+  "reason": null,
+  "provider": "aeroapi",
+  "airports": [
+    {
+      "icao": "KSFO",
+      "iata": "SFO",
+      "fetched_at": "2026-10-31T20:10:00.000Z",
+      "stale": false,
+      "departures": {
+        "total": 5,
+        "on_time": 2,
+        "delayed": 2,
+        "canceled": 1,
+        "avg_delay_minutes": 16
+      },
+      "arrivals": {
+        "total": 0,
+        "on_time": 0,
+        "delayed": 0,
+        "canceled": 0,
+        "avg_delay_minutes": 0
+      },
+      "error": null
+    },
+    {
+      "icao": "KLAX",
+      "iata": "LAX",
+      "fetched_at": "2026-10-31T20:10:00.000Z",
+      "stale": false,
+      "departures": {
+        "total": 5,
+        "on_time": 2,
+        "delayed": 2,
+        "canceled": 1,
+        "avg_delay_minutes": 16
+      },
+      "arrivals": {
+        "total": 0,
+        "on_time": 0,
+        "delayed": 0,
+        "canceled": 0,
+        "avg_delay_minutes": 0
+      },
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "available": false,
+  "reason": "no_provider",
+  "provider": "none",
+  "icao": "KSFO",
+  "fetched_at": null,
+  "stale": false,
+  "departures": null,
+  "arrivals": null,
+  "today": null,
+  "next_7_days": null
+}

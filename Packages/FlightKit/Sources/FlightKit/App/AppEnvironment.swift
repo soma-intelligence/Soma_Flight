@@ -40,6 +40,13 @@ public struct AppEnvironment: Sendable {
     /// The Friends tab: friends, their shared flights, invitations. The fakes (two friends) with `-useFakes`,
     /// `friends` and the friend database functions in live builds (free, so always on).
     public var friends: any FriendsService = UnavailableFriendsService()
+    /// The Airports list and the airport card's live layer: weather and FAA programs (free, always on), the
+    /// board provider's numbers (answers "needs a data plan" without one) and Runway Regulars. The fakes with
+    /// `-useFakes` (`-fakeNoProvider` answers like a backend without a board provider).
+    public var airportOverview: any AirportOverviewService = UnavailableAirportOverviewService()
+    /// Favourite airports; on this device only (no favourites table in Supabase yet).
+    /// False keeps favourite airports in memory (fakes, tests), seeded with one airport.
+    public var airportFavoritesPersist = true
     /// Text Me Too and in-flight texts (`sms-verify`): the fakes (nothing sent) with `-useFakes`, the backend in
     /// live builds, which answers "not available" until the owner turns texts on (docs/sms-alerts.md).
     public var textAlerts: any TextAlertsService = UnavailableTextAlertsService()
@@ -102,6 +109,8 @@ public struct AppEnvironment: Sendable {
             .withAlternates(FakeAlternateFlightsService(flights: flights))
         env.sharing = FakeFlightShareService(now: now)
         env.friends = FakeFriendsService(now: now)
+        env.airportOverview = FakeAirportOverviewService(now: now)
+        env.airportFavoritesPersist = false
         env.textAlerts = FakeTextAlertsService()
         env.profiles = FakeProfileService(now: now)
         env.fixedConnectivity = true
@@ -145,6 +154,7 @@ public struct AppEnvironment: Sendable {
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
+        env.airportOverview = SupabaseAirportOverviewService(backend: backend)
         env.textAlerts = SupabaseTextAlertsService(backend: backend)
         env.profiles = SupabaseProfileService(backend: backend)
         return env
@@ -181,6 +191,8 @@ public struct AppEnvironment: Sendable {
         var env = try await fake(pastLimit: limit)
         env.fixedConnectivity = !arguments.contains("-fakeOffline")
         if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
+        // The Airports screens as a backend without a board provider shows them.
+        if arguments.contains("-fakeNoProvider") { env.airportOverview = FakeAirportOverviewService(live: false) }
         if let i = arguments.firstIndex(of: "-onboarding"), arguments.indices.contains(i + 1),
            let scenario = FakeProfileService.Scenario(rawValue: arguments[i + 1]) {
             env.profiles = FakeProfileService(scenario)
@@ -232,7 +244,7 @@ public struct AppEnvironment: Sendable {
     }
     @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore {
-        AirportStore(code: code, airports: airports, security: security, faa: faa)
+        AirportStore(code: code, airports: airports, security: security, faa: faa, overview: airportOverview)
     }
 
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {

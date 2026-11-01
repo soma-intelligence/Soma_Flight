@@ -281,8 +281,8 @@ select ok(not has_function_privilege('anon', 'public.handle_new_user()', 'execut
   'handle_new_user is not executable by clients');
 -- Guard: no function in public may be executable by anon or authenticated (directly or through
 -- PUBLIC). Allow-list for deliberate client RPCs: gate_history (gate prediction, 20261030000020) and the
--- Friends reads and own-row changes (20261031000022) and friend_avatars (20261031000030), each checking
--- auth.uid() itself.
+-- Friends reads and own-row changes (20261031000022), friend_avatars (20261031000030) and airport_regulars
+-- (20261031000035), each checking auth.uid() itself.
 select is_empty(
   $$select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
@@ -290,7 +290,7 @@ select is_empty(
            or has_function_privilege('authenticated', p.oid, 'execute'))
       and p.oid::regprocedure::text <> all (array['gate_history(text,text,text,date,integer)',
         'friends_me()', 'friends_list()', 'friend_requests()', 'friend_remove(uuid)', 'friend_flights(uuid)',
-        'friend_passport(uuid)', 'friend_avatars()'])$$,
+        'friend_passport(uuid)', 'friend_avatars()', 'airport_regulars(text)'])$$,
   'no public function is executable by anon or authenticated');
 
 -- Guard: every function in public pins search_path to the empty string (extension-owned ones excepted).

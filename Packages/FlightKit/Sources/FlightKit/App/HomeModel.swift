@@ -65,6 +65,8 @@ public final class HomeModel {
     @ObservationIgnored private var waitingInviteToken: String?
     /// What the panel shows on top of the tab and where the globe looks.
     public let shell = ShellModel()
+    /// The Airports list (the map's control tower button) and the favourite airports it and the card share.
+    public let airportsList: AirportsListStore
     /// The device's connection: offline, the globe and the flight sheet show estimates and the home its
     /// calm banner (the shells put it in `\.connectivity`).
     public let connectivity: Connectivity
@@ -142,9 +144,16 @@ public final class HomeModel {
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
         friends = env.makeFriendsStore()
         profile = env.makeProfileStore()
+        airportsList = AirportsListStore(service: env.airportOverview, lookup: env.lookup, reference: env.reference,
+                                         favorites: AirportFavorites(defaults: env.airportFavoritesPersist ? .standard : nil,
+                                                                     seed: env.airportFavoritesPersist ? [] : ["EGLL"]))
         seenAwaiting = awaitingSession
         imports = makeImports()
         watchSession()
+        // The airports of followed flights (in the air or upcoming) join the list's own group.
+        airportsList.tripAirports = { [weak self] in
+            self?.followed.flatMap { [$0.originIcao, $0.destinationIcao] } ?? []
+        }
     }
 
     // MARK: Session watch
@@ -208,6 +217,8 @@ public final class HomeModel {
     /// each arc is a great circle from the Rust core, and the shell reads this on every layout pass
     /// (a detent settling, a toast), which must not rebuild the globe's overlays.
     public var globe: GlobeContent {
+        // The Airports list (and an airport opened from it) shows the list's airports as status dots.
+        if shell.path.first == .airports { return airportsList.globe }
         let key: GlobeKey = switch tab {
         case .flights: .flights(followed, estimating: estimateTick)
         case .friends: .friends(friends.flights)
@@ -318,6 +329,9 @@ public final class HomeModel {
     public func open(friendFlight ff: FriendFlight) {
         shell.open(friendFlight: ff, route: Self.friendRoute(ff, lookup: env.lookup))
     }
+
+    /// Opens the Airports list (the map's control tower button).
+    public func openAirports() { shell.openAirports() }
 
     /// Codes arrive as ICAO from the globe and as either code from the screens; the stack keys on ICAO.
     public func open(airport code: String) {

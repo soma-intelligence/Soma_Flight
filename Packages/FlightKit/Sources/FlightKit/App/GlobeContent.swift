@@ -6,9 +6,12 @@ public struct GlobeContent: Sendable, Equatable {
     public var routes: [Route]
     public var planes: [FlightAnnotationModel]
     public var airports: [Airport]
+    /// A status per airport (ICAO), drawn as a coloured dot (the Airports list); empty draws plain white dots.
+    public var status: [String: AirportStatusLevel]
 
-    public init(routes: [Route] = [], planes: [FlightAnnotationModel] = [], airports: [Airport] = []) {
-        self.routes = routes; self.planes = planes; self.airports = airports
+    public init(routes: [Route] = [], planes: [FlightAnnotationModel] = [], airports: [Airport] = [],
+                status: [String: AirportStatusLevel] = [:]) {
+        self.routes = routes; self.planes = planes; self.airports = airports; self.status = status
     }
 
     /// Followed flights: one arc each, coloured by delay, planes for the ones with a position. A flight the

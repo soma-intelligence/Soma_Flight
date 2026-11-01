@@ -1,0 +1,114 @@
+{
+  "available": true,
+  "reason": null,
+  "provider": "aeroapi",
+  "icao": "KSFO",
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "stale": false,
+  "departures": {
+    "total": 5,
+    "on_time": 2,
+    "delayed": 2,
+    "canceled": 1,
+    "avg_delay_minutes": 16,
+    "trend": [
+      {
+        "hour": "2026-10-31T18:00:00.000Z",
+        "avg_delay_minutes": 3,
+        "flights": 2,
+        "estimated": false
+      },
+      {
+        "hour": "2026-10-31T19:00:00.000Z",
+        "avg_delay_minutes": 30,
+        "flights": 2,
+        "estimated": false
+      },
+      {
+        "hour": "2026-10-31T20:00:00.000Z",
+        "avg_delay_minutes": 25,
+        "flights": 1,
+        "estimated": true
+      }
+    ],
+    "worst_routes": [
+      {
+        "icao": "CYVR",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "icao": "KJFK",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "icao": "RJTT",
+        "delayed": 1,
+        "canceled": 0
+      }
+    ],
+    "worst_airlines": [
+      {
+        "operator": "ACA",
+        "delayed": 0,
+        "canceled": 1
+      },
+      {
+        "operator": "DAL",
+        "delayed": 1,
+        "canceled": 0
+      },
+      {
+        "operator": "UAL",
+        "delayed": 1,
+        "canceled": 0
+      }
+    ]
+  },
+  "arrivals": {
+    "total": 0,
+    "on_time": 0,
+    "delayed": 0,
+    "canceled": 0,
+    "avg_delay_minutes": 0,
+    "trend": [],
+    "worst_routes": [],
+    "worst_airlines": []
+  },
+  "today": {
+    "departures": 5,
+    "airlines": 3,
+    "airports_served": 3,
+    "countries_served": 2,
+    "busiest_airlines": [
+      {
+        "operator": "UAL",
+        "flights": 3
+      },
+      {
+        "operator": "DAL",
+        "flights": 1
+      },
+      {
+        "operator": "SWA",
+        "flights": 1
+      }
+    ],
+    "busiest_routes": [
+      {
+        "icao": "KLAX",
+        "flights": 3
+      },
+      {
+        "icao": "KJFK",
+        "flights": 1
+      },
+      {
+        "icao": "RJTT",
+        "flights": 1
+      }
+    ]
+  },
+  "next_7_days": null
+}

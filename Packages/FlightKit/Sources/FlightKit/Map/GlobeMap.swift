@@ -143,6 +143,8 @@ public struct GlobeMap: View {
     /// Tilts the camera for a 3D view; nil leaves the pitch to MapKit's own toggle (the Mac).
     var threeD: Bool?
     var isolation: GlobeIsolation?
+    /// Airports drawn as status dots (green, amber, red) instead of white ones: the Airports list.
+    var airportStatus: [String: AirportStatusLevel]
     /// How far the visible part of the map stops above its bottom edge (the iPhone sheet). The map keeps
     /// its full size and only its safe area moves, so a detent change never resizes the map.
     var bottomInset: CGFloat
@@ -171,8 +173,10 @@ public struct GlobeMap: View {
     ///     glides the globe up or down and springs the camera onto the new fit.
     public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>,
                 focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false, threeD: Bool? = nil,
-                isolation: GlobeIsolation? = nil, bottomInset: CGFloat = 0) {
+                isolation: GlobeIsolation? = nil, bottomInset: CGFloat = 0,
+                airportStatus: [String: AirportStatusLevel] = [:]) {
         self.bottomInset = bottomInset
+        self.airportStatus = airportStatus
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
         self.focus = focus; self.recenter = recenter; self.labels = labels; self.threeD = threeD
@@ -422,10 +426,7 @@ public struct GlobeMap: View {
             ForEach(layers.airports) { item in
                 let a = item.airport
                 Annotation(a.iata ?? a.id, coordinate: CLLocationCoordinate2D(latitude: a.lat, longitude: a.lon), anchor: .center) {
-                    Circle()
-                        .fill(.white)
-                        .frame(width: 6, height: 6)
-                        .overlay(Circle().stroke(.black.opacity(0.35), lineWidth: 1))
+                    AirportDot(status: airportStatus[a.id])
                         .padding(8)
                         .contentShape(Circle())
                         .opacity(item.opacity)
@@ -539,3 +540,23 @@ public struct GlobeMap: View {
     .ignoresSafeArea()
 }
 #endif
+
+/// An airport on the globe: a small white dot, or a larger coloured one when the Airports list gives it a status.
+struct AirportDot: View {
+    var status: AirportStatusLevel?
+
+    var body: some View {
+        if let status {
+            Circle()
+                .fill(AirportStatusColor.of(status))
+                .frame(width: 10, height: 10)
+                .overlay(Circle().stroke(.black.opacity(0.45), lineWidth: 1.5))
+                .shadow(color: AirportStatusColor.of(status).opacity(0.6), radius: 3)
+        } else {
+            Circle()
+                .fill(.white)
+                .frame(width: 6, height: 6)
+                .overlay(Circle().stroke(.black.opacity(0.35), lineWidth: 1))
+        }
+    }
+}

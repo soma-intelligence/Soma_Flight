@@ -1,0 +1,73 @@
+{
+  "fetched_at": "2026-10-31T20:10:00.000Z",
+  "airports": [
+    {
+      "icao": "KSFO",
+      "iata": "SFO",
+      "weather": {
+        "category": "VFR",
+        "ceiling_ft": null,
+        "visibility_sm": 10,
+        "wind_dir_deg": 290,
+        "wind_kt": 9,
+        "gust_kt": null,
+        "temp_c": 17,
+        "wx": null,
+        "condition": "Partly cloudy",
+        "summary": "Partly cloudy with light winds.",
+        "observed_at": "2026-10-31T20:00:00.000Z",
+        "metar_raw": "METAR KSFO 312000Z 29009KT 10SM FEW012 SCT200 17/11 A3001",
+        "stale": false
+      },
+      "faa": {
+        "stale": false,
+        "fetched_at": "2026-10-31T20:10:00.000Z",
+        "programs": [
+          {
+            "airport": "SFO",
+            "kind": "ground_delay",
+            "reason": "low clouds",
+            "reason_raw": "WEATHER / LOW CEILINGS",
+            "average_minutes": 47,
+            "trend": null,
+            "extension": null,
+            "starts_at": "2026-10-31T16:00:00Z",
+            "ends_at": "2026-11-01T03:59:00Z",
+            "updated_at": "2026-10-31T16:05:44Z",
+            "advisory_url": null
+          }
+        ]
+      }
+    },
+    {
+      "icao": "KAUS",
+      "iata": "AUS",
+      "weather": {
+        "category": "IFR",
+        "ceiling_ft": 900,
+        "visibility_sm": 10,
+        "wind_dir_deg": null,
+        "wind_kt": 3,
+        "gust_kt": null,
+        "temp_c": 21.7,
+        "wx": "-RA",
+        "condition": "Light rain",
+        "summary": "Light rain with calm winds.",
+        "observed_at": "2026-10-29T17:44:00.000Z",
+        "metar_raw": "SPECI KAUS 291744Z VRB03KT 10SM -RA BKN009 BKN026 BKN046 OVC130 22/20 A3015 RMK AO2 P0001 T02170200",
+        "stale": false
+      },
+      "faa": {
+        "stale": false,
+        "fetched_at": "2026-10-31T20:10:00.000Z",
+        "programs": []
+      }
+    },
+    {
+      "icao": "EGLL",
+      "iata": "LHR",
+      "weather": null,
+      "faa": null
+    }
+  ]
+}

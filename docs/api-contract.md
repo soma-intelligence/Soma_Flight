@@ -134,6 +134,9 @@ No row means every category is on, so the app writes the row the first time some
 | `faa-status` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, stale, fetched_at, programs }` (below) |
 | `faa-status` | POST | `?mode=sweep` | service role only (pg_cron); `{ ok, mode, stale, programs, flights, sent, failed }` |
 | `faa-notams` | GET | `airport` (IATA or ICAO) | `{ airport, iata, configured, stale, fetched_at, notams }` (below) |
+| `airport-weather` | GET | `airports` (comma list, up to 40, IATA or ICAO) or `airport` | `{ fetched_at, airports: [{ icao, iata, weather, faa }] }` (below) |
+| `airport-stats` | GET | `airport` (detail) or `airports` (list, up to 20) | `{ available, reason, provider, ... }` (below) |
+| `airport_regulars` | RPC | `{ p_icao }` | `[{ user_id, is_me, display_name, emoji, visits, last_visit }]` (below) |
 | `aeroapi-webhook` | POST | FlightAware delivery, `?secret=` | server to server |
 | `push-sender` | POST | `{ flightId, eventId }`, or `{ flightId, program }` (faa-status's sweep) | service role only |
 | `maintenance` | POST | `?mode=alerts`, `?mode=prune` or `?mode=poll` | service role only (pg_cron) |
@@ -1158,6 +1161,28 @@ The example files below are generated from the handler by `airport-board/index_t
   }
 }
 ```
+
+## airport-weather, airport-stats and airport_regulars
+
+The Airports feature (see [airports.md](airports.md)). The exact shapes are the contract files the
+functions' tests write and the app's `AirportsTests` decode:
+
+- `airport-weather/contract/list.json`: one batch of METARs in plain words (`condition`, `summary`,
+  `category`, wind, temperature, `metar_raw`, `stale`) and, for US airports, the FAA programs
+  (`faa: { stale, fetched_at, programs }`, the same program shape as `faa-status`). A failed METAR or
+  FAA read leaves that part `null`.
+- `airport-stats/contract/detail.json`: `{ available, reason, provider, icao, fetched_at, stale,
+  departures, arrivals, today, next_7_days }`. A direction is `{ total, on_time, delayed, canceled,
+  avg_delay_minutes, trend: [{ hour, avg_delay_minutes, flights, estimated }], worst_routes,
+  worst_airlines }`; `today` is `{ departures, airlines, airports_served, countries_served,
+  busiest_airlines: [{ operator, flights }], busiest_routes: [{ icao, flights }] }`. `next_7_days` is
+  `null` until a schedules feed exists.
+- `airport-stats/contract/list.json`: `{ available, reason, provider, airports: [{ icao, iata,
+  fetched_at, stale, departures, arrivals, error }] }` with the directions reduced to their counts.
+- `airport-stats/contract/no_provider.json`: `BOARD_PROVIDER=none` answers `available: false,
+  reason: "no_provider"` and every number `null`, with no provider call.
+- `airport_regulars(p_icao)`: the caller and friends sharing their Passport, by flights through the
+  airport (canceled flights excluded), at most 10, `last_visit` cut to the month.
 
 ## App configuration and sign in
 
