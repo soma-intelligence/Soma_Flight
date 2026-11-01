@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A large, soft illustration for an empty screen: our glossy white jet on its own, nothing drawn around it.
-/// The pictures come from assets/empty-states (Azure gpt-image-2.5, the v4 icon jet as the style reference).
+/// The pictures come from assets/empty-states and assets/app-icon (Azure gpt-image-2.5, one jet as the style reference).
 /// Decorative: VoiceOver skips it, the text under it speaks. The jet floats gently, and stays still with
 /// Reduce Motion.
 struct EmptyStateIllustration: View {
@@ -11,11 +11,14 @@ struct EmptyStateIllustration: View {
         case stamp
         /// The jet seen three-quarters from the front, climbing (My Flights).
         case climb
+        /// Two of the same jets climbing together, one ahead and one behind (Friends).
+        case pair
 
         var asset: String {
             switch self {
             case .stamp: "empty-jet-profile"
             case .climb: "empty-jet-climb"
+            case .pair: "empty-jets-friends"
             }
         }
     }
