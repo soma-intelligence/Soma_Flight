@@ -92,8 +92,8 @@ struct RootTabView: View {
         .presentationDetents(geometry.presentationDetents, selection: Binding(
             get: { geometry.presentationDetent(for: shell.detent) },
             set: { shell.detent = geometry.detent(for: $0) }))
-        // No grab handle: the sheet reads as a card under the tab pill. VoiceOver moves it from its title.
-        .presentationDragIndicator(.hidden)
+        // The grab handle shows the sheet can be dragged between its three heights (owner's call, 2026-11-01).
+        .presentationDragIndicator(.visible)
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
