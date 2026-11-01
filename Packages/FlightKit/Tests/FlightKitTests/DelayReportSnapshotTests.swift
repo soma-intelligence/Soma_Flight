@@ -42,6 +42,63 @@ extension ComponentSnapshotTests {
         }
     }
 
+    /// The hardest-hit tail across the families (narrow and wide bodies, tail-engined jets, props, our own
+    /// drawing for a pair without a side view), in a bar as narrow as three airlines leave it and as wide as
+    /// one alone, in docs/screens/components/AircraftTail.png.
+    ///
+    ///     SNAPSHOTS=1 swift test --package-path Packages/FlightKit --filter aircraftTailGallery
+    @Test func aircraftTailGallery() async throws {
+        let service = BundledSideViews(over: FakeBrandAssetService())
+        let reference = ReferenceData.bundled()
+        let pairs = ["UAL-B789", "UAL-B38M", "AAL-A321", "AFR-A359", "AAL-B77W", "ANA-A388", "DLH-B748",
+                     "ANE-CRJ9", "ANE-AT72", "ANA-DH8D", "AAL-E75L", "DAL-BCS3", "DLH-A320", "UAL-B752"]
+        let resolved = pairs.map { pair -> (Airline?, AircraftType?) in
+            let parts = pair.split(separator: "-").map(String.init)
+            return (reference.airline(parts[0]), reference.type(parts[1]))
+        }
+        await AircraftImage.preload(resolved.map { (airline: $0.0, type: $0.1) }, service: service)
+        try render("AircraftTail") {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(resolved.enumerated()), id: \.offset) { i, pair in
+                    HStack(alignment: .bottom, spacing: 12) {
+                        tailBlock(pair.0, pair.1, width: 166)
+                        tailBlock(pair.0, pair.1, width: 190)
+                    }
+                    Text(pairs[i]).font(.caption).foregroundStyle(.white.opacity(0.6))
+                }
+                tailBlock(reference.airline("UAL"), reference.type("B789"), width: 361)
+                tailBlock(reference.airline("AFR"), reference.type("A359"), width: 361)
+            }
+            .padding(16)
+            .background(DelayInk.page)
+            .environment(\.brandAssets, service)
+        }
+    }
+
+    /// The Aircraft Stats hero (totals and the most flown type's side view on the light blue page), to check
+    /// the side view sits on the page with no box around it, in docs/screens/components/AircraftStatsHero.png.
+    @Test func aircraftStatsHero() async throws {
+        let store = PassportStore(history: FakeHistoryService())
+        await store.load()
+        let service = BundledSideViews(over: FakeBrandAssetService())
+        await AircraftImage.preload([(airline: store.mostFlownAirline, type: store.mostFlownType)], service: service)
+        try render("AircraftStatsHero", light: true) {
+            AircraftTotalsPanel(stats: store.aircraft, mostFlownType: store.mostFlownType,
+                                mostFlownAirline: store.mostFlownAirline)
+                .background(LinearGradient(gradient: Theme.aircraftPage, startPoint: .top, endPoint: .bottom))
+                .environment(\.brandAssets, service)
+        }
+    }
+
+    private func tailBlock(_ airline: Airline?, _ type: AircraftType?, width: CGFloat) -> some View {
+        ZStack(alignment: .bottom) {
+            Rectangle().fill(DelayInk.late)
+            AircraftTail(type: type, airline: airline, rise: AirlineLossBar.rise)
+        }
+        .frame(width: width, height: 64)
+        .padding(.top, AirlineLossBar.rise)
+    }
+
     private var topBar: some View {
         ZStack {
             Text("Delay Report").scaledFont(17, weight: .semibold).foregroundStyle(.white)

@@ -155,7 +155,7 @@ struct LEDStrip: View {
 // MARK: - Worst airline bar
 
 /// The airlines that lost the most time, side by side, each as wide as its share of the late minutes. The
-/// first carries our own side view of its most delayed type, cut to the tail; the others their code.
+/// first carries the tail of its most delayed type rising out of the block; the others their code.
 struct AirlineLossBar: View {
     var losses: [DelayReport.AirlineLoss]
     @Environment(\.reference) private var reference
@@ -211,8 +211,9 @@ struct AirlineLossBar: View {
             }
             ZStack(alignment: .bottom) {
                 Rectangle().fill(fill)
-                if i == 0 {
-                    tail(part.key, width: width)
+                if i == 0, let airline = reference.airline(part.key) {
+                    AircraftTail(type: losses.first { $0.key == part.key }?.type.flatMap { reference.type($0) },
+                                 airline: airline, rise: Self.rise)
                 } else {
                     Text(part.label)
                         .scaledFont(22, weight: .bold)
@@ -228,19 +229,8 @@ struct AirlineLossBar: View {
         .frame(width: width, alignment: .leading)
     }
 
-    /// Our side view of the airline's most delayed type, its tail end in the block.
-    private func tail(_ key: String, width: CGFloat) -> some View {
-        let airline = reference.airline(key)
-        let type = losses.first { $0.key == key }?.type.flatMap { reference.type($0) }
-        // Taller than the block: the fuselage sits in it and the fin rises above, cut at the sides only.
-        let h = block * 1.55
-        return AircraftImage(type: type, airline: airline, height: h)
-            .fixedSize()
-            .offset(x: width * 0.10, y: block * 0.22)
-            .frame(width: width, height: h, alignment: .bottomTrailing)
-            .clipped()
-            .frame(width: width, height: block, alignment: .bottom)
-    }
+    /// How far the worst airline's fin may stand above its block, into the room beside the figure.
+    static let rise: CGFloat = 46
 
     private func code(_ key: String) -> String { reference.airline(key)?.iata ?? key }
     private func name(_ key: String) -> String {
