@@ -41,13 +41,14 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 public enum AppIcons {
     public static let all: [AppIconChoice] = [
         AppIconChoice(nil, name: "Orbit", tagline: "A flight path circling the globe. The original."),
-        AppIconChoice("AppIcon-ember", name: "Ember", tagline: "Our white jet over a warm coral glow."),
+        AppIconChoice("AppIcon-ember", name: "Ember", tagline: "Chrome wings over a warm coral glow."),
         AppIconChoice("AppIcon-redeye", name: "Red Eye", tagline: "Red to port, green to starboard, wheels up at midnight."),
         AppIconChoice("AppIcon-sweep", name: "Sweep", tagline: "One coral sweep, every blip a flight."),
         AppIconChoice("AppIcon-lastcall", name: "Last Call", tagline: "The board flips, the gate closes, you're on."),
         AppIconChoice("AppIcon-spectrum", name: "Spectrum", tagline: "Fly proud and leave a rainbow behind."),
         AppIconChoice("AppIcon-mach", name: "Mach Two", tagline: "Afterburners on, breakfast in another time zone."),
         AppIconChoice("AppIcon-nightside", name: "Night Side", tagline: "Cities glowing below at cruising altitude."),
+        AppIconChoice("AppIcon-orbit-chrome", name: "Chrome", tagline: "Polished metal on charcoal. Nothing else to say."),
     ]
 
     /// The choice for an alternate icon name as the system reports it; the primary for nil or a name no
