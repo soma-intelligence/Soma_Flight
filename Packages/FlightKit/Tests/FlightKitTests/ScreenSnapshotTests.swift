@@ -128,6 +128,29 @@ extension ComponentSnapshotTests {
                  "passport-offline", to: Self.screensDir)
     }
 
+    /// The empty My Flights: the climbing jet over its route, the title and Search, dark and light.
+    @Test func myFlightsEmptyIllustrated() async throws {
+        let empty = await MyFlightsPreview.makeStore(.empty)
+        try screen("myflights-empty", height: 560) {
+            MyFlightsView(store: empty, onSelect: { _ in }, onSearch: {}, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+        try screen("myflights-empty-light", light: true, height: 560) {
+            MyFlightsView(store: empty, onSelect: { _ in }, onSearch: {}, lookup: PreviewData.airport, now: now, scrolls: false)
+        }
+    }
+
+    /// The empty Passport: the jet illustration, the welcome lines and the two actions, dark and light.
+    @Test func passportEmptyScreens() async throws {
+        let store = await PassportPreview.makeStore(.empty)
+        #expect(store.flights.isEmpty && store.hasLoaded)
+        try screen("passport-empty", height: 640) {
+            PassportView(store: store, lookup: PreviewData.airport, now: now, scrolls: false, onImport: {})
+        }
+        try screen("passport-empty-light", light: true, height: 640) {
+            PassportView(store: store, lookup: PreviewData.airport, now: now, scrolls: false, onImport: {})
+        }
+    }
+
     @Test func settingsAndSignIn() async throws {
         let session = SettingsPreview.makeSession(plan: .free, failDelete: false)
         #expect(session.session != nil)
