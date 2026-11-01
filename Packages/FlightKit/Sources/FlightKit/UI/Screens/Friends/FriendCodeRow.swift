@@ -18,9 +18,8 @@ enum FriendQR {
 
 // MARK: - Code row
 
-/// The user's friend code as one slim row at the top of the tab: "Your code" over the code in monospaced
-/// digits, then QR, Copy (a check for a moment once copied) and Share, which makes the invitation link
-/// when tapped. The tab's quieter actions (pause every share, a new code, refresh) sit in the trailing
+/// The user's friend code as one slim row at the top of the tab: `FriendCodeLabel`, then QR, Copy (a
+/// check for a moment once copied) and Share, which makes the invitation link when tapped. The tab's quieter actions (pause every share, a new code, refresh) sit in the trailing
 /// menu and on a long press of the row.
 struct FriendCodeRow: View {
     var store: FriendsStore
@@ -32,18 +31,9 @@ struct FriendCodeRow: View {
     var body: some View {
         let code = store.me?.friendCode
         HStack(spacing: Theme.metric(8, scale)) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Your code")
-                    .scaledFont(12, weight: .medium)
-                    .foregroundStyle(Theme.secondary)
-                Text(store.me?.spacedCode ?? FriendFacts.codePlaceholder)
-                    .scaledFont(18, weight: .semibold, design: .monospaced)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
+            FriendCodeLabel(code: code)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
             Spacer(minLength: 4)
             icon("qrcode", label: "Show QR Code", action: onShowQR)
                 .disabled(code == nil)
@@ -116,6 +106,43 @@ struct FriendCodeRow: View {
             guard !Task.isCancelled else { return }
             withAnimation(.snappy) { copied = false }
         }
+    }
+}
+
+// MARK: - Code label
+
+/// The row's label: a small tracked "YOUR CODE" over the code in SF Pro Rounded, its two groups of four
+/// split by a centred dot. Codes use Crockford's alphabet (no I, L, O or U), so a rounded face stays
+/// unambiguous. VoiceOver reads the row's own label, one character at a time.
+struct FriendCodeLabel: View {
+    var code: String?
+    @Environment(\.metricsScale) private var scale
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.metric(3, scale)) {
+            Text("YOUR CODE")
+                .scaledFont(10, weight: .semibold, relativeTo: .caption2)
+                .tracking(1.4)
+                .foregroundStyle(Theme.secondary.opacity(0.8))
+                .lineLimit(1)
+            HStack(spacing: Theme.metric(7, scale)) {
+                group(code?.count == 8 ? code.map { String($0.prefix(4)) } : nil)
+                Circle()
+                    .fill(Theme.secondary.opacity(0.6))
+                    .frame(width: Theme.metric(3.5, scale), height: Theme.metric(3.5, scale))
+                group(code?.count == 8 ? code.map { String($0.suffix(4)) } : nil)
+            }
+        }
+    }
+
+    private func group(_ text: String?) -> some View {
+        Text(text ?? "····")
+            .scaledFont(19, weight: .medium, design: .rounded)
+            .monospacedDigit()
+            .tracking(1.8)
+            .foregroundStyle(Theme.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
     }
 }
 
