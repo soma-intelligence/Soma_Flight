@@ -158,12 +158,16 @@ public struct PassportView: View {
 
     private var emptyState: some View {
         VStack(spacing: 6) {
-            Text("No past flights yet")
-                .scaledFont(17, weight: .semibold)
-                .foregroundStyle(Theme.secondary)
-            Text("Flights you follow land here once they're done.")
+            EmptyStateIllustration()
+                .scaledPadding(.bottom, 14)
+            Text("Your passport starts here")
+                .scaledFont(20, weight: .semibold)
+                .foregroundStyle(Theme.primary)
+                .accessibilityAddTraits(.isHeader)
+            Text("Past flights you add or import collect stamps here.")
                 .scaledFont(15)
-                .foregroundStyle(Theme.secondary.opacity(0.8))
+                .foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
                 Chip(title: "Add Past Flight", symbol: "plus", selected: false) { editing = .add }
                 if let onImport {
@@ -176,7 +180,8 @@ public struct PassportView: View {
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .scaledPadding(.vertical, 60)
+        .scaledPadding(.top, 20)
+        .scaledPadding(.bottom, 40)
     }
 
     private func reload() { Task { await store.load() } }

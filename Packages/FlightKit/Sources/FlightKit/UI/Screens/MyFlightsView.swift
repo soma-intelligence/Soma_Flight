@@ -120,19 +120,24 @@ public struct MyFlightsView: View {
     }
 }
 
-/// Centered invitation shown when nothing is followed.
+/// Centered invitation shown when nothing is followed: the climbing jet, a short title and Search.
 struct EmptyFlights: View {
     var onSearch: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
-            Text("Add a flight to start tracking")
-                .scaledFont(17, weight: .semibold)
-                .foregroundStyle(Theme.secondary)
-            Text("Search by flight number, route or airport.")
+            // Smaller than Passport's: the home sheet opens at half height and Search should stay in view.
+            EmptyStateIllustration(variant: .climb, size: 200)
+                .scaledPadding(.bottom, 10)
+            Text("Where to next?")
+                .scaledFont(20, weight: .semibold)
+                .foregroundStyle(Theme.primary)
+                .accessibilityAddTraits(.isHeader)
+            Text("Follow a flight by number, route or airport.")
                 .scaledFont(15)
-                .foregroundStyle(Theme.secondary.opacity(0.8))
+                .foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if let onSearch {
                 Button(action: onSearch) {
                     Label("Search", systemImage: "magnifyingglass")
