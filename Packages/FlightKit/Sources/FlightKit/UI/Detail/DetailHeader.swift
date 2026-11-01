@@ -131,7 +131,7 @@ struct DetailHeader: View {
     var onClose: (() -> Void)?
     /// Drawn between the title and the close button (the Mac panel's share, bell and menu).
     var actions: AnyView?
-    @ScaledMetric(relativeTo: .title3) private var logo: CGFloat = 32
+    @ScaledMetric(relativeTo: .title3) private var logo: CGFloat = 40
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {

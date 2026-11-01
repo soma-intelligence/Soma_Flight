@@ -49,6 +49,8 @@ public struct MyFlightRow: View {
     @Environment(\.units) private var units
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .largeTitle) private var column: CGFloat = 66
+    /// The airline's mark beside the flight number.
+    @ScaledMetric(relativeTo: .subheadline) private var mark: CGFloat = 24
 
     public init(flight: Flight, origin: Airport?, destination: Airport?, airline: Airline?, now: Date = .now) {
         self.flight = flight; self.origin = origin; self.destination = destination
@@ -155,7 +157,7 @@ public struct MyFlightRow: View {
 
     private var logoAndIdent: some View {
         HStack(alignment: .center, spacing: 8) {
-            AirlineLogo(airline: airline, code: code, size: 18, decorative: true)
+            AirlineLogo(airline: airline, code: code, size: mark, decorative: true)
             Text(Format.ident(flight.ident))
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)

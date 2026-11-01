@@ -195,7 +195,7 @@ struct RankedBars: View {
     /// How far a code row's bar sits under its code, as a share of the row's height.
     static let codeDrop: CGFloat = 0.5
     /// An airline row's mark and bar, as shares of the row's height.
-    static let markSize: CGFloat = 0.72
+    static let markSize: CGFloat = 0.9
     static let markBar: CGFloat = 0.68
 
     var body: some View {

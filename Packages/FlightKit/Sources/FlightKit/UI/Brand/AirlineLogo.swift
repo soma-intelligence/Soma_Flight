@@ -67,6 +67,9 @@ struct BrandArt: @unchecked Sendable {
     var coverage: Double
     /// Mean luminance of the outermost pixels.
     var borderLuminance: Double
+    /// Alpha near each corner (8% in from both edges), 0 to 1: a filled tile is opaque there, a roundel
+    /// or a bare mark is not.
+    var cornerAlpha: [Double] = []
 
     static let bins = 32
     var aspect: CGFloat { CGFloat(image.width) / CGFloat(max(image.height, 1)) }
@@ -84,11 +87,12 @@ struct BrandArt: @unchecked Sendable {
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
         let m = measure(image)
         return BrandArt(image: image, version: asset.version, pixelSize: max(image.width, image.height),
-                        histogram: m.histogram, coverage: m.coverage, borderLuminance: m.border)
+                        histogram: m.histogram, coverage: m.coverage, borderLuminance: m.border,
+                        cornerAlpha: m.corners)
     }
 
     /// Draws the image into a 48 x 48 sRGB bitmap and reads it.
-    static func measure(_ image: CGImage) -> (histogram: [Double], coverage: Double, border: Double) {
+    static func measure(_ image: CGImage) -> (histogram: [Double], coverage: Double, border: Double, corners: [Double]) {
         let side = 48
         var pixels = [UInt8](repeating: 0, count: side * side * 4)
         let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
@@ -101,7 +105,10 @@ struct BrandArt: @unchecked Sendable {
             return true
         }
         var histogram = [Double](repeating: 0, count: bins)
-        guard drawn else { return (histogram, 0, 0) }
+        guard drawn else { return (histogram, 0, 0, []) }
+        // 8% in from both edges: inside a tile's rounded corner (radius up to about 27%), outside a circle.
+        let lo = Int((Double(side) * 0.08).rounded()), hi = side - 1 - lo
+        let corners = [(lo, lo), (hi, lo), (lo, hi), (hi, hi)].map { Double(pixels[($0.1 * side + $0.0) * 4 + 3]) / 255 }
         var weight = 0.0, borderSum = 0.0, borderWeight = 0.0
         for y in 0..<side {
             for x in 0..<side {
@@ -117,9 +124,9 @@ struct BrandArt: @unchecked Sendable {
                 if x == 0 || y == 0 || x == side - 1 || y == side - 1 { borderSum += a * lum; borderWeight += a }
             }
         }
-        guard weight > 0 else { return (histogram, 0, 0) }
+        guard weight > 0 else { return (histogram, 0, 0, corners) }
         return (histogram.map { $0 / weight }, weight / Double(side * side),
-                borderWeight > 0 ? borderSum / borderWeight : 0)
+                borderWeight > 0 ? borderSum / borderWeight : 0, corners)
     }
 
     /// WCAG relative luminance of an sRGB colour (components 0 to 1).
@@ -163,12 +170,15 @@ final class BrandArtMemo {
 
 // MARK: - AirlineLogo
 
-/// The airline's logo in a rounded square of `size`: the dark variant in dark mode when there is one,
-/// else the logo, else the monogram (IATA code, white and bold, on the brand colour).
+/// The airline's mark in a square of `size`, on nothing: the dark variant in dark mode when there is one,
+/// else the logo. The logotype alone, never the name: a logo that is a wordmark gives way to the airline's
+/// tail fin when the bundle has one, and with no logo at all the fin stands in; only with neither does a
+/// quiet grey monogram (the IATA code) show.
 ///
-/// The logo sits on a plate when more than a quarter of its ink is under 4.5:1 against the surface it is
-/// drawn on (`logoSurface`): white or near black, whichever leaves less ink faint. A logo with its own
-/// opaque background always sits on the plate of that background's tone, in both schemes.
+/// No plate, ring or shadow. A logo that is a filled tile (opaque near its corners, United's square) is
+/// cut to the rounded square; any other logo sits bare, as large as the square allows. A bare logo lost on
+/// its surface (`logoSurface`, see `isLost`) is drawn in one colour, the primary text colour, so a navy
+/// crane shows white in dark mode.
 public struct AirlineLogo: View {
     var airline: Airline?
     var code: String
@@ -188,7 +198,7 @@ public struct AirlineLogo: View {
     nonisolated static let textRatio: CGFloat = 12 / 34
     /// Inset of the logo inside the square, as a share of the side: on a plate, and with no plate.
     nonisolated static let platePadding: CGFloat = 0.14
-    nonisolated static let barePadding: CGFloat = 0.06
+    nonisolated static let barePadding: CGFloat = 0.02
     /// Ink under this contrast against its surface counts as faint (WCAG's 4.5:1: most logos are wordmarks).
     nonisolated static let minContrast = 4.5
     /// More faint ink than this share puts the logo on a plate.
@@ -198,6 +208,11 @@ public struct AirlineLogo: View {
     /// The plates' luminance: white, and the near black (white 0.11) one.
     nonisolated static let lightPlate = 1.0
     nonisolated static let darkPlate = BrandArt.relativeLuminance(r: 0.11, g: 0.11, b: 0.11)
+
+    /// A logo wider than this (width over height) is a wordmark: it spells the name.
+    nonisolated static let wordmarkAspect: CGFloat = 1.8
+    /// Corner alpha from which a logo counts as a filled tile.
+    nonisolated static let tileAlpha = 0.9
 
     public init(airline: Airline?, code: String, size: CGFloat, decorative: Bool = false) {
         self.airline = airline; self.code = code; self.size = size; self.decorative = decorative
@@ -238,6 +253,37 @@ public struct AirlineLogo: View {
 
     /// The kinds to try for a scheme, best first. Square slots never take the wide `.wordmark`.
     nonisolated static func kinds(dark: Bool) -> [BrandAssetKind] { dark ? [.logoDark, .logo] : [.logo] }
+
+    /// True when the logo is a filled tile: opaque near all four corners.
+    nonisolated static func isTile(cornerAlpha: [Double]) -> Bool {
+        cornerAlpha.count == 4 && cornerAlpha.allSatisfy { $0 >= tileAlpha }
+    }
+
+    /// True when the logo spells the airline's name: the bundle's wordmark standing in for a symbol, or
+    /// any logo set wide.
+    nonisolated static func isWordmark(version: String, aspect: CGFloat) -> Bool {
+        version.hasSuffix("-wordmark") || aspect > wordmarkAspect
+    }
+
+    /// A bare mark is lost on its surface when most of its ink (`lostShare`) is under `lostContrast`
+    /// against it: navy on the dark page. Brand colours that merely fall short of text contrast (Air
+    /// France's red on the light page) keep their colour.
+    nonisolated static let lostContrast = 2.0
+    nonisolated static let lostShare = 0.6
+
+    nonisolated static func isLost(histogram: [Double], surface: Double) -> Bool {
+        BrandArt.faintShare(histogram, surface: surface, minimum: lostContrast) > lostShare
+    }
+
+    /// What a square slot shows.
+    enum Face: Equatable, Sendable { case logo, fin, monogram }
+
+    /// The logo when it is a mark, else the fin, else a wordmark logo, else the monogram.
+    nonisolated static func face(logo: (version: String, aspect: CGFloat)?, hasFin: Bool) -> Face {
+        if let logo, !isWordmark(version: logo.version, aspect: logo.aspect) { return .logo }
+        if hasFin { return .fin }
+        return logo == nil ? .monogram : .logo
+    }
 
     enum Plate: Equatable, Sendable { case light, dark }
 
@@ -313,11 +359,12 @@ public struct AirlineLogo: View {
         // Read so a stored logo redraws the view.
         let _ = revision
         let art = icao.flatMap { Self.held(icao: $0, dark: dark) }
+        let fin = icao.flatMap { AirlineTailMark.fin($0) }
         Group {
-            if let art {
-                logo(art, dark: dark)
-            } else {
-                monogramTile
+            switch Self.face(logo: art.map { ($0.version, $0.aspect) }, hasFin: fin != nil) {
+            case .logo: if let art { logo(art, dark: dark) }
+            case .fin: if let fin { finMark(fin) }
+            case .monogram: monogramTile
             }
         }
         .frame(width: size, height: size)
@@ -335,35 +382,51 @@ public struct AirlineLogo: View {
 
     private var radius: CGFloat { size * Self.cornerRatio }
 
+    /// The last resort: the code in grey on a faint grey square, quiet beside real marks.
     private var monogramTile: some View {
         Text(Self.monogram(airline: airline, code: code))
-            .font(.system(size: size * Self.textRatio, weight: .bold))
+            .font(.system(size: size * Self.textRatio, weight: .semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.secondary)
             .frame(width: size, height: size)
-            .background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Self.tint(airline: airline, code: code)))
-            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(.white.opacity(0.14), lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Theme.secondary.opacity(0.12)))
+    }
+
+    /// The airline's tail fin, bare.
+    private func finMark(_ fin: CGImage) -> some View {
+        Image(decorative: fin, scale: 1)
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
     }
 
     @ViewBuilder private func logo(_ art: BrandArt, dark: Bool) -> some View {
-        let plate = Self.plate(art, surface: surface.luminance(dark: dark))
-        let inset = size * (plate == nil ? Self.barePadding : Self.platePadding)
         let image = Image(decorative: art.image, scale: 1)
             .resizable()
             .interpolation(.high)
             .antialiased(true)
-            .aspectRatio(art.aspect, contentMode: .fit)
-            .padding(inset)
-            .frame(width: size, height: size)
-        switch plate {
-        case .light:
-            image.background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color.white))
-                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.separator, lineWidth: 0.5))
-        case .dark:
-            image.background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Color(white: 0.11)))
-        case nil:
+        if Self.isTile(cornerAlpha: art.cornerAlpha) {
+            // A filled tile: the whole square, cut to the rounded corners.
             image
+                .aspectRatio(contentMode: .fill)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        } else if Self.isLost(histogram: art.histogram, surface: surface.luminance(dark: dark)) {
+            // Ink that would not read on this surface: one colour, the text's.
+            image
+                .renderingMode(.template)
+                .foregroundStyle(Theme.primary)
+                .aspectRatio(art.aspect, contentMode: .fit)
+                .padding(size * Self.barePadding)
+                .frame(width: size, height: size)
+        } else {
+            image
+                .aspectRatio(art.aspect, contentMode: .fit)
+                .padding(size * Self.barePadding)
+                .frame(width: size, height: size)
         }
     }
 }
@@ -448,13 +511,14 @@ public struct AirlineWordmark: View {
 // MARK: - AirlineMark
 
 /// An airline's logo from a name or code (`key`) and a flight designator (`code`), resolved through the
-/// reference list. `size` nil keeps 34 pt under Dynamic Type. `decorative` when the row already names it.
+/// reference list (IATA or ICAO, either way). `size` nil keeps 44 pt under Dynamic Type. `decorative`
+/// when the row already names it.
 struct AirlineMark: View {
     var code: String
     var key: String
     var size: CGFloat?
     var decorative: Bool
-    @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = 34
+    @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = 44
     @Environment(\.reference) private var reference
 
     init(code: String, key: String, size: CGFloat? = nil, decorative: Bool = false) {
