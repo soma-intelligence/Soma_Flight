@@ -41,7 +41,8 @@ struct AircraftStatsView: View {
                 .scaledPadding(.vertical, 60)
         } else {
             VStack(spacing: 0) {
-                AircraftTotalsPanel(stats: s, mostFlownType: store.mostFlownType, mostFlownAirline: store.mostFlownAirline)
+                AircraftTotalsPanel(stats: s, mostFlownType: store.mostFlownType, mostFlownAirline: store.mostFlownAirline,
+                                    ranking: store.runnersUp())
                     .background(LinearGradient(gradient: Theme.aircraftPage, startPoint: .top, endPoint: .bottom))
                 if s.tails.first != nil || CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
                     BlueprintPanel {
@@ -52,7 +53,7 @@ struct AircraftStatsView: View {
                             }
                             if CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
                                 Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                                CabinPanel(stats: s)
+                                CabinPanel(stats: s, type: store.mostFlownType)
                             }
                         }
                     }
@@ -85,6 +86,7 @@ struct AircraftTypesSection: View {
         PassportSection(title: "Aircraft types") {
             VStack(alignment: .leading, spacing: 0) {
                 UnitNumber(parts: [AircraftStatsCopy.typesTotal(stats.totalTypes)], size: 46, unitSize: 34)
+                    .rollingDigits(Double(stats.totalTypes))
                 Text("Counted by ICAO type, sub-types apart")
                     .scaledFont(16)
                     .foregroundStyle(Theme.secondary)
@@ -173,6 +175,7 @@ private struct DonutChart: View {
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
+                    .rollingDigits()
             }
             .scaledPadding(.horizontal, 24)
         }
@@ -195,8 +198,10 @@ private struct DonutLegend: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(PassportFacts.count(s.count)).scaledFont(18).monospacedDigit().foregroundStyle(Theme.primary)
+                        .rollingDigits(Double(s.count))
                         .gridColumnAlignment(.trailing)
                     Text("\(s.percent)%").scaledFont(18).monospacedDigit().foregroundStyle(Theme.secondary)
+                        .rollingDigits(Double(s.percent))
                         .gridColumnAlignment(.trailing)
                 }
                 .accessibilityElement(children: .ignore)
@@ -247,7 +252,8 @@ struct FrequentTailsSection: View {
     private func lead(_ t: TailTally) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(t.registration).scaledFont(40, weight: .bold).foregroundStyle(Theme.primary)
-            Text(AircraftStatsCopy.flights(t.flights)).scaledFont(20).foregroundStyle(Theme.secondary)
+            Text(AircraftStatsCopy.flights(t.flights)).scaledFont(20).monospacedDigit().foregroundStyle(Theme.secondary)
+                .rollingDigits(Double(t.flights))
             HStack {
                 Text(AircraftStatsCopy.tailLine(t, reference: reference)).scaledFont(18).foregroundStyle(Theme.secondary)
                 Spacer(minLength: 8)
@@ -279,7 +285,8 @@ struct FrequentTailsSection: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {
                 marks(t)
-                Text(AircraftStatsCopy.flights(t.flights)).scaledFont(17).foregroundStyle(Theme.secondary)
+                Text(AircraftStatsCopy.flights(t.flights)).scaledFont(17).monospacedDigit().foregroundStyle(Theme.secondary)
+                    .rollingDigits(Double(t.flights))
             }
         }
         .scaledPadding(.vertical, 12)
@@ -300,6 +307,7 @@ struct AircraftAgeSection: View {
                 if let median = stats.medianAgeMonths {
                     let words = AircraftStatsCopy.ageOld(months: median).split(separator: " ", maxSplits: 1).map(String.init)
                     UnitNumber(parts: [(words.first ?? "", " " + (words.last ?? ""))], size: 58, unitSize: 40)
+                        .rollingDigits(Double(median))
                     Text("median age").scaledFont(18).foregroundStyle(Theme.secondary)
                 }
                 chart.frame(height: chartHeight).scaledPadding(.top, 20)

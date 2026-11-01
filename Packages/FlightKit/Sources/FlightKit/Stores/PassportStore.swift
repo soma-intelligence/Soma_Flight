@@ -96,8 +96,21 @@ public final class PassportStore {
     /// The airline that flew the most flown type most often for this user: whose livery the card shows.
     public var mostFlownAirline: Airline? {
         guard let type = aircraft.mostFlown?.icaoType else { return nil }
+        return topAirline(forType: type)
+    }
+
+    /// The airline this user flew a type with most often in the selected year: whose livery its side view wears.
+    public func topAirline(forType type: String) -> Airline? {
         let inYear = mapped.filter { year == nil || $0.localYear == year }
         return PassportPicks.topAirline(for: type, in: inYear).flatMap { reference.airline($0) }
+    }
+
+    /// The types after the most flown one, by flights (the core's order), with their reference entry and the
+    /// airline flown most on each: the ranking under the hero. At most `limit`.
+    public func runnersUp(limit: Int = 4) -> [AircraftRank] {
+        aircraft.typesByFlights.dropFirst().prefix(limit).map {
+            AircraftRank(tally: $0, type: reference.type($0.icaoType), airline: topAirline(forType: $0.icaoType))
+        }
     }
 
     public func load() async {
@@ -257,4 +270,11 @@ public final class PassportStore {
                                                    asOf: Int64(asOf.timeIntervalSince1970))
         revision += 1
     }
+}
+
+/// One row of the aircraft ranking: the core's tally for a type, its reference entry and its livery.
+public struct AircraftRank: Sendable, Equatable {
+    public var tally: TypeTally
+    public var type: AircraftType?
+    public var airline: Airline?
 }

@@ -240,6 +240,8 @@ struct AircraftTotalsPanel: View {
     var stats: AircraftStats
     var mostFlownType: AircraftType?
     var mostFlownAirline: Airline?
+    /// The next types by flights, each in the livery it was flown most in (`PassportStore.runnersUp`).
+    var ranking: [AircraftRank] = []
     @Environment(\.reference) private var reference
     @ScaledMetric(relativeTo: .title) private var valueHeight: CGFloat = 36
 
@@ -247,6 +249,14 @@ struct AircraftTotalsPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             totals
             if let most = stats.mostFlown { mostFlown(most) }
+            if !ranking.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(ranking.enumerated()), id: \.element.tally.icaoType) { i, rank in
+                        AircraftRankRow(place: i + 2, rank: rank)
+                    }
+                }
+                .scaledPadding(.bottom, 12)
+            }
         }
         .foregroundStyle(Blueprint.navy)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -255,13 +265,15 @@ struct AircraftTotalsPanel: View {
     private var totals: some View {
         let ages = AircraftStatsCopy.showsAges(stats)
         return HStack(alignment: .top, spacing: 8) {
-            column("Total aircraft", value: PassportFacts.count(stats.totalTypes), sub: nil,
+            column("Total aircraft", value: PassportFacts.count(stats.totalTypes), number: Double(stats.totalTypes), sub: nil,
                    chip: AircraftStatsCopy.makerChip(stats), big: true)
             if ages, let newest = stats.newest, let oldest = stats.oldest {
                 column("Newest aircraft", value: AircraftStatsCopy.ageCopy(months: newest.ageMonths),
+                       number: Double(newest.ageMonths),
                        sub: AircraftStatsCopy.deliveryYear(newest.deliveredAt),
                        chip: AircraftStatsCopy.typeName(newest.icaoType, reference: reference), big: false)
                 column("Oldest aircraft", value: AircraftStatsCopy.ageCopy(months: oldest.ageMonths),
+                       number: Double(oldest.ageMonths),
                        sub: AircraftStatsCopy.deliveryYear(oldest.deliveredAt),
                        chip: AircraftStatsCopy.typeName(oldest.icaoType, reference: reference), big: false)
             }
@@ -270,13 +282,15 @@ struct AircraftTotalsPanel: View {
         .scaledPadding(.top, 14)
     }
 
-    private func column(_ title: String, value: String, sub: String?, chip: String?, big: Bool) -> some View {
+    private func column(_ title: String, value: String, number: Double, sub: String?, chip: String?, big: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).scaledFont(15, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
             // One value height in every column, so the chips line up.
             Text(value).scaledFont(big ? 30 : 21, weight: .regular).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .rollingDigits(number)
                 .frame(minHeight: valueHeight, alignment: .bottomLeading)
-            Text(sub ?? " ").scaledFont(13).opacity(sub == nil ? 0 : 0.75)
+            Text(sub ?? " ").scaledFont(13).monospacedDigit().opacity(sub == nil ? 0 : 0.75)
+                .rollingDigits(sub.flatMap(Double.init))
             if let chip {
                 Text(chip)
                     .scaledFont(12, weight: .medium, design: .monospaced)
@@ -302,17 +316,71 @@ struct AircraftTotalsPanel: View {
                 .minimumScaleFactor(0.5)
             Text(AircraftStatsCopy.flightsAndHours(most))
                 .scaledFont(16, weight: .medium)
+                .monospacedDigit()
+                .rollingDigits(Double(most.flights))
                 .foregroundStyle(Blueprint.deep)
-            // As wide as the panel, like the reference's hero plane: up to 88 pt tall, no wider than 340 pt.
+            // As wide as the panel, like the reference's hero plane: up to 96 pt tall, no wider than 353 pt.
             AircraftImage(type: mostFlownType, airline: mostFlownAirline,
-                          height: min(88, 340 / AircraftSideView.aspect(type: mostFlownType)))
+                          height: min(96, 353 / AircraftSideView.aspect(type: mostFlownType)))
                 .frame(maxWidth: .infinity)
-                .scaledPadding(.top, 8)
+                .scaledPadding(.top, 12)
         }
         .scaledPadding(.horizontal, 20)
         .scaledPadding(.top, 30)
         .scaledPadding(.bottom, 16)
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Ranking
+
+/// One of the next most flown types: its place, name and "3 flights · 7 hours" at the left, its side view
+/// in the livery it was flown most in at the right, large and cut by the panel's right edge (nose in view).
+struct AircraftRankRow: View {
+    var place: Int
+    var rank: AircraftRank
+    @ScaledMetric(relativeTo: .title) private var planeHeight: CGFloat = 62
+    /// What shows of the aircraft before the edge cuts it: the front two thirds or so.
+    @ScaledMetric(relativeTo: .title) private var planeWidth: CGFloat = 190
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(place)")
+                    .scaledFont(13, weight: .semibold, design: .monospaced)
+                    .opacity(0.55)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(rank.type?.name ?? rank.tally.icaoType)
+                        .scaledFont(19, weight: .regular)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(AircraftStatsCopy.flightsAndHours(rank.tally))
+                        .scaledFont(13, weight: .medium)
+                        .monospacedDigit()
+                        .rollingDigits(Double(rank.tally.flights))
+                        .foregroundStyle(Blueprint.deep.opacity(0.8))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // The aircraft starts near the panel's middle and runs past its right edge.
+            Color.clear
+                .frame(minWidth: planeWidth, maxWidth: planeWidth)
+                .frame(height: planeHeight)
+                .overlay(alignment: .leading) {
+                    AircraftImage(type: rank.type, airline: rank.airline, height: planeHeight)
+                        .fixedSize()
+                }
+                .clipped()
+        }
+        .scaledPadding(.leading, 20)
+        .scaledPadding(.vertical, 8)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Blueprint.navy.opacity(0.12)).frame(height: 1).scaledPadding(.leading, 20)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Number \(place), \(rank.type?.name ?? rank.tally.icaoType), "
+                            + AircraftStatsCopy.flightsAndHours(rank.tally).replacingOccurrences(of: " · ", with: ", "))
     }
 }
 
@@ -332,7 +400,8 @@ struct FrequentedTailPanel: View {
                 .frame(maxWidth: .infinity)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Frequented tail").scaledFont(15, weight: .semibold)
-                Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30)
+                Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30).monospacedDigit()
+                    .rollingDigits(Double(tail.flights))
                 HStack(spacing: 10) {
                     CountryFlag(code: AircraftStatsCopy.tailCountry(tail, reference: reference), size: 22)
                     if let airline = tail.airline { AirlineTailMark(airline: airline, size: 30) }
@@ -358,9 +427,15 @@ struct FrequentedTailPanel: View {
 
 // MARK: - Cabin
 
-/// The cabin plan over the store's seat classes, positions and favourite seat.
+/// The cabin over the store's seat classes, positions and favourite seat, as a technical drawing: the plan
+/// of the most flown type's family with its class zones, the class table under it, then the half section
+/// A-A with the seat counts lettered over the seats. At accessibility sizes the drawing gives way to the
+/// text plan (`CabinPlan`), which reflows.
 struct CabinPanel: View {
     var stats: AircraftStats
+    /// The most flown type, whose family the plan draws.
+    var type: AircraftType? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     static func hasClasses(_ s: AircraftStats) -> Bool { CabinPlan.hasClasses(s.seatClasses) }
 
@@ -369,8 +444,154 @@ struct CabinPanel: View {
     }
 
     var body: some View {
-        CabinPlan(classes: stats.seatClasses, positions: stats.seatPositions,
-                  favourite: AircraftStatsCopy.favoriteSeat(stats))
-            .scaledPadding(.vertical, 22)
+        if typeSize.isAccessibilitySize {
+            CabinPlan(classes: stats.seatClasses, positions: stats.seatPositions,
+                      favourite: AircraftStatsCopy.favoriteSeat(stats))
+                .scaledPadding(.vertical, 22)
+        } else {
+            CabinBlueprint(stats: stats, family: PlanFamily(type?.family), typeName: type?.name)
+                .scaledPadding(.vertical, 18)
+        }
+    }
+}
+
+/// The drawing sheet itself: title block, plan, class table, half section.
+struct CabinBlueprint: View {
+    var stats: AircraftStats
+    var family: PlanFamily
+    var typeName: String?
+
+    /// Class table rows in the bar's order, with the letter the plan's zones carry. Private joins once flown.
+    static func classRows(_ c: SeatClassCounts) -> [(code: String, name: String, count: UInt32)] {
+        [("Y", "Eco", c.economy), ("W", "Eco+", c.premiumEconomy), ("J", "Business", c.business), ("F", "First", c.first)]
+            + (c.private > 0 ? [("P", "Private", c.private)] : [])
+    }
+
+    /// Zones front to back for the plan.
+    static func zones(_ c: SeatClassCounts) -> [(code: String, share: Double)] {
+        [("F", Double(c.first)), ("J", Double(c.business)), ("W", Double(c.premiumEconomy)), ("Y", Double(c.economy))]
+    }
+
+    var body: some View {
+        let classes = stats.seatClasses
+        let p = stats.seatPositions
+        VStack(alignment: .leading, spacing: 0) {
+            titleBlock
+            if CabinPanel.hasClasses(stats) || CabinPanel.hasSeats(stats) {
+                GeometryReader { geo in
+                    PlanDrawing(family: family, zones: Self.zones(classes))
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+                .frame(height: PlanDrawing.height(for: 361, family: family))
+                .scaledPadding(.horizontal, 8)
+            }
+            if CabinPanel.hasClasses(stats) { classTable(classes) }
+            if CabinPanel.hasSeats(stats) {
+                HStack(alignment: .top, spacing: 14) {
+                    HalfSection(family: family, counts: seatCounts(p), names: seatNames)
+                        .frame(maxWidth: 220)
+                        .clipped()
+                    VStack(alignment: .leading, spacing: 14) {
+                        caption("Section A-A", "Looking forward")
+                        if let fav = AircraftStatsCopy.favoriteSeat(stats) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(fav.title).scaledFont(13, weight: .semibold)
+                                Text(stats.favouriteSeat?.seat ?? "")
+                                    .scaledFont(30, weight: .regular, design: .monospaced)
+                                Text(fav.value.drop { $0 != "(" }.trimmingCharacters(in: CharacterSet(charactersIn: "()")))
+                                    .scaledFont(13).monospacedDigit().opacity(0.8)
+                                    .rollingDigits(stats.favouriteSeat.map { Double($0.flights) })
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+                        if family.plan.layout[0] < 3, p.middle > 0 {
+                            Text("Middle \(PassportFacts.count(p.middle))").scaledFont(13).monospacedDigit()
+                                .rollingDigits(Double(p.middle))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scaledPadding(.horizontal, 20)
+                .scaledPadding(.top, 22)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Seats: window \(p.window), middle \(p.middle), aisle \(p.aisle)")
+            }
+            if let cockpit = CabinPlan.cockpitLine(p) {
+                HStack(spacing: 8) {
+                    Text("Cockpit").scaledFont(13, weight: .semibold)
+                    Text(cockpit).scaledFont(13).monospacedDigit()
+                }
+                .scaledPadding(.horizontal, 20)
+                .scaledPadding(.top, 12)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .foregroundStyle(Theme.blueprintInk)
+    }
+
+    private var seatNames: [String] {
+        family.plan.layout[0] >= 3 ? ["Window", "Middle", "Aisle"] : ["Window", "Aisle"]
+    }
+
+    private func seatCounts(_ p: PositionCounts) -> [String] {
+        (family.plan.layout[0] >= 3 ? [p.window, p.middle, p.aisle] : [p.window, p.aisle]).map { PassportFacts.count($0) }
+    }
+
+    private func caption(_ title: String, _ sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).scaledFont(11, weight: .semibold, design: .monospaced).textCase(.uppercase).tracking(0.8)
+            Text(sub).scaledFont(11, design: .monospaced).opacity(0.7)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// "PLAN · NARROWBODY TWIN" at the left, the type at the right, over a hairline.
+    private var titleBlock: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Plan · \(family.title)").scaledFont(11, weight: .semibold, design: .monospaced).textCase(.uppercase).tracking(0.8)
+            Spacer(minLength: 8)
+            if let typeName {
+                Text(typeName).scaledFont(11, design: .monospaced).lineLimit(1).minimumScaleFactor(0.7).opacity(0.75)
+            }
+        }
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.bottom, 4)
+        .accessibilityHidden(true)
+    }
+
+    /// One ruled cell per class, like a drawing's parts list: the zone letter in a circle, the name, the count.
+    private func classTable(_ c: SeatClassCounts) -> some View {
+        let rows = Self.classRows(c)
+        return HStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(row.code)
+                            .scaledFont(10, weight: .bold, design: .monospaced)
+                            .frame(width: 17, height: 17)
+                            .overlay(Circle().stroke(Theme.blueprintInk.opacity(0.8), lineWidth: 0.75))
+                        Text(row.name).scaledFont(13).lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    Text(PassportFacts.count(row.count))
+                        .scaledFont(24, weight: .regular)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .rollingDigits(Double(row.count))
+                        .opacity(row.count == 0 ? 0.45 : 1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scaledPadding(.horizontal, 8)
+                .scaledPadding(.vertical, 8)
+                .overlay(alignment: .leading) {
+                    if i > 0 { Rectangle().fill(Theme.blueprintInk.opacity(0.45)).frame(width: 0.75) }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(row.name), \(row.count)")
+            }
+        }
+        .overlay(Rectangle().stroke(Theme.blueprintInk.opacity(0.7), lineWidth: 0.75))
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.top, 6)
     }
 }
