@@ -11,10 +11,10 @@ struct SomaFlightApp: App {
     /// A sign-in link opened before the home was built, handed over once it is.
     @State private var pendingURL: URL?
 
-    /// Live Activities run on the backend. Screenshot runs (`-useFakes`) leave the lock screen alone,
-    /// unless the Debug-only `-startLiveActivity YES` asks for one (the fake flight in the air).
+    /// Live Activities run on the backend. Screenshot runs (`-useFakes`, Debug only) leave the lock screen
+    /// alone, unless the Debug-only `-startLiveActivity YES` asks for one (the fake flight in the air).
     private static var wantsLiveActivity: Bool {
-        guard ProcessInfo.processInfo.arguments.contains("-useFakes") else { return true }
+        guard AppEnvironment.usesFakes() else { return true }
         #if DEBUG
         return UserDefaults.standard.bool(forKey: "startLiveActivity")
         #else

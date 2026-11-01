@@ -1,6 +1,6 @@
 # Soma Flight: App Store checklist
 
-State on 2026-10-29 (Task 12). Done means in the code on `feat/backend`; open means someone still has to act before submission.
+State on 2026-10-29 (Task 12), re-audited 2026-10-31. Done means in the code on `feat/backend`; open means someone still has to act before submission.
 
 ## In the app
 
@@ -18,7 +18,13 @@ State on 2026-10-29 (Task 12). Done means in the code on `feat/backend`; open me
 | 12 hour clock in the Live Activity | Done through the App Group `group.me.somalabs.flight` (app and extension entitlements). A running activity picks a changed setting up on its next update. | `SharedSettings.swift` |
 | Offline cache | SwiftData store at `Application Support/SomaFlight/cache.store`, excluded from iCloud and device backups, wiped on sign-out, account change and deletion. The store earlier builds left at `Application Support/default.store` (and `-wal`, `-shm`) is deleted at launch. | `CacheStore.swift` |
 | Export compliance | `ITSAppUsesNonExemptEncryption` = false in all four app Info.plists: HTTPS and Apple's system crypto only, no custom crypto. | `Apps/iOS/Info*.plist`, `Apps/macOS/Info*.plist` |
-| Location | Not requested in v1. | |
+| Location | Asked while in use only, from the "Leave by" breakdown (MapKit drive time). Never stored or sent to our backend, so not "collected" in the manifest; the privacy policy still names it. | `project.yml` (`NSLocationWhenInUseUsageDescription`, macOS also `NSLocationUsageDescription`) |
+| Camera | iOS only: the boarding pass scanner (VisionKit). Frames stay on the device. Photos picker needs no permission. | `Apps/iOS/Info*.plist` (`NSCameraUsageDescription`) |
+| Calendar | Full access, asked when Settings > Calendar is turned on. Events stay on the device. | `project.yml` (`NSCalendarsFullAccessUsageDescription`) |
+| Display name and category | "Soma Flight" under the icon and in the Mac menu bar (`CFBundleDisplayName`; `PRODUCT_NAME` is `SomaFlight`). `LSApplicationCategoryType` = Travel on both apps; App Store Connect refuses a Mac upload without it. | `project.yml` |
+| No fakes in Release | `-useFakes` (seeded flights, fake calendar, fake drive times) works in Debug only (`AppEnvironment.usesFakes`); Release always runs on the backend, which calls the real AeroAPI and fails closed without `AEROAPI_KEY`. | `AppEnvironment.swift` |
+| Versions | `MARKETING_VERSION` 1.0, `CURRENT_PROJECT_VERSION` 1, set once for every target (app, widgets, watch app, complications must match). Raise the build number before every new upload. | `project.yml` |
+| Signing team | `DEVELOPMENT_TEAM` 2RFY9Z4UVH (the team Prism signs with) in `project.yml`. Change it there if Soma Flight ships under another team. | `project.yml` |
 | Device family | iPhone only in v1 (`TARGETED_DEVICE_FAMILY` 1 on the app and the extension); iPad later, with all four orientations. | `project.yml` |
 | Screenshots | Draft set in `docs/screens/final/`: iPhone 17 Pro simulator captures dark and light (`ios/`), key states rendered dark (`rendered/dark/`: my flights offline, flight detail, sparse and canceled, search plan limit, passport, settings, Mac settings page), Live Activity renders (`docs/screens/live-activity-*.png`). The full rendered set and the Mac window captures regenerate on demand (`docs/screens/README.md`). Store screenshots still need the required sizes (6.9 inch iPhone, Mac 2880 x 1800 or 1440 x 900) and real, not seeded, flights. | |
 
@@ -29,7 +35,8 @@ State on 2026-10-29 (Task 12). Done means in the code on `feat/backend`; open me
 3. **Blocker: revoke the Sign in with Apple token on account deletion.** Apple requires that deleting an account also revokes the user's Apple tokens (`POST https://appleid.apple.com/auth/revoke`). `supabase/functions/delete-account` does not call it today. It needs the Apple client secret (a JWT signed with the Sign in with Apple key) available to the backend at deploy, and the user's Apple refresh or access token, which Supabase Auth must keep or the app must send at deletion.
 4. **App Store Connect privacy answers ("data use disclosure").** Match the manifests: Contact Info, Email Address; Identifiers, User ID; Identifiers, Device ID (iOS push tokens); User Content, Other User Content; Usage Data, Product Interaction (rate-limit records). All linked to the user, none used for tracking, purpose App Functionality. No analytics, no diagnostics SDK.
 5. **AeroAPI commercial terms.** The app must ship on the Standard tier (B2C distribution), not Personal; the full terms (attribution, caching and retention, redistribution) were not read. See `docs/provider-check.md`.
-6. **Release configuration.** Release fails closed without `Config.local.xcconfig` (Supabase URL and anon key); create it on the archiving machine.
+6. **Release configuration.** Release fails closed without `Config.local.xcconfig` (Supabase URL and anon key); create it on the archiving machine, in both `Apps/iOS/` and `Apps/macOS/`. On 2026-10-31 neither file existed in the Mac checkout, so an archive made there would open on "no server configured" and be rejected in review.
+6b. **App name.** The App Store name is unique across the whole store. If "Soma Flight" is taken when creating the App Store Connect record, use a subtitle-style name such as "Soma Flight: Flight Tracker"; the name under the icon (`CFBundleDisplayName`) can stay "Soma Flight".
 7. **Age rating.** Fill the questionnaire: no objectionable content, no user-to-user communication, no web browsing; expected 4+.
 8. **Review notes.** A demo account (email sign-in) with a few followed flights, since every screen needs an account on the backend.
 9. **Real-device checks still open from earlier tasks.** Real APNs pushes and Live Activity updates, a cold-start notification tap, Keychain under the Mac sandbox, Sign in with Apple on a device, and real taps on the export and deletion rows (the share sheet and the dialog were not driven in this pass).
