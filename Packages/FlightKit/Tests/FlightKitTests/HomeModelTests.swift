@@ -13,18 +13,22 @@ import Testing
         return home
     }
 
-    /// Passport from the tab opens at full height, as in the reference; My Flights leaves the sheet as it is.
-    @Test func passportTabOpensAtFullHeight() async throws {
+    /// Each tab keeps the detent it was left in for the session; a tab seen for the first time opens at medium.
+    @Test func eachTabRemembersItsDetent() async throws {
         let home = HomeModel(env: try await AppEnvironment.fake())
         #expect(home.shell.detent == .medium)
+        home.shell.detent = .expanded
         home.tab = .passport
-        #expect(home.shell.detent == .large)
-        home.shell.detent = .medium
-        home.tab = .flights
         #expect(home.shell.detent == .medium)
-        home.shell.detent = ShellModel.collapsed
+        home.shell.detent = .collapsed
+        home.tab = .friends
+        #expect(home.shell.detent == .medium)
+        home.tab = .flights
+        #expect(home.shell.detent == .expanded)
         home.tab = .passport
-        #expect(home.shell.detent == .large)
+        #expect(home.shell.detent == .collapsed)
+        home.tab = .passport
+        #expect(home.shell.detent == .collapsed)
     }
 
     private func defaults(_ values: [String: String]) -> UserDefaults {
@@ -107,7 +111,7 @@ import Testing
         home.applyLaunchArguments(defaults(["tab": "passport", "open": "airport:AUS", "detent": "large"]))
         #expect(home.tab == .passport)
         #expect(home.shell.path == [.airport("KAUS")])
-        #expect(home.shell.detent == .large)
+        #expect(home.shell.detent == .expanded)
 
         let other = try await loaded()
         other.applyLaunchArguments(defaults(["open": "flight", "tab": "nonsense"]))

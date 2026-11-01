@@ -14,7 +14,8 @@ struct RootTabView: View {
     /// Where a Passport card zooms into its full page.
     @Namespace private var pageZoom
     @State private var showSettings = false
-    @State private var screenHeight: CGFloat = 874
+    /// The screen and its safe areas, which place the sheet's three detents.
+    @State private var geometry = SheetGeometry.standard
     @StoredUnits private var units: Units
     @Environment(\.scenePhase) private var scenePhase
 
@@ -26,11 +27,16 @@ struct RootTabView: View {
     private var shell: ShellModel { home.shell }
 
     var body: some View {
-        HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, screenHeight: screenHeight)
+        HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, geometry: geometry)
+            .background { Color.black.ignoresSafeArea() }
+            // The whole screen, with the safe areas it ignores still reported: the detents' frame.
             .background {
-                Color.black
+                Color.clear
+                    .onGeometryChange(for: SheetGeometry.self) { proxy in
+                        SheetGeometry(screenHeight: proxy.size.height, safeTop: proxy.safeAreaInsets.top,
+                                      safeBottom: proxy.safeAreaInsets.bottom)
+                    } action: { geometry = $0 }
                     .ignoresSafeArea()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { screenHeight = $0 }
             }
             .overlay(alignment: .topTrailing) { mapButtons }
             .sheet(isPresented: .constant(true)) { sheet }
@@ -79,7 +85,11 @@ struct RootTabView: View {
             HomeDestination(home: home, route: route)
         }
         .environment(\.fullPageZoom, pageZoom)
-        .presentationDetents(ShellModel.detents, selection: $shell.detent)
+        .presentationDetents(geometry.presentationDetents, selection: Binding(
+            get: { geometry.presentationDetent(for: shell.detent) },
+            set: { shell.detent = geometry.detent(for: $0) }))
+        // No grab handle: the sheet reads as a card under the tab pill. VoiceOver moves it from its title.
+        .presentationDragIndicator(.hidden)
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
@@ -118,38 +128,48 @@ struct RootTabView: View {
         .environment(\.units, units)
     }
 
-    @ViewBuilder private var tabRoot: some View {
-        Group {
-            switch home.tab {
-            case .flights:
-                MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
-                              lookup: env.lookup)
-            case .friends:
-                FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
-            case .passport:
-                PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                                 onOpenFlight: home.open(past:), onImport: { home.showImport = true })
-            }
+    /// VoiceOver's "Expand" and "Collapse" on the tab's title, one detent at a time.
+    private var detentActions: SheetDetentActions {
+        let shell = home.shell
+        return SheetDetentActions(
+            expand: shell.detent.raised.map { up in { withAnimation(.smooth) { shell.detent = up } } },
+            collapse: shell.detent.lowered.map { down in { withAnimation(.smooth) { shell.detent = down } } })
+    }
+
+    private var tabRoot: some View {
+        @Bindable var home = home
+        return HomeSheetBody(tab: $home.tab, onSearch: { showSearch = true }) {
+            tabScreen
+                // Only on the tab roots: the modal sheets (Settings, Search) have titles of their own.
+                .environment(\.sheetDetentActions, detentActions)
+                .overlay(alignment: .topTrailing) {
+                    ProfileButton(profile: home.profile) { showSettings = true }
+                        .padding(.top, 19)
+                        .padding(.trailing, 16)
+                }
+        } toast: {
+            ToastSlot(text: home.toast)
         }
-        .overlay(alignment: .topTrailing) {
-            ProfileButton(profile: home.profile) { showSettings = true }
-                .padding(.top, 19)
-                .padding(.trailing, 16)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            // The pill reaches 14 pt into the home indicator inset (34 pt on Face ID iPhones), so it sits
-            // 20 pt above the sheet's bottom edge as in the reference.
-            VStack(spacing: 12) {
-                ToastSlot(text: home.toast)
-                HomeTabPill(tab: $home.tab, bottom: -14, onSearch: { showSearch = true })
-            }
+    }
+
+    @ViewBuilder private var tabScreen: some View {
+        switch home.tab {
+        case .flights:
+            MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
+                          lookup: env.lookup)
+        case .friends:
+            FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
+        case .passport:
+            PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
+                             onOpenFlight: home.open(past:), onImport: { home.showImport = true })
         }
     }
 
     // MARK: Map controls
 
     /// The 3D switch over the place-name switch in one glass capsule, as Maps groups its controls. MapKit's
-    /// compass shows under it only while the globe is turned.
+    /// compass shows under it only while the globe is turned. Shown over the map in the medium and
+    /// collapsed detents; expanded, the sheet covers the map and they fade out.
     private var mapButtons: some View {
         VStack(spacing: 0) {
             Button { threeD.toggle() } label: {
@@ -174,6 +194,10 @@ struct RootTabView: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .padding(.trailing, 12)
         .padding(.top, 8)
+        .opacity(home.shell.detent == .expanded ? 0 : 1)
+        .allowsHitTesting(home.shell.detent != .expanded)
+        .accessibilityHidden(home.shell.detent == .expanded)
+        .animation(.smooth(duration: 0.25), value: home.shell.detent)
     }
 }
 
@@ -181,21 +205,21 @@ struct RootTabView: View {
 
 /// The globe under the sheet, in a view of its own so only what it reads redraws it: the arcs, the
 /// focus, the isolated flight and the settled detent, never the sheet's other state. The map keeps the
-/// whole screen; the detent only moves its bottom safe area, which the globe glides to while the camera
-/// springs onto the new fit.
+/// whole screen; the detent only moves its bottom safe area to the sheet's top, which the globe glides to
+/// while the camera springs onto the new fit, so the open flight stays framed above the sheet.
 private struct HomeGlobe: View {
     var home: HomeModel
     @Binding var selection: GlobeSelection?
     var labels: Bool
     var threeD: Bool
-    var screenHeight: CGFloat
+    var geometry: SheetGeometry
 
     var body: some View {
         let content = home.globe
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
                  focus: home.focus, recenter: home.shell.recenter, labels: labels, threeD: threeD,
                  isolation: home.isolation,
-                 bottomInset: ShellModel.mapInset(for: home.shell.detent, screenHeight: screenHeight))
+                 bottomInset: ShellModel.mapInset(for: home.shell.detent, in: geometry))
             // Down to the screen's bottom edge; the status bar's inset stays, so MapKit keeps its compass clear.
             .ignoresSafeArea(edges: .bottom)
     }
