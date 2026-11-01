@@ -447,6 +447,18 @@ verify_jwt = true
 [functions.faa-notams]
 verify_jwt = true
 
+# Airports list and card: decoded METARs (aviationweather.gov) and FAA programs for up to 40 airports.
+# Free sources; the flightcore WASM (flight category, weather words) is read at runtime.
+[functions.airport-weather]
+verify_jwt = true
+static_files = ["./functions/_shared/flightcore/pkg/*"]
+
+# Airports list and card: live on-time, delay and traffic numbers aggregated from BOARD_PROVIDER's boards
+# (available: false while it is none). Shares airport-board's snapshots; reads the flightcore WASM.
+[functions.airport-stats]
+verify_jwt = true
+static_files = ["./functions/_shared/flightcore/pkg/*"]
+
 # Texts (off until SMS_ALERTS_ENABLED): the signed-in traveller's number, code and switches.
 [functions.sms-verify]
 verify_jwt = true

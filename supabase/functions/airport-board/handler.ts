@@ -46,7 +46,7 @@ export interface Deps {
   refreshDeadlineMs?: number;
 }
 
-interface Snapshot {
+export interface Snapshot {
   payload: unknown;
   fetchedAt: string;
   stale: boolean;
@@ -152,7 +152,7 @@ const isFresh = (fetchedAt: string, kind: Kind, now: Date) =>
  * snapshot as stale (original fetchedAt) and keeps the lease as a short back-off, or throws
  * provider_unavailable when there is nothing to serve.
  */
-async function serve(
+export async function serve(
   deps: Deps,
   icao: string,
   kind: Kind,
@@ -233,7 +233,7 @@ async function serve(
   return { payload, fetchedAt, stale: false };
 }
 
-interface BoardPayload {
+export interface BoardPayload {
   flights: Parameters<typeof computeStats>[0];
 }
 
@@ -300,7 +300,7 @@ async function serveStats(
   }
 }
 
-async function refreshBoard(
+export async function refreshBoard(
   deps: Deps,
   icao: string,
   kind: "departures" | "arrivals",
