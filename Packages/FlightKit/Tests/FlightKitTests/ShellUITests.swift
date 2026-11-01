@@ -122,8 +122,7 @@ import Testing
         let cdg = airport("LFPG", 49.0097, 2.5479), sfo = airport("KSFO", 37.6188, -122.3750)
         let route = Route(from: cdg.coordinate, to: sfo.coordinate, level: .late, isPast: false)
         let screen = CGSize(width: 402, height: 874)
-        for inset in [ShellModel.mapInset(for: .medium, in: .standard),
-                      ShellModel.mapInset(for: .collapsed, in: .standard)] {
+        for inset in [ShellModel.mapInset(in: .standard)] {
             let vp = GlobeViewport(size: screen, visible: CGRect(x: 0, y: 62, width: 402, height: 874 - 62 - inset))
             let cam = GlobeMap.camera(for: .route(route), in: vp)
             #expect(cam.distance <= GlobeMap.maximumDistance(at: cam.centerCoordinate.latitude, in: vp))

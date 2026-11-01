@@ -250,10 +250,17 @@ import Testing
         #expect(shell.focus(route: { _ in nil }, airport: { _ in nil }) == nil)
     }
 
-    @Test func mapInsetFollowsTheSettledDetentCappedAtMedium() {
-        let g = SheetGeometry.standard
-        #expect(ShellModel.mapInset(for: .collapsed, in: g) == g.height(of: .collapsed))
-        #expect(ShellModel.mapInset(for: .medium, in: g) == g.height(of: .medium))
-        #expect(ShellModel.mapInset(for: .expanded, in: g) == g.height(of: .medium))
+    /// The owner's glitch: dragging the sheet down, up and down again made the globe jump, because each
+    /// settled detent moved the map's bottom safe area and MapKit re-framed the globe under the moving
+    /// sheet. The inset no longer depends on the detent, so a detent change gives the map nothing new.
+    @Test func mapInsetIsTheSameInEveryDetent() {
+        for g in [SheetGeometry.standard, SheetGeometry(screenHeight: 956, safeTop: 62, safeBottom: 34),
+                  SheetGeometry(screenHeight: 667, safeTop: 20, safeBottom: 0)] {
+            #expect(ShellModel.mapInset(in: g) == g.height(of: .medium))
+            // Clear of the sheet in every detent the globe shows in: medium's top is the highest of them.
+            for detent in [SheetDetent.collapsed, .medium] {
+                #expect(ShellModel.mapInset(in: g) >= g.height(of: detent))
+            }
+        }
     }
 }

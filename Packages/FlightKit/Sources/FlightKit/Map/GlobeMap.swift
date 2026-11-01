@@ -486,11 +486,13 @@ public struct GlobeMap: View {
             }
             #endif
         }
-        // The sheet settled on another detent: the camera springs at once onto the fit for the visible
-        // area the new inset leaves, while the safe area glides there with the same spring.
-        .onChange(of: bottomInset) { old, new in
+        // The inset changed (on the iPhone only when the screen's geometry does, never with the detent):
+        // the camera springs at once onto the fit for the visible area the new inset leaves, while the
+        // safe area glides there with the same spring. The area is taken from the whole map and the new
+        // inset, not from the last reported one, which may be a frame in the middle of an earlier glide.
+        .onChange(of: bottomInset) { _, new in
             var visible = viewport.visible
-            visible.size.height = max(0, visible.height - (new - old))
+            visible.size.height = max(0, viewport.size.height - visible.minY - new)
             aimedAt = visible
             if let focus, !position.positionedByUser {
                 let target = GlobeViewport(size: viewport.size, visible: visible, farLimit: viewport.farLimit)

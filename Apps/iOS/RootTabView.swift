@@ -208,9 +208,9 @@ struct RootTabView: View {
 // MARK: - Globe
 
 /// The globe under the sheet, in a view of its own so only what it reads redraws it: the arcs, the
-/// focus, the isolated flight and the settled detent, never the sheet's other state. The map keeps the
-/// whole screen; the detent only moves its bottom safe area to the sheet's top, which the globe glides to
-/// while the camera springs onto the new fit, so the open flight stays framed above the sheet.
+/// focus and the isolated flight, never the sheet's state. The map keeps the whole screen with its bottom
+/// safe area at the medium sheet's top in every detent (`ShellModel.mapInset(in:)`), so a detent change
+/// leaves the globe still and the open flight stays framed above the sheet.
 private struct HomeGlobe: View {
     var home: HomeModel
     @Binding var selection: GlobeSelection?
@@ -223,7 +223,7 @@ private struct HomeGlobe: View {
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
                  focus: home.focus, recenter: home.shell.recenter, labels: labels, threeD: threeD,
                  isolation: home.isolation,
-                 bottomInset: ShellModel.mapInset(for: home.shell.detent, in: geometry),
+                 bottomInset: ShellModel.mapInset(in: geometry),
                  airportStatus: content.status)
             // Down to the screen's bottom edge; the status bar's inset stays, so MapKit keeps its compass clear.
             .ignoresSafeArea(edges: .bottom)

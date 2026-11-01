@@ -115,13 +115,15 @@ public final class ShellModel {
         detent = tabDetents[new] ?? .medium
     }
 
-    /// How much of the full-screen map the sheet hides at the bottom (the map's bottom safe area), from the
-    /// settled detent rather than the live sheet height, so a drag never touches the map: only a detent
-    /// that settled glides the globe to its new place, framing the open flight above the sheet's top.
-    /// Expanded keeps the medium inset: the globe is hidden then, and the map keeps a sane content area
-    /// for the way back.
-    public static func mapInset(for detent: SheetDetent, in geometry: SheetGeometry) -> CGFloat {
-        geometry.height(of: min(detent, .medium))
+    /// The full-screen map's bottom safe area: the medium sheet's height, whatever the detent. The globe
+    /// (and an open flight's arc) is framed above the medium sheet's top, which is clear of the sheet in
+    /// collapsed too, and hidden behind it in expanded. It used to follow the settled detent, gliding the
+    /// map's safe area under the moving sheet, and MapKit re-framed the globe with a visible jump when the
+    /// sheet went down, up and down again. Now a detent change gives the map nothing new: the globe holds
+    /// still and the sheet slides over it. The cost: a collapsed sheet no longer frames the globe lower and
+    /// larger in the extra room.
+    public static func mapInset(in geometry: SheetGeometry) -> CGFloat {
+        geometry.height(of: .medium)
     }
 
     private func raiseIfCollapsed() {
