@@ -227,8 +227,8 @@ struct RootTabView: View {
 /// The globe under the sheet, in a view of its own so only what it reads redraws it: the arcs, the
 /// focus, the isolated flight and the detent (for MapKit's logo). The camera frames the area above the
 /// medium sheet in every detent (`ShellModel.mapInset(in:)`), so a detent change leaves the globe still
-/// and the open flight stays framed above the sheet; the map's safe area follows the sheet around that
-/// same centre, so the Apple Maps logo and Legal link sit just under the sheet's top
+/// and the open flight stays framed above the sheet; the map's safe area ends under the collapsed sheet's
+/// top, so the Apple Maps logo and Legal link stay behind the sheet and never move
 /// (`ShellModel.globeInsets(in:detent:)`).
 private struct HomeGlobe: View {
     var home: HomeModel

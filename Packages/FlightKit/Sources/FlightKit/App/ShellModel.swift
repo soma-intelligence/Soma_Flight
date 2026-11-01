@@ -126,27 +126,30 @@ public final class ShellModel {
         geometry.height(of: .medium)
     }
 
-    /// How far MapKit's Apple Maps logo and Legal link reach under the sheet's top edge: the safe area's
-    /// bottom sits this far below it, and the logo, drawn a few points above the safe area's bottom,
-    /// keeps a sliver above the sheet. An estimate, not measured on a device: raise it to hide more.
-    public static let legalPeek: CGFloat = 12
+    /// How far MapKit's Apple Maps logo and Legal link sit under the collapsed sheet's top edge: the
+    /// safe area's bottom ends this far below it, deep enough that the logo, drawn a few points above the
+    /// safe area's bottom, stays covered. An estimate, not measured on a device: raise it to hide more.
+    public static let legalTuck: CGFloat = 44
 
-    /// The full-screen map's safe area on the iPhone in `detent`. The camera keeps framing the area
-    /// above the medium sheet (`mapInset(in:)`), but MapKit draws its logo and Legal link at the bottom
-    /// of the safe area, so that bottom follows the sheet's top (`legalPeek` under it) while the top
-    /// moves by the same amount the other way: the safe area keeps the framed area's centre, where
-    /// MapKit draws the camera's centre, so the globe holds still. A collapsed sheet would push the top
-    /// above the screen, so the map is lifted that far (`GlobeInsets.lift`) and ends that far above the
-    /// screen's bottom, which the sheet always covers. Expanded, the logo stays where medium framing
-    /// puts it, under the sheet, which covers the map there anyway.
+    /// The full-screen map's safe area on the iPhone. The same in every detent (`detent` is kept for the
+    /// callers): the camera frames the area above the medium sheet (`mapInset(in:)`), and the safe
+    /// area's bottom, where MapKit draws its logo and Legal link, sits `legalTuck` under the collapsed
+    /// sheet's top, so the logo stays behind the sheet whatever its height and never moves (owner's call,
+    /// 2026-11-01: following the sheet made it jump as the sheet came down). The safe area's top moves the
+    /// same amount the other way, so the safe area keeps the framed area's centre, where MapKit draws the
+    /// camera's centre. That top would go above the screen, so the map is lifted that far
+    /// (`GlobeInsets.lift`) and ends that far above the screen's bottom, which the sheet always covers.
     ///
-    /// Apple's MapKit terms want the logo and the Legal link shown, never hidden: in collapsed and medium a
-    /// few points of the logo stay above the sheet and the Legal link can still be tapped.
+    /// Apple's MapKit terms want the logo and the Legal link shown; hiding them under the sheet is the
+    /// owner's call.
     public static func globeInsets(in geometry: SheetGeometry, detent: SheetDetent) -> GlobeInsets {
         let screenTop = geometry.safeTop, framedBottom = geometry.top(of: .medium)
-        let lift = max(0, geometry.top(of: .collapsed) + legalPeek - (screenTop + framedBottom))
-        // Where the safe area ends on screen: the legal line.
-        let line = detent == .expanded ? framedBottom : geometry.top(of: detent) + legalPeek
+        // Where the safe area ends on screen: the legal line, under the lowest sheet top. On a short
+        // screen (iPhone SE) the lift would end the map above that line, so it comes up to where the
+        // lifted map still reaches it.
+        let line = min(geometry.top(of: .collapsed) + legalTuck,
+                       ((geometry.screenHeight + screenTop + framedBottom) / 2).rounded(.down))
+        let lift = max(0, line - (screenTop + framedBottom))
         let height = geometry.screenHeight
         return GlobeInsets(lift: lift,
                            framedTop: screenTop + lift,

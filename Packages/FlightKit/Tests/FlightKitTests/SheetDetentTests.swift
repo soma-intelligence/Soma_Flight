@@ -101,9 +101,9 @@ import Testing
         #expect(SheetDetent.collapsed.lowered == nil)
     }
 
-    /// MapKit's logo follows the sheet's top while the camera's centre (the safe area's middle) and the
-    /// framed area stay put in every detent, and the lifted map still reaches under the collapsed sheet.
-    @MainActor @Test func mapLogoFollowsTheSheetWhileTheGlobeHoldsStill() {
+    /// MapKit's logo stays put under the collapsed sheet's top, and the camera's centre (the safe area's
+    /// middle) and the framed area stay put in every detent; the lifted map still reaches under the sheet.
+    @MainActor @Test func mapLogoStaysUnderTheSheetWhileTheGlobeHoldsStill() {
         for g in [pro, proMax, se, SheetGeometry(screenHeight: 600, safeTop: 50, safeBottom: 34)] {
             let all = SheetDetent.allCases.map { ShellModel.globeInsets(in: g, detent: $0) }
             let first = all[0]
@@ -117,11 +117,10 @@ import Testing
                 #expect(i.framedBottom == ShellModel.mapInset(in: g) - i.lift)
                 #expect(abs((safeTop + safeBottom) - (framedTop + framedBottom)) < 0.001)
                 #expect(i.safeTop >= 0)
-                #expect(g.screenHeight - i.lift > g.top(of: .collapsed) + 40)
-                switch detent {
-                case .expanded: #expect(safeBottom == g.top(of: .medium))
-                default: #expect(safeBottom == g.top(of: detent) + ShellModel.legalPeek)
-                }
+                #expect(g.screenHeight - i.lift >= safeBottom, "the lifted map reaches the legal line")
+                #expect(i == first, "\(detent) moves the map's safe area")
+                #expect(safeBottom <= g.top(of: .collapsed) + ShellModel.legalTuck)
+                #expect(safeBottom >= g.top(of: .collapsed) + 24, "the logo hides under the collapsed sheet")
             }
         }
     }
