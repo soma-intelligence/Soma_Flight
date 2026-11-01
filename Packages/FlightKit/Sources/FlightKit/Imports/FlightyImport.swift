@@ -127,11 +127,11 @@ public enum FlightyImport {
             f.arrivalDay = arrival.day
             f.arrivalTime = arrival.time
         }
-        // Both stamps are the destination's wall clock, so their difference needs no zone.
-        if let scheduled = stamp(cell(.gateInScheduled)), let actual = stamp(cell(.gateInActual)),
-           let minutes = minutes(from: scheduled, to: actual) {
-            f.delayMinutes = minutes
-        }
+        // Gate times when both are known, else runway times; never one of each.
+        f.delayMinutes = delay(cell(.gateInScheduled), cell(.gateInActual))
+            ?? delay(cell(.onScheduled), cell(.onActual))
+        f.departureDelayMinutes = delay(cell(.gateOutScheduled), cell(.gateOutActual))
+            ?? delay(cell(.offScheduled), cell(.offActual))
         f.aircraft = nonEmpty(cell(.aircraft))
         f.registration = nonEmpty(cell(.tail))
         f.bookingReference = nonEmpty(cell(.pnr))
@@ -163,6 +163,40 @@ public enum FlightyImport {
         let d = LocalDay(year: Int(m.1)!, month: Int(m.2)!, day: Int(m.3)!)
         guard d.isValid, let t = LocalTime(hour: Int(m.4)!, minute: Int(m.5)!) else { return nil }
         return (d, t)
+    }
+
+    /// Minutes from a scheduled stamp to an actual one at the same airport, signed (negative: early); nil
+    /// unless both read. Stamps that both carry a UTC offset ("2024-11-03T01:50-07:00") are compared as
+    /// instants, so a delay across a clock change counts real minutes; without offsets they are the same
+    /// airport's wall clock and their difference needs no zone.
+    static func delay(_ scheduled: String, _ actual: String) -> Int? {
+        if let a = instant(scheduled), let b = instant(actual) {
+            let m = Int((b.timeIntervalSince(a) / 60).rounded())
+            return abs(m) <= 48 * 60 ? m : nil
+        }
+        guard let a = stamp(scheduled), let b = stamp(actual) else { return nil }
+        return minutes(from: a, to: b)
+    }
+
+    /// A stamp with its UTC offset (`Z`, `+02:00`, `-0700`) as an instant; nil without an offset.
+    static func instant(_ s: String) -> Date? {
+        guard let m = s.trimmingCharacters(in: .whitespaces).wholeMatch(
+            of: /([0-9]{4})-([0-9]{2})-([0-9]{2})[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.[0-9]+)?)?(Z|[+-][0-9]{2}:?[0-9]{2})/)
+        else { return nil }
+        var offset = 0
+        let z = String(m.7)
+        if z != "Z" {
+            let digits = z.dropFirst().filter(\.isNumber)
+            let h = Int(digits.prefix(2))!, mm = Int(digits.suffix(2))!
+            offset = (h * 3600 + mm * 60) * (z.hasPrefix("-") ? -1 : 1)
+        }
+        var c = DateComponents()
+        c.year = Int(m.1); c.month = Int(m.2); c.day = Int(m.3)
+        c.hour = Int(m.4); c.minute = Int(m.5); c.second = m.6.map { Int($0)! } ?? 0
+        c.timeZone = TimeZone(secondsFromGMT: offset)
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        return cal.date(from: c)
     }
 
     static func minutes(from a: (day: LocalDay, time: LocalTime), to b: (day: LocalDay, time: LocalTime)) -> Int? {

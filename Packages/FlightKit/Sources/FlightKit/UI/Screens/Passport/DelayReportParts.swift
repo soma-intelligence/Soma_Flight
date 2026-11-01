@@ -1,0 +1,365 @@
+import SwiftUI
+
+/// The Delay Report's colours.
+enum DelayInk {
+    /// The top bar and year chips.
+    static let page = Color(red: 0.25, green: 0.06, blue: 0.05)
+    /// The hero, from a lit red under the chips to near black at its foot.
+    static let hero = LinearGradient(
+        stops: [.init(color: Color(red: 0.52, green: 0.10, blue: 0.08), location: 0),
+                .init(color: Color(red: 0.40, green: 0.07, blue: 0.06), location: 0.45),
+                .init(color: Color(red: 0.16, green: 0.04, blue: 0.035), location: 1)],
+        startPoint: .top, endPoint: .bottom)
+    /// The sections under the hero.
+    static let sections = Color(red: 0.085, green: 0.075, blue: 0.08)
+    static let track = Color.white.opacity(0.08)
+    static let late = Color(red: 0.94, green: 0.31, blue: 0.25)
+    static let soft = Color(red: 1.0, green: 0.68, blue: 0.62)
+    static let amber = Color(red: 1.0, green: 0.73, blue: 0.22)
+    static let flap = Color(red: 0.30, green: 0.05, blue: 0.045)
+
+    static func bucket(_ b: DelayReport.Bucket) -> Color {
+        switch b {
+        case .early: Color(red: 0.24, green: 0.66, blue: 0.40)
+        case .onTime: Color(red: 0.45, green: 0.85, blue: 0.47)
+        case .late15: Color(red: 0.98, green: 0.80, blue: 0.24)
+        case .late30: Color(red: 0.96, green: 0.58, blue: 0.20)
+        case .late45: late
+        case .canceled, .diverted: Color.white.opacity(0.45)
+        }
+    }
+}
+
+// MARK: - Split-flap board
+
+/// One character on a split-flap board: two halves around a hinge line, the top half falling into place
+/// when it appears (straight away with Reduce Motion, and in a rendered image).
+struct FlapTile: View {
+    var character: Character
+    /// Letters of a unit sit dimmer than the digits.
+    var dim = false
+    var delay: Double = 0
+    @ScaledMetric(relativeTo: .largeTitle) private var height: CGFloat = 78
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var angle: Double = 0
+
+    var body: some View {
+        let w = height * 0.68
+        ZStack {
+            face.frame(width: w, height: height)
+            // The falling top half, a copy of the face cut at the hinge.
+            face.frame(width: w, height: height)
+                .mask(VStack(spacing: 0) { Rectangle(); Color.clear })
+                .rotation3DEffect(.degrees(angle), axis: (1, 0, 0), anchor: .center, perspective: 0.5)
+            // The hinge: a dark split and the two pins at the sides.
+            Rectangle().fill(.black.opacity(0.65)).frame(height: max(1.5, height * 0.02))
+            HStack {
+                pin
+                Spacer()
+                pin
+            }
+        }
+        .frame(width: w, height: height)
+        .onAppear {
+            guard !reduceMotion else { return }
+            angle = -90
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.62).delay(0.15 + delay)) { angle = 0 }
+        }
+    }
+
+    private var face: some View {
+        RoundedRectangle(cornerRadius: height * 0.09, style: .continuous)
+            .fill(LinearGradient(colors: [DelayInk.flap.mix(with: .white, by: 0.07), DelayInk.flap],
+                                 startPoint: .top, endPoint: .bottom))
+            .overlay(RoundedRectangle(cornerRadius: height * 0.09, style: .continuous)
+                .strokeBorder(.black.opacity(0.55), lineWidth: 1.5))
+            .overlay {
+                Text(String(character))
+                    .font(.system(size: height * 0.80, weight: .heavy))
+                    .fontWidth(.condensed)
+                    .foregroundStyle(dim ? Color.white.opacity(0.38) : Color(white: 0.97))
+                    .minimumScaleFactor(0.5)
+            }
+            .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
+    }
+
+    private var pin: some View {
+        Capsule().fill(.black.opacity(0.7)).frame(width: 3, height: height * 0.12).padding(.horizontal, 1)
+    }
+}
+
+/// "7 HRS" on flaps: the number's digits bright, the unit's letters dim; the tiles shrink to fit the width.
+struct FlapBoard: View {
+    var value: String
+    var unit: String
+
+    var body: some View {
+        let chars = Array(value) + Array(unit)
+        ViewThatFits(in: .horizontal) {
+            row(chars, gap: 8)
+            row(chars, gap: 4).scaleEffect(0.82, anchor: .leading)
+            Text(value + " " + unit).scaledFont(56, weight: .heavy).foregroundStyle(.white)
+        }
+    }
+
+    private func row(_ chars: [Character], gap: CGFloat) -> some View {
+        HStack(spacing: gap) {
+            ForEach(Array(chars.enumerated()), id: \.offset) { i, c in
+                FlapTile(character: c, dim: i >= value.count, delay: Double(i) * 0.09)
+            }
+        }
+    }
+}
+
+// MARK: - LED strip
+
+/// A dot-matrix display: monospaced amber type on a dark strip, broken into dots by a fine grid.
+struct LEDStrip: View {
+    var parts: [String]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
+                if i > 0 { Spacer(minLength: 10) }
+                Text(p)
+                    .scaledFont(22, weight: .bold, design: .monospaced)
+                    .foregroundStyle(i == 0 ? Color(red: 1.0, green: 0.86, blue: 0.62) : DelayInk.amber)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+        }
+        .shadow(color: DelayInk.amber.opacity(0.35), radius: 3)
+        .overlay {
+            // The dots: rows and columns of the strip's own colour cut through the type.
+            Canvas { ctx, size in
+                let step: CGFloat = 2.6
+                var path = Path()
+                var x: CGFloat = 0
+                while x < size.width { path.addRect(CGRect(x: x, y: 0, width: 0.6, height: size.height)); x += step }
+                var y: CGFloat = 0
+                while y < size.height { path.addRect(CGRect(x: 0, y: y, width: size.width, height: 0.6)); y += step }
+                ctx.fill(path, with: .color(Self.strip))
+            }
+            .allowsHitTesting(false)
+        }
+        .scaledPadding(.horizontal, 14)
+        .scaledPadding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Self.strip))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(.black.opacity(0.6), lineWidth: 1.5))
+    }
+
+    static let strip = Color(red: 0.11, green: 0.02, blue: 0.02)
+}
+
+// MARK: - Worst airline bar
+
+/// The airlines that lost the most time, side by side, each as wide as its share of the late minutes. The
+/// first carries our own side view of its most delayed type, cut to the tail; the others their code.
+struct AirlineLossBar: View {
+    var losses: [DelayReport.AirlineLoss]
+    @Environment(\.reference) private var reference
+    @ScaledMetric(relativeTo: .title) private var block: CGFloat = 64
+
+    /// The three that lost the most, largest first.
+    var segments: [(key: String, label: String, minutes: Int)] {
+        losses.prefix(3).map { (key: $0.key, label: code($0.key), minutes: $0.minutes) }
+    }
+
+    var body: some View {
+        let parts = segments
+        let total = max(1, parts.reduce(0) { $0 + $1.minutes })
+        GeometryReader { geo in
+            let gap: CGFloat = 3
+            let usable = geo.size.width - gap * CGFloat(max(0, parts.count - 1))
+            let widths = Self.widths(parts.map(\.minutes), total: total, width: usable, minimum: 74)
+            HStack(alignment: .bottom, spacing: gap) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                    segment(i, part, width: widths[i])
+                }
+            }
+        }
+        .frame(height: block + 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(parts.map { "\(name($0.key)), \(DelayFacts.hours($0.minutes)) late" }.joined(separator: "; "))
+    }
+
+    /// Widths in proportion, none under `minimum` so its label fits.
+    static func widths(_ minutes: [Int], total: Int, width: CGFloat, minimum: CGFloat) -> [CGFloat] {
+        guard !minutes.isEmpty else { return [] }
+        var w = minutes.map { CGFloat($0) / CGFloat(total) * width }
+        let short = w.indices.filter { w[$0] < minimum }
+        let taken = CGFloat(short.count) * minimum
+        let rest = w.indices.filter { w[$0] >= minimum }
+        let restSum = rest.reduce(0) { $0 + w[$1] }
+        for i in short { w[i] = minimum }
+        for i in rest where restSum > 0 { w[i] = w[i] / restSum * max(0, width - taken) }
+        return w
+    }
+
+    private func segment(_ i: Int, _ part: (key: String, label: String, minutes: Int), width: CGFloat) -> some View {
+        let fill = DelayInk.late.mix(with: .black, by: Double(i) * 0.14)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Rectangle().fill(fill).frame(width: 2, height: 30)
+                Text(DelayFacts.hoursShort(part.minutes))
+                    .scaledFont(18, weight: .semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(i == 0 ? DelayInk.soft : fill.mix(with: .white, by: 0.25))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            ZStack(alignment: .bottom) {
+                Rectangle().fill(fill)
+                if i == 0 {
+                    tail(part.key, width: width)
+                } else {
+                    Text(part.label)
+                        .scaledFont(22, weight: .bold)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .padding(.horizontal, 4)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: width, height: block)
+        }
+        .frame(width: width, alignment: .leading)
+    }
+
+    /// Our side view of the airline's most delayed type, its tail end in the block.
+    private func tail(_ key: String, width: CGFloat) -> some View {
+        let airline = reference.airline(key)
+        let type = losses.first { $0.key == key }?.type.flatMap { reference.type($0) }
+        // Taller than the block: the fuselage sits in it and the fin rises above, cut at the sides only.
+        let h = block * 1.55
+        return AircraftImage(type: type, airline: airline, height: h)
+            .fixedSize()
+            .offset(x: width * 0.10, y: block * 0.22)
+            .frame(width: width, height: h, alignment: .bottomTrailing)
+            .clipped()
+            .frame(width: width, height: block, alignment: .bottom)
+    }
+
+    private func code(_ key: String) -> String { reference.airline(key)?.iata ?? key }
+    private func name(_ key: String) -> String {
+        reference.airline(key)?.name ?? key
+    }
+}
+
+// MARK: - Bars and rows
+
+/// A label, a bar and a figure: one row of the airline or airport rankings.
+struct ShareBarRow<Leading: View>: View {
+    var title: String
+    var share: DelayReport.Share
+    var accessibility: String
+    @ViewBuilder var leading: Leading
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                leading
+                Text(title)
+                    .scaledFont(17, weight: .medium)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                (Text("\(share.percent)%").foregroundStyle(Theme.primary)
+                 + Text("  \(share.late)/\(share.of)").foregroundStyle(Theme.secondary))
+                    .scaledFont(16, weight: .medium)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            Bar(fraction: share.fraction, fill: DelayInk.late)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(accessibility), \(share.percent) percent, \(share.late) of \(share.of)")
+    }
+}
+
+/// A rounded track with its fill.
+struct Bar: View {
+    var fraction: Double
+    var fill: Color
+    var height: CGFloat = 10
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(DelayInk.track)
+                Capsule().fill(fill)
+                    .frame(width: fraction > 0 ? max(height, geo.size.width * min(1, fraction)) : 0)
+            }
+        }
+        .frame(height: height)
+    }
+}
+
+/// A section of the report: its title, a Share button that hands over the section as an image, then the
+/// content.
+struct ReportSection<Content: View>: View {
+    var title: String
+    /// Changes whenever the figures change, so the shared image follows.
+    var key: Int
+    @ViewBuilder var content: Content
+    @State private var image: Image?
+    @Environment(\.reference) private var reference
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            content
+        }
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.07)).frame(height: 1) }
+        .task(id: key) { render() }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .scaledFont(22, weight: .bold)
+                .foregroundStyle(Theme.primary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if let image {
+                ShareLink(item: image, subject: Text("Soma Flight"),
+                          message: Text("\(title), from my Soma Flight Delay Report"),
+                          preview: SharePreview("Soma Flight: \(title)", image: image)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(Theme.primary)
+                        .scaledPadding(.horizontal, 14)
+                        .frame(minHeight: 36)
+                        .background(Capsule().fill(.white.opacity(0.06)))
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share \(title)")
+            }
+        }
+    }
+
+    /// The section at phone width over the report's dark ground, signed with the app's name.
+    @MainActor private func render() {
+        let card = VStack(alignment: .leading, spacing: 14) {
+            Text(title).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
+            content
+            DelayFacts.signature
+        }
+        .padding(20)
+        .frame(width: 393, alignment: .leading)
+        .background(DelayInk.sections)
+        .environment(\.colorScheme, .dark)
+        .environment(\.reference, reference)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = max(displayScale, 2)
+        image = renderer.cgImage.map { Image(decorative: $0, scale: renderer.scale) }
+    }
+}

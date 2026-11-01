@@ -40,6 +40,13 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     public var seatPosition: SeatPosition?
     /// Where the row comes from; nil (payloads older than the column, the seed) reads as archived.
     public var source: PastFlightSource?
+    /// Arrival delay in minutes, signed (negative: early): actual minus scheduled arrival, gate times when
+    /// both are known, else runway times. nil when the actual arrival is not known. Rows written before the
+    /// column carry it in `delayMinutes` alone (see `DelayReport.arrivalDelay`).
+    public var arrivalDelayMinutes: Int?
+    /// Departure delay in minutes, signed: actual minus scheduled departure, gate times when both are known,
+    /// else runway times. nil when the actual departure is not known.
+    public var departureDelayMinutes: Int?
 
     /// True for the flights the traveller added or imported: those they may edit and delete.
     public var isEditable: Bool { source == .manual || source == .import }
@@ -51,7 +58,7 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         originTz: String? = nil, seatClass: SeatClass? = nil, reason: TripReason? = nil,
         bookingCode: String? = nil, notes: String? = nil, originCountry: String? = nil,
         destinationCountry: String? = nil, airMinutes: Int? = nil, seatPosition: SeatPosition? = nil,
-        source: PastFlightSource? = nil
+        source: PastFlightSource? = nil, arrivalDelayMinutes: Int? = nil, departureDelayMinutes: Int? = nil
     ) {
         self.id = id; self.date = date; self.ident = ident
         self.originIcao = originIcao; self.destinationIcao = destinationIcao
@@ -61,5 +68,6 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
         self.seatClass = seatClass; self.reason = reason; self.bookingCode = bookingCode; self.notes = notes
         self.originCountry = originCountry; self.destinationCountry = destinationCountry; self.airMinutes = airMinutes
         self.seatPosition = seatPosition; self.source = source
+        self.arrivalDelayMinutes = arrivalDelayMinutes; self.departureDelayMinutes = departureDelayMinutes
     }
 }
