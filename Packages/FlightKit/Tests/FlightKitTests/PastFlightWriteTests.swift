@@ -92,7 +92,8 @@ import Testing
             #expect(body[key] is NSNull, "\(key)")
         }
         #expect(body["user_id"] == nil, "the user is the column default")
-        #expect(Set(body.keys).count == 23)
+        #expect(body.keys.contains("arrival_delay_minutes") && body.keys.contains("departure_delay_minutes"))
+        #expect(Set(body.keys).count == 25)
     }
 
     @Test func updateBodyHasNoIdAndKeepsTheSource() throws {
@@ -130,7 +131,7 @@ import Testing
         let rows = try SupabaseHistoryService.decode(Data(json.utf8))
         #expect(rows.map(\.source) == [.import, nil])
         #expect(rows.map(\.isEditable) == [true, false], "a row without a source reads as archived")
-        #expect(SupabaseHistoryService.columns.hasSuffix(", source"))
+        #expect(SupabaseHistoryService.columns.hasSuffix(", source, arrival_delay_minutes, departure_delay_minutes"))
     }
 
     // MARK: Fake
