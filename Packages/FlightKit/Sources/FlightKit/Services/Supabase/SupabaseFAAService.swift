@@ -61,16 +61,19 @@ public final class SupabaseFAAService: FAAService {
     public static func decodePrograms(_ data: Data) throws -> AirportPrograms? {
         let a = try FlightJSON.decoder.decode(ProgramsAnswer.self, from: data)
         guard a.available else { return nil }
-        let programs = a.programs.compactMap { p -> AirportProgram? in
-            guard let kind = AirportProgram.Kind(rawValue: p.kind) else { return nil }
-            return AirportProgram(airport: p.airport, kind: kind, reason: p.reason, reasonRaw: p.reasonRaw,
-                                  averageMinutes: p.averageMinutes, trend: p.trend.flatMap(AirportProgram.Trend.init),
-                                  extensionChance: p.extension.flatMap(AirportProgram.Extension.init),
-                                  startsAt: p.startsAt, endsAt: p.endsAt, updatedAt: p.updatedAt,
-                                  advisoryURL: p.advisoryUrl.flatMap(URL.init(string:)))
-        }
+        let programs = a.programs.compactMap(program(from:))
         return AirportPrograms(airportIcao: a.airport, iata: a.iata, isStale: a.stale ?? false,
                                fetchedAt: a.fetchedAt, programs: AirportProgram.sorted(programs))
+    }
+
+    /// One program as it travels (`faa-status`, `airport-weather`); nil for a kind this build does not know.
+    static func program(from p: ProgramsAnswer.Program) -> AirportProgram? {
+        guard let kind = AirportProgram.Kind(rawValue: p.kind) else { return nil }
+        return AirportProgram(airport: p.airport, kind: kind, reason: p.reason, reasonRaw: p.reasonRaw,
+                              averageMinutes: p.averageMinutes, trend: p.trend.flatMap(AirportProgram.Trend.init),
+                              extensionChance: p.extension.flatMap(AirportProgram.Extension.init),
+                              startsAt: p.startsAt, endsAt: p.endsAt, updatedAt: p.updatedAt,
+                              advisoryURL: p.advisoryUrl.flatMap(URL.init(string:)))
     }
 
     /// The airport's notices, or nil while the backend has no FAA NOTAM key. Unknown kinds are left out.
