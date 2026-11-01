@@ -46,6 +46,25 @@ struct SheetGeometrySnapshotTests {
         }
     }
 
+    /// Friends with no friend yet: collapsed shows the two jets without the code row, raised the code row
+    /// is back over them.
+    @Test func friendsInEachDetent() async throws {
+        let store = FriendsStore(service: FakeFriendsService(now: now))
+        store.seed(friends: [], flights: [], me: FriendsMe(friendCode: "DB4GXA3N"))
+        for detent in SheetDetent.allCases {
+            try render("sheet-friends-\(detent)", detent: detent, tab: .friends) {
+                FriendsView(store: store, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+            }
+        }
+        let loaded = FriendsStore(service: FakeFriendsService(now: now))
+        await loaded.load()
+        for detent in [SheetDetent.collapsed, .medium] {
+            try render("sheet-friends-list-\(detent)", detent: detent, tab: .friends) {
+                FriendsView(store: loaded, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+            }
+        }
+    }
+
     private func render<V: View>(_ name: String, detent: SheetDetent, tab: HomeTab,
                                  @ViewBuilder _ screen: () -> V) throws {
         let g = geometry
@@ -59,6 +78,7 @@ struct SheetGeometrySnapshotTests {
             HomeSheetBody(tab: .constant(tab), onSearch: {}) {
                 screen()
                     .environment(\.airportStaticControls, true)
+                    .environment(\.sheetDetent, detent)
                     .overlay(alignment: .topTrailing) {
                         Circle().fill(Color.gray).frame(width: 44, height: 44)
                             .padding(.top, 19).padding(.trailing, 16)

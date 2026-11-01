@@ -17,6 +17,8 @@ public struct FriendsView: View {
     @State private var adding = false
     @State private var showingQR = false
     @State private var removing: Friend?
+    @Environment(\.sheetDetent) private var detent
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// - Parameters:
     ///   - onOpenFriend: opens a friend's page.
@@ -73,12 +75,23 @@ public struct FriendsView: View {
 
     // MARK: Content
 
+    /// The code row shows once the user's code is known, except in a collapsed home sheet.
+    private var showsCode: Bool { store.me != nil && detent != .collapsed }
+
+    /// The code row's arrival and exit: a soft spring, a plain cross-fade with Reduce Motion.
+    private var revealAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0.15)
+    }
+
     @ViewBuilder private func content(now: Date) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // The code first, where it is quickest to share; everything else follows under it.
-            if store.me != nil {
+            // The code first, where it is quickest to share; everything else follows under it. A collapsed
+            // sheet leaves it out so its few points show the friends (or the two jets) instead; raised, it
+            // slides down from under the title and pushes the rest down (owner's call, 2026-10-31).
+            if showsCode {
                 FriendCodeRow(store: store, onShowQR: { showingQR = true })
                     .scaledPadding(.bottom, 14)
+                    .transition(reduceMotion ? .opacity : .codeReveal)
             }
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
@@ -105,7 +118,7 @@ public struct FriendsView: View {
                 if !store.hasLoaded {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 200).accessibilityLabel("Loading your friends")
                 } else if store.error == nil {
-                    FriendsEmptyState(store: store)
+                    FriendsEmptyState(store: store, compact: detent == .collapsed)
                 }
             } else {
                 ForEach(store.sections(), id: \.section) { group in
@@ -127,6 +140,8 @@ public struct FriendsView: View {
         .scaledPadding(.horizontal, 16)
         // Clears the floating tab pill (the shell's bottom inset) with room to spare, as on the other tabs.
         .scaledPadding(.bottom, 40)
+        // The rows under the code row glide down to make room for it, and back up as it leaves.
+        .animation(revealAnimation, value: showsCode)
     }
 
     /// A row's long press: what the user shares with this friend, alerts for their flights, Remove.
@@ -142,6 +157,24 @@ public struct FriendsView: View {
         Binding(get: { store.friend(friend.id)?.settings[keyPath: key] ?? false },
                 set: { v in Task { await store.update(friend.id) { $0[keyPath: key] = v } } })
     }
+}
+
+/// The friend code row coming down from under the tab's title: it starts a little higher, smaller and
+/// blurred, and settles into place as it fades in (the reverse as it leaves). The scroll view clips it at
+/// the title's bottom edge, so it seems to slide out from beneath it.
+private struct CodeReveal: Transition {
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content
+            .offset(y: phase.isIdentity ? 0 : -36)
+            .scaleEffect(phase.isIdentity ? 1 : 0.94, anchor: .top)
+            .blur(radius: phase.isIdentity ? 0 : 6)
+            .opacity(phase.isIdentity ? 1 : 0)
+    }
+}
+
+extension AnyTransition {
+    /// The friend code row's arrival from under the title (`CodeReveal`).
+    static var codeReveal: AnyTransition { AnyTransition(CodeReveal()) }
 }
 
 /// Requests waiting on the tab, as one compact card: each incoming one with Accept and a quiet decline, each

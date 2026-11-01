@@ -126,6 +126,35 @@ public final class ShellModel {
         geometry.height(of: .medium)
     }
 
+    /// How far MapKit's Apple Maps logo and Legal link reach under the sheet's top edge: the safe area's
+    /// bottom sits this far below it, and the logo, drawn a few points above the safe area's bottom,
+    /// keeps a sliver above the sheet. An estimate, not measured on a device: raise it to hide more.
+    public static let legalPeek: CGFloat = 12
+
+    /// The full-screen map's safe area on the iPhone in `detent`. The camera keeps framing the area
+    /// above the medium sheet (`mapInset(in:)`), but MapKit draws its logo and Legal link at the bottom
+    /// of the safe area, so that bottom follows the sheet's top (`legalPeek` under it) while the top
+    /// moves by the same amount the other way: the safe area keeps the framed area's centre, where
+    /// MapKit draws the camera's centre, so the globe holds still. A collapsed sheet would push the top
+    /// above the screen, so the map is lifted that far (`GlobeInsets.lift`) and ends that far above the
+    /// screen's bottom, which the sheet always covers. Expanded, the logo stays where medium framing
+    /// puts it, under the sheet, which covers the map there anyway.
+    ///
+    /// Apple's MapKit terms want the logo and the Legal link shown, never hidden: in collapsed and medium a
+    /// few points of the logo stay above the sheet and the Legal link can still be tapped.
+    public static func globeInsets(in geometry: SheetGeometry, detent: SheetDetent) -> GlobeInsets {
+        let screenTop = geometry.safeTop, framedBottom = geometry.top(of: .medium)
+        let lift = max(0, geometry.top(of: .collapsed) + legalPeek - (screenTop + framedBottom))
+        // Where the safe area ends on screen: the legal line.
+        let line = detent == .expanded ? framedBottom : geometry.top(of: detent) + legalPeek
+        let height = geometry.screenHeight
+        return GlobeInsets(lift: lift,
+                           framedTop: screenTop + lift,
+                           framedBottom: height - lift - framedBottom,
+                           safeTop: screenTop + framedBottom - line + lift,
+                           safeBottom: height - lift - line)
+    }
+
     private func raiseIfCollapsed() {
         if detent == .collapsed { detent = .medium }
     }

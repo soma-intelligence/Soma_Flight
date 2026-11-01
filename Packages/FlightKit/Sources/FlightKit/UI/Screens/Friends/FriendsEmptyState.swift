@@ -5,10 +5,15 @@ import SwiftUI
 /// is tapped, reused until it nears its end).
 struct FriendsEmptyState: View {
     var store: FriendsStore
+    /// A collapsed home sheet: the jets come smaller so the whole pair fits its few points (they grow
+    /// back as the sheet rises, with the code row's spring).
+    var compact = false
 
     var body: some View {
         VStack(spacing: 0) {
-            EmptyStateIllustration(variant: .pair, size: 240)
+            EmptyStateIllustration(variant: .pair, size: compact ? 176 : 240)
+                // Its full height even where the sheet is short: the rest is cut, never the jets squeezed.
+                .fixedSize(horizontal: false, vertical: true)
             Text(FriendFacts.emptyTitle)
                 .scaledFont(19, weight: .semibold)
                 .foregroundStyle(Theme.primary)

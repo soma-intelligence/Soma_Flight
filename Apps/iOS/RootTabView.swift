@@ -1,4 +1,5 @@
 import FlightKit
+import MapKit
 import SwiftUI
 
 /// The iOS home: the satellite globe full screen, a resizable sheet over it holding My Flights or
@@ -13,6 +14,9 @@ struct RootTabView: View {
     @State private var showSearch = false
     /// Where a Passport card zooms into its full page.
     @Namespace private var pageZoom
+    /// Ties the compass under the map buttons to the globe: the map's own safe area moves with the sheet,
+    /// so MapKit's compass would move with it.
+    @Namespace private var mapScope
     @State private var showSettings = false
     /// The screen and its safe areas, which place the sheet's three detents.
     @State private var geometry = SheetGeometry.standard
@@ -27,7 +31,8 @@ struct RootTabView: View {
     private var shell: ShellModel { home.shell }
 
     var body: some View {
-        HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, geometry: geometry)
+        HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, geometry: geometry,
+                  controlsScope: mapScope)
             .background { Color.black.ignoresSafeArea() }
             // The whole screen, with the safe areas it ignores still reported: the detents' frame.
             .background {
@@ -43,6 +48,7 @@ struct RootTabView: View {
             .overlay(alignment: .topTrailing) {
                 AirportsMapButton { home.openAirports() }.padding(.trailing, 12).padding(.top, 8 + 89 + 10)
             }
+            .mapScope(mapScope)
             .sheet(isPresented: .constant(true)) { sheet }
             .onChange(of: selection) { _, picked in
                 guard let picked else { return }
@@ -150,6 +156,7 @@ struct RootTabView: View {
             tabScreen
                 // Only on the tab roots: the modal sheets (Settings, Search) have titles of their own.
                 .environment(\.sheetDetentActions, detentActions)
+                .environment(\.sheetDetent, shell.detent)
                 .overlay(alignment: .topTrailing) {
                     ProfileButton(profile: home.profile) { showSettings = true }
                         .padding(.top, 19)
@@ -200,6 +207,12 @@ struct RootTabView: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
+        // MapKit's compass, only while the globe is turned, under the Airports button.
+        .overlay(alignment: .top) {
+            MapCompass(scope: mapScope)
+                .mapControlVisibility(.automatic)
+                .offset(y: 89 + 10 + 44 + 10)
+        }
         .padding(.trailing, 12)
         .padding(.top, 8)
         .opacity(home.shell.detent == .expanded ? 0 : 1)
@@ -212,25 +225,31 @@ struct RootTabView: View {
 // MARK: - Globe
 
 /// The globe under the sheet, in a view of its own so only what it reads redraws it: the arcs, the
-/// focus and the isolated flight, never the sheet's state. The map keeps the whole screen with its bottom
-/// safe area at the medium sheet's top in every detent (`ShellModel.mapInset(in:)`), so a detent change
-/// leaves the globe still and the open flight stays framed above the sheet.
+/// focus, the isolated flight and the detent (for MapKit's logo). The camera frames the area above the
+/// medium sheet in every detent (`ShellModel.mapInset(in:)`), so a detent change leaves the globe still
+/// and the open flight stays framed above the sheet; the map's safe area follows the sheet around that
+/// same centre, so the Apple Maps logo and Legal link sit just under the sheet's top
+/// (`ShellModel.globeInsets(in:detent:)`).
 private struct HomeGlobe: View {
     var home: HomeModel
     @Binding var selection: GlobeSelection?
     var labels: Bool
     var threeD: Bool
     var geometry: SheetGeometry
+    var controlsScope: Namespace.ID
 
     var body: some View {
         let content = home.globe
+        let insets = ShellModel.globeInsets(in: geometry, detent: home.shell.detent)
         GlobeMap(routes: content.routes, planes: content.planes, airports: content.airports, selection: $selection,
                  focus: home.focus, recenter: home.shell.recenter, labels: labels, threeD: threeD,
                  isolation: home.isolation,
-                 bottomInset: ShellModel.mapInset(in: geometry),
+                 insets: insets, controlsScope: controlsScope,
                  airportStatus: content.status)
-            // Down to the screen's bottom edge; the status bar's inset stays, so MapKit keeps its compass clear.
-            .ignoresSafeArea(edges: .bottom)
+            // The whole screen, its safe area entirely the map's own (`insets`), lifted so that safe area
+            // can reach above the screen's top; the lift's strip at the bottom is always under the sheet.
+            .ignoresSafeArea()
+            .offset(y: -insets.lift)
     }
 }
 

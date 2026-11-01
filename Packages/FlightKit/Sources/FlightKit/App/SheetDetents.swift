@@ -125,4 +125,7 @@ public struct SheetDetentActions {
 public extension EnvironmentValues {
     /// Set by the iOS home on its sheet; nil elsewhere (modal sheets, the Mac).
     @Entry var sheetDetentActions: SheetDetentActions? = nil
+    /// The detent the iOS home sheet rests in, for a tab screen that shows more as the sheet rises (the
+    /// Friends code row hides at collapsed). Nil elsewhere (modal sheets, the Mac): everything shows.
+    @Entry var sheetDetent: SheetDetent? = nil
 }

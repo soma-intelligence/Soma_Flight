@@ -131,6 +131,26 @@ public struct GlobeViewport: Equatable, Sendable {
                                             visible: CGRect(x: 0, y: 62, width: 402, height: 389))
 }
 
+/// The iPhone map's safe area when it differs from the area the camera frames (`ShellModel.globeInsets`),
+/// in the map's own points. MapKit draws the camera's centre in the middle of the safe area, so the two
+/// share a centre; the safe area's bottom is where MapKit puts its logo and Legal link.
+public struct GlobeInsets: Equatable, Sendable {
+    /// How far the map is drawn above the screen's top (and ends above its bottom), so its safe area can
+    /// reach above the screen. The caller offsets the map by it.
+    public var lift: CGFloat
+    /// The framed area: the camera fits arcs and airports between these insets.
+    public var framedTop: CGFloat
+    public var framedBottom: CGFloat
+    /// The safe area MapKit gets, around the same centre.
+    public var safeTop: CGFloat
+    public var safeBottom: CGFloat
+
+    public init(lift: CGFloat, framedTop: CGFloat, framedBottom: CGFloat, safeTop: CGFloat, safeBottom: CGFloat) {
+        self.lift = lift; self.framedTop = framedTop; self.framedBottom = framedBottom
+        self.safeTop = safeTop; self.safeBottom = safeBottom
+    }
+}
+
 /// Satellite globe with route arcs, airport dots and live planes.
 public struct GlobeMap: View {
     var routes: [Route]
@@ -148,6 +168,10 @@ public struct GlobeMap: View {
     /// How far the visible part of the map stops above its bottom edge (the iPhone sheet). The map keeps
     /// its full size and only its safe area moves, so a detent change never resizes the map.
     var bottomInset: CGFloat
+    /// The iPhone's safe area apart from the framed area; nil frames the safe area itself.
+    var insets: GlobeInsets?
+    /// Where an outside `MapCompass(scope:)` finds this map; nil keeps MapKit's own compass.
+    var controlsScope: Namespace.ID?
     @State private var position: MapCameraPosition
     /// How much of everything outside the isolated flight shows: 1 all of it, 0 none. Stepped by
     /// `fade(to:)`, as MapKit does not animate its overlays' colours.
@@ -171,11 +195,16 @@ public struct GlobeMap: View {
     ///   - isolation: one flight drawn alone, the rest faded out; nil draws everything.
     ///   - bottomInset: the part of the map's bottom hidden by a sheet, added to its safe area. A change
     ///     glides the globe up or down and springs the camera onto the new fit.
+    ///   - insets: the map's whole safe area, apart from the framed area (the iPhone, where MapKit's logo
+    ///     follows the sheet); it replaces `bottomInset` and the system safe areas, which the caller ignores.
+    ///   - controlsScope: a `mapScope` the caller places `MapCompass(scope:)` in; the map then draws none.
     public init(routes: [Route], planes: [FlightAnnotationModel], airports: [Airport], selection: Binding<GlobeSelection?>,
                 focus: GlobeFocus? = nil, recenter: Int = 0, labels: Bool = false, threeD: Bool? = nil,
-                isolation: GlobeIsolation? = nil, bottomInset: CGFloat = 0,
-                airportStatus: [String: AirportStatusLevel] = [:]) {
-        self.bottomInset = bottomInset
+                isolation: GlobeIsolation? = nil, bottomInset: CGFloat = 0, insets: GlobeInsets? = nil,
+                controlsScope: Namespace.ID? = nil, airportStatus: [String: AirportStatusLevel] = [:]) {
+        self.bottomInset = insets?.framedBottom ?? bottomInset
+        self.insets = insets
+        self.controlsScope = controlsScope
         self.airportStatus = airportStatus
         self.routes = routes; self.planes = planes; self.airports = airports
         self._selection = selection
@@ -415,7 +444,7 @@ public struct GlobeMap: View {
 
     public var body: some View {
         let layers = GlobeLayers(routes: routes, planes: planes, airports: airports, isolation: shown, fade: fade)
-        Map(position: $position, selection: $selection) {
+        Map(position: $position, selection: $selection, scope: controlsScope) {
             ForEach(layers.routes) { item in
                 let route = item.route
                 ForEach(Array(route.runs.enumerated()), id: \.offset) { _, run in
@@ -463,7 +492,12 @@ public struct GlobeMap: View {
             // The map lays out inside the safe area and draws under it; the insets give back the whole view.
             let i = proxy.safeAreaInsets
             let size = CGSize(width: proxy.size.width + i.leading + i.trailing, height: proxy.size.height + i.top + i.bottom)
-            let visible = CGRect(x: i.leading, y: i.top, width: proxy.size.width, height: proxy.size.height)
+            var visible = CGRect(x: i.leading, y: i.top, width: proxy.size.width, height: proxy.size.height)
+            // A safe area wider than the framed area (the iPhone): the camera still frames the latter.
+            if let insets {
+                visible.origin.y = insets.framedTop
+                visible.size.height = max(0, size.height - insets.framedTop - insets.framedBottom)
+            }
             #if os(macOS)  // deliberately the Mac only: Catalyst and visionOS keep the iPhone clamp
             return GlobeViewport.mac(size: size, visible: visible)
             #else
@@ -516,10 +550,13 @@ public struct GlobeMap: View {
             }
         }
         .mapControls {
-            MapCompass()
+            if controlsScope == nil { MapCompass() }
             if threeD == nil { MapPitchToggle() }
         }
-        .safeAreaPadding(.bottom, bottomInset)
+        .safeAreaPadding(.top, insets?.safeTop ?? 0)
+        .safeAreaPadding(.bottom, insets?.safeBottom ?? bottomInset)
+        // One spring for both edges, so the safe area's centre (the camera's) never moves as they glide.
+        .animation(Self.refitAnimation, value: insets)
         .animation(Self.refitAnimation, value: bottomInset)
     }
 }
