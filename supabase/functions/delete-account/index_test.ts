@@ -8,7 +8,12 @@ import {
   trackFlightId,
 } from "../_shared/test_util.ts";
 import { ensureAlert } from "../_shared/follow.ts";
-import { avatarPath, AVATARS_BUCKET, handler } from "./handler.ts";
+import {
+  archivedAvatarPath,
+  avatarPath,
+  AVATARS_BUCKET,
+  handler,
+} from "./handler.ts";
 
 const db = await testDb();
 
@@ -150,6 +155,13 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
   );
   const photos = await db.storage.from(AVATARS_BUCKET).list(user);
   assertEquals((photos.data ?? []).map((f) => f.name), [], "the photo is gone");
+  const archived = await db.storage.from(AVATARS_BUCKET).list(`deleted/${user}`);
+  assertEquals(
+    (archived.data ?? []).map((f) => f.name),
+    ["avatar.jpg"],
+    "the photo is kept in the archive folder",
+  );
+  await db.storage.from(AVATARS_BUCKET).remove([archivedAvatarPath(user)]);
   const kept = await db.storage.from(AVATARS_BUCKET).list(other);
   assertEquals(
     (kept.data ?? []).map((f) => f.name),

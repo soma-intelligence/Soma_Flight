@@ -1,4 +1,5 @@
-// POST /delete-account -> { ok: true }. Erases the caller's data and auth user (App Store in-app deletion).
+// POST /delete-account -> { ok: true }. Archives the caller's data (archive.deleted_accounts), then erases
+// the live rows and the auth user (App Store in-app deletion).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
@@ -10,6 +11,8 @@ export const DELETE_MAX_PER_HOUR = 5;
 /** The private bucket of profile photos (migration 20261031000030), one file per user. */
 export const AVATARS_BUCKET = "avatars";
 export const avatarPath = (userId: string) => `${userId}/avatar.jpg`;
+/** Where a deleted account's photo is kept: no user or friend policy matches this folder. */
+export const archivedAvatarPath = (userId: string) => `deleted/${userId}/avatar.jpg`;
 
 export interface Deps {
   db: SupabaseClient;
@@ -23,8 +26,8 @@ function must(r: { error: { message: string } | null }, what: string): void {
 
 /**
  * Order matters and every step is safe to repeat, so a retry finishes an interrupted deletion:
- * unfollow (releases alerts nobody else needs; a provider failure keeps alert_id for the sweep and
- * never blocks the deletion), erase user rows, remove the profile photo, strip and mark the profile, then delete the auth
+ * archive everything the user owns (the first snapshot is kept on retries), unfollow (releases alerts nobody else needs; a provider failure keeps alert_id for the sweep and
+ * never blocks the deletion), erase user rows, move the profile photo to the archive folder, strip and mark the profile, then delete the auth
  * user last. The profile row has no FK to auth.users and is kept with status 'deleted'.
  */
 export async function handler(req: Request, deps: Deps): Promise<Response> {
@@ -36,6 +39,8 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const { db, aero } = deps;
     await checkRate(userId, "delete-account", DELETE_MAX_PER_HOUR, 60, db);
 
+    // Before anything is erased, so the archive holds the whole account.
+    must(await db.rpc("archive_account", { p_user: userId }), "account archive");
     const followed = await db.from("user_flights").select("flight_id")
       .eq("user_id", userId);
     must(followed, "follow read");
@@ -53,11 +58,20 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
       await db.from("push_tokens").delete().eq("user_id", userId),
       "push tokens delete",
     );
-    // The profile photo goes first (removing a missing file is not an error, so a retry passes).
-    must(
-      await db.storage.from(AVATARS_BUCKET).remove([avatarPath(userId)]),
-      "avatar delete",
-    );
+    // The profile photo moves to the archive folder. No photo (none set, or a retry after the move) is not
+    // an error; any older archived photo is replaced first so the move cannot collide.
+    const photo = await db.storage.from(AVATARS_BUCKET).list(userId);
+    must(photo, "avatar read");
+    if ((photo.data ?? []).some((f) => f.name === "avatar.jpg")) {
+      must(
+        await db.storage.from(AVATARS_BUCKET).remove([archivedAvatarPath(userId)]),
+        "archived avatar replace",
+      );
+      must(
+        await db.storage.from(AVATARS_BUCKET).move(avatarPath(userId), archivedAvatarPath(userId)),
+        "avatar archive",
+      );
+    }
     must(
       await db.from("profiles").update({
         status: "deleted",

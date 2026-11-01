@@ -16,7 +16,7 @@ A short screen right after the first sign-in: a photo, a first name and a last n
 - `profiles`: `first_name`, `last_name` (1 to 40 characters), `avatar_path` (only `<user_id>/avatar.jpg`), `onboarded_at`. `display_name` and `emoji` already existed (20261031000022); the app writes `display_name` from first and last name, so Friends keep reading one column. Owner updates through column grants.
 - Bucket `avatars`: private, JPEG only, 1 MB at most. Storage policies: the owner inserts, replaces, deletes and reads `<own id>/avatar.jpg`; a friend reads it (the caller's own `friendships` row must point at the photo's owner). The app reads through signed URLs that live 5 minutes.
 - `friend_avatars()`: the caller's mutual, active friends who have a photo, with the object's `updated_at` as the cache key. Allow-listed in `archive_test.sql`'s client function guard.
-- `delete-account` removes `avatars/<user_id>/avatar.jpg` and clears the new columns, before deleting the auth user.
+- `delete-account` first archives the account (`archive.deleted_accounts`, migration `20261101000001`), moves `avatars/<user_id>/avatar.jpg` to `avatars/deleted/<user_id>/avatar.jpg`, clears the new columns, then deletes the auth user.
 
 ## Owner steps
 
