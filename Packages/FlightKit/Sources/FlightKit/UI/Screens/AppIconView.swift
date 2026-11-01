@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Settings > App Icon: every icon as a large preview in one horizontal row, its name under it, the one in use
+/// Settings > App Icon: one horizontal row per plane (Jet, Supersonic), every icon as a large preview with its
+/// ground under it, the one in use
 /// ringed in the accent colour. Tapping one asks the system to change it (iOS then shows its own short notice);
 /// the ring moves to it at once and goes back if the system refuses.
 struct AppIconPicker: View {
@@ -14,16 +15,25 @@ struct AppIconPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if scrolls {
-                ScrollView(.horizontal, showsIndicators: false) { row }
-                    .scrollClipDisabled()
-            } else {
-                // Laid out flat for snapshots: the row runs off the card's edge as it does before scrolling.
-                GeometryReader { geo in
-                    row.fixedSize().frame(width: geo.size.width, alignment: .leading)
+            ForEach(AppIconPlane.allCases, id: \.self) { plane in
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(plane.title.uppercased())
+                        .scaledFont(11, weight: .semibold)
+                        .foregroundStyle(Theme.secondary)
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.top, plane == .jet ? 12 : 2)
+                    if scrolls {
+                        ScrollView(.horizontal, showsIndicators: false) { row(plane) }
+                            .scrollClipDisabled()
+                    } else {
+                        // Laid out flat for snapshots: the row runs off the card's edge as it does before scrolling.
+                        GeometryReader { geo in
+                            row(plane).fixedSize().frame(width: geo.size.width, alignment: .leading)
+                        }
+                        .frame(height: Theme.metric(116, scale))
+                        .clipped()
+                    }
                 }
-                .frame(height: Theme.metric(124, scale))
-                .clipped()
             }
             if model.failed {
                 Text("The icon could not be changed. Try again in a moment.")
@@ -33,14 +43,15 @@ struct AppIconPicker: View {
         }
     }
 
-    private var row: some View {
+    private func row(_ plane: AppIconPlane) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            ForEach(AppIcons.all) { choice in
+            ForEach(AppIcons.icons(for: plane)) { choice in
                 tile(choice)
             }
         }
         .scaledPadding(.horizontal, 16)
-        .scaledPadding(.vertical, 14)
+        .scaledPadding(.top, 8)
+        .scaledPadding(.bottom, 10)
         // The ring slides to the new icon the moment it is tapped, and back if the system refuses.
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.35, dampingFraction: 0.72),
                    value: model.current)
@@ -62,7 +73,7 @@ struct AppIconPicker: View {
                         }
                     }
                     .scaleEffect(selected ? 1 : 0.94)
-                Text(choice.name)
+                Text(choice.label)
                     .scaledFont(12, weight: selected ? .semibold : .regular)
                     .foregroundStyle(selected ? Theme.primary : Theme.secondary)
                     .lineLimit(2)

@@ -44,7 +44,12 @@ import Testing
         #expect(AppIcons.all.first?.assetName == nil, "the primary comes first")
         #expect(AppIcons.all.first?.name == "Jet")
         #expect(AppIcons.choice(for: "AppIcon-supersonic").name == "Supersonic")
-        #expect(AppIcons.all.map(\.name).filter { $0.hasPrefix("Jet") }.count == 3, "the jet in auto, light and dark")
+        for plane in AppIconPlane.allCases {
+            let icons = AppIcons.icons(for: plane)
+            #expect(icons.count == 11, "\(plane.title): auto, nine grounds and the blueprint")
+            #expect(icons.first?.label == "Auto")
+            #expect(icons.allSatisfy { $0.name.hasPrefix(plane.title) })
+        }
         for name in sets {
             let json = try Data(contentsOf: Self.catalog.appending(path: "\(name).appiconset/Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])
@@ -58,8 +63,8 @@ import Testing
 
     @Test func previewNamesFollowTheSetNames() {
         #expect(AppIcons.all[0].previewName == "Preview-jet")
-        #expect(AppIcons.choice(for: "AppIcon-jet-light").previewName == "Preview-jet-light")
-        #expect(AppIcons.choice(for: "AppIcon-supersonic-dark").previewName == "Preview-supersonic-dark")
+        #expect(AppIcons.choice(for: "AppIcon-jet-paper").previewName == "Preview-jet-paper")
+        #expect(AppIcons.choice(for: "AppIcon-supersonic-blueprint").previewName == "Preview-supersonic-blueprint")
     }
 
     @Test func taglinesStayShortAndPlain() {
@@ -70,7 +75,9 @@ import Testing
         #expect(AppIcons.choice(for: "AppIcon-gone").name == "Jet")
         #expect(AppIcons.choice(for: "AppIcon-orbit-jet").name == "Jet", "the retired jet alternate falls back to the primary")
         #expect(AppIcons.choice(for: "AppIcon-ember").name == "Jet", "the retired alternates fall back to the primary")
-        #expect(AppIcons.choice(for: "AppIcon-supersonic-light").name == "Supersonic Light")
+        #expect(AppIcons.choice(for: "AppIcon-jet-light").name == "Jet", "the retired light and dark alternates fall back too")
+        #expect(AppIcons.choice(for: "AppIcon-supersonic-dusk").name == "Supersonic Dusk")
+        #expect(AppIcons.choice(for: "AppIcon-jet-blueprint").label == "Blueprint")
     }
 
     final class FakeSetter: AppIconSetting, @unchecked Sendable {
@@ -87,9 +94,9 @@ import Testing
     }
 
     @Test func choosingAnIconAsksTheSystemAndGoesBackOnFailure() async {
-        let setter = FakeSetter("AppIcon-jet-dark")
+        let setter = FakeSetter("AppIcon-jet-charcoal")
         let model = AppIconModel(setter: setter)
-        #expect(model.current.name == "Jet Dark")
+        #expect(model.current.name == "Jet Charcoal")
         await model.select(AppIcons.all[0])
         #expect(setter.calls == [nil])
         #expect(model.current.assetName == nil)
@@ -110,7 +117,7 @@ import Testing
         let setter = FakeSetter(nil)
         let model = AppIconModel(setter: setter)
         #expect(model.current.name == "Jet")
-        await model.select(AppIcons.choice(for: "AppIcon-jet-dark"))
-        #expect(model.current.name == "Jet Dark", "Settings reads this for its row's subtitle")
+        await model.select(AppIcons.choice(for: "AppIcon-jet-navy"))
+        #expect(model.current.name == "Jet Navy", "Settings reads this for its row's subtitle")
     }
 }

@@ -1,11 +1,12 @@
-"""The app icon family: the climbing Jet and the Supersonic, each white on charcoal and black on white.
+"""The app icon family: the climbing Jet and the Supersonic, each on nine grounds and as a blueprint.
 
     python3 assets/app-icon/family.py [--sheet PATH]
 
 Builds both jets with build.py's tile, shadow and tinted mapping, then writes every catalog:
 - Apps/iOS AppIcon (primary Jet: light appearance black on white, dark appearance white on charcoal) and the
-  alternates AppIcon-jet-light, AppIcon-jet-dark, AppIcon-supersonic, AppIcon-supersonic-light,
-  AppIcon-supersonic-dark;
+  alternates AppIcon-supersonic (the same, following the appearance) and AppIcon-<plane>-<ground> for each
+  plane on white, paper, grey, charcoal, black, navy, sky, dusk and blue (black plane on the light grounds,
+  white on the others; build.BACKGROUNDS) and AppIcon-<plane>-blueprint (blueprint.py, a vector line drawing);
 - FlightKit Resources/AppIconPreviews.xcassets: one Preview-<slug> per icon (light and dark appearance) for the
   Settings picker, and BrandMark (the Jet, light and dark) for the sign-in screen;
 - the Watch and Mac AppIcon sets (white jet on charcoal, the Mac in its framed tile).
@@ -72,46 +73,80 @@ def preview(name, light, dark):
          "idiom": "universal"}], "info": {"author": "xcode", "version": 1}}, indent=2) + "\n")
 
 
-def sheet(icons, path):
-    """Every icon at 60 pt (180 px), masked, on a light and a dark wallpaper, with its name."""
+def sheet(icons, path, per_row=11):
+    """Every icon at 60 pt (180 px), masked, on a light and on a dark wallpaper, with its name, one plane per row."""
     from PIL import ImageDraw, ImageFont, ImageFilter
-    font = ImageFont.truetype("/System/Library/Fonts/SFNS.ttf", 26)
-    cell, pad = 230, 30
-    w = pad + len(icons) * cell
-    c = Image.new("RGB", (w, 2 * 300), (0, 0, 0))
+    font = ImageFont.truetype("/System/Library/Fonts/SFNS.ttf", 24)
+    cell, pad, band = 214, 30, 280
+    rows = [icons[i:i + per_row] for i in range(0, len(icons), per_row)]
+    w = pad * 2 + per_row * cell
+    c = Image.new("RGB", (w, 2 * len(rows) * band), (0, 0, 0))
     mask = B.squircle(180).filter(ImageFilter.GaussianBlur(0.5))
-    for row, (bg, fg, key) in enumerate((((232, 234, 240), (40, 40, 44), "light"), ((20, 22, 30), (230, 230, 235), "dark"))):
-        ImageDraw.Draw(c).rectangle([0, row * 300, w, row * 300 + 300], fill=bg)
-        for i, (name, look) in enumerate(icons):
-            x, y = pad + i * cell, row * 300 + 30
-            c.paste(look[key].resize((180, 180), Image.LANCZOS), (x, y), mask)
-            ImageDraw.Draw(c).text((x + 90, y + 200), name, font=font, fill=fg, anchor="mt")
+    y = 0
+    for bg, fg, key in (((232, 234, 240), (40, 40, 44), "light"), ((20, 22, 30), (230, 230, 235), "dark")):
+        for row in rows:
+            ImageDraw.Draw(c).rectangle([0, y, w, y + band], fill=bg)
+            for i, (name, look) in enumerate(row):
+                x = pad + i * cell
+                c.paste(look[key].resize((180, 180), Image.LANCZOS), (x, y + 28), mask)
+                ImageDraw.Draw(c).text((x + 90, y + 222), name, font=font, fill=fg, anchor="mt")
+            y += band
     c.save(path)
 
 
+GROUNDS = ["white", "paper", "grey", "charcoal", "black", "navy", "sky", "dusk", "blue"]
+LABELS = {"white": "White", "paper": "Paper", "grey": "Grey", "charcoal": "Charcoal", "black": "Black",
+          "navy": "Navy", "sky": "Sky", "dusk": "Dusk", "blue": "Blue", "blueprint": "Blueprint"}
+
+
+def plane_sprite(slug):
+    raw, scale, rot, nudge = PLANES[slug]
+    sp = B.clean(Image.open(HERE / raw))
+    if rot:
+        sp = sp.rotate(rot, expand=True, resample=Image.BICUBIC)
+        sp = sp.crop(sp.getbbox())
+    return sp, scale, nudge
+
+
 if __name__ == "__main__":
-    jet, sst = render("jet"), render("supersonic")
-    # light appearance / dark appearance of each choice, as the system and the picker show them
-    looks = {
-        "jet": (jet["white"], jet["dark"]), "jet-light": (jet["white"], jet["white"]),
-        "jet-dark": (jet["light"], jet["dark"]), "supersonic": (sst["white"], sst["dark"]),
-        "supersonic-light": (sst["white"], sst["white"]), "supersonic-dark": (sst["light"], sst["dark"]),
-    }
-    tints = {"jet": jet["tinted"], "supersonic": sst["tinted"]}
-    for slug, (lt, dk) in looks.items():
-        appicon("AppIcon" if slug == "jet" else f"AppIcon-{slug}", lt, dk, tints[slug.split("-")[0]])
+    import blueprint as BP
+    for old in ("jet-light", "jet-dark", "supersonic-light", "supersonic-dark"):
+        for d in (IOS / f"AppIcon-{old}.appiconset", PREVIEWS / f"Preview-{old}.imageset"):
+            if d.exists():
+                for f in d.iterdir():
+                    f.unlink()
+                d.rmdir()
+    looks, rows = {}, []
+    for plane in PLANES:
+        base = render(plane)
+        sp, scale, nudge = plane_sprite(plane)
+        bp_nudge = (nudge[0], nudge[1] - 16)
+        tinted = base["tinted"]
+        looks[plane] = (base["white"], base["dark"], tinted)  # Auto: black on white by day, charcoal at night
+        for g in GROUNDS:
+            im = B.make_on(sp, g, scale, nudge)
+            looks[f"{plane}-{g}"] = (im, im, tinted)
+        bpi = BP.blueprint(sp, scale - 0.03, bp_nudge)
+        looks[f"{plane}-blueprint"] = (bpi, bpi, B.tinted_of(BP.blueprint(sp, scale - 0.03, bp_nudge, tint=True)))
+        d = HERE / plane
+        for g in GROUNDS + ["blueprint"]:
+            looks[f"{plane}-{g}"][0].save(d / f"{g}.png")
+    for slug, (lt, dk, tn) in looks.items():
+        appicon("AppIcon" if slug == "jet" else f"AppIcon-{slug}", lt, dk, tn)
         preview(f"Preview-{slug}", lt, dk)
-    preview("BrandMark", jet["white"], jet["light"])
-    jet["light"].convert("RGB").save(ROOT / "Apps/Watch/Assets.xcassets/AppIcon.appiconset/AppIcon.png", optimize=True)
-    mac = B.mac_tile(jet["light"])
+    jet = looks["jet"]
+    preview("BrandMark", jet[0], looks["jet-charcoal"][0])
+    looks["jet-charcoal"][0].convert("RGB").save(ROOT / "Apps/Watch/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+                                                optimize=True)
+    mac = B.mac_tile(looks["jet-charcoal"][0])
     for px in (16, 32, 64, 128, 256, 512, 1024):
         mac.resize((px, px), Image.LANCZOS).save(ROOT / f"Apps/macOS/Assets.xcassets/AppIcon.appiconset/mac-{px}.png",
                                                 optimize=True)
-    if not (PREVIEWS / "Contents.json").exists():
-        (PREVIEWS / "Contents.json").write_text('{\n  "info" : { "author" : "xcode", "version" : 1 }\n}\n')
     if "--sheet" in sys.argv:
-        names = {"jet": "Jet", "jet-light": "Jet Light", "jet-dark": "Jet Dark", "supersonic": "Supersonic",
-                 "supersonic-light": "SST Light", "supersonic-dark": "SST Dark"}
-        sheet([(names[s], {"light": lt, "dark": dk}) for s, (lt, dk) in looks.items()],
-              sys.argv[sys.argv.index("--sheet") + 1])
-    print("done")
+        order = []
+        for plane in PLANES:
+            title = "Jet" if plane == "jet" else "SST"
+            order.append((f"{title} Auto", looks[plane]))
+            order += [(f"{title} {LABELS[g]}", looks[f"{plane}-{g}"]) for g in GROUNDS + ["blueprint"]]
+        sheet([(n, {"light": l[0], "dark": l[1]}) for n, l in order], sys.argv[sys.argv.index("--sheet") + 1])
+    print("done", len(looks), "icons")

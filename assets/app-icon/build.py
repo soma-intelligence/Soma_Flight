@@ -126,6 +126,46 @@ def mock(icon, path):
     c.save(path)
 
 
+# The background family: (top, bottom, plane colour, shadow strength). Black plane on the light grounds,
+# white on the dark and coloured ones; quiet vertical gradients only.
+BACKGROUNDS = {
+    "white": ((255, 255, 255), (232, 232, 237), "black", 0.30),
+    "paper": ((251, 247, 239), (234, 226, 211), "black", 0.30),
+    "grey": ((232, 232, 236), (198, 198, 205), "black", 0.32),
+    "charcoal": ((44, 44, 48), (16, 16, 18), "white", 0.75),
+    "black": ((14, 14, 15), (0, 0, 0), "white", 0.75),
+    "navy": ((28, 42, 82), (8, 14, 36), "white", 0.70),
+    "sky": ((128, 190, 246), (52, 122, 212), "white", 0.40),
+    "dusk": ((46, 40, 98), (226, 124, 96), "white", 0.45),
+    "blue": ((24, 142, 255), (0, 92, 210), "white", 0.45),
+}
+
+
+def ground(top, bottom):
+    t = np.linspace(0, 1, S)[:, None, None]
+    g = np.array(top, float) * (1 - t) + np.array(bottom, float) * t
+    yy, xx = np.mgrid[0:S, 0:S]
+    d = np.hypot(xx - 430, yy - 400) / 700
+    lift = 10 if sum(top) < 400 else 4
+    g = np.repeat(g, S, axis=1) + (np.exp(-d ** 2 * 2) * lift)[..., None]
+    return Image.fromarray(np.clip(g, 0, 255).astype("uint8")).convert("RGB")
+
+
+def make_on(sprite, name, scale, nudge):
+    """The jet on one of BACKGROUNDS, in the plane colour that ground calls for."""
+    top, bottom, plane, shadow = BACKGROUNDS[name]
+    w = int(S * scale)
+    k = w / max(sprite.size)
+    sp = sprite.resize((round(sprite.width * k), round(sprite.height * k)), Image.LANCZOS)
+    if plane == "black":
+        sp = black(sp)
+    pos = (int(S / 2 - sp.width / 2 + nudge[0]), int(S / 2 - sp.height / 2 + nudge[1]))
+    bg = contact_shadow(ground(top, bottom), sp, pos, alpha=shadow)
+    im = bg.convert("RGBA")
+    im.alpha_composite(sp, pos)
+    return im.convert("RGB")
+
+
 def mac_tile(icon):
     """macOS frame: the art in an 824 px rounded square (Big Sur grid, radius 185) with a soft drop shadow."""
     m = Image.new("L", (S, S), 0)

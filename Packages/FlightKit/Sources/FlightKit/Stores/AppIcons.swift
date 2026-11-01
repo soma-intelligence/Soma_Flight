@@ -12,9 +12,14 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
     public var assetName: String?
     public var name: String
     public var tagline: String
+    /// The aircraft on it; the picker shows one row per plane.
+    public var plane: AppIconPlane
+    /// The tile's caption inside its plane's row ("Auto", "Navy", "Blueprint").
+    public var label: String
 
-    public init(_ assetName: String?, name: String, tagline: String) {
+    public init(_ assetName: String?, name: String, tagline: String, plane: AppIconPlane = .jet, label: String? = nil) {
         self.assetName = assetName; self.name = name; self.tagline = tagline
+        self.plane = plane; self.label = label ?? name
     }
 
     public var id: String { assetName ?? "AppIcon" }
@@ -26,8 +31,16 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
     }
 }
 
-/// The iPhone app's icons: the climbing Jet and the Supersonic, each in black on white, white on charcoal, or
-/// following the phone's appearance. The Mac app keeps its one icon (no picker on macOS).
+/// The two aircraft the icons carry.
+public enum AppIconPlane: String, CaseIterable, Sendable {
+    case jet, supersonic
+
+    public var title: String { self == .jet ? "Jet" : "Supersonic" }
+}
+
+/// The iPhone app's icons: the climbing Jet and the Supersonic, each following the phone's appearance (Auto),
+/// on nine fixed grounds (black plane on the light ones, white on the dark ones), and as a blueprint line
+/// drawing. The Mac and watch apps keep the primary only (no picker there).
 ///
 /// All of it is built by `assets/app-icon/family.py` from the raws in `assets/app-icon/raw`:
 /// - `Apps/iOS/Assets.xcassets/AppIcon.appiconset` (the primary, the set `project.yml` names) and one
@@ -44,14 +57,35 @@ public enum AppIcons {
     /// The primary icon's preview slug: `Preview-jet`.
     static let primarySlug = "jet"
 
-    public static let all: [AppIconChoice] = [
-        AppIconChoice(nil, name: "Jet", tagline: "Black on white by day, white on charcoal at night."),
-        AppIconChoice("AppIcon-jet-light", name: "Jet Light", tagline: "Our jet in black on white, all the time."),
-        AppIconChoice("AppIcon-jet-dark", name: "Jet Dark", tagline: "Our jet in white on charcoal, all the time."),
-        AppIconChoice("AppIcon-supersonic", name: "Supersonic", tagline: "A delta-wing airliner that follows your appearance."),
-        AppIconChoice("AppIcon-supersonic-light", name: "Supersonic Light", tagline: "Mach two in black on white."),
-        AppIconChoice("AppIcon-supersonic-dark", name: "Supersonic Dark", tagline: "Mach two in white on charcoal."),
+    /// The fixed grounds, in the picker's order: slug, caption, and what the tagline says after the plane.
+    static let grounds: [(slug: String, label: String, on: String)] = [
+        ("white", "White", "in black on pure white"),
+        ("paper", "Paper", "in black on warm paper"),
+        ("grey", "Grey", "in black on light grey"),
+        ("charcoal", "Charcoal", "in white on charcoal"),
+        ("black", "Black", "in white on true black"),
+        ("navy", "Navy", "in white on midnight navy"),
+        ("sky", "Sky", "in white on a clear sky"),
+        ("dusk", "Dusk", "in white against a dusk sky"),
+        ("blue", "Blue", "in white on the app's blue"),
+        ("blueprint", "Blueprint", "drawn in fine lines on blueprint blue"),
     ]
+
+    public static let all: [AppIconChoice] = AppIconPlane.allCases.flatMap { plane -> [AppIconChoice] in
+        let auto = plane == .jet
+            ? AppIconChoice(nil, name: "Jet", tagline: "Black on white by day, white on charcoal at night.",
+                            plane: .jet, label: "Auto")
+            : AppIconChoice("AppIcon-supersonic", name: "Supersonic",
+                            tagline: "Mach two that follows your appearance.", plane: .supersonic, label: "Auto")
+        let subject = plane == .jet ? "Our jet" : "Mach two"
+        return [auto] + grounds.map { g in
+            AppIconChoice("AppIcon-\(plane.rawValue)-\(g.slug)", name: "\(plane.title) \(g.label)",
+                          tagline: "\(subject) \(g.on).", plane: plane, label: g.label)
+        }
+    }
+
+    /// The icons of one plane, Auto first.
+    public static func icons(for plane: AppIconPlane) -> [AppIconChoice] { all.filter { $0.plane == plane } }
 
     /// The choice for an alternate icon name as the system reports it; the primary for nil or a name no
     /// longer listed.
