@@ -150,3 +150,77 @@ import UniformTypeIdentifiers
         #expect(AvatarImage.jpeg(from: Data("hello".utf8)) == nil)
     }
 }
+
+@MainActor @Suite struct ProfileStoreTests {
+    private let user = FakeProfileService.userId
+
+    @Test func firstAppleSignInShowsOnboardingPrefilled() async {
+        let store = ProfileStore(service: FakeProfileService(.apple))
+        await store.prepare(owner: user)
+        #expect(store.gate == .show)
+        #expect(store.draft == ProfileDraft(firstName: "Camille", lastName: "Laurent"))
+        #expect(store.displayName == "Camille Laurent")
+    }
+
+    @Test func emailRelayAsksForAName() async {
+        let store = ProfileStore(service: FakeProfileService(.email))
+        await store.prepare(owner: user)
+        #expect(store.gate == .show)
+        #expect(store.displayName == "", "never the relay's random local part")
+    }
+
+    @Test func continueSavesNamesPhotoAndHides() async throws {
+        let service = FakeProfileService(.email)
+        let store = ProfileStore(service: service)
+        await store.prepare(owner: user)
+        let before = store.revision
+        let ok = await store.save(firstName: " Ada ", lastName: "Lovelace", photo: .set(try #require(FakeProfilePhoto.jpeg(hue: 0.3))),
+                                  finishOnboarding: true)
+        #expect(ok)
+        #expect(store.gate == .hidden)
+        #expect(store.displayName == "Ada Lovelace")
+        #expect(store.photo != nil)
+        #expect(store.revision > before, "the header redraws")
+        let saved = await service.profile
+        #expect(saved.displayName == "Ada Lovelace" && saved.onboardedAt != nil && saved.avatarPath != nil)
+        // The next launch on this device does not ask again.
+        await store.prepare(owner: user)
+        #expect(store.gate == .hidden)
+    }
+
+    @Test func laterHidesForGood() async {
+        let service = FakeProfileService(.email)
+        let store = ProfileStore(service: service)
+        await store.prepare(owner: user)
+        await store.skip()
+        #expect(store.gate == .hidden)
+        #expect(await service.profile.onboardedAt != nil)
+        await store.prepare(owner: user)
+        #expect(store.gate == .hidden, "no name, but the user put it off")
+    }
+
+    @Test func failedSaveKeepsOnboarding() async {
+        let service = FakeProfileService(.apple)
+        let store = ProfileStore(service: service)
+        await store.prepare(owner: user)
+        await service.setNextError(.offline)
+        #expect(await store.save(firstName: "A", lastName: "", photo: .keep, finishOnboarding: true) == false)
+        #expect(store.gate == .show)
+        #expect(store.error == .offline)
+    }
+
+    @Test func signedOutShowsNothing() async {
+        let store = ProfileStore(service: FakeProfileService(.apple))
+        await store.prepare(owner: nil)
+        #expect(store.gate == .hidden)
+        #expect(store.profile == nil)
+    }
+
+    @Test func friendPhotosLoad() async {
+        let store = ProfileStore(service: FakeProfileService())
+        await store.prepare(owner: user)
+        await store.loadFriendPhotos()
+        #expect(store.friendPhotos[FakeFriendsService.maya] != nil)
+        #expect(store.friendPhotos[FakeFriendsService.theo] == nil)
+    }
+}
