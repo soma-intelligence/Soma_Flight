@@ -1,8 +1,0 @@
-{
-  "images" : [
-    { "filename" : "sweep-light.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ], "filename" : "sweep-dark.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "tinted" } ], "filename" : "sweep-tinted.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
-  ],
-  "info" : { "author" : "xcode", "version" : 1 }
-}

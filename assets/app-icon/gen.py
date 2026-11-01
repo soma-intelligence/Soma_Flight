@@ -68,6 +68,21 @@ MIXED = {
         "a light jet like an Embraer Phenom 300, smaller, heading to the LEFT, slightly offset so they pass like two "
         "friends crossing paths in the sky.",
 }
+# Icon family: a supersonic airliner in the same render, for the Supersonic icon (dark and light).
+SST = ("Draw ONE supersonic airliner like the Concorde, unbranded: long needle-slim fuselage, slender ogival "
+       "delta wing, droop nose lowered a few degrees, four engines in two paired nacelles under the wing, tall swept "
+       "fin, no horizontal tail. This is for an app icon, so the silhouette must stay bold and readable when tiny. "
+       "The whole aircraft fits in the frame with generous equal margins, centred. ")
+MIXED.update({
+    "sst-profile": SST + "View: pure side profile, nose pointing RIGHT, camera level, the jet climbing gently with "
+        "the nose about 10 degrees up.",
+    "sst-below": SST + "View: side view from slightly below and a little ahead, nose pointing to the upper RIGHT, "
+        "climbing at about 15 degrees, a little of the underside of the delta wing and both engine nacelle pairs "
+        "visible.",
+    "sst-three-quarter": SST + "View: three-quarter front view from slightly above, nose pointing to the upper RIGHT "
+        "and a little toward the viewer, climbing at about 12 degrees, the full delta wing planform visible in "
+        "perspective.",
+})
 
 VIEWS = {
     # three-quarter climb like the My Flights empty state, more compact for a square tile

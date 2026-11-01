@@ -12,6 +12,11 @@ import Testing
         .deletingLastPathComponent() // Packages
         .deletingLastPathComponent() // repository root
         .appending(path: "Apps/iOS/Assets.xcassets")
+    static let previews = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent() // FlightKitTests
+        .deletingLastPathComponent() // Tests
+        .deletingLastPathComponent() // FlightKit
+        .appending(path: "Sources/FlightKit/Resources/AppIconPreviews.xcassets")
 
     @Test func everyListedIconHasItsSetAndEverySetIsListed() throws {
         let sets = try FileManager.default.contentsOfDirectory(atPath: Self.catalog.path())
@@ -19,23 +24,27 @@ import Testing
             .map { String($0.dropLast(".appiconset".count)) }
         let listed = AppIcons.all.map { $0.assetName ?? "AppIcon" }
         #expect(Set(sets) == Set(listed))
-        let previews = try FileManager.default.contentsOfDirectory(atPath: Self.catalog.path())
+        let previews = try FileManager.default.contentsOfDirectory(atPath: Self.previews.path())
             .filter { $0.hasSuffix(".imageset") }
             .map { String($0.dropLast(".imageset".count)) }
-        #expect(Set(previews) == Set(AppIcons.all.map(\.previewName)), "one preview image set per listed icon, no strays")
-        for choice in AppIcons.all {
-            let dir = Self.catalog.appending(path: "\(choice.previewName).imageset")
+        #expect(Set(previews) == Set(AppIcons.all.map(\.previewName) + ["BrandMark"]),
+                "one preview image set per listed icon and the sign-in mark, no strays")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: Self.catalog.path()).allSatisfy { !$0.hasSuffix(".imageset") },
+                "the previews live in FlightKit, not in the app's catalog")
+        for name in previews {
+            let dir = Self.previews.appending(path: "\(name).imageset")
             let json = try Data(contentsOf: dir.appending(path: "Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])
-            let file = try #require(images.first?["filename"] as? String)
-            #expect(images.count == 1)
-            #expect(FileManager.default.fileExists(atPath: dir.appending(path: file).path()), "\(choice.previewName) has its picture")
+            #expect(images.count == 2, "\(name) has a light and a dark look")
+            for file in images.compactMap({ $0["filename"] as? String }) {
+                #expect(FileManager.default.fileExists(atPath: dir.appending(path: file).path()), "\(name) has its picture")
+            }
         }
         #expect(listed.count == Set(listed).count)
         #expect(AppIcons.all.first?.assetName == nil, "the primary comes first")
         #expect(AppIcons.all.first?.name == "Jet")
-        #expect(AppIcons.choice(for: "AppIcon-orbit").name == "Orbit", "the old globe stays as an alternate")
-        #expect(AppIcons.choice(for: "AppIcon-overhead").name == "Overhead", "the top-view jet stays as an alternate")
+        #expect(AppIcons.choice(for: "AppIcon-supersonic").name == "Supersonic")
+        #expect(AppIcons.all.map(\.name).filter { $0.hasPrefix("Jet") }.count == 3, "the jet in auto, light and dark")
         for name in sets {
             let json = try Data(contentsOf: Self.catalog.appending(path: "\(name).appiconset/Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])
@@ -49,9 +58,8 @@ import Testing
 
     @Test func previewNamesFollowTheSetNames() {
         #expect(AppIcons.all[0].previewName == "Preview-jet")
-        #expect(AppIcons.choice(for: "AppIcon-orbit").previewName == "Preview-orbit")
-        #expect(AppIcons.choice(for: "AppIcon-ember").previewName == "Preview-ember")
-        #expect(AppIcons.choice(for: "AppIcon-lastcall").previewName == "Preview-lastcall")
+        #expect(AppIcons.choice(for: "AppIcon-jet-light").previewName == "Preview-jet-light")
+        #expect(AppIcons.choice(for: "AppIcon-supersonic-dark").previewName == "Preview-supersonic-dark")
     }
 
     @Test func taglinesStayShortAndPlain() {
@@ -61,7 +69,8 @@ import Testing
         }
         #expect(AppIcons.choice(for: "AppIcon-gone").name == "Jet")
         #expect(AppIcons.choice(for: "AppIcon-orbit-jet").name == "Jet", "the retired jet alternate falls back to the primary")
-        #expect(AppIcons.choice(for: "AppIcon-ember").name == "Ember")
+        #expect(AppIcons.choice(for: "AppIcon-ember").name == "Jet", "the retired alternates fall back to the primary")
+        #expect(AppIcons.choice(for: "AppIcon-supersonic-light").name == "Supersonic Light")
     }
 
     final class FakeSetter: AppIconSetting, @unchecked Sendable {
@@ -78,30 +87,30 @@ import Testing
     }
 
     @Test func choosingAnIconAsksTheSystemAndGoesBackOnFailure() async {
-        let setter = FakeSetter("AppIcon-sweep")
+        let setter = FakeSetter("AppIcon-jet-dark")
         let model = AppIconModel(setter: setter)
-        #expect(model.current.name == "Sweep")
+        #expect(model.current.name == "Jet Dark")
         await model.select(AppIcons.all[0])
         #expect(setter.calls == [nil])
         #expect(model.current.assetName == nil)
         await model.select(AppIcons.all[0])
         #expect(setter.calls.count == 1, "the icon in use is not set again")
         setter.fails = true
-        await model.select(AppIcons.choice(for: "AppIcon-mach"))
+        await model.select(AppIcons.choice(for: "AppIcon-supersonic"))
         #expect(model.current.assetName == nil)
         #expect(model.failed)
         #expect(model.lastError != nil, "the system's error is kept, not dropped")
         setter.fails = false
-        await model.select(AppIcons.choice(for: "AppIcon-mach"))
-        #expect(!model.failed && model.current.assetName == "AppIcon-mach")
-        #expect(setter.currentName == "AppIcon-mach")
+        await model.select(AppIcons.choice(for: "AppIcon-supersonic"))
+        #expect(!model.failed && model.current.assetName == "AppIcon-supersonic")
+        #expect(setter.currentName == "AppIcon-supersonic")
     }
 
     @Test func theCurrentIconFollowsAChange() async {
         let setter = FakeSetter(nil)
         let model = AppIconModel(setter: setter)
         #expect(model.current.name == "Jet")
-        await model.select(AppIcons.choice(for: "AppIcon-sweep"))
-        #expect(model.current.name == "Sweep", "Settings reads this for its row's subtitle")
+        await model.select(AppIcons.choice(for: "AppIcon-jet-dark"))
+        #expect(model.current.name == "Jet Dark", "Settings reads this for its row's subtitle")
     }
 }

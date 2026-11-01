@@ -1,6 +1,6 @@
-"""The primary app icon: a generated side-view jet (assets/app-icon/raw) on the Jet icon's charcoal tile.
+"""One app icon from a generated jet (family.py builds the whole set and writes the catalogs): a side-view jet (assets/app-icon/raw) on the Jet icon's charcoal tile.
 
-    python3 assets/app-icon/build.py raw/icon-climb-1.png [--scale 0.80] [--rotate DEG] [--nudge X,Y] [--install] [--out DIR] [--mock DIR]
+    python3 assets/app-icon/build.py raw/icon-climb-1.png [--scale 0.80] [--rotate DEG] [--nudge X,Y] [--out DIR] [--mock DIR]
 
 Writes <out>/icon.png, icon-dark.png, icon-tinted.png (1024 px, opaque RGB, square corners) and, with --mock,
 a home screen mock (1024 master, 60 pt and 29 pt on dark and light wallpaper, watch circle). The tile, shadow
@@ -33,6 +33,8 @@ def clean(im, lo=60, hi=235):
 def tile(mode, top=(44, 44, 48), bottom=(16, 16, 18)):
     if mode == "tint":
         return Image.new("RGB", (S, S), (0, 0, 0))
+    if mode == "white":
+        top, bottom = (255, 255, 255), (232, 232, 237)
     if mode == "dark":
         top, bottom = tuple(int(c * 0.55) for c in top), tuple(int(c * 0.45) for c in bottom)
     t = np.linspace(0, 1, S)[:, None, None]
@@ -41,6 +43,17 @@ def tile(mode, top=(44, 44, 48), bottom=(16, 16, 18)):
     d = np.hypot(xx - 430, yy - 400) / 700
     g = np.repeat(g, S, axis=1) + (np.exp(-d ** 2 * 2) * 10)[..., None]
     return Image.fromarray(np.clip(g, 0, 255).astype("uint8")).convert("RGB")
+
+
+def black(sprite):
+    """The logo jet in black paint for the white tile: the white render's light becomes a soft gloss on near-black."""
+    a = np.array(sprite).astype(float)
+    lum = a[..., :3].mean(2) / 255
+    gloss = np.clip((lum - 0.62) / 0.38, 0, 1) ** 2.2
+    v = 14 + 70 * gloss
+    a[..., 0] = a[..., 1] = v
+    a[..., 2] = v + 2
+    return Image.fromarray(np.clip(a, 0, 255).astype("uint8"))
 
 
 def contact_shadow(im, sprite, pos, alpha=0.75):
@@ -73,10 +86,12 @@ def make(sprite, mode, scale, nudge):
     sp = sprite.resize((round(sprite.width * k), round(sprite.height * k)), Image.LANCZOS)
     if mode == "tint":
         sp = lift(sp)
+    if mode == "white":
+        sp = black(sp)
     pos = (int(S / 2 - sp.width / 2 + nudge[0]), int(S / 2 - sp.height / 2 + nudge[1]))
     bg = tile(mode)
     if mode != "tint":
-        bg = contact_shadow(bg, sp, pos)
+        bg = contact_shadow(bg, sp, pos, alpha=0.3 if mode == "white" else 0.75)
     im = bg.convert("RGBA")
     im.alpha_composite(sp, pos)
     return im.convert("RGB")
@@ -125,24 +140,6 @@ def mac_tile(icon):
     return out
 
 
-def install(out):
-    """Copy the built icon into every catalog that carries the primary icon."""
-    root = HERE.parents[1]
-    ios = root / "Apps/iOS/Assets.xcassets"
-    light, dark, tint = (Image.open(out / n).convert("RGB") for n in ("icon.png", "icon-dark.png", "icon-tinted.png"))
-    light.save(ios / "AppIcon.appiconset/AppIcon-light.png", optimize=True)
-    dark.save(ios / "AppIcon.appiconset/AppIcon-dark.png", optimize=True)
-    tint.save(ios / "AppIcon.appiconset/AppIcon-tinted.png", optimize=True)
-    light.resize((180, 180), Image.LANCZOS).save(ios / "Preview-jet.imageset/preview-jet.png", optimize=True)
-    light.save(root / "Apps/Watch/Assets.xcassets/AppIcon.appiconset/AppIcon.png", optimize=True)
-    light.resize((360, 360), Image.LANCZOS).save(
-        root / "Packages/FlightKit/Sources/FlightKit/Resources/brand-app-icon.png", optimize=True)
-    mac = mac_tile(light)
-    for px in (16, 32, 64, 128, 256, 512, 1024):
-        mac.resize((px, px), Image.LANCZOS).save(root / f"Apps/macOS/Assets.xcassets/AppIcon.appiconset/mac-{px}.png",
-                                                optimize=True)
-
-
 if __name__ == "__main__":
     src = HERE / sys.argv[1] if not pathlib.Path(sys.argv[1]).is_absolute() else pathlib.Path(sys.argv[1])
     scale = float(arg("--scale", "0.80"))
@@ -158,8 +155,7 @@ if __name__ == "__main__":
     light.save(out / "icon.png")
     make(sprite, "dark", scale, nudge).save(out / "icon-dark.png")
     tinted_of(make(sprite, "tint", scale, nudge)).save(out / "icon-tinted.png")
+    make(sprite, "white", scale, nudge).save(out / "icon-white.png")
     if "--mock" in sys.argv:
         mock(light, arg("--mock", ""))
-    if "--install" in sys.argv:
-        install(out)
     print(out)

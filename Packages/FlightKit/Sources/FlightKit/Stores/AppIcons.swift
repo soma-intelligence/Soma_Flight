@@ -8,7 +8,7 @@ import UIKit
 /// One icon Settings > App Icon offers: the app icon set's name in the iOS app's asset catalog (nil for
 /// the primary icon), and what the picker says about it.
 public struct AppIconChoice: Identifiable, Hashable, Sendable {
-    /// The alternate icon's app icon set ("AppIcon-ember"); nil for the primary `AppIcon`.
+    /// The alternate icon's app icon set ("AppIcon-supersonic"); nil for the primary `AppIcon`.
     public var assetName: String?
     public var name: String
     public var tagline: String
@@ -19,45 +19,38 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
 
     public var id: String { assetName ?? "AppIcon" }
 
-    /// The picture the picker shows: an ordinary image set ("Preview-ember", "Preview-jet" for the primary)
-    /// in the iOS app's asset catalog, because an app icon set cannot be loaded as an image.
+    /// The picture the picker shows: an ordinary image set ("Preview-supersonic", "Preview-jet" for the primary)
+    /// in FlightKit's AppIconPreviews catalog, because an app icon set cannot be loaded as an image.
     public var previewName: String {
         "Preview-" + (assetName.map { String($0.dropFirst("AppIcon-".count)) } ?? AppIcons.primarySlug)
     }
 }
 
-/// The iPhone app's icons. The Mac app keeps its one icon (no picker on macOS).
+/// The iPhone app's icons: the climbing Jet and the Supersonic, each in black on white, white on charcoal, or
+/// following the phone's appearance. The Mac app keeps its one icon (no picker on macOS).
 ///
-/// To add an icon:
-/// 1. Drop an app icon set named `AppIcon-<slug>.appiconset` into `Apps/iOS/Assets.xcassets`, with a
-///    1024 px light, dark and tinted image (copy the `Contents.json` of an existing set). The iOS target
-///    builds every app icon set in the catalog as an alternate icon
-///    (`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS` in `project.yml`), so nothing else changes there.
-/// 2. Add one `Preview-<slug>.imageset` beside it: the light image downscaled to about 180 px, which is
-///    what the picker draws (`AppIconChoice.previewName`).
-/// 3. Add one line to `all` below with its set name, name and tagline.
+/// All of it is built by `assets/app-icon/family.py` from the raws in `assets/app-icon/raw`:
+/// - `Apps/iOS/Assets.xcassets/AppIcon.appiconset` (the primary, the set `project.yml` names) and one
+///   `AppIcon-<slug>.appiconset` per alternate, each with a light, dark and tinted 1024 px image. The iOS target
+///   builds every app icon set in the catalog as an alternate icon (`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS`
+///   in `project.yml`).
+/// - FlightKit's `Resources/AppIconPreviews.xcassets`: one `Preview-<slug>` per icon, with its light and dark
+///   look, which the picker draws (`AppIconChoice.previewName`), and `BrandMark`, the Jet the sign-in screen shows.
+/// - The watch and Mac `AppIcon` sets (white jet on charcoal).
 ///
-/// The primary icon (the Jet, the app's logo: the jet climbing in three-quarter view, built by
-/// assets/app-icon/build.py) lives in `AppIcon.appiconset`, the set `project.yml` names,
-/// and its picker picture in `Preview-<primarySlug>.imageset`. The same art is in the macOS and watch
-/// `AppIcon` sets and in FlightKit's `Resources/brand-app-icon.png` (sign-in screen); change them together.
-///
+/// To add an icon, add it to `family.py`, run it, then add one line to `all` below.
 /// `AppIconsTests` checks that every line has its set and its preview, and every set has its line.
 public enum AppIcons {
     /// The primary icon's preview slug: `Preview-jet`.
     static let primarySlug = "jet"
 
     public static let all: [AppIconChoice] = [
-        AppIconChoice(nil, name: "Jet", tagline: "Our business jet climbing out over charcoal."),
-        AppIconChoice("AppIcon-overhead", name: "Overhead", tagline: "The same jet seen from above. Nothing else to say."),
-        AppIconChoice("AppIcon-orbit", name: "Orbit", tagline: "A flight path circling the globe. The original."),
-        AppIconChoice("AppIcon-ember", name: "Ember", tagline: "A white jet over a warm coral glow."),
-        AppIconChoice("AppIcon-redeye", name: "Red Eye", tagline: "Red to port, green to starboard, wheels up at midnight."),
-        AppIconChoice("AppIcon-sweep", name: "Sweep", tagline: "One coral sweep, every blip a flight."),
-        AppIconChoice("AppIcon-lastcall", name: "Last Call", tagline: "The board flips, the gate closes, you're on."),
-        AppIconChoice("AppIcon-spectrum", name: "Spectrum", tagline: "Fly proud and leave a rainbow behind."),
-        AppIconChoice("AppIcon-mach", name: "Mach Two", tagline: "Afterburners on, breakfast in another time zone."),
-        AppIconChoice("AppIcon-nightside", name: "Night Side", tagline: "Cities glowing below at cruising altitude."),
+        AppIconChoice(nil, name: "Jet", tagline: "Black on white by day, white on charcoal at night."),
+        AppIconChoice("AppIcon-jet-light", name: "Jet Light", tagline: "Our jet in black on white, all the time."),
+        AppIconChoice("AppIcon-jet-dark", name: "Jet Dark", tagline: "Our jet in white on charcoal, all the time."),
+        AppIconChoice("AppIcon-supersonic", name: "Supersonic", tagline: "A delta-wing airliner that follows your appearance."),
+        AppIconChoice("AppIcon-supersonic-light", name: "Supersonic Light", tagline: "Mach two in black on white."),
+        AppIconChoice("AppIcon-supersonic-dark", name: "Supersonic Dark", tagline: "Mach two in white on charcoal."),
     ]
 
     /// The choice for an alternate icon name as the system reports it; the primary for nil or a name no

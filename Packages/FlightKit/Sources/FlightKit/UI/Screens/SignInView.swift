@@ -104,18 +104,9 @@ public struct SignInView: View {
         .scaledPadding(.horizontal, 28)
     }
 
-    /// The app's own icon (Resources/brand-app-icon.png, the climbing Jet from assets/app-icon), so the first screen shows the
-    /// mark the Home Screen does.
-    static var appIcon: Image {
-        #if os(iOS)
-        if let url = Bundle.module.url(forResource: "brand-app-icon", withExtension: "png"),
-           let image = UIImage(contentsOfFile: url.path) { return Image(uiImage: image) }
-        #else
-        if let url = Bundle.module.url(forResource: "brand-app-icon", withExtension: "png"),
-           let image = NSImage(contentsOf: url) { return Image(nsImage: image) }
-        #endif
-        return Image(systemName: "airplane")
-    }
+    /// The app's own icon (`BrandMark` in Resources/AppIconPreviews.xcassets, built by assets/app-icon/family.py):
+    /// the black jet on white in light mode, the white jet on charcoal in dark, as the Home Screen shows it.
+    static var appIcon: Image { Image("BrandMark", bundle: .module) }
 
     private var form: some View {
         VStack(spacing: 12) {
