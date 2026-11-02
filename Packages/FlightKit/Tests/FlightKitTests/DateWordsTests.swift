@@ -13,8 +13,14 @@ import FlightImportKit
         return cal.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 12))!
     }
 
-    private func day(_ text: String, monthFirst: Bool = false) -> (day: LocalDay, used: Range<Int>)? {
-        DateWords.day(SearchText.words(SearchText.fold(text)), now: now, tz: paris, monthFirst: monthFirst)
+    private func day(_ text: String, monthFirst: Bool = false, now: Date? = nil, tz: TimeZone? = nil) -> (day: LocalDay, used: Range<Int>)? {
+        DateWords.day(SearchText.words(SearchText.fold(text)), now: now ?? self.now, tz: tz ?? paris, monthFirst: monthFirst)
+    }
+
+    private func moment(_ y: Int, _ m: Int, _ dd: Int, _ h: Int, _ min: Int, in zone: TimeZone) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = zone
+        return cal.date(from: DateComponents(year: y, month: m, day: dd, hour: h, minute: min))!
     }
 
     private func time(_ text: String) -> (minutes: Int, used: Range<Int>)? {
@@ -112,5 +118,48 @@ import FlightImportKit
         #expect(time("13pm") == nil)
         #expect(time("paris 18h30 london")?.used == 1..<2)
         #expect(time("paris london") == nil)
+    }
+
+    @Test func aWeekdayBeforeADateBelongsToIt() {
+        for text in ["fri 12 dec", "vendredi 12 decembre", "sat 12 dec"] {
+            let r = day(text)
+            #expect(r?.day == d(2026, 12, 12), "\(text)")
+            #expect(r?.used == 0..<3, "\(text)")
+        }
+        #expect(day("paris fri 12 dec london")?.used == 1..<4)
+        #expect(day("fri 12/12")?.used == 0..<3)
+        #expect(day("friday")?.used == 0..<1)
+    }
+
+    @Test func todayFollowsTheZoneNotUTC() {
+        // 00:30 on 1 Nov in Paris is still 31 Oct in UTC.
+        let early = moment(2026, 11, 1, 0, 30, in: paris)
+        #expect(day("today", now: early)?.day == d(2026, 11, 1))
+        #expect(day("tomorrow", now: early)?.day == d(2026, 11, 2))
+        // The same instant in New York is the evening of 31 Oct.
+        let ny = TimeZone(identifier: "America/New_York")!
+        #expect(day("today", now: early, tz: ny)?.day == d(2026, 10, 31))
+        #expect(day("tomorrow", now: early, tz: ny)?.day == d(2026, 11, 1))
+        // 31 Oct 2026 is a Saturday there, so "sunday" is the next day.
+        #expect(day("sunday", now: early, tz: ny)?.day == d(2026, 11, 1))
+    }
+
+    @Test func theLimitIsExact() {
+        #expect(day("27 sep 2027")?.day == d(2027, 9, 27))
+        #expect(day("28 sep 2027") == nil)
+        #expect(day("27 sep")?.day == d(2027, 9, 27))
+        #expect(day("28 sep") == nil)
+    }
+
+    @Test func monthFirstWithAYear() {
+        #expect(day("12 12 2026", monthFirst: true)?.day == d(2026, 12, 12))
+        #expect(day("2026 12 12", monthFirst: true)?.day == d(2026, 12, 12))
+        #expect(day("3 4 2027", monthFirst: true)?.day == d(2027, 3, 4))
+        #expect(day("3 4 2027")?.day == d(2027, 4, 3))
+    }
+
+    @Test func nextAddsAWeek() {
+        #expect(day("next sunday")?.day == d(2026, 11, 15))
+        #expect(day("dimanche prochain")?.day == d(2026, 11, 15))
     }
 }

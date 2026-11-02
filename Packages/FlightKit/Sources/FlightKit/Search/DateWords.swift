@@ -16,17 +16,26 @@ enum DateWords {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = tz
         let weekday = cal.component(.weekday, from: now)
-        // Words with a name in them first, so "af 8 12 dec" reads 12 dec and not "8 12".
-        for i in words.indices {
-            if let r = named(words, i, today: today, weekday: weekday) { return r }
+        // Explicit dates before weekdays ("fri 12 dec" is 12 dec), and named ones before bare numbers, so
+        // "af 8 12 dec" reads 12 dec and not "8 12". A weekday written just before a date belongs to it.
+        func withWeekday(_ r: (day: LocalDay, used: Range<Int>)) -> (day: LocalDay, used: Range<Int>) {
+            let lo = r.used.lowerBound
+            return lo > 0 && weekdays[String(words[lo - 1])] != nil ? (r.day, (lo - 1)..<r.used.upperBound) : r
         }
         for i in words.indices {
-            if let r = numeric(words, i, today: today, monthFirst: monthFirst) { return r }
+            if let r = explicit(words, i, today: today) { return withWeekday(r) }
+        }
+        for i in words.indices {
+            if let r = numeric(words, i, today: today, monthFirst: monthFirst) { return withWeekday(r) }
+        }
+        for i in words.indices {
+            if let r = weekdayDay(words, i, today: today, weekday: weekday) { return r }
         }
         return nil
     }
 
-    private static func named(_ w: [Substring], _ i: Int, today: LocalDay, weekday: Int) -> (day: LocalDay, used: Range<Int>)? {
+    /// Relative words ("tomorrow") and a day with a month name ("12 dec", "dec 12 2026").
+    private static func explicit(_ w: [Substring], _ i: Int, today: LocalDay) -> (day: LocalDay, used: Range<Int>)? {
         func at(_ k: Int) -> Substring? { k < w.count ? w[k] : nil }
         func offset(_ days: Int, _ n: Int) -> (day: LocalDay, used: Range<Int>)? {
             guard let d = add(days, to: today) else { return nil }
@@ -47,7 +56,12 @@ enum DateWords {
         if let m = months[String(w[i])], let d = at(i + 1).flatMap(dayNumber) {
             return dated(day: d, month: m, year: at(i + 2).flatMap(year), at: i, span: 2, today: today)
         }
-        // "next friday", "friday", "vendredi prochain".
+        return nil
+    }
+
+    /// "next friday", "friday", "vendredi prochain".
+    private static func weekdayDay(_ w: [Substring], _ i: Int, today: LocalDay, weekday: Int) -> (day: LocalDay, used: Range<Int>)? {
+        func at(_ k: Int) -> Substring? { k < w.count ? w[k] : nil }
         var skip = 0, extra = 7
         var name = w[i]
         if w[i] == "next", let n = at(i + 1) { name = n; skip = 1; extra = 14 }
