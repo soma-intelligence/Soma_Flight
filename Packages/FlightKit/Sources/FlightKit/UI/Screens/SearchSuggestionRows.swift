@@ -68,7 +68,7 @@ struct SearchSuggestionRow: View {
         case .flight(let ident, let known):
             guard let k = known else { return (Format.ident(ident), "Look up this flight today") }
             let route = ScreenFormat.route(city(k.origin), city(k.destination))
-            return (Format.ident(ident), "\(route) \u{00B7} \(k.followed ? "Following" : "Flown before")")
+            return (Format.ident(ident), "\(route) \u{00B7} \(k.followed ? "In My Flights" : "Flown before")")
         case .airline(let a):
             return (a.name, [a.iata, a.id].compactMap { $0 }.joined(separator: " \u{00B7} "))
         case .airport(let a):

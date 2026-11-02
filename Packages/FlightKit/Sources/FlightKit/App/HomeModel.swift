@@ -82,7 +82,7 @@ public final class HomeModel {
     /// A boarding pass opened in the app (from Mail, Files, an airline app) waiting on the user: looking
     /// up its flight, offering to follow it, or saying why it cannot be kept (`importPass`).
     public var passImport: PassImport?
-    /// The confirmation over the tab pill after a follow ("Following UA 990"); clears after `toastDuration`.
+    /// The confirmation over the tab pill after a follow ("Added UA 990"); clears after `toastDuration`.
     public private(set) var toast: String?
     /// How long the toast stays.
     public static let toastDuration: Duration = .seconds(3)
@@ -590,7 +590,7 @@ public final class HomeModel {
     /// A follow went through: says so over the tab pill, reloads My Flights, then (the first time) asks
     /// for notifications.
     public func didFollow(_ flight: Flight? = nil) async {
-        if let flight { showToast("Following \(Format.ident(flight.ident))") }
+        if let flight { showToast("Added \(Format.ident(flight.ident))") }
         await myFlights.load()
         await push?.didFollow()
     }
@@ -686,7 +686,7 @@ public final class HomeModel {
     /// with that page over it), `-year 2025` (the Passport's year), and on iOS `-detent expanded`,
     /// `-detent medium` or `-detent collapsed` (`large` and `small` still work). Call after the first load, from DEBUG builds only.
     public func applyLaunchArguments(_ args: UserDefaults = .standard) {
-        // `-toast "Following UA 990"` holds that toast on screen (no timer) for a capture.
+        // `-toast "Added UA 990"` holds that toast on screen (no timer) for a capture.
         if let text = args.string(forKey: "toast") { toast = text }
         if let tab = args.string(forKey: "tab").flatMap(HomeTab.init(rawValue:)) { self.tab = tab }
         // `-open friend` opens the first friend's page, `-open friendFlight` their first flight.

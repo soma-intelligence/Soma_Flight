@@ -99,7 +99,7 @@ public struct FlightDetailView: View {
             }
             .environment(\.units, units)
         }
-        .alert("Could Not Stop Tracking", isPresented: Binding(
+        .alert("Could Not Delete Flight", isPresented: Binding(
             get: { store.trackingError != nil },
             set: { if !$0 { store.clearTrackingError() } })) {
             Button("OK", role: .cancel) { store.clearTrackingError() }

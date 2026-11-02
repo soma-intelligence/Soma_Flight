@@ -49,7 +49,7 @@ import PostgREST
             "Departs and arrives at the same airport"]))
         #expect(r.unreadable.count == 4)
         #expect(r.duplicates.map(\.reason) == ["Listed twice"])
-        #expect(s.commitTitle == "Import 301, Follow 1")
+        #expect(s.commitTitle == "Import 301, Add 1")
 
         let past = Self.flights(r)
         // An airport the bundled list does not know is kept as written; the server knows more.

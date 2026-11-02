@@ -75,10 +75,10 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
             for await _ in gate { return }
         }
         await home.didFollow(Self.ua990)
-        #expect(home.toast == "Following UA 990")
+        #expect(home.toast == "Added UA 990")
         // The clock has not moved: the toast stays.
         for _ in 0..<20 { await Task.yield() }
-        #expect(home.toast == "Following UA 990")
+        #expect(home.toast == "Added UA 990")
         open.yield()
         for _ in 0..<1000 where home.toast != nil { await Task.yield() }
         #expect(home.toast == nil)
@@ -97,11 +97,11 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         home.searchOpen = true
         await home.didFollow(Self.ua990)
         #expect(home.toast == nil)
-        #expect(home.pendingToast == "Following UA 990")
+        #expect(home.pendingToast == "Added UA 990")
         for _ in 0..<20 { await Task.yield() }
         #expect(asked.withLock { $0 } == 0)
         home.searchOpen = false
-        #expect(home.toast == "Following UA 990")
+        #expect(home.toast == "Added UA 990")
         #expect(home.pendingToast == nil)
         open.yield()
         for _ in 0..<1000 where home.toast != nil { await Task.yield() }

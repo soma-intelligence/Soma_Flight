@@ -80,7 +80,7 @@ public final class ImportStore {
         /// Why the history refused the flights, when it did.
         public var addError: String?
 
-        /// "Added 12 flights to your history. Following AF 84. 2 flights will be followed 2 days before they leave."
+        /// "Added 12 flights to your history. Added AF 84. 2 flights will be added 2 days before they leave."
         public var message: String {
             var parts: [String] = []
             if let addError { parts.append(addError) }
@@ -88,12 +88,12 @@ public final class ImportStore {
             if !addFailures.isEmpty {
                 parts.append(addFailures.count == 1 ? "1 flight couldn't be added." : "\(addFailures.count) flights couldn't be added.")
             }
-            if !followed.isEmpty { parts.append("Following \(followed.map(Format.ident).joined(separator: ", ")).") }
+            if !followed.isEmpty { parts.append("Added \(followed.map(Format.ident).joined(separator: ", ")).") }
             if later > 0 {
-                parts.append(later == 1 ? "1 flight will be followed 2 days before it leaves."
-                                        : "\(later) flights will be followed 2 days before they leave.")
+                parts.append(later == 1 ? "1 flight will be added 2 days before it leaves."
+                                        : "\(later) flights will be added 2 days before they leave.")
             }
-            if !notFound.isEmpty { parts.append("Couldn't find \(notFound.map(Format.ident).joined(separator: ", ")) to follow.") }
+            if !notFound.isEmpty { parts.append("Couldn't find \(notFound.map(Format.ident).joined(separator: ", ")) to add.") }
             if !failed.isEmpty { parts.append("Couldn't follow \(failed.map(Format.ident).joined(separator: ", ")) now.") }
             return parts.isEmpty ? "Nothing was added." : parts.joined(separator: " ")
         }
@@ -381,14 +381,14 @@ public final class ImportStore {
         } ?? []
     }
 
-    /// "Import 12, Follow 2", "Import 1 Flight", "Follow 1 Flight".
+    /// "Import 12, Add 2", "Import 1 Flight", "Add 1 Flight".
     public var commitTitle: String {
         let a = selectedPast.count, f = selectedUpcoming.count
         switch (a, f) {
         case (0, 0): return "Import"
         case (_, 0): return a == 1 ? "Import 1 Flight" : "Import \(a.formatted()) Flights"
-        case (0, _): return f == 1 ? "Follow 1 Flight" : "Follow \(f) Flights"
-        default: return "Import \(a.formatted()), Follow \(f)"
+        case (0, _): return f == 1 ? "Add 1 Flight" : "Add \(f) Flights"
+        default: return "Import \(a.formatted()), Add \(f)"
         }
     }
 

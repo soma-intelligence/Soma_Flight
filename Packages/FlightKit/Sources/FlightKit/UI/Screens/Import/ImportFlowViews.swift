@@ -211,7 +211,7 @@ struct ImportResultPanel: View {
                 HStack(alignment: .top, spacing: 8) {
                     ImportFigure(value: summary.added, label: "Imported", tint: summary.added > 0 ? Theme.onTime : nil)
                     if !summary.followed.isEmpty || summary.later > 0 {
-                        ImportFigure(value: summary.followed.count + summary.later, label: "Followed")
+                        ImportFigure(value: summary.followed.count + summary.later, label: "Added")
                     }
                     ImportFigure(value: summary.skipped, label: "Skipped")
                     ImportFigure(value: failedCount, label: "Failed", tint: failedCount > 0 ? Theme.veryLate : nil)
@@ -258,7 +258,7 @@ struct ImportResultPanel: View {
         }
     }
 
-    /// Follows and the waiting list, in words ("Following AF 84. 2 flights will be followed ...").
+    /// Follows and the waiting list, in words ("Added AF 84. 2 flights will be added ...").
     private var followLine: String? {
         var s = summary
         s.added = 0

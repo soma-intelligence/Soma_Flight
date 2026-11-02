@@ -103,7 +103,7 @@ struct WatchEmptyView: View {
                 .accessibilityHidden(true)
             Text(synced ? "No upcoming flights" : "Waiting for iPhone")
                 .font(.headline)
-            Text(synced ? "Follow a flight in Soma Flight on your iPhone to see it here."
+            Text(synced ? "Add a flight in Soma Flight on your iPhone to see it here."
                         : "Open Soma Flight on your iPhone to bring your flights to your watch.")
                 .font(.footnote)
                 .foregroundStyle(ActivityPalette.secondary)

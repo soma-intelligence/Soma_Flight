@@ -322,13 +322,13 @@ import FlightImportKit
         let review = try #require(s.review)
         #expect(review.past.count == 3 && review.upcoming.count == 1)
         #expect(review.skipped.map(\.label) == ["Row 5", "Row 6"])
-        #expect(s.commitTitle == "Import 3, Follow 1")
+        #expect(s.commitTitle == "Import 3, Add 1")
         s.toggle(review.past[1].id)
-        #expect(s.commitTitle == "Import 2, Follow 1")
+        #expect(s.commitTitle == "Import 2, Add 1")
         await s.commit()
         guard case .done(let summary) = s.phase else { Issue.record("not done"); return }
         #expect(summary.added == 2 && summary.later == 1)
-        #expect(summary.message == "Added 2 flights to your history. 1 flight will be followed 2 days before it leaves.")
+        #expect(summary.message == "Added 2 flights to your history. 1 flight will be added 2 days before it leaves.")
         #expect(await history.past.count == 2)
         #expect(s.queue.items.map(\.ident) == ["AF83"])
         // Reading the file again finds them all there.
@@ -392,7 +392,7 @@ import FlightImportKit
         await home.followWaiting(now: Self.now)
         #expect(await svc.follows == [Self.af83.id])
         #expect(home.followLater.items == [far])
-        #expect(home.toast == "Following AF 83")
+        #expect(home.toast == "Added AF 83")
     }
 
     @Test func sharedEmailOpensTheImportScreen() async throws {

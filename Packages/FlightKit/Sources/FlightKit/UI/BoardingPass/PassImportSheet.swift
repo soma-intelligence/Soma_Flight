@@ -68,7 +68,7 @@ struct PassImportSheet: View {
                 onFollow()
             } label: {
                 Group {
-                    if following { ProgressView() } else { Text("Follow \(Format.ident(flight.ident))") }
+                    if following { ProgressView() } else { Text("Add \(Format.ident(flight.ident))") }
                 }
                 .scaledFont(17, weight: .semibold)
                 .frame(maxWidth: .infinity)

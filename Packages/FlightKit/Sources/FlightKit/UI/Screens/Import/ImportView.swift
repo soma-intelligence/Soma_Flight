@@ -289,7 +289,7 @@ public struct ImportView: View {
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.top, 28)
                 .scaledPadding(.bottom, 4)
-            Text("Followed two days before they leave.")
+            Text("Added two days before they leave.")
                 .scaledFont(13).foregroundStyle(Theme.secondary)
                 .scaledPadding(.horizontal, 20).scaledPadding(.bottom, 6)
             ForEach(store.queue.items) { u in
@@ -374,7 +374,7 @@ struct ImportReviewList: View {
                 ImportReasonRow(label: s.label, reason: s.reason)
             }
             section("Past flights", "Added to your Passport", review.past)
-            section("Upcoming", "Followed now, or two days before they leave", review.upcoming)
+            section("Upcoming", "Added now, or two days before they leave", review.upcoming)
         }
     }
 

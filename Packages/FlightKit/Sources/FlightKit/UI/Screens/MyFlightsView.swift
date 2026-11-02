@@ -99,6 +99,9 @@ public struct MyFlightsView: View {
                                         destination: lookup(flight.destinationIcao), airline: airline(flight), now: now)
                         }
                         .buttonStyle(.plain)
+                        .swipeToDelete("Delete \(Format.ident(flight.ident))") {
+                            Task { await store.unfollow(flight) }
+                        }
                         .contextMenu {
                             Button("Delete Flight", systemImage: "trash", role: .destructive) {
                                 Task { await store.unfollow(flight) }
@@ -134,7 +137,7 @@ struct EmptyFlights: View {
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
-            Text("Follow a flight by number, route or airport.")
+            Text("Add a flight you're taking by number, route or airport.")
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

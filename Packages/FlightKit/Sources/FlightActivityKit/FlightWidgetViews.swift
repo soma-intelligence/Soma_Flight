@@ -456,7 +456,7 @@ public struct FlightWidgetEmptyView: View {
                 Text("No upcoming flights")
                     .activityFont(size == .small ? 15 : 17, .semibold, relativeTo: .headline)
                     .foregroundStyle(ActivityPalette.primary)
-                Text("Follow a flight in Soma Flight to see it here.")
+                Text("Add a flight in Soma Flight to see it here.")
                     .activityFont(13, relativeTo: .footnote)
                     .foregroundStyle(ActivityPalette.secondary)
                     .multilineTextAlignment(size == .small ? .leading : .center)

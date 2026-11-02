@@ -253,6 +253,6 @@ struct AlternateFlightsCard: View {
         .scaledPadding(.vertical, 10)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Follows this flight")
+        .accessibilityHint("Adds this flight to My Flights")
     }
 }

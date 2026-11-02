@@ -40,7 +40,7 @@ public struct SearchView: View {
 
     /// - Parameters:
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
-    ///   - alreadyFollowed: flights already followed, which show "Following" instead of a second Follow.
+    ///   - alreadyFollowed: flights already followed, which show "Added" instead of a second Add.
     ///   - frequent: the airlines and airports offered before anything is typed (`HomeModel.frequent`).
     ///   - onImport: opens the Import screen from the "More" rows; nil leaves the row out.
     ///   - onAirport: opens an airport's board (ICAO) from "Flights from ... today"; nil leaves those rows inert.
@@ -403,9 +403,9 @@ struct ResultRow: View {
         Button(action: onFollow) {
             Group {
                 switch state {
-                case .idle: Text("Follow")
+                case .idle: Text("Add")
                 case .pending: ProgressView().controlSize(.small)
-                case .following: Label("Following", systemImage: "checkmark").labelStyle(.titleAndIcon)
+                case .following: Label("Added", systemImage: "checkmark").labelStyle(.titleAndIcon)
                 }
             }
             .scaledFont(14, weight: .semibold)
@@ -417,7 +417,7 @@ struct ResultRow: View {
         }
         .buttonStyle(.plain)
         .disabled(state != .idle)
-        .accessibilityLabel(state == .following ? "Following \(flight.ident)" : "Follow \(flight.ident)")
+        .accessibilityLabel(state == .following ? "Added \(flight.ident)" : "Add \(flight.ident) to My Flights")
     }
 }
 

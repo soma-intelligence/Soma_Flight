@@ -218,7 +218,7 @@ public struct MyFlightRow: View {
 
 // MARK: - Toast
 
-/// A short confirmation in a glass capsule, shown over the tab pill ("Following UA 990").
+/// A short confirmation in a glass capsule, shown over the tab pill ("Added UA 990").
 public struct AddedToast: View {
     var text: String
 
