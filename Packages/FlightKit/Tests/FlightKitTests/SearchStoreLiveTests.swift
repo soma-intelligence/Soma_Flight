@@ -110,8 +110,15 @@ import Testing
         #expect(s.pick(.board(cdg)) == .openAirport("LFPG"))
     }
 
-    @Test func returnPicksTheTopSuggestion() async {
-        let s = Self.store()
+    @Test func returnPicksTheTopSuggestion() async throws {
+        // The fakes move their flights to around now, and a route lists only the asked day's departures
+        // in Paris: the store's clock sits at AF84's departure, so late evening UTC (already tomorrow in
+        // Paris) does not drop it.
+        let af84 = try await FakeFlightService().lookup(.route(origin: "LFPG", destination: "KSFO", date: .now))
+        let out = try #require(af84.first?.scheduledOut)
+        let s = SearchStore(flights: ScriptedFlights(stall: .zero), now: { out })
+        s.suggestDelay = .milliseconds(1)
+        s.liveDelay = .milliseconds(20)
         s.text = "air fr"
         #expect(s.submit() == .filled)
         #expect(s.text == "AF ")
@@ -119,6 +126,7 @@ import Testing
         #expect(s.submit() == .searching)
         #expect(s.text == "CDG SFO")
         await eventually { !s.results.isEmpty }
+        #expect(!s.results.isEmpty)
         #expect(s.results.allSatisfy { $0.originIcao == "LFPG" && $0.destinationIcao == "KSFO" })
         #expect(s.recent.first == "CDG SFO")
     }
