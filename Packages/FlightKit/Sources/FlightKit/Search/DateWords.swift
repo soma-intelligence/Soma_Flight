@@ -10,8 +10,10 @@ enum DateWords {
     // MARK: Days
 
     /// The first date span in `words`, and the indices it covers. A bare day and month ("3 4") reads
-    /// day first unless `monthFirst`; a date with no year is the next one on or after today.
-    static func day(_ words: [Substring], now: Date, tz: TimeZone, monthFirst: Bool) -> (day: LocalDay, used: Range<Int>)? {
+    /// day first unless `monthFirst`; a date with no year is the next one on or after today, at most
+    /// `limit` days ahead.
+    static func day(_ words: [Substring], now: Date, tz: TimeZone, monthFirst: Bool,
+                    limit: Int = maxDaysAhead) -> (day: LocalDay, used: Range<Int>)? {
         let today = LocalDay(now, in: tz)
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = tz
@@ -23,10 +25,10 @@ enum DateWords {
             return lo > 0 && weekdays[String(words[lo - 1])] != nil ? (r.day, (lo - 1)..<r.used.upperBound) : r
         }
         for i in words.indices {
-            if let r = explicit(words, i, today: today) { return withWeekday(r) }
+            if let r = explicit(words, i, today: today, limit: limit) { return withWeekday(r) }
         }
         for i in words.indices {
-            if let r = numeric(words, i, today: today, monthFirst: monthFirst) { return withWeekday(r) }
+            if let r = numeric(words, i, today: today, monthFirst: monthFirst, limit: limit) { return withWeekday(r) }
         }
         for i in words.indices {
             if let r = weekdayDay(words, i, today: today, weekday: weekday) { return r }
@@ -35,7 +37,7 @@ enum DateWords {
     }
 
     /// Relative words ("tomorrow") and a day with a month name ("12 dec", "dec 12 2026").
-    private static func explicit(_ w: [Substring], _ i: Int, today: LocalDay) -> (day: LocalDay, used: Range<Int>)? {
+    private static func explicit(_ w: [Substring], _ i: Int, today: LocalDay, limit: Int) -> (day: LocalDay, used: Range<Int>)? {
         func at(_ k: Int) -> Substring? { k < w.count ? w[k] : nil }
         func offset(_ days: Int, _ n: Int) -> (day: LocalDay, used: Range<Int>)? {
             guard let d = add(days, to: today) else { return nil }
@@ -51,10 +53,10 @@ enum DateWords {
         }
         // "12 dec [2026]", "dec 12 [2026]".
         if let d = dayNumber(w[i]), let m = at(i + 1).flatMap({ months[String($0)] }) {
-            return dated(day: d, month: m, year: at(i + 2).flatMap(year), at: i, span: 2, today: today)
+            return dated(day: d, month: m, year: at(i + 2).flatMap(year), at: i, span: 2, today: today, limit: limit)
         }
         if let m = months[String(w[i])], let d = at(i + 1).flatMap(dayNumber) {
-            return dated(day: d, month: m, year: at(i + 2).flatMap(year), at: i, span: 2, today: today)
+            return dated(day: d, month: m, year: at(i + 2).flatMap(year), at: i, span: 2, today: today, limit: limit)
         }
         return nil
     }
@@ -74,23 +76,23 @@ enum DateWords {
         return (d, i..<(i + n))
     }
 
-    private static func numeric(_ w: [Substring], _ i: Int, today: LocalDay, monthFirst: Bool) -> (day: LocalDay, used: Range<Int>)? {
+    private static func numeric(_ w: [Substring], _ i: Int, today: LocalDay, monthFirst: Bool, limit: Int) -> (day: LocalDay, used: Range<Int>)? {
         func num(_ k: Int) -> Int? { k < w.count && w[k].count <= 4 ? Int(w[k]) : nil }
         guard let a = num(i), let b = num(i + 1) else { return nil }
         // "2026 12 12".
         if w[i].count == 4, let y = year(w[i]), let c = num(i + 2), w[i + 2].count <= 2 {
-            return dated(day: c, month: b, year: y, at: i, span: 3, today: today)
+            return dated(day: c, month: b, year: y, at: i, span: 3, today: today, limit: limit)
         }
         guard w[i].count <= 2, w[i + 1].count <= 2 else { return nil }
         // "12 12 2026", then "12 12".
         let y = i + 2 < w.count ? year(w[i + 2]) : nil
         var (d, m) = monthFirst ? (b, a) : (a, b)
         if m > 12, d <= 12 { swap(&d, &m) }
-        return dated(day: d, month: m, year: y, at: i, span: y == nil ? 2 : 3, today: today)
+        return dated(day: d, month: m, year: y, at: i, span: y == nil ? 2 : 3, today: today, limit: limit)
     }
 
-    /// The day, or nil when it does not exist, is past or is over `maxDaysAhead` away.
-    private static func dated(day: Int, month: Int, year: Int?, at i: Int, span: Int, today: LocalDay) -> (day: LocalDay, used: Range<Int>)? {
+    /// The day, or nil when it does not exist, is past or is over `limit` days away.
+    private static func dated(day: Int, month: Int, year: Int?, at i: Int, span: Int, today: LocalDay, limit: Int) -> (day: LocalDay, used: Range<Int>)? {
         let found: LocalDay?
         if let year {
             found = LocalDay(year: year, month: month, day: day)
@@ -98,9 +100,17 @@ enum DateWords {
             found = [today.year, today.year + 1].map { LocalDay(year: $0, month: month, day: day) }
                 .first { $0.isValid && $0 >= today }
         }
-        guard let found, found.isValid, (0...maxDaysAhead).contains(today.days(to: found)) else { return nil }
+        guard let found, found.isValid, (0...limit).contains(today.days(to: found)) else { return nil }
         // A year written after the date is part of it.
         return (found, i..<(i + span + (year != nil && span == 2 ? 1 : 0)))
+    }
+
+    /// True when `words` hold a calendar date `day` refuses for being over `maxDaysAhead` away ("15 oct"
+    /// read on 1 November), so the search can say why it looks nowhere.
+    static func isBeyondReach(_ words: [Substring], now: Date, tz: TimeZone, monthFirst: Bool) -> Bool {
+        guard day(words, now: now, tz: tz, monthFirst: monthFirst) == nil,
+              let far = day(words, now: now, tz: tz, monthFirst: monthFirst, limit: .max) else { return false }
+        return LocalDay(now, in: tz).days(to: far.day) > maxDaysAhead
     }
 
     private static func add(_ days: Int, to day: LocalDay) -> LocalDay? {

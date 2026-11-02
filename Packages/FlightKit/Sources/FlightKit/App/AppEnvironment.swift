@@ -247,7 +247,7 @@ public struct AppEnvironment: Sendable {
     @MainActor public func makeProfileStore() -> ProfileStore {
         ProfileStore(service: profiles, defaults: recentsDefaults)
     }
-    @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, defaults: recentsDefaults) }
+    @MainActor public func makeSearchStore() -> SearchStore { SearchStore(flights: flights, schedules: schedules, defaults: recentsDefaults) }
     @MainActor public func makeAirportStore(code: String) -> AirportStore {
         AirportStore(code: code, airports: airports, security: security, faa: faa, overview: airportOverview)
     }

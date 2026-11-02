@@ -1,3 +1,4 @@
+import FlightImportKit
 import Foundation
 import Observation
 
@@ -11,11 +12,87 @@ public enum SearchPick: Equatable, Sendable {
     case openAirport(String)
 }
 
+/// One row a search found: a tracked flight from today's lookups, or a flight on an airline's schedule
+/// days or weeks ahead.
+public enum SearchResult: Sendable, Hashable, Identifiable {
+    case live(Flight), planned(ScheduledFlight)
+
+    public var id: String {
+        switch self {
+        case .live(let f): "live \(f.id)"
+        case .planned(let p): "planned \(p.id)"
+        }
+    }
+    public var ident: String {
+        switch self {
+        case .live(let f): f.ident
+        case .planned(let p): p.ident
+        }
+    }
+    /// ICAO.
+    public var origin: String {
+        switch self {
+        case .live(let f): f.originIcao
+        case .planned(let p): p.origin
+        }
+    }
+    /// ICAO.
+    public var destination: String {
+        switch self {
+        case .live(let f): f.destinationIcao
+        case .planned(let p): p.destination
+        }
+    }
+    public var scheduledOut: Date? {
+        switch self {
+        case .live(let f): f.scheduledOut ?? f.estimatedOut
+        case .planned(let p): p.scheduledOut
+        }
+    }
+
+    /// True when `airline` flies it, by its ICAO or IATA code, as operator or flight number prefix.
+    func isFlown(by airline: Airline) -> Bool {
+        let codes = Set([airline.id, airline.iata].compactMap { $0?.uppercased() })
+        let carrier: String? = switch self {
+        case .live(let f): f.operator
+        case .planned(let p): p.airline
+        }
+        if let carrier, codes.contains(carrier.uppercased()) { return true }
+        return codes.contains(SearchStore.airlinePrefix(ident.uppercased()))
+    }
+}
+
+/// The lookups one intent costs, and how their rows are kept and ordered.
+struct SearchRoute: Sendable {
+    enum Grouping: Sendable { case byDestination, byOrigin }
+
+    /// Same key, same lookups: the answer cache and the gate go by it. The time of day and the grouping
+    /// only order rows, so they are not part of it.
+    var key: String
+    var live: [FlightQuery] = []
+    var planned: [ScheduleQuery] = []
+    /// Rows must leave from one of these (ICAO); empty keeps any.
+    var origins: Set<String> = []
+    var destinations: Set<String> = []
+    var airline: Airline?
+    /// For board rows, which carry every day: the origin-local day asked for.
+    var boardDay: LocalDay?
+    var timeOfDay: Int?
+    var grouping: Grouping?
+}
+
 @MainActor @Observable
 public final class SearchStore {
     public var text = ""
     public var date = Date.now
-    public private(set) var results: [Flight] = []
+    /// What the search found, in the order the screen lists it.
+    public private(set) var items: [SearchResult] = []
+    /// The live rows of `items`.
+    public var results: [Flight] { items.compactMap { if case .live(let f) = $0 { f } else { nil } } }
+    /// What `text` reads as, updated on each change.
+    public private(set) var intent = SearchIntent()
+    /// A short line under the field when the search cannot look where the text asks.
+    public private(set) var note: String?
     public private(set) var error: APIError?
     public private(set) var isSearching = false
     /// Queries that found something, newest first, at most `recentLimit`.
@@ -26,20 +103,33 @@ public final class SearchStore {
     public var known: [KnownFlight] = []
 
     public static let recentLimit = 6
+    public static let unavailableNote = "Future dates need the live service"
+    public static let beyondReachNote = "Airline schedules only go \(DateWords.maxDaysAhead) days ahead"
     nonisolated static let recentKey = "recentSearches"
 
     private let flights: any FlightService
+    private let schedules: any ScheduleService
+    /// The device calendar dates are typed in.
+    @ObservationIgnored var timeZone: TimeZone = .current
+    /// A bare "3 4" reads month first (the US way).
+    @ObservationIgnored var monthFirst = Locale.current.region == .unitedStates
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let suggester: SearchSuggester
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var searchGeneration = 0
     @ObservationIgnored private var gate = LiveLookupGate()
-    /// The answers the gate still counts as fresh, by query key.
-    @ObservationIgnored private var answers: [String: [Flight]] = [:]
+    /// What a route's lookups answered: rows before filters and order, the error when none answered.
+    struct Answer: Sendable {
+        var rows: [SearchResult] = []
+        var error: APIError?
+        var note: String?
+    }
+    /// The answers the gate still counts as fresh, by route key.
+    @ObservationIgnored private var answers: [String: Answer] = [:]
     @ObservationIgnored private var suggestTask: Task<Void, Never>?
     @ObservationIgnored private var liveTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
-    /// The query `results` answer, so a change of text drops results that no longer fit it.
+    /// The route `items` answer, so a change of text drops rows that no longer fit it.
     @ObservationIgnored private var resultsKey: String?
     /// The text `textChanged()` last handled.
     @ObservationIgnored private var handledText: String?
@@ -52,9 +142,12 @@ public final class SearchStore {
     /// - Parameters:
     ///   - defaults: where recent searches persist; nil keeps them in memory only.
     ///   - suggester: the airports and airlines suggestions come from (the bundled lists).
-    public init(flights: any FlightService, defaults: UserDefaults? = nil, suggester: SearchSuggester = .bundled(),
+    ///   - schedules: airline schedules, for days past the reach of today's lookups.
+    public init(flights: any FlightService, schedules: any ScheduleService = UnavailableScheduleService(),
+                defaults: UserDefaults? = nil, suggester: SearchSuggester = .bundled(),
                 now: @escaping @Sendable () -> Date = { .now }) {
         self.flights = flights
+        self.schedules = schedules
         self.defaults = defaults
         self.suggester = suggester
         self.now = now
@@ -72,9 +165,14 @@ public final class SearchStore {
         suggestTask?.cancel()
         liveTask?.cancel()
         let typed = text
-        if currentQuery().map({ LiveLookupGate.key($0) }) != resultsKey {
-            results = []; resultsKey = nil; error = nil
+        intent = readIntent()
+        let route = currentRoute()
+        if route?.key != resultsKey {
+            items = []; resultsKey = nil; error = nil; note = nil
+        } else if let route {
+            items = ordered(items, route)
         }
+        if isBeyondReach() { note = Self.beyondReachNote } else if note == Self.beyondReachNote { note = nil }
         if typed.trimmingCharacters(in: .whitespaces).isEmpty {
             suggestions = .empty
             isSearching = false
@@ -105,34 +203,211 @@ public final class SearchStore {
     /// The query return searches: the text as parsed, else a route named by cities.
     func currentQuery() -> FlightQuery? { FlightQuery.parse(text, date: date) ?? liveQuery() }
 
-    /// One lookup for what is typed, when the gate allows it; a later change of text cancels it and
-    /// drops its answer. Errors stay quiet while typing (return shows them), but a limit stops live
-    /// lookups for a while.
+    /// What `text` reads as now.
+    func readIntent() -> SearchIntent {
+        SearchIntent.parse(text, now: now(), tz: timeZone, monthFirst: monthFirst, suggester: suggester)
+    }
+
+    /// True when `text` holds a date past what airline schedules reach.
+    func isBeyondReach() -> Bool {
+        DateWords.isBeyondReach(SearchText.words(SearchText.fold(text)), now: now(), tz: timeZone, monthFirst: monthFirst)
+    }
+
+    /// The lookups for `intent`, else for the text as `currentQuery` reads it; nil when there is nothing
+    /// to look up or the date is past the schedules' reach.
+    func currentRoute() -> SearchRoute? {
+        guard !isBeyondReach() else { return nil }
+        if let r = route(for: intent) { return r }
+        guard !intent.isSearchable, let q = currentQuery() else { return nil }
+        return SearchRoute(key: LiveLookupGate.key(q), live: [q])
+    }
+
+    /// Today's live paths when the origin-local day is today, tomorrow or the day after (the reach of
+    /// `flight-lookup`), airline schedules further ahead. An airline alone has no lookup.
+    func route(for i: SearchIntent) -> SearchRoute? {
+        guard i.isSearchable else { return nil }
+        let today = LocalDay(now(), in: i.origins.first.map(zone) ?? timeZone)
+        let day = i.day ?? today
+        let near = today.days(to: day) <= 2
+        let when = i.day.map(noon) ?? date
+        var r = SearchRoute(key: "", origins: Set(i.origins), destinations: Set(i.destinations),
+                            airline: i.airline, timeOfDay: i.timeOfDay)
+        if let ident = i.ident {
+            r.airline = nil
+            if near { r.live = [.ident(ident, date: when)] } else { r.planned = [ScheduleQuery(ident: designator(ident, i.airline), day: day)] }
+        } else if !i.origins.isEmpty, !i.destinations.isEmpty {
+            if near {
+                r.live = i.origins.flatMap { o in i.destinations.filter { $0 != o }.map { .route(origin: o, destination: $0, date: when) } }
+            } else {
+                r.planned = i.origins.map { ScheduleQuery(origin: $0, airline: i.airline?.id, day: day) }
+            }
+        } else if !i.origins.isEmpty || !i.destinations.isEmpty {
+            let fromOrigin = !i.origins.isEmpty
+            let places = fromOrigin ? i.origins : i.destinations
+            r.grouping = fromOrigin ? .byDestination : .byOrigin
+            if near {
+                r.live = places.map { .airport($0) }
+                r.boardDay = i.day
+            } else {
+                r.planned = places.map {
+                    fromOrigin ? ScheduleQuery(origin: $0, airline: i.airline?.id, day: day)
+                               : ScheduleQuery(destination: $0, airline: i.airline?.id, day: day)
+                }
+            }
+        } else {
+            return nil
+        }
+        let calls = r.live.map { LiveLookupGate.key($0, calendar: calendar) }
+            + r.planned.map { "plan:\($0.origin ?? "")-\($0.destination ?? "")-\($0.airline ?? "")-\($0.ident ?? "")-\($0.day)" }
+        r.key = (calls + [r.origins.sorted().joined(separator: ","), r.destinations.sorted().joined(separator: ","),
+                          r.airline?.id ?? "", r.boardDay?.description ?? ""]).joined(separator: "|")
+        return r
+    }
+
+    /// The airport's time zone, else the device's.
+    private func zone(_ icao: String) -> TimeZone {
+        suggester.airport(code: icao).flatMap { TimeZone(identifier: $0.tz) } ?? timeZone
+    }
+
+    private var calendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timeZone
+        return cal
+    }
+
+    /// Noon of `day` on the device calendar: the date a lookup reads that day from.
+    private func noon(_ day: LocalDay) -> Date {
+        calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) ?? date
+    }
+
+    /// The airline code a flight number starts with: three letters when its third character is a
+    /// letter ("AFR84"), else two ("AF84", "U21234").
+    nonisolated static func airlinePrefix(_ ident: String) -> String {
+        let chars = Array(ident)
+        guard chars.count > 2 else { return ident }
+        return String(chars[..<(chars[2].isLetter ? 3 : 2)])
+    }
+
+    /// The IATA designator schedules want ("AF84" for "AFR84"); the ident as typed when no IATA code is known.
+    func designator(_ ident: String, _ airline: Airline?) -> String {
+        let code = Self.airlinePrefix(ident)
+        guard code.count == 3, let iata = (suggester.airline(code: code) ?? airline)?.iata else { return ident }
+        return iata + ident.dropFirst(3)
+    }
+
+    /// Every lookup of `r` at once. Not found counts as no rows; the first other error stands only when no
+    /// lookup answered. Schedules the build cannot reach give the note instead.
+    func fetch(_ r: SearchRoute) async -> Answer {
+        let flights = self.flights, schedules = self.schedules
+        let live = await withTaskGroup(of: (Int, Result<[Flight], APIError>).self) { g in
+            for (k, q) in r.live.enumerated() {
+                g.addTask {
+                    do throws(APIError) { return (k, .success(try await flights.lookup(q))) } catch { return (k, .failure(error)) }
+                }
+            }
+            var out: [(Int, Result<[Flight], APIError>)] = []
+            for await x in g { out.append(x) }
+            return out.sorted { $0.0 < $1.0 }.map { $0.1.map { $0.map(SearchResult.live) } }
+        }
+        let planned = await withTaskGroup(of: (Int, Result<[ScheduledFlight], APIError>).self) { g in
+            for (k, q) in r.planned.enumerated() {
+                g.addTask {
+                    do throws(APIError) { return (k, .success(try await schedules.schedules(q))) } catch { return (k, .failure(error)) }
+                }
+            }
+            var out: [(Int, Result<[ScheduledFlight], APIError>)] = []
+            for await x in g { out.append(x) }
+            return out.sorted { $0.0 < $1.0 }.map { $0.1.map { $0.map(SearchResult.planned) } }
+        }
+        var answer = Answer()
+        var answered = false, firstError: APIError?
+        for result in live + planned {
+            switch result {
+            case .success(let rows): answered = true; answer.rows += rows
+            case .failure(.notFound): answered = true
+            case .failure(.providerUnavailable) where !r.planned.isEmpty: answer.note = Self.unavailableNote
+            case .failure(let e): firstError = firstError ?? e
+            }
+        }
+        if !answered, answer.note == nil { answer.error = firstError ?? .notFound }
+        return answer
+    }
+
+    /// The rows of `answer` that fit `r`, once each, in the order the screen lists them.
+    func rows(_ answer: Answer, _ r: SearchRoute) -> [SearchResult] {
+        var seen: Set<String> = []
+        let kept = answer.rows.filter { row in
+            guard seen.insert(row.id).inserted else { return false }
+            if !r.origins.isEmpty, !r.origins.contains(row.origin) { return false }
+            if !r.destinations.isEmpty, !r.destinations.contains(row.destination) { return false }
+            if let a = r.airline, !row.isFlown(by: a) { return false }
+            if let d = r.boardDay, let out = row.scheduledOut, LocalDay(out, in: zone(row.origin)) != d { return false }
+            return true
+        }
+        return ordered(kept, r)
+    }
+
+    /// By departure, or by distance to the time of day asked for. A one-place search groups rows by
+    /// their other end, the ends the traveller already knows first, then by earliest departure.
+    func ordered(_ rows: [SearchResult], _ r: SearchRoute) -> [SearchResult] {
+        func minutes(_ row: SearchResult) -> Int {
+            guard let t = r.timeOfDay, let out = row.scheduledOut else { return 0 }
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = zone(row.origin)
+            let c = cal.dateComponents([.hour, .minute], from: out)
+            let d = abs((c.hour ?? 0) * 60 + (c.minute ?? 0) - t)
+            return min(d, 1440 - d)
+        }
+        func before(_ a: SearchResult, _ b: SearchResult) -> Bool {
+            (minutes(a), a.scheduledOut ?? .distantFuture, a.ident) < (minutes(b), b.scheduledOut ?? .distantFuture, b.ident)
+        }
+        guard let grouping = r.grouping else { return rows.sorted(by: before) }
+        let end: (SearchResult) -> String = grouping == .byDestination ? { $0.destination } : { $0.origin }
+        let knownEnds = Set(known.map { grouping == .byDestination ? $0.destination : $0.origin })
+        let groups = Dictionary(grouping: rows, by: end).map { (end: $0.key, rows: $0.value.sorted(by: before)) }
+        func rank(_ g: (end: String, rows: [SearchResult])) -> (Int, Date, String) {
+            (knownEnds.contains(g.end) ? 0 : 1, g.rows.compactMap(\.scheduledOut).min() ?? .distantFuture, g.end)
+        }
+        return groups.sorted { rank($0) < rank($1) }.flatMap(\.rows)
+    }
+
+    /// Shows `answer` for `r`.
+    private func show(_ answer: Answer, _ r: SearchRoute) {
+        items = rows(answer, r)
+        resultsKey = r.key
+        note = answer.note
+    }
+
+    /// The lookups for what is typed, when the gate allows them: a whole flight number or route, or a
+    /// sentence with a day. A later change of text cancels them and drops their answer. Errors stay quiet
+    /// while typing (return shows them), but a limit stops live lookups for a while.
     func lookUpLive() async {
-        guard let query = liveQuery() else { return }
-        let key = LiveLookupGate.key(query)
-        switch gate.verdict(for: key, now: now()) {
+        intent = readIntent()
+        guard liveQuery() != nil || (intent.day != nil && intent.isSearchable), let r = currentRoute() else { return }
+        switch gate.verdict(for: r.key, now: now()) {
         case .wait: return
         case .reuse:
             // Asked a moment ago (the text went back to it): the answer then, no second call.
-            if resultsKey != key { results = answers[key] ?? []; resultsKey = results.isEmpty ? nil : key }
+            if resultsKey != r.key, let a = answers[r.key] {
+                show(a, r)
+                if items.isEmpty, note == nil { resultsKey = nil }
+            }
             return
         case .send: break
         }
-        gate.didSend(now: now())
+        for _ in 0..<(r.live.count + r.planned.count) { gate.didSend(now: now()) }
         searchGeneration += 1
         let gen = searchGeneration
         isSearching = true
-        do {
-            let found = try await flights.lookup(query)
-            guard gen == searchGeneration, !Task.isCancelled else { return }
-            results = found; resultsKey = key; error = nil
-            answer(key, found)
-        } catch {
-            guard gen == searchGeneration else { return }
-            if error == .rateLimited || error == .planLimit { gate.didHitLimit(now: now()) }
-            if error == .notFound { answer(key, []) }
-            results = []; resultsKey = nil
+        let a = await fetch(r)
+        guard gen == searchGeneration, !Task.isCancelled else { return }
+        if let e = a.error {
+            if e == .rateLimited || e == .planLimit { gate.didHitLimit(now: now()) }
+            if e == .notFound { answer(r.key, a) }
+            items = []; resultsKey = nil
+        } else {
+            show(a, r); error = nil
+            answer(r.key, a)
         }
         isSearching = false
     }
@@ -175,33 +450,33 @@ public final class SearchStore {
         liveTask?.cancel()
         searchGeneration += 1
         let gen = searchGeneration
-        guard let query = currentQuery() else {
-            results = []; error = .notFound; isSearching = false; return
+        intent = readIntent()
+        guard let r = currentRoute() else {
+            items = []; resultsKey = nil; isSearching = false
+            if isBeyondReach() { note = Self.beyondReachNote; error = nil } else { note = nil; error = .notFound }
+            return
         }
-        let key = LiveLookupGate.key(query)
         isSearching = true
-        do {
-            let found = try await flights.lookup(query)
-            guard gen == searchGeneration else { return }
-            results = found
-            resultsKey = key
-            error = nil
-            answer(key, found)
-            remember(text)
-        } catch {
-            guard gen == searchGeneration else { return }
-            self.error = error
-            if error == .rateLimited { gate.didHitLimit(now: now()) }
-            if error == .notFound { results = []; resultsKey = nil }
+        let a = await fetch(r)
+        guard gen == searchGeneration else { return }
+        if let e = a.error {
+            error = e
+            if e == .rateLimited { gate.didHitLimit(now: now()) }
+            if e == .notFound { items = []; resultsKey = nil; note = nil; answer(r.key, a) }
+        } else {
+            show(a, r)
+            answer(r.key, a)
+            error = items.isEmpty && note == nil ? .notFound : nil
+            if !items.isEmpty { remember(text) }
         }
         isSearching = false
     }
 
     /// Keeps an answer for the gate's reuse window.
-    private func answer(_ key: String, _ found: [Flight]) {
+    private func answer(_ key: String, _ a: Answer) {
         gate.didAnswer(key, now: now())
         answers = answers.filter { gate.verdict(for: $0.key, now: now()) == .reuse }
-        answers[key] = found
+        answers[key] = a
     }
 
     /// True when the flight is now followed. Plan and rate limits set `error` and add nothing.
