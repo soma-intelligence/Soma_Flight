@@ -86,16 +86,16 @@ extension ComponentSnapshotTests {
     @Test func finalSettingsAndSignIn() async throws {
         let session = SettingsPreview.makeSession(signedIn: true, failDelete: false)
         try both("settings") {
-            SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(), onDeleteAccount: { true },
+            SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(), onDeleteAccount: { _ in true },
                          scrolls: false, dataNote: false)
         }
         let failed = SettingsPreview.makeSession(signedIn: true, failDelete: true)
         try both("settings-delete-failed", maxHeight: 400) {
             SettingsView(session: failed, units: .constant(Units(distance: .mi, clock: .h12)), history: FakeHistoryService(),
-                         onDeleteAccount: { true }, scrolls: false, dataNote: false)
+                         onDeleteAccount: { _ in true }, scrolls: false, dataNote: false)
         }
         try both("settings-mac", width: 480) {
-            SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(), onDeleteAccount: { true },
+            SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(), onDeleteAccount: { _ in true },
                          scrolls: false, dataNote: true)
         }
         try both("sign-in", height: 852) { SignInView(session: SessionStore(auth: FakeAuthService())) }

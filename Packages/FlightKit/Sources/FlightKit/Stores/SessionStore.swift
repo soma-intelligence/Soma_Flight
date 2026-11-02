@@ -138,11 +138,12 @@ public final class SessionStore {
 
     /// True once the server erased the account; the session is then gone, even when the local sign-out
     /// that follows did not report it (the user no longer exists). On failure `error` is set, the session
-    /// stays and the result is false.
+    /// stays and the result is false. `appleAuthorizationCode` comes from a fresh Apple sign-in when the
+    /// account uses Apple (`UserSession.usesApple`): the server revokes the Apple tokens with it.
     @discardableResult
-    public func deleteAccount() async -> Bool {
+    public func deleteAccount(appleAuthorizationCode: String? = nil) async -> Bool {
         do {
-            try await auth.deleteAccount()
+            try await auth.deleteAccount(appleAuthorizationCode: appleAuthorizationCode)
         } catch {
             self.error = error
             return false

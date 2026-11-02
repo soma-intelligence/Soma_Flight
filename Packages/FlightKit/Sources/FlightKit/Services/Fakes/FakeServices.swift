@@ -333,7 +333,8 @@ public actor FakeAuthService: AuthService {
     public func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws(APIError) {
         try check()
         appleName = fullName
-        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!, email: nil))
+        state.set(UserSession(userId: UUID(uuidString: "5a1e0000-0000-4000-8000-000000000001")!, email: nil,
+                              usesApple: true))
     }
 
     public func signInWithEmail(_ email: String) async throws(APIError) {
@@ -348,8 +349,12 @@ public actor FakeAuthService: AuthService {
 
     public func signOut() async { state.set(nil) }
 
-    public func deleteAccount() async throws(APIError) {
+    /// The Apple authorization code the last deletion sent, for tests.
+    public private(set) var deletedWithAppleCode: String?
+
+    public func deleteAccount(appleAuthorizationCode: String?) async throws(APIError) {
         try check()
+        deletedWithAppleCode = appleAuthorizationCode
         state.set(nil)
     }
 }

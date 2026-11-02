@@ -8,6 +8,7 @@ import {
   trackFlightId,
 } from "../_shared/test_util.ts";
 import { ensureAlert } from "../_shared/follow.ts";
+import { ApiError } from "../_shared/errors.ts";
 import {
   archivedAvatarPath,
   avatarPath,
@@ -155,7 +156,9 @@ test(db, "deletes user rows and keeps profile marked deleted", async () => {
   );
   const photos = await db.storage.from(AVATARS_BUCKET).list(user);
   assertEquals((photos.data ?? []).map((f) => f.name), [], "the photo is gone");
-  const archived = await db.storage.from(AVATARS_BUCKET).list(`deleted/${user}`);
+  const archived = await db.storage.from(AVATARS_BUCKET).list(
+    `deleted/${user}`,
+  );
   assertEquals(
     (archived.data ?? []).map((f) => f.name),
     ["avatar.jpg"],
@@ -279,6 +282,7 @@ test(
         return {
           ...target.auth,
           admin: {
+            getUserById: (id: string) => target.auth.admin.getUserById(id),
             deleteUser: (id: string) =>
               fail
                 ? Promise.resolve({
@@ -359,4 +363,144 @@ test(db, "rate limited to 5 per hour", async () => {
   const res = await handler(req(user), d);
   assertEquals(res.status, 429);
   assertEquals((await res.json()).error.code, "rate_limited");
+});
+
+/** A user whose account signs in with Apple, as Supabase records it after an Apple sign-in. */
+async function makeAppleUser(): Promise<string> {
+  const user = await makeUser(db);
+  const r = await db.auth.admin.updateUserById(user, {
+    app_metadata: { provider: "apple", providers: ["apple"] },
+  });
+  if (r.error) throw r.error;
+  return user;
+}
+
+function appleReq(user: string, body: unknown): Request {
+  return new Request("http://localhost/delete-account", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${user}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function fakeApple(fail?: Error) {
+  const codes: string[] = [];
+  return {
+    codes,
+    revoke(code: string) {
+      codes.push(code);
+      return fail ? Promise.reject(fail) : Promise.resolve();
+    },
+  };
+}
+
+const userExists = async (user: string) =>
+  !(await db.auth.admin.getUserById(user)).error;
+
+test(
+  db,
+  "an Apple account revokes its Apple tokens, then is deleted",
+  async () => {
+    const user = await makeAppleUser();
+    const apple = fakeApple();
+    const res = await handler(
+      appleReq(user, { apple_authorization_code: "code-1" }),
+      {
+        db,
+        aero: fakeAero(),
+        verifier: fakeVerifier,
+        apple,
+      },
+    );
+    assertEquals(res.status, 200);
+    assertEquals(apple.codes, ["code-1"]);
+    assert(!(await userExists(user)));
+  },
+);
+
+test(
+  db,
+  "an Apple account without a fresh code is refused and nothing is erased",
+  async () => {
+    const user = await makeAppleUser();
+    const apple = fakeApple();
+    const res = await handler(appleReq(user, {}), {
+      db,
+      aero: fakeAero(),
+      verifier: fakeVerifier,
+      apple,
+    });
+    assertEquals(res.status, 400);
+    assertEquals((await res.json()).error.code, "invalid_request");
+    assertEquals(apple.codes, []);
+    assert(await userExists(user));
+    const archived = await db.schema("archive").from("deleted_accounts").select(
+      "user_id",
+    ).eq("user_id", user);
+    assertEquals(archived.data?.length ?? 0, 0);
+  },
+);
+
+test(
+  db,
+  "a failed Apple revoke stops the deletion before anything is erased",
+  async () => {
+    const user = await makeAppleUser();
+    const apple = fakeApple(
+      new ApiError(
+        "provider_unavailable",
+        502,
+        "Apple didn't answer. Try again.",
+      ),
+    );
+    const res = await handler(
+      appleReq(user, { apple_authorization_code: "c" }),
+      {
+        db,
+        aero: fakeAero(),
+        verifier: fakeVerifier,
+        apple,
+      },
+    );
+    assertEquals(res.status, 502);
+    assert(await userExists(user));
+  },
+);
+
+test(
+  db,
+  "Apple accounts are refused while the Sign in with Apple key is not configured",
+  async () => {
+    const user = await makeAppleUser();
+    const res = await handler(
+      appleReq(user, { apple_authorization_code: "c" }),
+      {
+        db,
+        aero: fakeAero(),
+        verifier: fakeVerifier,
+        apple: null,
+      },
+    );
+    assertEquals(res.status, 503);
+    assert(await userExists(user));
+  },
+);
+
+test(db, "an email account ignores the Apple revoker", async () => {
+  const user = await makeUser(db);
+  const apple = fakeApple();
+  const res = await handler(
+    appleReq(user, { apple_authorization_code: "stray" }),
+    {
+      db,
+      aero: fakeAero(),
+      verifier: fakeVerifier,
+      apple,
+    },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(apple.codes, []);
 });

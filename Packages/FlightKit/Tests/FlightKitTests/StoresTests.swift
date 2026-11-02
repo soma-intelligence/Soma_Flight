@@ -113,6 +113,25 @@ private let wn4410 = UUID(uuidString: "20fae9c5-79ee-5ec3-a45a-015ed6c7fd9d")!
         #expect(store.stats.flights == 12) // one 2025 flight is canceled
     }
 
+    /// An Apple account hands the code of a fresh Apple sign-in to the server, which revokes its Apple
+    /// tokens; an email account sends none.
+    @Test func appleAccountDeletionSendsTheAppleCode() async throws {
+        let auth = FakeAuthService()
+        let store = SessionStore(auth: auth)
+        store.start()
+        try await auth.signInWithApple(idToken: "t", nonce: "n")
+        await eventually { store.session != nil }
+        #expect(store.session?.usesApple == true)
+        #expect(await store.deleteAccount(appleAuthorizationCode: "code-1"))
+        #expect(await auth.deletedWithAppleCode == "code-1")
+
+        try await auth.signInWithEmail("a@b.co")
+        await eventually { store.session?.email == "a@b.co" }
+        #expect(store.session?.usesApple == false)
+        #expect(await store.deleteAccount())
+        #expect(await auth.deletedWithAppleCode == nil)
+    }
+
     @Test func sessionStoreFollowsAuth() async throws {
         let auth = FakeAuthService()
         let store = SessionStore(auth: auth)

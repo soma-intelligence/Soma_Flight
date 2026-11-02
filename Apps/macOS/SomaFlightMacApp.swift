@@ -110,7 +110,7 @@ struct SomaFlightMacApp: App {
                 if let home {
                     // Export only once there is someone to export for (signed in, or the fakes).
                     SettingsView(session: home.session, units: $units, history: home.needsSignIn ? nil : home.env.history,
-                                 onDeleteAccount: { await home.session.deleteAccount() },
+                                 onDeleteAccount: { await home.session.deleteAccount(appleAuthorizationCode: $0) },
                                  notifications: home.needsSignIn ? nil : home.notificationSettings,
                                  calendar: home.needsSignIn ? nil : home.calendar,
                                  friends: home.needsSignIn ? nil : home.friends,

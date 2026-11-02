@@ -21,7 +21,7 @@ extension ComponentSnapshotTests {
             let scheme = light ? "light" : "dark"
             try render("settings-\(scheme)", to: Self.screensDir, light: light) {
                 SettingsView(session: session, units: .constant(Units()), history: FakeHistoryService(),
-                             onDeleteAccount: { true }, notifications: notifications, profile: profile,
+                             onDeleteAccount: { _ in true }, notifications: notifications, profile: profile,
                              scrolls: false, dataNote: false, iconModel: icons)
             }
             try render("settings-notifications-\(scheme)", to: Self.screensDir, light: light) {

@@ -125,7 +125,7 @@ struct RootTabView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
-                          onDeleteAccount: { await home.session.deleteAccount() },
+                          onDeleteAccount: { await home.session.deleteAccount(appleAuthorizationCode: $0) },
                           notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends,
                           profile: home.profile)
                 .environment(\.units, units)
@@ -303,7 +303,7 @@ private struct SettingsSheet: View {
     var session: SessionStore
     @Binding var units: Units
     var history: any HistoryService
-    var onDeleteAccount: () async -> Bool
+    var onDeleteAccount: (String?) async -> Bool
     var notifications: NotificationSettingsStore
     var calendar: CalendarSync?
     var friends: FriendsStore?

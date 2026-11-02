@@ -28,7 +28,7 @@ public final class SupabaseAuthService: AuthService {
                 guard self != nil else { break }
                 var next: UserSession?
                 if let user = session?.user {
-                    next = UserSession(userId: user.id, email: user.email)
+                    next = UserSession(userId: user.id, email: user.email, usesApple: Self.usesApple(user))
                 }
                 if last != .some(next) {
                     last = .some(next)
@@ -131,9 +131,20 @@ public final class SupabaseAuthService: AuthService {
         }
     }
 
+    /// True when Apple is one of the account's sign-in providers (Supabase lists them in app_metadata).
+    static func usesApple(_ user: User) -> Bool {
+        if let providers = user.appMetadata["providers"]?.arrayValue {
+            return providers.contains { $0.stringValue == "apple" }
+        }
+        return user.appMetadata["provider"]?.stringValue == "apple"
+    }
+
     /// Erases the account on the server, then forgets the session (its user no longer exists).
-    public func deleteAccount() async throws(APIError) {
-        try await backend.call("delete-account", body: Data("{}".utf8))
+    public func deleteAccount(appleAuthorizationCode: String?) async throws(APIError) {
+        var body: [String: String] = [:]
+        if let appleAuthorizationCode { body["apple_authorization_code"] = appleAuthorizationCode }
+        let data = (try? JSONEncoder().encode(body)) ?? Data("{}".utf8)
+        try await backend.call("delete-account", body: data)
         push?.forgetDevice()
         try? await auth.signOut(scope: .local)
     }

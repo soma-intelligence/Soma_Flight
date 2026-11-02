@@ -8,7 +8,8 @@ public struct SettingsView: View {
     @Binding var units: Units
     var onSignIn: (() -> Void)?
     var history: (any HistoryService)?
-    var onDeleteAccount: (() async -> Bool)?
+    /// Deletes the account; its argument is the Apple authorization code for an Apple account, else nil.
+    var onDeleteAccount: ((String?) async -> Bool)?
     /// The Notifications screen's store; nil keeps the row opening the system settings.
     var notifications: NotificationSettingsStore?
     /// The Calendar screen's sync; nil hides its row.
@@ -70,7 +71,7 @@ public struct SettingsView: View {
     ///   - profile: the user's name and photo (`HomeModel.profile`); Profile then shows them and opens the editor.
     ///   - onClose: closes Settings from the round X at the top right (the phone's sheet); nil leaves it out.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-                history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
+                history: (any HistoryService)? = nil, onDeleteAccount: ((String?) async -> Bool)? = nil,
                 notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
                 friends: FriendsStore? = nil, profile: ProfileStore? = nil, onClose: (() -> Void)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
@@ -79,7 +80,7 @@ public struct SettingsView: View {
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
-         history: (any HistoryService)? = nil, onDeleteAccount: (() async -> Bool)? = nil,
+         history: (any HistoryService)? = nil, onDeleteAccount: ((String?) async -> Bool)? = nil,
          notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil, friends: FriendsStore? = nil,
          profile: ProfileStore? = nil,
          scrolls: Bool, dataNote: Bool = SettingsView.defaultDataNote, onClose: (() -> Void)? = nil,
@@ -299,12 +300,26 @@ public struct SettingsView: View {
     }
 
     /// Runs the deletion; on success the session ends and the shells show Sign In, on failure the account
-    /// stays signed in and the error shows in an alert (and in the banner on top).
+    /// stays signed in and the error shows in an alert (and in the banner on top). An Apple account first
+    /// signs in with Apple again, so the server can revoke its Apple tokens; cancelling that stops here.
     private func deleteAccount() {
         guard let onDeleteAccount, !deleting else { return }
         deleting = true
         Task {
-            let deleted = await onDeleteAccount()
+            var appleCode: String?
+            if session.session?.usesApple == true {
+                switch await AppleReauthorization.request() {
+                case .code(let code): appleCode = code
+                case .cancelled:
+                    deleting = false
+                    return
+                case .failed:
+                    deleting = false
+                    deleteFailure = .rejected("Sign in with Apple didn't finish. Try again.")
+                    return
+                }
+            }
+            let deleted = await onDeleteAccount(appleCode)
             deleting = false
             if !deleted { deleteFailure = session.error ?? .providerUnavailable }
         }
@@ -603,7 +618,7 @@ struct SettingsPreview: View {
             if let session {
                 if full {
                     SettingsView(session: session, units: $units, onSignIn: {}, history: FakeHistoryService(),
-                                 onDeleteAccount: { true })
+                                 onDeleteAccount: { _ in true })
                 } else {
                     SettingsView(session: session, units: $units, onSignIn: {})
                 }

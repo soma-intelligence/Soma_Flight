@@ -157,7 +157,7 @@ import Testing
         let session = SettingsPreview.makeSession(signedIn: true, failDelete: false)
         let units = Binding.constant(Units())
         let bare = try render(SettingsView(session: session, units: units, scrolls: false))
-        let full = try render(SettingsView(session: session, units: units, history: FakeHistoryService(), onDeleteAccount: { true },
+        let full = try render(SettingsView(session: session, units: units, history: FakeHistoryService(), onDeleteAccount: { _ in true },
                                           scrolls: false))
         #expect(full.height > bare.height)
     }

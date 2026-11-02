@@ -1,6 +1,8 @@
-// POST /delete-account -> { ok: true }. Archives the caller's data (archive.deleted_accounts), then erases
-// the live rows and the auth user (App Store in-app deletion).
+// POST /delete-account { apple_authorization_code? } -> { ok: true }. Revokes the caller's Sign in with
+// Apple tokens, archives the caller's data (archive.deleted_accounts), then erases the live rows and the
+// auth user (App Store in-app deletion).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { AppleRevoker } from "../_shared/apple.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { type AlertApi, unfollow } from "../_shared/follow.ts";
@@ -12,12 +14,39 @@ export const DELETE_MAX_PER_HOUR = 5;
 export const AVATARS_BUCKET = "avatars";
 export const avatarPath = (userId: string) => `${userId}/avatar.jpg`;
 /** Where a deleted account's photo is kept: no user or friend policy matches this folder. */
-export const archivedAvatarPath = (userId: string) => `deleted/${userId}/avatar.jpg`;
+export const archivedAvatarPath = (userId: string) =>
+  `deleted/${userId}/avatar.jpg`;
 
 export interface Deps {
   db: SupabaseClient;
   aero: AlertApi;
   verifier?: TokenVerifier;
+  /** Null when the Sign in with Apple key is not configured: Apple accounts are then refused. */
+  apple?: AppleRevoker | null;
+}
+
+/** True when the account signs in with Apple (Supabase lists every linked provider in app_metadata). */
+async function usesApple(db: SupabaseClient, userId: string): Promise<boolean> {
+  const got = await db.auth.admin.getUserById(userId);
+  // Already gone: a retry after the auth user was deleted, nothing left to revoke.
+  if (got.error) {
+    if (got.error.status === 404) return false;
+    throw new Error(`user read failed: ${got.error.message}`);
+  }
+  const meta = got.data.user?.app_metadata ?? {};
+  const providers: unknown[] = Array.isArray(meta.providers)
+    ? meta.providers
+    : [meta.provider];
+  return providers.includes("apple");
+}
+
+/** The authorization code from the body, if any. An empty or non-JSON body is no code. */
+async function appleCode(req: Request): Promise<string | null> {
+  const body = await req.json().catch(() => null) as
+    | Record<string, unknown>
+    | null;
+  const code = body?.apple_authorization_code;
+  return typeof code === "string" && code.length > 0 ? code : null;
 }
 
 function must(r: { error: { message: string } | null }, what: string): void {
@@ -26,7 +55,8 @@ function must(r: { error: { message: string } | null }, what: string): void {
 
 /**
  * Order matters and every step is safe to repeat, so a retry finishes an interrupted deletion:
- * archive everything the user owns (the first snapshot is kept on retries), unfollow (releases alerts nobody else needs; a provider failure keeps alert_id for the sweep and
+ * revoke the Apple tokens first (Apple sign-in accounts must send a fresh authorization code, and
+ * nothing is erased when the revoke fails), archive everything the user owns (the first snapshot is kept on retries), unfollow (releases alerts nobody else needs; a provider failure keeps alert_id for the sweep and
  * never blocks the deletion), erase user rows, move the profile photo to the archive folder, strip and mark the profile, then delete the auth
  * user last. The profile row has no FK to auth.users and is kept with status 'deleted'.
  */
@@ -39,8 +69,33 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     const { db, aero } = deps;
     await checkRate(userId, "delete-account", DELETE_MAX_PER_HOUR, 60, db);
 
+    if (await usesApple(db, userId)) {
+      const code = await appleCode(req);
+      if (!code) {
+        throw new ApiError(
+          "invalid_request",
+          400,
+          "Sign in with Apple again to delete your account.",
+        );
+      }
+      if (!deps.apple) {
+        console.error(
+          "delete-account: APPLE_TEAM_ID, APPLE_SIGNIN_KEY_ID or APPLE_SIGNIN_PRIVATE_KEY missing",
+        );
+        throw new ApiError(
+          "provider_unavailable",
+          503,
+          "Account deletion is unavailable right now.",
+        );
+      }
+      await deps.apple.revoke(code);
+    }
+
     // Before anything is erased, so the archive holds the whole account.
-    must(await db.rpc("archive_account", { p_user: userId }), "account archive");
+    must(
+      await db.rpc("archive_account", { p_user: userId }),
+      "account archive",
+    );
     const followed = await db.from("user_flights").select("flight_id")
       .eq("user_id", userId);
     must(followed, "follow read");
@@ -64,11 +119,16 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     must(photo, "avatar read");
     if ((photo.data ?? []).some((f) => f.name === "avatar.jpg")) {
       must(
-        await db.storage.from(AVATARS_BUCKET).remove([archivedAvatarPath(userId)]),
+        await db.storage.from(AVATARS_BUCKET).remove([
+          archivedAvatarPath(userId),
+        ]),
         "archived avatar replace",
       );
       must(
-        await db.storage.from(AVATARS_BUCKET).move(avatarPath(userId), archivedAvatarPath(userId)),
+        await db.storage.from(AVATARS_BUCKET).move(
+          avatarPath(userId),
+          archivedAvatarPath(userId),
+        ),
         "avatar archive",
       );
     }

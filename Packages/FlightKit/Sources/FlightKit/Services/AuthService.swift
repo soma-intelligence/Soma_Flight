@@ -3,9 +3,11 @@ import Foundation
 public struct UserSession: Sendable, Equatable {
     public var userId: UUID
     public var email: String?
+    /// The account signs in with Apple: deleting it needs a fresh Apple authorization (token revocation).
+    public var usesApple: Bool
 
-    public init(userId: UUID, email: String?) {
-        self.userId = userId; self.email = email
+    public init(userId: UUID, email: String?, usesApple: Bool = false) {
+        self.userId = userId; self.email = email; self.usesApple = usesApple
     }
 }
 
@@ -22,7 +24,9 @@ public protocol AuthService: Sendable {
     /// The email link coming back to the app (`somaflight://auth-callback`). Other URLs are ignored.
     func handleOpenURL(_ url: URL) async throws(APIError)
     func signOut() async
-    func deleteAccount() async throws(APIError)
+    /// Erases the account on the server. An account that signs in with Apple sends the authorization
+    /// code of a fresh Apple sign-in, which the server uses to revoke the account's Apple tokens.
+    func deleteAccount(appleAuthorizationCode: String?) async throws(APIError)
 }
 
 public extension AuthService {
@@ -35,4 +39,9 @@ public extension AuthService {
     }
 
     func signInWithGoogle() async throws(APIError) { throw .providerUnavailable }
+
+    /// Deletion without an Apple authorization (email and Google accounts).
+    func deleteAccount() async throws(APIError) {
+        try await deleteAccount(appleAuthorizationCode: nil)
+    }
 }
