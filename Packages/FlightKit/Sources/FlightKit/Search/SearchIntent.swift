@@ -135,8 +135,9 @@ public struct SearchIntent: Sendable, Equatable {
     // MARK: Flight numbers
 
     /// The first flight number in `w` ("af 84", "af84", "u2 1234"), by the rule of `FlightQuery.parse`,
-    /// when its code is an airline's. A three-letter code that is also an airport's yields to a date
-    /// that reads its number ("cdg 12 dec" is CDG on 12 December, "dal 220" Delta 220).
+    /// when its code is an airline's. A three-letter code that is also an airport's, and a code that is
+    /// also a small word ("de", "la"), yield to a date that reads its number ("cdg 12 dec" is CDG on
+    /// 12 December, "vol de 12 dec" the 12th; "dal 220" is Delta 220, "la 800" LATAM 800).
     private static func ident(_ w: [Substring], now: Date, tz: TimeZone, monthFirst: Bool,
                               suggester: SearchSuggester) -> (String, Range<Int>)? {
         func airlineCode(_ c: Substring) -> Bool {
@@ -145,7 +146,10 @@ public struct SearchIntent: Sendable, Equatable {
             return s.count == 2 && !toWords.contains(s) && !fromWords.contains(s) && !fillerWords.contains(s)
         }
         func yieldsToDate(_ code: Substring, number: Int) -> Bool {
-            guard code.count == 3, code.allSatisfy(\.isLetter), suggester.airport(code: String(code)) != nil,
+            let s = String(code)
+            let word = toWords.contains(s) || fromWords.contains(s) || fillerWords.contains(s)
+            let airport = code.count == 3 && code.allSatisfy(\.isLetter) && suggester.airport(code: s) != nil
+            guard word || airport,
                   let d = DateWords.day(w, now: now, tz: tz, monthFirst: monthFirst) else { return false }
             return d.used.contains(number)
         }
@@ -166,7 +170,8 @@ public struct SearchIntent: Sendable, Equatable {
     private enum Name { case airline(Airline), place([Airport]) }
 
     /// What the phrase starting at `i` names, and how many words it takes (at most four, the longest
-    /// first). Whole names first, an airline's before a city's ("Delta Atlanta"), then short names,
+    /// first). Whole names first, an airline's before a city's ("Delta Atlanta"), then short names (a
+    /// large airport's before an airline's),
     /// then a lone code (two letters an airline, three or four an airport), then typos.
     private static func name(_ w: [Substring], at i: Int, suggester: SearchSuggester) -> (Name, Int)? {
         let longest = min(4, w.count - i)
@@ -179,7 +184,14 @@ public struct SearchIntent: Sendable, Equatable {
             let line = suggester.airline(named: p), place = suggester.airports(named: p)
             if let line, line.match == .exact { return (.airline(line.airline), n) }
             if let place, place.match == .exact { return (.place(place.airports), n) }
-            if let line, line.match == .short { return (.airline(line.airline), n) }
+            // A large airport named by the phrase beats an airline's short name: "brussels" and
+            // "kuwait" are the places, "delta" (Delta County Airport is medium) the airline.
+            if let line, line.match == .short {
+                if let place, place.match == .short, place.airports.allSatisfy({ AirportSizes.bundled.size($0.id) == .large }) {
+                    return (.place(place.airports), n)
+                }
+                return (.airline(line.airline), n)
+            }
             if let place, place.match == .short { return (.place(place.airports), n) }
         }
         let word = w[i]

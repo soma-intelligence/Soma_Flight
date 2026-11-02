@@ -116,6 +116,32 @@ import FlightImportKit
         #expect(i.origins.contains("KATL"))
     }
 
+    @Test(arguments: ["paris bruxelles", "paris brussels"])
+    func brusselsIsAPlace(_ text: String) {
+        let i = parse(text)
+        #expect(i.airline == nil)
+        #expect(i.destinations == ["EBBR"])
+    }
+
+    @Test func shortAirlineNameYieldsToALargeAirport() {
+        #expect(parse("kuwait").origins == ["OKKK"])
+        #expect(parse("kuwait").airline == nil)
+        let i = parse("brussels airlines")
+        #expect(i.airline?.id == "BEL")
+        #expect(i.origins.isEmpty)
+    }
+
+    @Test func smallWordCodesYieldToADate() {
+        let i = parse("paris new york le 12 dec")
+        #expect(i.ident == nil)
+        #expect(i.day == d(2026, 12, 12))
+        #expect(i.destinations.contains("KJFK"))
+        let j = parse("vol de 12 dec")
+        #expect(j.ident == nil)
+        #expect(j.day == d(2026, 12, 12))
+        #expect(parse("LA 800").ident == "LA800")
+    }
+
     @Test func threeLetterCodeIsAnAirport() {
         let i = parse("DEL")
         #expect(i.origins == ["VIDP"])
