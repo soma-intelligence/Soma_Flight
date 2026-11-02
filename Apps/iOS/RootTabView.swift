@@ -113,7 +113,8 @@ struct RootTabView: View {
                         known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
                         onFollowed: { flight in Task { await home.didFollow(flight) } },
                         onImport: { showSearch = false; home.showImport = true },
-                        onAirport: { code in showSearch = false; home.open(airport: code) })
+                        onAirport: { code in showSearch = false; home.open(airport: code) },
+                        onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)))
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -265,18 +266,23 @@ private struct SearchSheet: View {
     var onFollowed: (Flight) -> Void
     var onImport: () -> Void
     var onAirport: (String) -> Void
+    var onPlan: (UpcomingFlight) -> Void
+    var planned: Set<UpcomingFlight.ID>
     @Environment(\.dismiss) private var dismiss
 
     init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem], known: [KnownFlight],
-         onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void, onAirport: @escaping (String) -> Void) {
+         onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void, onAirport: @escaping (String) -> Void,
+         onPlan: @escaping (UpcomingFlight) -> Void, planned: Set<UpcomingFlight.ID>) {
         _store = State(initialValue: env.makeSearchStore())
         self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.known = known
         self.onFollowed = onFollowed; self.onImport = onImport; self.onAirport = onAirport
+        self.onPlan = onPlan; self.planned = planned
     }
 
     var body: some View {
         SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
-                   frequent: frequent, onImport: onImport, onAirport: onAirport, known: known)
+                   frequent: frequent, onImport: onImport, onAirport: onAirport, known: known,
+                   onPlan: onPlan, planned: planned)
             .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
             #if DEBUG
             // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.

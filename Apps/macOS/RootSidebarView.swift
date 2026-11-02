@@ -142,7 +142,8 @@ struct RootSidebarView: View {
                 SearchView(store: search, onFollowed: { flight in Task { await home.didFollow(flight) } },
                            lookup: env.lookup, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
                            onImport: { home.showImport = true }, onAirport: openAirport,
-                           known: KnownFlight.list(followed: home.followed, past: home.passport.flights))
+                           known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
+                           onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)))
                     .overlay(alignment: .topTrailing) { CloseButton { showSearch = false } }
             } else {
                 switch home.tab {
