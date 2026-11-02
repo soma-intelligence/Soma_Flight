@@ -127,6 +127,7 @@ No row means every category is on, so the app writes the row the first time some
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `alternate-flights` | GET | `origin`, `destination` (ICAO), `after` (ISO time) (below) | `{ origin, destination, after, fetched_at, stale, flights }` |
+| `flight-schedules` | POST | `{ origin?, destination?, airline?, ident?, date }` (below) | `{ date, fetched_at, stale, flights }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
 | `flight-page` | GET | `/flight-page/<token>[/og.png]`, public (no JWT) | the share page (HTML) or its preview image (PNG) |
@@ -403,6 +404,77 @@ asks only when `INSIGHTS_ENABLED` is on, like `flight-insights`.
 - Cost: one to three `/schedules` result sets per route and hour, shared by everyone; the price is not on the
   pricing page checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
 - Tapping a row in the app looks the flight up by number (`flight-lookup`) and follows it.
+
+## flight-schedules
+
+The "add a flight" search for days or weeks ahead: what the airlines plan to fly on a day, from airline
+schedules. Paid (AeroAPI schedules). A schedule is a plan: no status, no estimates, nothing is stored in
+`flights`; the app follows a row through `flight-lookup`.
+
+`POST /flight-schedules` with `{ "origin": "KSFO", "destination": "KORD", "date": "2026-11-03" }`
+
+```json
+{
+  "date": "2026-11-03",
+  "fetched_at": "2026-11-01T12:00:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "ident": "UA2306",
+      "airline": "UAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T16:35:00.000Z",
+      "scheduled_in": "2026-11-03T20:52:00.000Z",
+      "aircraft_type": "B39M"
+    },
+    {
+      "ident": "AA1781",
+      "airline": "AAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T18:10:00.000Z",
+      "scheduled_in": "2026-11-03T22:31:00.000Z",
+      "aircraft_type": "A321"
+    },
+    {
+      "ident": "UA1958",
+      "airline": "UAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T20:00:00.000Z",
+      "scheduled_in": "2026-11-04T00:15:00.000Z",
+      "aircraft_type": "B772"
+    },
+    {
+      "ident": "AS1314",
+      "airline": "ASA",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T21:50:00.000Z",
+      "scheduled_in": "2026-11-04T02:05:00.000Z",
+      "aircraft_type": "B738"
+    }
+  ]
+}
+```
+
+- At least one of `origin`, `destination` and `ident` (else 400 `invalid_request`). `origin` and `destination`
+  are airport codes, IATA or ICAO, any case (unknown is 400, the same twice is 400). `ident` is an airline code
+  and a number such as `UA1958` or `UAL1958`; `airline` (IATA or ICAO) narrows by operator. The provider gets
+  `ident` as `airline` plus `flight_number`.
+- `date` is `YYYY-MM-DD`, the local day at the origin, else at the destination, else UTC. Within 330 days ahead
+  and no more than 2 days back, else 400 `out_of_window`; a bad date is 400 `invalid_request`.
+- The provider's schedules (operating flights only, no codeshares) are read for that local day, at most 3 result
+  sets, and cached whole per search and day for 6 hours in `schedules_cache` (service role only, pruned daily),
+  empty answers included. `flights` are sorted by `scheduled_out`; `origin` and `destination` are ICAO codes,
+  `ident` the IATA designator (else the provider's), `airline` the ICAO airline code, times ISO in UTC.
+- `stale` and 503 `provider_unavailable` as in `alternate-flights`: a refused refresh serves the cached answer of
+  any age, with nothing cached the call fails.
+- Limit: 30 calls per user per hour (429 `rate_limited`).
+- The answer in `supabase/functions/flight-schedules/contract/` is written by the function's tests.
+- Cost: one to three `/schedules` result sets per search and day, shared by everyone; counted at the same cautious
+  $0.02 as `alternate-flights` until the price is confirmed.
 
 ## security-wait
 

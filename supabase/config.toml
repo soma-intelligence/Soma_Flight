@@ -425,6 +425,10 @@ verify_jwt = true
 [functions.alternate-flights]
 verify_jwt = true
 
+# Airline schedules for a day, days or weeks ahead: the "add a flight" search.
+[functions.flight-schedules]
+verify_jwt = true
+
 # Live flight sharing: creates, checks and revokes a flight's share links for the signed-in sharer.
 [functions.share-flight]
 verify_jwt = true

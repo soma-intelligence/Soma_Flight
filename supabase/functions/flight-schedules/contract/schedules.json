@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-03",
+  "fetched_at": "2026-11-01T12:00:00.000Z",
+  "stale": false,
+  "flights": [
+    {
+      "ident": "UA2306",
+      "airline": "UAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T16:35:00.000Z",
+      "scheduled_in": "2026-11-03T20:52:00.000Z",
+      "aircraft_type": "B39M"
+    },
+    {
+      "ident": "AA1781",
+      "airline": "AAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T18:10:00.000Z",
+      "scheduled_in": "2026-11-03T22:31:00.000Z",
+      "aircraft_type": "A321"
+    },
+    {
+      "ident": "UA1958",
+      "airline": "UAL",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T20:00:00.000Z",
+      "scheduled_in": "2026-11-04T00:15:00.000Z",
+      "aircraft_type": "B772"
+    },
+    {
+      "ident": "AS1314",
+      "airline": "ASA",
+      "origin": "KSFO",
+      "destination": "KORD",
+      "scheduled_out": "2026-11-03T21:50:00.000Z",
+      "scheduled_in": "2026-11-04T02:05:00.000Z",
+      "aircraft_type": "B738"
+    }
+  ]
+}

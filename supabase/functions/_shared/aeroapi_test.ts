@@ -832,3 +832,29 @@ Deno.test("schedules: an empty window costs nothing, an unknown route is empty",
   );
   assertEquals(calls.length, 1);
 });
+
+Deno.test("schedules: origin and destination are optional, airline and flight number filter", async () => {
+  const calls: Request[] = [];
+  const api = new AeroApi(
+    "k",
+    routed(
+      async () => new Response(await fixture("schedules_ksfo_kord.json")),
+      calls,
+    ),
+  );
+  const start = new Date("2026-11-03T00:00:00Z");
+  await api.schedules(
+    undefined,
+    undefined,
+    start,
+    new Date(start.getTime() + 86_400_000),
+    3,
+    { airline: "UA", flightNumber: "1958" },
+  );
+  const q = new URL(calls[0].url).searchParams;
+  assertEquals(q.get("origin"), null);
+  assertEquals(q.get("destination"), null);
+  assertEquals(q.get("airline"), "UA");
+  assertEquals(q.get("flight_number"), "1958");
+  assertEquals(q.get("include_codeshares"), "false");
+});

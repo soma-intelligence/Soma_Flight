@@ -265,21 +265,24 @@ export class AeroApi {
    * is in [start, end), nonstop by nature (a schedule entry is one leg). Operating flights only
    * (include_codeshares=false), so each flight comes once under its operator's number. A schedule is a
    * plan: no status or estimates. Follows links.next up to `maxPages` pages, each one billed result
-   * set; an empty window returns [] without a call.
+   * set; an empty window returns [] without a call. Origin and destination are each optional, and
+   * `filters` narrows by operator (`airline`, ICAO or IATA) and `flightNumber` (digits, as AeroAPI's
+   * `flight_number`); the caller keeps at least one of the four so the window is not the whole world.
    */
   async schedules(
-    origin: string,
-    destination: string,
+    origin: string | undefined,
+    destination: string | undefined,
     start: Date,
     end: Date,
     maxPages = 3,
+    filters: { airline?: string; flightNumber?: string } = {},
   ): Promise<AeroScheduledFlight[]> {
     if (!(start.getTime() < end.getTime())) return [];
-    const q = new URLSearchParams({
-      origin,
-      destination,
-      include_codeshares: "false",
-    });
+    const q = new URLSearchParams({ include_codeshares: "false" });
+    if (origin) q.set("origin", origin);
+    if (destination) q.set("destination", destination);
+    if (filters.airline) q.set("airline", filters.airline);
+    if (filters.flightNumber) q.set("flight_number", filters.flightNumber);
     const from = start.toISOString(), to = end.toISOString();
     let rows: AeroScheduledFlight[];
     try {
