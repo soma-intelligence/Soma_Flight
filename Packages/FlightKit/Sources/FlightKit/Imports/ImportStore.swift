@@ -101,7 +101,7 @@ public final class ImportStore {
         /// "300 flights added to your Passport", the result screen's headline and the notification's text.
         public var headline: String {
             if added == 0 && followed.isEmpty && later == 0 { return addFailures.isEmpty ? "Nothing new to add" : "No flights were added" }
-            if added == 0 { return followed.count + later == 1 ? "1 flight followed" : "\(followed.count + later) flights followed" }
+            if added == 0 { return followed.count + later == 1 ? "1 flight added" : "\(followed.count + later) flights added" }
             return added == 1 ? "1 flight added to your Passport" : "\(added.formatted()) flights added to your Passport"
         }
     }
