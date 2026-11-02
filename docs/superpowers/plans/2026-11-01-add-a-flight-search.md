@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Work in the main checkout on `main`. No worktrees. Stage explicit paths, never `git add -A` (other sessions may have files open).
-- No Claude attribution and no em dash (`—`) anywhere: code, comments, commits.
+- No Claude attribution and no em dash (U+2014) anywhere: code, comments, commits.
 - Copy in English, Add / Added wording (109e858). App strings stay English; the parser reads English and French.
 - No deploy, no `supabase db push`, no paid call. `flight-schedules` is built and tested locally only.
 - `BOARD_PROVIDER` stays `none`. Debug builds run on fakes.
