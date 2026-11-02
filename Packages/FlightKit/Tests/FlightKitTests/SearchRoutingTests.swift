@@ -108,7 +108,7 @@ final class RecordingSchedules: ScheduleService, Sendable {
         #expect(s.note == nil)
     }
 
-    @Test func twoPlacesTheDayAfterTomorrowLookUpEveryRoute() async throws {
+    @Test func twoPlacesTheDayAfterTomorrowLookUpTheirRoutes() async throws {
         // Each route answers one flight, later for later pairs, so the merge must sort.
         let flights = RecordingFlights { q in
             guard case .route(let o, let d, _) = q else { return [] }
@@ -128,9 +128,11 @@ final class RecordingSchedules: ScheduleService, Sendable {
             pairs.insert("\(o)-\(d)")
             #expect(LocalDay(date, in: Self.paris) == LocalDay(year: 2026, month: 11, day: 3))
         }
-        let expected = Set(intent.origins.flatMap { o in intent.destinations.map { "\(o)-\($0)" } })
+        let expected = Set(SearchStore.pairs(intent.origins, intent.destinations).map { "\($0.0)-\($0.1)" })
         #expect(pairs == expected)
         #expect(flights.queries.count == expected.count)
+        #expect(expected.count <= SearchStore.maxCalls)
+        #expect(pairs.contains("LFPG-KJFK") && pairs.contains("LFPO-KJFK"))
         #expect(schedules.queries.isEmpty)
         #expect(s.items.count == expected.count)
         let outs = s.results.compactMap(\.scheduledOut)
@@ -138,11 +140,11 @@ final class RecordingSchedules: ScheduleService, Sendable {
         #expect(s.results.first?.originIcao == "LFPO")
     }
 
-    @Test func twoPlacesThreeWeeksOutAskTheSchedulesOncePerOrigin() async {
+    @Test func twoPlacesThreeWeeksOutAskTheSchedulesOncePerPair() async {
         let flights = RecordingFlights()
         let schedules = RecordingSchedules { q in
-            guard let o = q.origin else { return [] }
-            // One flight to New York per origin (its own number), and one to London.
+            guard let o = q.origin, q.destination == "KJFK" else { return [] }
+            // One flight to New York per origin (its own number), and one to London the filter drops.
             return [Self.planned("AF\(o.suffix(2))22", o, "KJFK", out: Self.at(22, 10), airline: "AFR"),
                     Self.planned("AF1080", o, "EGLL", out: Self.at(22, 8), airline: "AFR")]
         }
@@ -150,11 +152,14 @@ final class RecordingSchedules: ScheduleService, Sendable {
         s.text = "Paris New York 22 nov"
         await s.search()
         #expect(flights.queries.isEmpty)
-        #expect(Set(schedules.queries.compactMap(\.origin)) == Set(s.intent.origins))
-        #expect(schedules.queries.count == s.intent.origins.count)
-        #expect(schedules.queries.allSatisfy { $0.day == LocalDay(year: 2026, month: 11, day: 22) && $0.destination == nil })
+        let pairs = Set(schedules.queries.map { "\($0.origin ?? "")-\($0.destination ?? "")" })
+        let all = Set(s.intent.origins.flatMap { o in s.intent.destinations.map { "\(o)-\($0)" } })
+        #expect(pairs.isSubset(of: all))
+        #expect(schedules.queries.count == min(all.count, SearchStore.maxCalls))
+        #expect(pairs.contains("LFPG-KJFK") && pairs.contains("LFPO-KJFK"))
+        #expect(schedules.queries.allSatisfy { $0.day == LocalDay(year: 2026, month: 11, day: 22) })
         // Only the rows to New York stay, all planned.
-        #expect(s.items.count == s.intent.origins.count)
+        #expect(s.items.count == 2)
         #expect(s.items.allSatisfy { if case .planned(let p) = $0 { p.destination == "KJFK" } else { false } })
         #expect(s.results.isEmpty)
         #expect(s.note == nil)
@@ -247,6 +252,77 @@ final class RecordingSchedules: ScheduleService, Sendable {
         s.text = "Paris New York 15 dec"
         s.textChanged()
         #expect(s.note == nil)
+    }
+
+    @Test func aClockTimeIsNotAFarDate() async {
+        let flights = RecordingFlights { q in
+            switch q {
+            case .route: [Self.flight("AF22", "LFPG", "KJFK", out: Self.at(1, 22, 30))]
+            case .ident: [Self.flight("AF84", "LFPG", "KSFO", out: Self.at(1, 9, 30))]
+            case .airport: []
+            }
+        }
+        let s = Self.store(flights, RecordingSchedules())
+        s.text = "CDG JFK 10 30 pm"
+        s.textChanged()
+        #expect(s.note == nil)
+        await s.search()
+        #expect(s.intent.timeOfDay == 1350)
+        #expect(s.note == nil)
+        #expect(Self.idents(s) == ["AF22"])
+        s.text = "AF84 9 30 am"
+        s.textChanged()
+        await s.search()
+        #expect(s.intent.timeOfDay == 570)
+        #expect(s.note == nil)
+        #expect(Self.idents(s) == ["AF84"])
+        #expect(flights.queries.count == 2)
+        // A far date alongside a place still says so.
+        s.text = "paris 15 oct"
+        s.textChanged()
+        #expect(s.note == SearchStore.beyondReachNote)
+    }
+
+    @Test func aCityPairFansOutToFourCallsAtMost() async {
+        let flights = RecordingFlights()
+        let schedules = RecordingSchedules()
+        let s = Self.store(flights, schedules)
+        s.text = "London Moscow demain"
+        await s.search()
+        #expect(s.intent.origins.count >= 3)
+        #expect(s.intent.destinations.count >= 3)
+        #expect(flights.queries.count == SearchStore.maxCalls)
+        // Spread over both ends: two origins and two destinations are asked.
+        let routes = flights.queries.compactMap { q -> (String, String)? in
+            if case .route(let o, let d, _) = q { (o, d) } else { nil }
+        }
+        #expect(Set(routes.map(\.0)).count == 2)
+        #expect(Set(routes.map(\.1)).count == 2)
+        s.text = "London Moscow 22 nov"
+        await s.search()
+        #expect(schedules.queries.count == SearchStore.maxCalls)
+        #expect(schedules.queries.allSatisfy { $0.origin != nil && $0.destination != nil })
+    }
+
+    @Test func aRouteSendsOnlyWhenAllItsCallsFitTheBudget() {
+        var gate = LiveLookupGate(budget: 10)
+        let t = Self.now
+        gate.didSend(now: t, cost: 7)
+        #expect(gate.verdict(for: "four", cost: 4, now: t) == .wait)
+        #expect(gate.verdict(for: "one", cost: 1, now: t) == .send)
+        #expect(gate.verdict(for: "three", cost: 3, now: t) == .send)
+    }
+
+    @Test func schedulesTheBuildCannotReachCostNothing() async {
+        let s = Self.store(RecordingFlights())
+        s.text = "Paris New York 22 nov"
+        await s.lookUpLive()
+        #expect(s.note == SearchStore.unavailableNote)
+        #expect(s.gate.sent.isEmpty)
+        // A live route spends one call per pair.
+        s.text = "CDG JFK demain"
+        await s.lookUpLive()
+        #expect(s.gate.sent.count == 1)
     }
 
     @Test func aTimeAloneLooksNothingUp() async {

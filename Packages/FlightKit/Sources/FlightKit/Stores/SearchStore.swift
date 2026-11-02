@@ -117,7 +117,9 @@ public final class SearchStore {
     @ObservationIgnored private let suggester: SearchSuggester
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var searchGeneration = 0
-    @ObservationIgnored private var gate = LiveLookupGate()
+    @ObservationIgnored private(set) var gate = LiveLookupGate()
+    /// The most calls one search fans out to over a city's airports.
+    nonisolated static let maxCalls = 4
     /// What a route's lookups answered: rows before filters and order, the error when none answered.
     struct Answer: Sendable {
         var rows: [SearchResult] = []
@@ -172,7 +174,7 @@ public final class SearchStore {
         } else if let route {
             items = ordered(items, route)
         }
-        if isBeyondReach() { note = Self.beyondReachNote } else if note == Self.beyondReachNote { note = nil }
+        if intent.isBeyondReach { note = Self.beyondReachNote } else if note == Self.beyondReachNote { note = nil }
         if typed.trimmingCharacters(in: .whitespaces).isEmpty {
             suggestions = .empty
             isSearching = false
@@ -208,15 +210,10 @@ public final class SearchStore {
         SearchIntent.parse(text, now: now(), tz: timeZone, monthFirst: monthFirst, suggester: suggester)
     }
 
-    /// True when `text` holds a date past what airline schedules reach.
-    func isBeyondReach() -> Bool {
-        DateWords.isBeyondReach(SearchText.words(SearchText.fold(text)), now: now(), tz: timeZone, monthFirst: monthFirst)
-    }
-
     /// The lookups for `intent`, else for the text as `currentQuery` reads it; nil when there is nothing
     /// to look up or the date is past the schedules' reach.
     func currentRoute() -> SearchRoute? {
-        guard !isBeyondReach() else { return nil }
+        guard !intent.isBeyondReach else { return nil }
         if let r = route(for: intent) { return r }
         guard !intent.isSearchable, let q = currentQuery() else { return nil }
         return SearchRoute(key: LiveLookupGate.key(q), live: [q])
@@ -236,14 +233,15 @@ public final class SearchStore {
             r.airline = nil
             if near { r.live = [.ident(ident, date: when)] } else { r.planned = [ScheduleQuery(ident: designator(ident, i.airline), day: day)] }
         } else if !i.origins.isEmpty, !i.destinations.isEmpty {
+            let pairs = Self.pairs(i.origins, i.destinations)
             if near {
-                r.live = i.origins.flatMap { o in i.destinations.filter { $0 != o }.map { .route(origin: o, destination: $0, date: when) } }
+                r.live = pairs.map { .route(origin: $0.0, destination: $0.1, date: when) }
             } else {
-                r.planned = i.origins.map { ScheduleQuery(origin: $0, airline: i.airline?.id, day: day) }
+                r.planned = pairs.map { ScheduleQuery(origin: $0.0, destination: $0.1, airline: i.airline?.id, day: day) }
             }
         } else if !i.origins.isEmpty || !i.destinations.isEmpty {
             let fromOrigin = !i.origins.isEmpty
-            let places = fromOrigin ? i.origins : i.destinations
+            let places = Array(Self.largestFirst(fromOrigin ? i.origins : i.destinations).prefix(Self.maxCalls))
             r.grouping = fromOrigin ? .byDestination : .byOrigin
             if near {
                 r.live = places.map { .airport($0) }
@@ -262,6 +260,34 @@ public final class SearchStore {
         r.key = (calls + [r.origins.sorted().joined(separator: ","), r.destinations.sorted().joined(separator: ","),
                           r.airline?.id ?? "", r.boardDay?.description ?? ""]).joined(separator: "|")
         return r
+    }
+
+    nonisolated private static func sizeRank(_ icao: String) -> Int {
+        switch AirportSizes.bundled.size(icao) { case .large: 0; case .medium: 1; case .small: 2 }
+    }
+
+    /// Airports by size, large first, in their own order within a size.
+    nonisolated static func largestFirst(_ codes: [String]) -> [String] {
+        codes.enumerated().sorted { (sizeRank($0.element), $0.offset) < (sizeRank($1.element), $1.offset) }.map(\.element)
+    }
+
+    /// The origin to destination pairs a two-place search asks, at most `maxCalls`: the largest
+    /// airports first, spread over both ends (the first two of each before a third of either), an
+    /// origin's turn before a destination's.
+    nonisolated static func pairs(_ origins: [String], _ destinations: [String]) -> [(String, String)] {
+        let from = largestFirst(origins), to = largestFirst(destinations)
+        var all: [(key: (Int, Int, Int, Int), pair: (String, String))] = []
+        for (i, o) in from.enumerated() {
+            for (j, d) in to.enumerated() where d != o {
+                all.append(((sizeRank(o) + sizeRank(d), max(i, j), i, j), (o, d)))
+            }
+        }
+        return all.sorted { $0.key < $1.key }.prefix(maxCalls).map(\.pair)
+    }
+
+    /// The calls `r` costs against the gate; schedules this build cannot reach throw before any network.
+    func cost(_ r: SearchRoute) -> Int {
+        r.live.count + (schedules is UnavailableScheduleService ? 0 : r.planned.count)
     }
 
     /// The airport's time zone, else the device's.
@@ -384,7 +410,8 @@ public final class SearchStore {
     func lookUpLive() async {
         intent = readIntent()
         guard liveQuery() != nil || (intent.day != nil && intent.isSearchable), let r = currentRoute() else { return }
-        switch gate.verdict(for: r.key, now: now()) {
+        let cost = cost(r)
+        switch gate.verdict(for: r.key, cost: cost, now: now()) {
         case .wait: return
         case .reuse:
             // Asked a moment ago (the text went back to it): the answer then, no second call.
@@ -395,7 +422,7 @@ public final class SearchStore {
             return
         case .send: break
         }
-        for _ in 0..<(r.live.count + r.planned.count) { gate.didSend(now: now()) }
+        gate.didSend(now: now(), cost: cost)
         searchGeneration += 1
         let gen = searchGeneration
         isSearching = true
@@ -453,7 +480,7 @@ public final class SearchStore {
         intent = readIntent()
         guard let r = currentRoute() else {
             items = []; resultsKey = nil; isSearching = false
-            if isBeyondReach() { note = Self.beyondReachNote; error = nil } else { note = nil; error = .notFound }
+            if intent.isBeyondReach { note = Self.beyondReachNote; error = nil } else { note = nil; error = .notFound }
             return
         }
         isSearching = true

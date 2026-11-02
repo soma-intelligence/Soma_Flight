@@ -21,6 +21,9 @@ public struct SearchIntent: Sendable, Equatable {
     public var chips: [Chip] = []
     /// Folded words nobody read, in text order.
     public var leftover: [String] = []
+    /// True when the words left after the time and the flight number hold a calendar date over
+    /// `DateWords.maxDaysAhead` away ("15 oct" on 1 November): no `day`, and the search looks nowhere.
+    public var isBeyondReach = false
     /// For each chip, the indices of the folded words it read.
     private var chipWords: [[Int]] = []
 
@@ -70,6 +73,8 @@ public struct SearchIntent: Sendable, Equatable {
         if let d = DateWords.day(view(), now: now, tz: tz, monthFirst: monthFirst) {
             intent.day = d.day
             pieces.append((.day(d.day), take(d.used)))
+        } else {
+            intent.isBeyondReach = DateWords.isBeyondReach(view(), now: now, tz: tz, monthFirst: monthFirst)
         }
 
         // Airlines and places, left to right, the longest phrase first.

@@ -25,16 +25,17 @@ public struct LiveLookupGate: Sendable, Equatable {
     public enum Verdict: Equatable, Sendable { case send, reuse, wait }
 
     /// `.reuse` when the same query was answered recently (keep what is shown), `.wait` when the budget
-    /// or a rate limit says no, `.send` otherwise.
-    public func verdict(for key: String, now: Date) -> Verdict {
+    /// or a rate limit says no, `.send` otherwise. `cost` is how many calls the lookup makes: it is sent
+    /// only when all of them fit the budget.
+    public func verdict(for key: String, cost: Int = 1, now: Date) -> Verdict {
         if let at = answered[key], now.timeIntervalSince(at) < reuse { return .reuse }
         if let until = pausedUntil, now < until { return .wait }
-        return sent.filter { now.timeIntervalSince($0) < window }.count < budget ? .send : .wait
+        return sent.filter { now.timeIntervalSince($0) < window }.count + cost <= budget ? .send : .wait
     }
 
-    /// A live lookup went out.
-    public mutating func didSend(now: Date) {
-        sent = sent.filter { now.timeIntervalSince($0) < window } + [now]
+    /// A live lookup of `cost` calls went out.
+    public mutating func didSend(now: Date, cost: Int = 1) {
+        sent = sent.filter { now.timeIntervalSince($0) < window } + Array(repeating: now, count: max(0, cost))
     }
 
     /// A lookup, live or not, answered (found or not found) for `key`.
