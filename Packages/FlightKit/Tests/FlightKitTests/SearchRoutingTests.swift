@@ -30,18 +30,29 @@ final class RecordingFlights: FlightService, Sendable {
     func updates(for ids: [Flight.ID]) -> AsyncStream<Flight> { AsyncStream { $0.finish() } }
 }
 
-/// A schedule service that answers from a script and records every query.
+/// A schedule service that answers from a script and records every query. `truncated` marks every
+/// answer as cut at the page limit; `error` fails every call.
 final class RecordingSchedules: ScheduleService, Sendable {
     private let calls = Mutex<[ScheduleQuery]>([])
     private let answer: @Sendable (ScheduleQuery) -> [ScheduledFlight]
+    private let truncated: Bool
+    private let error: APIError?
 
-    init(_ answer: @escaping @Sendable (ScheduleQuery) -> [ScheduledFlight] = { _ in [] }) { self.answer = answer }
+    init(truncated: Bool = false, error: APIError? = nil,
+         _ answer: @escaping @Sendable (ScheduleQuery) -> [ScheduledFlight] = { _ in [] }) {
+        self.answer = answer; self.truncated = truncated; self.error = error
+    }
 
     var queries: [ScheduleQuery] { calls.withLock { $0 } }
 
     func schedules(_ q: ScheduleQuery) async throws(APIError) -> [ScheduledFlight] {
+        try await scheduleDay(q).flights
+    }
+
+    func scheduleDay(_ q: ScheduleQuery) async throws(APIError) -> ScheduleDay {
         calls.withLock { $0.append(q) }
-        return answer(q)
+        if let error { throw error }
+        return ScheduleDay(flights: answer(q), truncated: truncated)
     }
 }
 

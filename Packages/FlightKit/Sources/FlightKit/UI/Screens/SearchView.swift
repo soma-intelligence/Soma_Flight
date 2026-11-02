@@ -43,6 +43,7 @@ public struct SearchView: View {
     @State private var pending: Set<Flight.ID> = []
     @FocusState private var focused: Bool
     @Environment(\.airportStaticControls) private var staticControls
+    @Environment(\.units) private var units
 
     /// - Parameters:
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
@@ -158,7 +159,7 @@ public struct SearchView: View {
             .textFieldStyle(.plain)
             .autocorrectionDisabled()
             #if os(iOS)
-            .textInputAutocapitalization(.characters)
+            .textInputAutocapitalization(.never)
             .submitLabel(.search)
             #endif
             .focused($focused)
@@ -286,7 +287,8 @@ public struct SearchView: View {
                     .scaledPadding(.top, 22)
                     .scaledPadding(.bottom, 4)
                 ForEach(store.recent, id: \.self) { q in
-                    OptionRow(icon: icon(for: q), title: q, subtitle: describe(q)) {
+                    let intent = store.intent(for: q)
+                    OptionRow(icon: Self.recentIcon(intent), title: q, subtitle: Self.recentSubtitle(intent, clock: units.clock)) {
                         handle(store.pick(.recent(q)))
                     }
                 }
@@ -350,24 +352,22 @@ public struct SearchView: View {
         }
     }
 
-    private func icon(for query: String) -> String {
-        switch FlightQuery.parse(query, date: store.date) {
-        case .ident: "airplane"
-        case .route: Self.routeIcon
-        case .airport: "building.columns"
+    /// A recent search's icon, by the first piece it reads as: a plane for a flight or an airline, the
+    /// route curve for two places, a building for one, a calendar for a day or a time alone.
+    static func recentIcon(_ intent: SearchIntent) -> String {
+        switch intent.chips.first {
+        case .ident, .airline: "airplane"
+        case .place: !intent.origins.isEmpty && !intent.destinations.isEmpty ? routeIcon : "building.columns"
+        case .day, .time: "calendar"
         case nil: "clock.arrow.circlepath"
         }
     }
 
-    /// "Flight", "Austin to San Francisco", "Austin" from the parsed query.
-    private func describe(_ query: String) -> String? {
-        switch FlightQuery.parse(query, date: store.date) {
-        case .ident: return "Flight"
-        case .route(let o, let d, _):
-            return ScreenFormat.route(lookup(o)?.city ?? o, lookup(d)?.city ?? d)
-        case .airport(let code): return lookup(code).map { "\($0.city), all flights today" } ?? "Airport"
-        case nil: return nil
-        }
+    /// "Paris (CDG, ORY) · Rome (FCO, CIA) · Sat Dec 12": the pieces a recent search reads as, as its
+    /// chips name them; nil when it reads as none.
+    static func recentSubtitle(_ intent: SearchIntent, clock: TimeStyle) -> String? {
+        let labels = intent.chips.map { SearchChipText.label($0, clock: clock) }
+        return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
 }
 

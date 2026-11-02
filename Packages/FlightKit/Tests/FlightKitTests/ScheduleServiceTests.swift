@@ -23,30 +23,44 @@ struct ScheduleServiceTests {
         #expect(ua.scheduledIn == FlightJSON.parse("2026-11-04T00:15:00Z"))
         #expect(ua.aircraftType == "B772")
         #expect(Set(flights.map(\.id)).count == 4)
+        #expect(try !SupabaseScheduleService.decodeDay(data).truncated)
     }
 
     @Test func buildsTheRequestBody() throws {
         let q = ScheduleQuery(origin: "KSFO", airline: "UAL", ident: "UA1958", day: Self.day)
         let json = try #require(JSONSerialization.jsonObject(with: SupabaseScheduleService.body(q)) as? [String: String])
         #expect(json == ["origin": "KSFO", "airline": "UAL", "ident": "UA1958", "date": "2026-11-20"])
+        // A time of day goes as a number of minutes.
+        let timed = ScheduleQuery(origin: "KSFO", day: Self.day, time: 1140)
+        let raw = try #require(JSONSerialization.jsonObject(with: SupabaseScheduleService.body(timed)) as? [String: Any])
+        #expect(raw["time"] as? Int == 1140)
+        #expect(raw["date"] as? String == "2026-11-20")
+    }
+
+    /// The answer's `truncated` flag, false when absent.
+    @Test func decodesTheTruncatedFlag() throws {
+        let cut = #"{"date":"2026-11-20","fetched_at":"2026-11-01T12:00:00Z","stale":false,"truncated":true,"flights":[]}"#
+        #expect(try SupabaseScheduleService.decodeDay(Data(cut.utf8)).truncated)
+        let old = #"{"date":"2026-11-20","fetched_at":"2026-11-01T12:00:00Z","stale":false,"flights":[]}"#
+        #expect(try !SupabaseScheduleService.decodeDay(Data(old.utf8)).truncated)
     }
 
     @Test func theFakeAnswersRowsOnTheAskedDay() async throws {
         let fake = FakeScheduleService()
         let rows = try await fake.schedules(ScheduleQuery(origin: "KSFO", day: Self.day))
         #expect(!rows.isEmpty)
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
+        var sf = Calendar(identifier: .gregorian)
+        sf.timeZone = TimeZone(identifier: "America/Los_Angeles")!
         for r in rows {
             #expect(r.origin == "KSFO")
-            let c = utc.dateComponents([.year, .month, .day], from: r.scheduledOut)
+            let c = sf.dateComponents([.year, .month, .day], from: r.scheduledOut)
             #expect((c.year, c.month, c.day) == (2026, 11, 20))
         }
         let ua = try #require(rows.first { $0.ident == "UA1527" })
         #expect(ua.airline == "UAL" && ua.destination == "KAUS")
-        // The seed has UA1527 out at 19:22Z: the time of day stays.
-        let c = utc.dateComponents([.hour, .minute], from: ua.scheduledOut)
-        #expect((c.hour, c.minute) == (19, 22))
+        // The seed has UA1527 out at 19:22Z on 23 Oct, 12:22 in San Francisco: the local time stays.
+        let c = sf.dateComponents([.hour, .minute], from: ua.scheduledOut)
+        #expect((c.hour, c.minute) == (12, 22))
         #expect(try #require(ua.scheduledIn) > ua.scheduledOut)
     }
 

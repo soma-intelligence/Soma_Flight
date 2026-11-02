@@ -31,8 +31,9 @@ public struct AppEnvironment: Sendable {
     /// Other direct flights on a route, for the Connection Assistant (paid data, like `insights`): the fakes
     /// with `-useFakes`, `alternate-flights` when `INSIGHTS_ENABLED` is on, nothing otherwise.
     public var alternates: any AlternateFlightsService = UnavailableAlternateFlightsService()
-    /// Airline schedules for a day, so the search finds flights days or weeks ahead (paid data, like
-    /// `insights`): the fakes with `-useFakes`, `flight-schedules` when `INSIGHTS_ENABLED` is on, nothing otherwise.
+    /// Airline schedules for a day, so the search finds flights days or weeks ahead (paid data): the fakes
+    /// with `-useFakes`, `flight-schedules` when `SCHEDULES_ENABLED` is on, else the fakes in debug builds
+    /// and nothing in release builds.
     public var schedules: any ScheduleService = UnavailableScheduleService()
     /// Live flight links for the flight sheet's Share (`share-flight`); `FlightScreen` puts it in
     /// `\.flightSharing`. None (text only) unless a builder sets it.
@@ -125,7 +126,8 @@ public struct AppEnvironment: Sendable {
     /// recent searches. The backend is the one in Info.plist (`SupabaseConfig.fromBundle()`).
     @concurrent public static func live() async throws -> AppEnvironment {
         var env = try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
-                               insights: SupabaseInsightsService.isEnabled())
+                               insights: SupabaseInsightsService.isEnabled(),
+                               schedules: SupabaseScheduleService.isEnabled())
         env.passes = .onDisk()
         env.googleSignIn = (Bundle.main.object(forInfoDictionaryKey: "GoogleSignInEnabled") as? String)?.uppercased() == "YES"
         return env
@@ -135,10 +137,12 @@ public struct AppEnvironment: Sendable {
     /// - Parameters:
     ///   - authStorage: where the session persists; nil is the Keychain.
     ///   - insights: true asks `flight-insights` for the paid sections; false shows none and calls nothing.
+    ///   - schedules: true asks `flight-schedules` for days ahead; false (until it is deployed) searches the
+    ///     fake schedules in debug builds and shows the note in release builds.
     public static func supabase(config: SupabaseConfig, cache: CacheStore, recents: RecentsStorage,
                                 directory: AirportDirectory = .bundled(),
                                 authStorage: (any AuthLocalStorage)? = nil,
-                                insights: Bool = false) -> AppEnvironment {
+                                insights: Bool = false, schedules: Bool = false) -> AppEnvironment {
         let backend = SupabaseBackend(config: config, authStorage: authStorage)
         let lookup = directory.lookup
         let push = SupabasePushService(backend: backend, defaults: recents == .memory ? nil : .standard)
@@ -156,13 +160,23 @@ public struct AppEnvironment: Sendable {
                               faa: SupabaseFAAService(backend: backend))
             .with(gates: SupabaseGateHistoryService(backend: backend))
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
-            .withSchedules(insights ? SupabaseScheduleService(backend: backend) : UnavailableScheduleService())
+            .withSchedules(schedules ? SupabaseScheduleService(backend: backend) : schedulesOff)
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
         env.airportOverview = SupabaseAirportOverviewService(backend: backend)
         env.textAlerts = SupabaseTextAlertsService(backend: backend)
         env.profiles = SupabaseProfileService(backend: backend)
         return env
+    }
+
+    /// The schedules of a live build whose `SCHEDULES_ENABLED` is off: fakes to try the search in debug
+    /// builds, none (the note, no call) in release builds.
+    static var schedulesOff: any ScheduleService {
+        #if DEBUG
+        FakeScheduleService()
+        #else
+        UnavailableScheduleService()
+        #endif
     }
 
     /// A copy with `gates` set.

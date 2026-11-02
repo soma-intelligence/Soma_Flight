@@ -12,11 +12,24 @@ public struct ScheduleQuery: Sendable, Hashable {
     public var ident: String?
     /// The day, as the departure airport's calendar reads it.
     public var day: LocalDay
+    /// Minutes after local midnight: the backend reads the hours around it only, so a busy airport's
+    /// evening is not cut off past its page limit.
+    public var time: Int?
 
     public init(origin: String? = nil, destination: String? = nil, airline: String? = nil, ident: String? = nil,
-                day: LocalDay) {
+                day: LocalDay, time: Int? = nil) {
         self.origin = origin; self.destination = destination; self.airline = airline; self.ident = ident
-        self.day = day
+        self.day = day; self.time = time
+    }
+}
+
+/// One schedules answer: its flights, and whether the backend stopped at its page limit with more left.
+public struct ScheduleDay: Sendable, Hashable {
+    public var flights: [ScheduledFlight]
+    public var truncated: Bool
+
+    public init(flights: [ScheduledFlight], truncated: Bool = false) {
+        self.flights = flights; self.truncated = truncated
     }
 }
 
@@ -41,12 +54,22 @@ public struct ScheduledFlight: Sendable, Hashable, Identifiable {
 
 /// Airline schedules for one day, which is how the search finds flights days or weeks ahead. They come from
 /// AeroAPI's schedules, which cost money per call: live builds use `SupabaseScheduleService` (edge function
-/// `flight-schedules`) when Info.plist turns the paid sections on (`INSIGHTS_ENABLED`), else
-/// `UnavailableScheduleService` (no calls); screenshot runs (`-useFakes`) use `FakeScheduleService`.
+/// `flight-schedules`) when Info.plist turns them on (`SCHEDULES_ENABLED`), else `FakeScheduleService` in
+/// debug builds and `UnavailableScheduleService` (no calls) in release; screenshot runs (`-useFakes`) use
+/// `FakeScheduleService`.
 public protocol ScheduleService: Sendable {
     /// The flights the schedules list for `q`, by departure. Empty when they list none. One `origin` or
     /// `destination` per call: the caller fans out over a city's airports.
     func schedules(_ q: ScheduleQuery) async throws(APIError) -> [ScheduledFlight]
+    /// `schedules`, and whether the answer was cut at the backend's page limit.
+    func scheduleDay(_ q: ScheduleQuery) async throws(APIError) -> ScheduleDay
+}
+
+extension ScheduleService {
+    /// A service that never cuts its answers.
+    public func scheduleDay(_ q: ScheduleQuery) async throws(APIError) -> ScheduleDay {
+        ScheduleDay(flights: try await schedules(q))
+    }
 }
 
 /// Live builds with the paid sections off: the search cannot look ahead, and no network call is made.

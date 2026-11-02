@@ -75,8 +75,9 @@ struct SearchRoute: Sendable {
     var origins: Set<String> = []
     var destinations: Set<String> = []
     var airline: Airline?
-    /// For board rows, which carry every day: the origin-local day asked for.
-    var boardDay: LocalDay?
+    /// For rows that carry neighbouring days (boards, route lookups, a flight number's schedules either
+    /// side of midnight): the origin-local day asked for. Rows leaving on another day are dropped.
+    var rowDay: LocalDay?
     var timeOfDay: Int?
     var grouping: Grouping?
 }
@@ -103,7 +104,12 @@ public final class SearchStore {
     public var known: [KnownFlight] = []
 
     public static let recentLimit = 6
+    /// Schedules this build has no service for.
     public static let unavailableNote = "Future dates need the live service"
+    /// The schedules service refused (its spend cap, an outage).
+    public static let schedulesDownNote = "Schedules are unavailable right now"
+    /// The backend stopped at its page limit: a busy airport's day holds more.
+    public static let truncatedNote = "Showing the first flights. Add a destination for more."
     public static let beyondReachNote = "Airline schedules only go \(DateWords.maxDaysAhead) days ahead"
     nonisolated static let recentKey = "recentSearches"
 
@@ -231,34 +237,45 @@ public final class SearchStore {
                             airline: i.airline, timeOfDay: i.timeOfDay)
         if let ident = i.ident {
             r.airline = nil
-            if near { r.live = [.ident(ident, date: when)] } else { r.planned = [ScheduleQuery(ident: designator(ident, i.airline), day: day)] }
+            if near {
+                r.live = [.ident(ident, date: when)]
+            } else {
+                r.planned = [ScheduleQuery(ident: designator(ident, i.airline), day: day)]
+                r.rowDay = day
+            }
         } else if !i.origins.isEmpty, !i.destinations.isEmpty {
             let pairs = Self.pairs(i.origins, i.destinations)
+            // A route lists the day closest to the time first, so it asks the whole day.
             if near {
                 r.live = pairs.map { .route(origin: $0.0, destination: $0.1, date: when) }
             } else {
                 r.planned = pairs.map { ScheduleQuery(origin: $0.0, destination: $0.1, airline: i.airline?.id, day: day) }
             }
+            r.rowDay = day
         } else if !i.origins.isEmpty || !i.destinations.isEmpty {
             let fromOrigin = !i.origins.isEmpty
             let places = Array(Self.largestFirst(fromOrigin ? i.origins : i.destinations).prefix(Self.maxCalls))
             r.grouping = fromOrigin ? .byDestination : .byOrigin
             if near {
                 r.live = places.map { .airport($0) }
-                r.boardDay = i.day
+                r.rowDay = i.day
             } else {
+                // A whole day at a hub can pass the backend's page limit: the hours around the time asked.
                 r.planned = places.map {
-                    fromOrigin ? ScheduleQuery(origin: $0, airline: i.airline?.id, day: day)
-                               : ScheduleQuery(destination: $0, airline: i.airline?.id, day: day)
+                    fromOrigin ? ScheduleQuery(origin: $0, airline: i.airline?.id, day: day, time: i.timeOfDay)
+                               : ScheduleQuery(destination: $0, airline: i.airline?.id, day: day, time: i.timeOfDay)
                 }
+                r.rowDay = day
             }
         } else {
             return nil
         }
         let calls = r.live.map { LiveLookupGate.key($0, calendar: calendar) }
-            + r.planned.map { "plan:\($0.origin ?? "")-\($0.destination ?? "")-\($0.airline ?? "")-\($0.ident ?? "")-\($0.day)" }
+            + r.planned.map {
+                "plan:\($0.origin ?? "")-\($0.destination ?? "")-\($0.airline ?? "")-\($0.ident ?? "")-\($0.day)-\($0.time.map(String.init) ?? "")"
+            }
         r.key = (calls + [r.origins.sorted().joined(separator: ","), r.destinations.sorted().joined(separator: ","),
-                          r.airline?.id ?? "", r.boardDay?.description ?? ""]).joined(separator: "|")
+                          r.airline?.id ?? "", r.rowDay?.description ?? ""]).joined(separator: "|")
         return r
     }
 
@@ -322,7 +339,8 @@ public final class SearchStore {
     }
 
     /// Every lookup of `r` at once. Not found counts as no rows; the first other error stands only when no
-    /// lookup answered. Schedules the build cannot reach give the note instead.
+    /// lookup answered. Schedules the build cannot reach, or that refuse, give a note instead, and so does
+    /// an answer cut at the backend's page limit.
     func fetch(_ r: SearchRoute) async -> Answer {
         let flights = self.flights, schedules = self.schedules
         let live = await withTaskGroup(of: (Int, Result<[Flight], APIError>).self) { g in
@@ -335,26 +353,30 @@ public final class SearchStore {
             for await x in g { out.append(x) }
             return out.sorted { $0.0 < $1.0 }.map { $0.1.map { $0.map(SearchResult.live) } }
         }
-        let planned = await withTaskGroup(of: (Int, Result<[ScheduledFlight], APIError>).self) { g in
+        let planned = await withTaskGroup(of: (Int, Result<ScheduleDay, APIError>).self) { g in
             for (k, q) in r.planned.enumerated() {
                 g.addTask {
-                    do throws(APIError) { return (k, .success(try await schedules.schedules(q))) } catch { return (k, .failure(error)) }
+                    do throws(APIError) { return (k, .success(try await schedules.scheduleDay(q))) } catch { return (k, .failure(error)) }
                 }
             }
-            var out: [(Int, Result<[ScheduledFlight], APIError>)] = []
+            var out: [(Int, Result<ScheduleDay, APIError>)] = []
             for await x in g { out.append(x) }
-            return out.sorted { $0.0 < $1.0 }.map { $0.1.map { $0.map(SearchResult.planned) } }
+            return out.sorted { $0.0 < $1.0 }.map(\.1)
         }
+        let builtIn = !(schedules is UnavailableScheduleService)
         var answer = Answer()
         var answered = false, firstError: APIError?
-        for result in live + planned {
+        let truncated = planned.contains { (try? $0.get())?.truncated == true }
+        for result in live + planned.map({ $0.map { $0.flights.map(SearchResult.planned) } }) {
             switch result {
             case .success(let rows): answered = true; answer.rows += rows
             case .failure(.notFound): answered = true
-            case .failure(.providerUnavailable) where !r.planned.isEmpty: answer.note = Self.unavailableNote
+            case .failure(.providerUnavailable) where !r.planned.isEmpty:
+                answer.note = builtIn ? Self.schedulesDownNote : Self.unavailableNote
             case .failure(let e): firstError = firstError ?? e
             }
         }
+        if truncated, answer.note == nil { answer.note = Self.truncatedNote }
         if !answered, answer.note == nil { answer.error = firstError ?? .notFound }
         return answer
     }
@@ -367,7 +389,7 @@ public final class SearchStore {
             if !r.origins.isEmpty, !r.origins.contains(row.origin) { return false }
             if !r.destinations.isEmpty, !r.destinations.contains(row.destination) { return false }
             if let a = r.airline, !row.isFlown(by: a) { return false }
-            if let d = r.boardDay, let out = row.scheduledOut, LocalDay(out, in: zone(row.origin)) != d { return false }
+            if let d = r.rowDay, let out = row.scheduledOut, LocalDay(out, in: zone(row.origin)) != d { return false }
             return true
         }
         return ordered(kept, r)
@@ -530,11 +552,16 @@ public final class SearchStore {
     }
     #endif
 
-    /// Normalised (trimmed, upper case), moved to the front, deduplicated, capped.
+    /// What `query` reads as now (a recent search's description).
+    func intent(for query: String) -> SearchIntent {
+        SearchIntent.parse(query, now: now(), tz: timeZone, monthFirst: monthFirst, suggester: suggester)
+    }
+
+    /// Trimmed and as typed, moved to the front, deduplicated whatever the case, capped.
     private func remember(_ raw: String) {
-        let q = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let q = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
-        recent = Array(([q] + recent.filter { $0 != q }).prefix(Self.recentLimit))
+        recent = Array(([q] + recent.filter { $0.caseInsensitiveCompare(q) != .orderedSame }).prefix(Self.recentLimit))
         defaults?.set(recent, forKey: Self.recentKey)
     }
 }

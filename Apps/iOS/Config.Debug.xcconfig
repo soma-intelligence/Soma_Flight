@@ -11,6 +11,11 @@ SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1
 // calls on the backend, cached there). YES asks for them; NO hides both sections and makes no call.
 INSIGHTS_ENABLED = YES
 
+// The search's days ahead (edge function flight-schedules, paid AeroAPI schedules). NO in both until
+// the function is deployed: Debug builds then search fake schedules, Release builds say future dates
+// need the live service. YES asks flight-schedules.
+SCHEDULES_ENABLED = NO
+
 #include? "Config.local.xcconfig"
 
 // Sign in with Google (docs/profile-onboarding.md). NO until the owner turns the provider on in Supabase.

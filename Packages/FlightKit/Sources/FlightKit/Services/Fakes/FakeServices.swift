@@ -454,46 +454,79 @@ public actor FakePushService: PushService {
     }
 }
 
-/// Believable schedules for screenshot runs and tests: the seed's flights (followed and boards) moved onto the
-/// asked day, keeping their times of day (UTC), then filtered by the query's origin, destination, airline and
-/// flight number, so a route always shows the same list.
+/// Believable schedules for screenshot runs, debug builds without `flight-schedules` and tests: the seed's
+/// flights (followed and boards) and a small daily timetable (Paris to New York, Lufthansa from Munich),
+/// each on the asked day at the hour it leaves its origin, then filtered by the query's origin,
+/// destination, airline and flight number, so a search always shows the same list.
 public actor FakeScheduleService: ScheduleService {
     public var nextError: APIError?
-    private let seed: [Flight]
+    private let plans: [Plan]
+
+    /// A daily flight: its departure in minutes after the origin's midnight, its block time in minutes.
+    struct Plan {
+        var ident: String, airline: String?, origin: String, destination: String
+        var out: Int, block: Int?, aircraft: String?
+    }
+
+    /// Plausible real flights, local departure times (daily).
+    static let timetable: [Plan] = [
+        Plan(ident: "AF6", airline: "AFR", origin: "LFPG", destination: "KJFK", out: 630, block: 505, aircraft: "B77W"),
+        Plan(ident: "AF10", airline: "AFR", origin: "LFPG", destination: "KJFK", out: 810, block: 505, aircraft: "A359"),
+        Plan(ident: "DL263", airline: "DAL", origin: "LFPG", destination: "KJFK", out: 615, block: 515, aircraft: "A333"),
+        Plan(ident: "AA45", airline: "AAL", origin: "LFPG", destination: "KJFK", out: 675, block: 520, aircraft: "B772"),
+        Plan(ident: "UA57", airline: "UAL", origin: "LFPG", destination: "KEWR", out: 600, block: 515, aircraft: "B763"),
+        Plan(ident: "BF720", airline: "FBU", origin: "LFPO", destination: "KEWR", out: 1120, block: 530, aircraft: "A359"),
+        Plan(ident: "LH2228", airline: "DLH", origin: "EDDM", destination: "LFPG", out: 420, block: 95, aircraft: "A320"),
+        Plan(ident: "LH2472", airline: "DLH", origin: "EDDM", destination: "EGLL", out: 430, block: 115, aircraft: "A321"),
+        Plan(ident: "LH1846", airline: "DLH", origin: "EDDM", destination: "LIRF", out: 575, block: 90, aircraft: "A320"),
+        Plan(ident: "LH410", airline: "DLH", origin: "EDDM", destination: "KJFK", out: 710, block: 545, aircraft: "A346"),
+        Plan(ident: "LH458", airline: "DLH", origin: "EDDM", destination: "KSFO", out: 955, block: 715, aircraft: "A359"),
+        Plan(ident: "LH714", airline: "DLH", origin: "EDDM", destination: "RJTT", out: 1305, block: 690, aircraft: "A359"),
+    ]
 
     public init() {
         var byID: [Flight.ID: Flight] = [:]
         for f in FakeSeed.flights("followed", shift: 0) { byID[f.id] = f }
         for b in FakeSeed.boards(shift: 0) { for f in b.flights where byID[f.id] == nil { byID[f.id] = f } }
-        seed = byID.values.filter { $0.scheduledOut != nil }
+        let seeded = byID.values.compactMap { f -> Plan? in
+            guard let out = f.scheduledOut else { return nil }
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = Self.zone(f.originIcao)
+            let c = cal.dateComponents([.hour, .minute], from: out)
+            return Plan(ident: f.ident, airline: f.operator, origin: f.originIcao, destination: f.destinationIcao,
+                        out: (c.hour ?? 0) * 60 + (c.minute ?? 0),
+                        block: f.scheduledIn.map { Int($0.timeIntervalSince(out) / 60) }, aircraft: f.aircraftType)
+        }
+        plans = seeded + Self.timetable
+    }
+
+    private static func zone(_ icao: String) -> TimeZone {
+        AirportDirectory.bundled().lookup(icao)?.timeZone ?? .gmt
     }
 
     public func setNextError(_ error: APIError?) { nextError = error }
 
     public func schedules(_ q: ScheduleQuery) async throws(APIError) -> [ScheduledFlight] {
         if let e = nextError { nextError = nil; throw e }
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        guard let start = utc.date(from: DateComponents(year: q.day.year, month: q.day.month, day: q.day.day)) else {
-            throw .rejected("Not a day")
-        }
         func same(_ a: String?, _ b: String) -> Bool {
             guard let a else { return true }
             return normalized(a) == normalized(b)
         }
         func code(_ s: String) -> String { s.filter { !$0.isWhitespace }.uppercased() }
         var rows: [ScheduledFlight] = []
-        for f in seed {
-            guard let out = f.scheduledOut,
-                  same(q.origin, f.originIcao), same(q.destination, f.destinationIcao),
-                  q.airline.map({ code($0) == code(f.operator ?? "") }) ?? true,
-                  q.ident.map({ code($0) == code(f.ident) }) ?? true else { continue }
-            // Same time of day on the asked day: the seed's out time, less its own UTC midnight.
-            let shift = start.timeIntervalSince(utc.startOfDay(for: out))
-            rows.append(ScheduledFlight(ident: f.ident, airline: f.operator, origin: f.originIcao,
-                                        destination: f.destinationIcao, scheduledOut: out.addingTimeInterval(shift),
-                                        scheduledIn: f.scheduledIn?.addingTimeInterval(shift),
-                                        aircraftType: f.aircraftType))
+        for p in plans {
+            guard same(q.origin, p.origin), same(q.destination, p.destination),
+                  q.airline.map({ code($0) == code(p.airline ?? "") }) ?? true,
+                  q.ident.map({ code($0) == code(p.ident) }) ?? true else { continue }
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = Self.zone(p.origin)
+            guard let out = cal.date(from: DateComponents(year: q.day.year, month: q.day.month, day: q.day.day,
+                                                          hour: p.out / 60, minute: p.out % 60)) else {
+                throw .rejected("Not a day")
+            }
+            rows.append(ScheduledFlight(ident: p.ident, airline: p.airline, origin: p.origin, destination: p.destination,
+                                        scheduledOut: out, scheduledIn: p.block.map { out.addingTimeInterval(Double($0) * 60) },
+                                        aircraftType: p.aircraft))
         }
         return rows.sorted { ($0.scheduledOut, $0.ident) < ($1.scheduledOut, $1.ident) }
     }

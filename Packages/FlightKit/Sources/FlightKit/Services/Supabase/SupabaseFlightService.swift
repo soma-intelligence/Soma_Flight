@@ -2,8 +2,9 @@ import Foundation
 import Supabase
 import Synchronization
 
-/// Flights from the backend: `flight-lookup` and `airport-board` for search (a route is the origin's
-/// departures board kept to its destination), `follow-flight` to follow,
+/// Flights from the backend: `flight-lookup` and `airport-board` for search (a route today is the
+/// origin's departures board kept to its destination, any other day or with no board a dated
+/// `flight-lookup` route search), `follow-flight` to follow,
 /// the `flights`, `flight_events` and `user_flights` tables to read, Realtime on `flights` for updates.
 ///
 /// Board rows and real flights carry different ids. A board row's `id` is a UUID v5 of its
@@ -15,6 +16,7 @@ public final class SupabaseFlightService: FlightService {
     private let backend: SupabaseBackend
     private let airport: @Sendable (String) -> Airport?
     private let timeZone: @Sendable () -> TimeZone
+    private let now: @Sendable () -> Date
     /// Board rows handed out by airport searches, by their v5 id.
     private let boardRows = Mutex<[UUID: Flight]>([:])
     /// Board row id to the `flights.id` it resolved to.
@@ -24,8 +26,9 @@ public final class SupabaseFlightService: FlightService {
     ///   - airport: the bundled directory (ICAO or IATA), for an origin's time zone.
     ///   - timeZone: the calendar search days are picked in.
     public init(backend: SupabaseBackend, airport: @escaping @Sendable (String) -> Airport?,
-                timeZone: @escaping @Sendable () -> TimeZone = { .current }) {
-        self.backend = backend; self.airport = airport; self.timeZone = timeZone
+                timeZone: @escaping @Sendable () -> TimeZone = { .current },
+                now: @escaping @Sendable () -> Date = { .now }) {
+        self.backend = backend; self.airport = airport; self.timeZone = timeZone; self.now = now
     }
 
     private struct FlightsAnswer: Decodable { var flights: [Lossy<Flight>] }
@@ -40,7 +43,13 @@ public final class SupabaseFlightService: FlightService {
 
     public func lookup(_ query: FlightQuery) async throws(APIError) -> [Flight] {
         if case .airport(let code) = query { return try await airportFlights(code) }
-        if case .route(let origin, let destination, _) = query { return try await routeFlights(origin, destination) }
+        if case .route(let origin, let destination, let date) = query,
+           Self.boardServes(date: date, origin: origin, now: now(), airport: airport, timeZone: timeZone()) {
+            // The board knows today only, and nothing when no board provider is set: then the lookup.
+            do { return try await routeFlights(origin, destination) } catch {
+                guard error == .providerUnavailable else { throw error }
+            }
+        }
         guard let body = SupabaseBackend.lookupBody(for: query, timeZone: timeZone()) else { throw .notFound }
         let found = try await backend.call("flight-lookup", body: body, decode: Self.decodeLookup)
         guard !found.isEmpty else { throw .notFound }
@@ -65,6 +74,14 @@ public final class SupabaseFlightService: FlightService {
         guard !rows.isEmpty else { throw .notFound }
         boardRows.withLock { $0.merge(rows) { $1 } }
         return rows.values.sorted { ($0.scheduledOut ?? .distantFuture, $0.id.uuidString) < ($1.scheduledOut ?? .distantFuture, $1.id.uuidString) }
+    }
+
+    /// True when `date` (picked on the `timeZone` calendar) is today at `origin`: only then can its
+    /// departures board answer a route.
+    static func boardServes(date: Date, origin: String, now: Date, airport: (String) -> Airport?,
+                            timeZone: TimeZone) -> Bool {
+        let originZone = airport(origin)?.timeZone ?? timeZone
+        return SupabaseBackend.day(date, in: timeZone) == SupabaseBackend.day(now, in: originZone)
     }
 
     /// A route today: the origin's departures board (shared and cached by `airport-board`, so cheaper
