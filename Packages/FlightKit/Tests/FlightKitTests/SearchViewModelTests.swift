@@ -73,6 +73,24 @@ import FlightImportKit
         #expect(SearchChipText.label(.time(1320), clock: .h24) == "Night")
         #expect(SearchChipText.label(.time(1110), clock: .h24) == "18:30")
         #expect(SearchChipText.label(.time(1110), clock: .h12) == "6:30 PM")
+        #expect(SearchChip.accessibilityLabel("Air France", removes: true) == "Remove Air France")
+        #expect(SearchChip.accessibilityLabel("Today", removes: false) == "Today")
+    }
+
+    @Test func theCopySaysAnyOrderWorks() {
+        #expect(SearchView.screenSubtitle == "Flight, airline, cities, a day, any order")
+        #expect(SearchView.prompt == "AF 84 tomorrow, or Paris Rome Dec 12")
+        // Each example in the prompt reads the way it promises.
+        let s = SearchRoutingTests.store(RecordingFlights())
+        let examples = SearchView.prompt.components(separatedBy: ", or ")
+        s.text = examples[0]; s.textChanged()
+        #expect(s.intent.ident == "AF84")
+        #expect(s.intent.day != nil)
+        s.text = examples[1]; s.textChanged()
+        #expect(!s.intent.origins.isEmpty)
+        #expect(!s.intent.destinations.isEmpty)
+        #expect(s.intent.day?.month == 12)
+        #expect(s.intent.day?.day == 12)
     }
 
     @Test func removingAChipTakesItsWordsFromTheText() {

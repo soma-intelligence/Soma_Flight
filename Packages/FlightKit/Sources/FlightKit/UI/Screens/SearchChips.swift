@@ -75,36 +75,39 @@ struct SearchStart: Equatable {
     }
 }
 
-/// A capsule in `Theme.pill`: a label and, when it can be removed, a small x.
+/// A capsule in `Theme.pill` that acts on a tap anywhere on it: a shortcut, or a piece of the search
+/// that a tap removes (its small x is only the cue).
 struct SearchChip: View {
     var title: String
-    var onRemove: (() -> Void)?
-    var onTap: (() -> Void)?
+    var removes = false
+    var action: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .scaledFont(15, weight: .medium)
-                .foregroundStyle(Theme.primary)
-                .lineLimit(1)
-            if let onRemove {
-                Button(action: onRemove) {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .scaledFont(15, weight: .medium)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                if removes {
                     Image(systemName: "xmark")
                         .scaledFont(11, weight: .semibold)
                         .foregroundStyle(Theme.secondary)
-                        .contentShape(Rectangle())
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(title)")
             }
+            .scaledPadding(.horizontal, 12)
+            .scaledPadding(.vertical, 6)
+            .background(Capsule().fill(Theme.pill))
+            .contentShape(Capsule())
         }
-        .scaledPadding(.horizontal, 12)
-        .scaledPadding(.vertical, 6)
-        .background(Capsule().fill(Theme.pill))
-        .contentShape(Capsule())
-        .onTapGesture { onTap?() }
-        .accessibilityElement(children: onRemove == nil ? .combine : .contain)
-        .accessibilityAddTraits(onTap == nil ? [] : .isButton)
+        .buttonStyle(.plain)
+        .accessibilityLabel(Self.accessibilityLabel(title, removes: removes))
+    }
+
+    /// "Remove Air France" for a piece of the search, the title alone for a shortcut.
+    static func accessibilityLabel(_ title: String, removes: Bool) -> String {
+        removes ? "Remove \(title)" : title
     }
 }
 
@@ -121,7 +124,7 @@ struct SearchChipsRow: View {
             if !chips.isEmpty {
                 ChipFlow(spacing: 8) {
                     ForEach(chips, id: \.self) { chip in
-                        SearchChip(title: SearchChipText.label(chip, clock: units.clock), onRemove: { onRemove(chip) })
+                        SearchChip(title: SearchChipText.label(chip, clock: units.clock), removes: true) { onRemove(chip) }
                             .transition(.opacity)
                     }
                 }

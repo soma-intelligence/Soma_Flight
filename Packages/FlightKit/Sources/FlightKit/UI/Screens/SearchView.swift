@@ -75,7 +75,7 @@ public struct SearchView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ScreenTitle("Add Flight", subtitle: "Airline, airport, or flight number")
+            ScreenTitle("Add Flight", subtitle: Self.screenSubtitle)
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.top, 22)
             field
@@ -146,7 +146,10 @@ public struct SearchView: View {
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
     }
 
-    static let prompt = "AF84, CDG SFO, or AUS"
+    /// Both lines fit an iPhone SE (375 pt) at the default text size: 275 pt of 295 for the subtitle,
+    /// 293 pt of 315 for the prompt.
+    static let screenSubtitle = "Flight, airline, cities, a day, any order"
+    static let prompt = "AF 84 tomorrow, or Paris Rome Dec 12"
 
     private var input: some View {
         TextField("", text: $store.text, prompt: Text(Self.prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
@@ -264,7 +267,7 @@ public struct SearchView: View {
         return VStack(alignment: .leading, spacing: 0) {
             ChipFlow(spacing: 8) {
                 ForEach(start.days, id: \.self) { d in
-                    SearchChip(title: d.title, onTap: { addDay(d) })
+                    SearchChip(title: d.title) { addDay(d) }
                         .accessibilityHint("Adds \(d.word) to the search")
                 }
             }
