@@ -127,7 +127,7 @@ No row means every category is on, so the app writes the row the first time some
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `alternate-flights` | GET | `origin`, `destination` (ICAO), `after` (ISO time) (below) | `{ origin, destination, after, fetched_at, stale, flights }` |
-| `flight-schedules` | POST | `{ origin?, destination?, airline?, ident?, date }` (below) | `{ date, fetched_at, stale, flights }` |
+| `flight-schedules` | POST | `{ origin?, destination?, airline?, ident?, date, time? }` (below) | `{ date, fetched_at, stale, truncated, flights }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
 | `flight-page` | GET | `/flight-page/<token>[/og.png]`, public (no JWT) | the share page (HTML) or its preview image (PNG) |
@@ -418,6 +418,7 @@ schedules. Paid (AeroAPI schedules). A schedule is a plan: no status, no estimat
   "date": "2026-11-03",
   "fetched_at": "2026-11-01T12:00:00.000Z",
   "stale": false,
+  "truncated": false,
   "flights": [
     {
       "ident": "UA2306",
@@ -463,11 +464,19 @@ schedules. Paid (AeroAPI schedules). A schedule is a plan: no status, no estimat
   are airport codes, IATA or ICAO, any case (unknown is 400, the same twice is 400). `ident` is an airline code
   and a number such as `UA1958` or `UAL1958`; `airline` (IATA or ICAO) narrows by operator. The provider gets
   `ident` as `airline` plus `flight_number`.
-- `date` is `YYYY-MM-DD`, the local day at the origin, else at the destination, else UTC. Within 330 days ahead
-  and no more than 2 days back, else 400 `out_of_window`; a bad date is 400 `invalid_request`.
-- The provider's schedules (operating flights only, no codeshares) are read for that local day, at most 3 result
+- `date` is `YYYY-MM-DD`, the local day at the origin, else at the destination. Within 330 days ahead and no
+  more than 2 days back, else 400 `out_of_window`; a bad date is 400 `invalid_request`. A flight number alone
+  has no place: the provider is asked from noon UTC the day before to noon UTC the day after, and only the
+  flights leaving on `date` in their origin's timezone are kept (a 20:00 New York departure is 01:00Z the next
+  day and still counts for `date`).
+- `time` (optional) is minutes after local midnight, an integer 0 to 1439 (else 400 `invalid_request`). With an
+  `origin` or `destination` it narrows the provider window to 4 hours either side of it, within the local day;
+  a flight number alone ignores it. The app sends it for one-place searches only.
+- The provider's schedules (operating flights only, no codeshares) are read for that window, at most 3 result
   sets, and cached whole per search and day for 6 hours in `schedules_cache` (service role only, pruned daily),
-  empty answers included. `flights` are sorted by `scheduled_out`; `origin` and `destination` are ICAO codes,
+  empty answers included; a search with a `time` is cached apart from the whole day. `truncated` is true when
+  the provider still had result sets after the third (a busy airport's day): the answer holds the first flights
+  only, and the app says so. `flights` are sorted by `scheduled_out`; `origin` and `destination` are ICAO codes,
   `ident` the IATA designator (else the provider's), `airline` the ICAO airline code, times ISO in UTC.
 - `stale` and 503 `provider_unavailable` as in `alternate-flights`: a refused refresh serves the cached answer of
   any age, with nothing cached the call fails.

@@ -51,6 +51,7 @@ async function fresh(
     destination?: string;
     airline?: string;
     ident?: string;
+    time?: number;
   },
   date = DATE,
 ) {
@@ -68,8 +69,14 @@ function post(token: string | null, body: unknown): Request {
   });
 }
 
-/** The schedules endpoint over the fixture, through the real client: what it was asked for. */
-function fakeSchedules(fail?: ApiError) {
+/**
+ * The schedules endpoint over the fixture (or `rows`), through the real client: what it was asked for.
+ * `more` makes every page point at another, as a busy airport's day does.
+ */
+function fakeSchedules(
+  fail?: ApiError,
+  opts: { rows?: AeroScheduledFlight[]; more?: boolean } = {},
+) {
   const calls: {
     start: string;
     end: string;
@@ -85,13 +92,16 @@ function fakeSchedules(fail?: ApiError) {
     });
     if (fail) return Promise.reject(fail);
     return Promise.resolve(
-      new Response(JSON.stringify({ scheduled: schedule, links: null })),
+      new Response(JSON.stringify({
+        scheduled: opts.rows ?? schedule,
+        links: opts.more ? { next: "/schedules/a/b?cursor=next" } : null,
+      })),
     );
   }) as typeof fetch;
   const api = new AeroApi("k", fetchFn);
   return {
     calls,
-    schedules: api.schedules.bind(api) as AeroApi["schedules"],
+    scheduleWindow: api.scheduleWindow.bind(api) as AeroApi["scheduleWindow"],
   };
 }
 
@@ -161,9 +171,9 @@ test("the origin's local day is the provider's window, filters go through", asyn
   await fresh(byIdent);
   const idRes = await handler(post(user, { ...byIdent, date: DATE }), d);
   assertEquals(idRes.status, 200);
-  // No place: the UTC day.
-  assertEquals(aero.calls[1].start, "2026-11-03T00:00:00.000Z");
-  assertEquals(aero.calls[1].end, "2026-11-04T00:00:00.000Z");
+  // No place: noon UTC the day before to noon UTC the day after, which holds the day anywhere.
+  assertEquals(aero.calls[1].start, "2026-11-02T12:00:00.000Z");
+  assertEquals(aero.calls[1].end, "2026-11-04T12:00:00.000Z");
   assertEquals(aero.calls[1].query.airline, "UA");
   assertEquals(aero.calls[1].query.flight_number, "1958");
   assertEquals(aero.calls[1].query.origin, undefined);
@@ -174,6 +184,169 @@ test("the origin's local day is the provider's window, filters go through", asyn
   await handler(post(user, { ...toOnly, date: DATE }), d);
   assertEquals(aero.calls[2].start, "2026-11-03T06:00:00.000Z");
   assertEquals(aero.calls[2].query.airline, "AA");
+});
+
+/** A schedule entry for the ident tests: `out` and `in` as UTC instants. */
+function entry(
+  ident: string,
+  origin: string,
+  destination: string,
+  out: string,
+  arrive: string,
+): AeroScheduledFlight {
+  const icao = ident.replace(/^AF/, "AFR").replace(/^NH/, "ANA");
+  return {
+    ident: icao,
+    ident_icao: icao,
+    ident_iata: ident,
+    aircraft_type: "B77W",
+    scheduled_out: out,
+    scheduled_in: arrive,
+    origin,
+    origin_icao: origin,
+    origin_iata: null,
+    destination,
+    destination_icao: destination,
+    destination_iata: null,
+    fa_flight_id: null,
+  };
+}
+
+test("a flight number alone keeps the flights leaving on the day at their origin", async () => {
+  const user = await makeUser(db);
+  const d = "2026-12-12";
+  // AF 7 leaves New York at 20:00 (EST): 01:00Z the next day. The 11 Dec one leaves at 01:00Z on 12 Dec.
+  const af = [
+    entry(
+      "AF7",
+      "KJFK",
+      "LFPG",
+      "2026-12-12T01:00:00Z",
+      "2026-12-12T08:30:00Z",
+    ),
+    entry(
+      "AF7",
+      "KJFK",
+      "LFPG",
+      "2026-12-13T01:00:00Z",
+      "2026-12-13T08:30:00Z",
+    ),
+  ];
+  await fresh({ ident: "AF7" }, d);
+  const aero = fakeSchedules(undefined, { rows: af });
+  const deps = { db, aero, verifier: fakeVerifier, now: at(0) };
+  const body =
+    await (await handler(post(user, { ident: "AF7", date: d }), deps))
+      .json();
+  assertEquals(
+    body.flights.map((f: { scheduled_out: string }) => f.scheduled_out),
+    [
+      "2026-12-13T01:00:00.000Z",
+    ],
+  );
+  assertEquals(aero.calls[0].start, "2026-12-11T12:00:00.000Z");
+  assertEquals(aero.calls[0].end, "2026-12-13T12:00:00.000Z");
+
+  // NH 10 leaves Tokyo at 06:00 (JST): 21:00Z the day before. The 13 Dec one is 21:00Z on 12 Dec.
+  const nh = [
+    entry(
+      "NH10",
+      "RJTT",
+      "KJFK",
+      "2026-12-11T21:00:00Z",
+      "2026-12-12T08:00:00Z",
+    ),
+    entry(
+      "NH10",
+      "RJTT",
+      "KJFK",
+      "2026-12-12T21:00:00Z",
+      "2026-12-13T08:00:00Z",
+    ),
+  ];
+  await fresh({ ident: "NH10" }, d);
+  const tokyo = await (await handler(post(user, { ident: "NH10", date: d }), {
+    ...deps,
+    aero: fakeSchedules(undefined, { rows: nh }),
+  })).json();
+  assertEquals(
+    tokyo.flights.map((f: { scheduled_out: string }) => f.scheduled_out),
+    [
+      "2026-12-11T21:00:00.000Z",
+    ],
+  );
+});
+
+test("a time of day narrows the window to 4 hours either side, within the day", async () => {
+  const user = await makeUser(db);
+  const d = { db, verifier: fakeVerifier, now: at(0) };
+  // 19:00 in San Francisco on 3 Nov (PST) is 03:00Z on 4 Nov: 23:00Z to the end of the local day.
+  await fresh({ origin: "KSFO", time: 1140 });
+  const evening = fakeSchedules();
+  const res = await handler(
+    post(user, { origin: "KSFO", date: DATE, time: 1140 }),
+    { ...d, aero: evening },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(evening.calls[0].start, "2026-11-03T23:00:00.000Z");
+  assertEquals(evening.calls[0].end, "2026-11-04T07:00:00.000Z");
+  // 08:00 is 16:00Z: 12:00Z to 20:00Z, the local day's start not before 08:00Z.
+  await fresh({ origin: "KSFO", time: 480 });
+  const morning = fakeSchedules();
+  await handler(post(user, { origin: "KSFO", date: DATE, time: 480 }), {
+    ...d,
+    aero: morning,
+  });
+  assertEquals(morning.calls[0].start, "2026-11-03T12:00:00.000Z");
+  assertEquals(morning.calls[0].end, "2026-11-03T20:00:00.000Z");
+  // 01:00: clipped to the day's start (08:00Z), up to 13:00Z.
+  await fresh({ origin: "KSFO", time: 60 });
+  const night = fakeSchedules();
+  await handler(post(user, { origin: "KSFO", date: DATE, time: 60 }), {
+    ...d,
+    aero: night,
+  });
+  assertEquals(night.calls[0].start, "2026-11-03T08:00:00.000Z");
+  assertEquals(night.calls[0].end, "2026-11-03T13:00:00.000Z");
+  // A time is its own search: the whole day is not served from it.
+  assertEquals(
+    cacheKey({ origin: "KSFO", time: 1140 }, DATE),
+    "KSFO-*-*-*-2026-11-03-t1140",
+  );
+  // Not a minute of the day.
+  for (const time of [-1, 1440, 12.5, "19:00"]) {
+    assertEquals(
+      (await handler(post(user, { origin: "KSFO", date: DATE, time }), {
+        ...d,
+        aero: fakeSchedules(),
+      })).status,
+      400,
+    );
+  }
+});
+
+test("an answer cut at the page limit says so, cached or not", async () => {
+  const user = await makeUser(db);
+  const q = { origin: "KSFO" };
+  await fresh(q);
+  const busy = fakeSchedules(undefined, { more: true });
+  const d = { db, aero: busy, verifier: fakeVerifier, now: at(0) };
+  const first = await (await handler(post(user, { ...q, date: DATE }), d))
+    .json();
+  assertEquals(busy.calls.length, 3);
+  assertEquals(first.truncated, true);
+  const again = await (await handler(post(user, { ...q, date: DATE }), d))
+    .json();
+  assertEquals(busy.calls.length, 3);
+  assertEquals(again.truncated, true);
+  // A route fits in its pages.
+  const route = { origin: "KSFO", destination: "KORD" };
+  await fresh(route);
+  const whole = await (await handler(post(user, { ...route, date: DATE }), {
+    ...d,
+    aero: fakeSchedules(),
+  })).json();
+  assertEquals(whole.truncated, false);
 });
 
 test("a second call within 6 hours reads the cache and makes no provider call", async () => {

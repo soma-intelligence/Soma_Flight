@@ -858,3 +858,42 @@ Deno.test("schedules: origin and destination are optional, airline and flight nu
   assertEquals(q.get("flight_number"), "1958");
   assertEquals(q.get("include_codeshares"), "false");
 });
+
+Deno.test("scheduleWindow says when pages were left over", async () => {
+  const body = JSON.parse(await fixture("schedules_ksfo_kord.json"));
+  const start = new Date("2026-11-03T15:00:00Z");
+  const end = new Date("2026-11-04T15:00:00Z");
+  // Every page points at another: the third is the last read, and the answer says more were left.
+  const calls: Request[] = [];
+  const endless = new AeroApi(
+    "k",
+    routed(
+      () =>
+        new Response(JSON.stringify({
+          ...body,
+          links: { next: "/schedules/x/y?cursor=more" },
+        })),
+      calls,
+    ),
+  );
+  const cut = await endless.scheduleWindow("KSFO", undefined, start, end, 3);
+  assertEquals(calls.length, 3);
+  assertEquals(cut.truncated, true);
+  assertEquals(cut.flights.map((r) => r.ident_iata), [
+    "UA2306",
+    "AA1781",
+    "UA1958",
+    "AS1314",
+  ]);
+  // One page with no next link: all of it.
+  const whole = await new AeroApi(
+    "k",
+    routed(() => new Response(JSON.stringify({ ...body, links: null }))),
+  ).scheduleWindow("KSFO", undefined, start, end, 3);
+  assertEquals(whole.truncated, false);
+  // An empty window: nothing asked, nothing left.
+  assertEquals(
+    await endless.scheduleWindow("KSFO", undefined, start, start, 3),
+    { flights: [], truncated: false },
+  );
+});

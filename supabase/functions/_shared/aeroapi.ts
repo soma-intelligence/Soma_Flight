@@ -277,25 +277,51 @@ export class AeroApi {
     maxPages = 3,
     filters: { airline?: string; flightNumber?: string } = {},
   ): Promise<AeroScheduledFlight[]> {
-    if (!(start.getTime() < end.getTime())) return [];
+    return (await this.scheduleWindow(
+      origin,
+      destination,
+      start,
+      end,
+      maxPages,
+      filters,
+    )).flights;
+  }
+
+  /**
+   * `schedules`, and whether the provider still had pages after the last one read (`truncated`): a
+   * busy airport's whole day can hold more flights than `maxPages` pages carry.
+   */
+  async scheduleWindow(
+    origin: string | undefined,
+    destination: string | undefined,
+    start: Date,
+    end: Date,
+    maxPages = 3,
+    filters: { airline?: string; flightNumber?: string } = {},
+  ): Promise<{ flights: AeroScheduledFlight[]; truncated: boolean }> {
+    if (!(start.getTime() < end.getTime())) {
+      return { flights: [], truncated: false };
+    }
     const q = new URLSearchParams({ include_codeshares: "false" });
     if (origin) q.set("origin", origin);
     if (destination) q.set("destination", destination);
     if (filters.airline) q.set("airline", filters.airline);
     if (filters.flightNumber) q.set("flight_number", filters.flightNumber);
     const from = start.toISOString(), to = end.toISOString();
-    let rows: AeroScheduledFlight[];
+    let rows: AeroScheduledFlight[], truncated: boolean;
     try {
-      rows = await this.paged<AeroScheduledFlight>(
+      ({ rows, more: truncated } = await this.pages<AeroScheduledFlight>(
         "/schedules/{date_start}/{date_end}",
         `/schedules/${encodeURIComponent(from)}/${encodeURIComponent(to)}`,
         "scheduled",
         maxPages,
         q,
-      );
+      ));
     } catch (e) {
       // A route the provider has no schedule for is "no flights", not a failure.
-      if (e instanceof ApiError && e.code === "not_found") return [];
+      if (e instanceof ApiError && e.code === "not_found") {
+        return { flights: [], truncated: false };
+      }
       throw e;
     }
     const seen = new Set<string>();
@@ -308,7 +334,7 @@ export class AeroApi {
       seen.add(key);
       out.push(r);
     }
-    return out;
+    return { flights: out, truncated };
   }
 
   /**
@@ -415,6 +441,17 @@ export class AeroApi {
     maxPages: number,
     base?: URLSearchParams,
   ): Promise<T[]> {
+    return (await this.pages<T>(endpoint, path, key, maxPages, base)).rows;
+  }
+
+  /** `paged`, and whether a next page was left unread (`more`). */
+  private async pages<T>(
+    endpoint: string,
+    path: string,
+    key: string,
+    maxPages: number,
+    base?: URLSearchParams,
+  ): Promise<{ rows: T[]; more: boolean }> {
     const out: T[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < Math.max(1, maxPages); page++) {
@@ -428,7 +465,7 @@ export class AeroApi {
       cursor = cursorOf(body.links?.next);
       if (!cursor) break;
     }
-    return out;
+    return { rows: out, more: cursor !== null };
   }
 
   private async get<T>(

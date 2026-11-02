@@ -1,10 +1,14 @@
-// POST /flight-schedules { origin?, destination?, airline?, ident?, date: "YYYY-MM-DD" }
-//   -> { date, fetched_at, stale, flights: [{ ident, airline, origin, destination, scheduled_out,
-//        scheduled_in, aircraft_type }] }
+// POST /flight-schedules { origin?, destination?, airline?, ident?, date: "YYYY-MM-DD", time? }
+//   -> { date, fetched_at, stale, truncated, flights: [{ ident, airline, origin, destination,
+//        scheduled_out, scheduled_in, aircraft_type }] }
 // The "add a flight" search for days or weeks ahead (docs/api-contract.md): what the airlines plan to
 // fly on a day, from an airport, to an airport, under an airline or flight number. Needs at least one
-// of origin, destination and ident. `date` is the local date at the origin (else the destination, else
-// UTC), up to MAX_DAYS_AHEAD days from now.
+// of origin, destination and ident. `date` is the local date at the origin (else the destination), up to
+// MAX_DAYS_AHEAD days from now. A flight number alone has no place to read the day in: the provider is
+// asked from noon UTC the day before to noon UTC the day after, and the flights kept are those leaving
+// on `date` at their own origin. `time` (minutes after local midnight) narrows a search with a place
+// to TIME_WINDOW_MS either side, within the day, so a busy airport's evening is not lost past the
+// pages read; `truncated` says when the provider still had pages after MAX_PAGES.
 //
 // The provider's schedules (/schedules/{date_start}/{date_end}) are read for that local day, through
 // the AeroApi client and its spend cap, and cached whole per query and day (schedules_cache,
@@ -18,12 +22,16 @@ import { resolveAirport } from "../_shared/airports.ts";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { ApiError, errorResponse, json } from "../_shared/errors.ts";
 import { checkRate } from "../_shared/limits.ts";
-import { zonedDayStart } from "../flight-lookup/handler.ts";
+import { localDate, zonedDayStart } from "../flight-lookup/handler.ts";
 
 export const CACHE_TTL_MS = 6 * 3600_000;
 export const SCHEDULES_MAX_PER_HOUR = 30;
 /** How far ahead a date may be: the airlines publish about eleven months. */
 export const MAX_DAYS_AHEAD = 330;
+/** Pages read per search, each one billed. */
+export const MAX_PAGES = 3;
+/** How far either side of an asked time of day the provider is asked. */
+export const TIME_WINDOW_MS = 4 * 3600_000;
 
 const DAY_MS = 86_400_000;
 const AIRLINE = /^([A-Z]{3}|[A-Z0-9]{2})$/;
@@ -32,7 +40,7 @@ const IDENT = /^([A-Z]{3}|[A-Z0-9]{2})([0-9]{1,4})$/;
 
 export interface Deps {
   db: SupabaseClient;
-  aero: Pick<AeroApi, "schedules">;
+  aero: Pick<AeroApi, "scheduleWindow">;
   verifier?: TokenVerifier;
   now?: () => Date;
 }
@@ -48,20 +56,25 @@ export interface ScheduledFlight {
   aircraft_type: string | null;
 }
 
-/** "KSFO-KORD-*-UA1958-2026-11-20": the cache key of a query and day, `*` for a part not asked. */
+/**
+ * "KSFO-KORD-*-UA1958-2026-11-20": the cache key of a query and day, `*` for a part not asked. A time
+ * of day narrows the answer, so it is its own search: "KSFO-*-*-*-2026-11-20-t1140".
+ */
 export function cacheKey(
   q: {
     origin?: string;
     destination?: string;
     airline?: string;
     ident?: string;
+    time?: number;
   },
   date: string,
 ): string {
   const p = (v?: string) => v || "*";
+  const t = q.time === undefined ? "" : `-t${q.time}`;
   return `${p(q.origin)}-${p(q.destination)}-${p(q.airline)}-${
     p(q.ident)
-  }-${date}`;
+  }-${date}${t}`;
 }
 
 /**
@@ -94,6 +107,20 @@ function nextDate(date: string): string {
     .slice(0, 10);
 }
 
+/** ICAO to timezone for the airports the table knows. */
+async function timezonesOf(
+  db: SupabaseClient,
+  icaos: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (icaos.length === 0) return out;
+  const { data, error } = await db.from("airports").select("icao, tz")
+    .in("icao", icaos);
+  if (error) throw new Error(`airports read failed: ${error.message}`);
+  for (const r of data ?? []) if (r.tz) out.set(r.icao, r.tz);
+  return out;
+}
+
 /** The timezone of an airport (ICAO), UTC when the table has none. */
 async function timezoneOf(db: SupabaseClient, icao: string): Promise<string> {
   const { data, error } = await db.from("airports").select("tz")
@@ -112,6 +139,48 @@ interface Query {
   airline?: string;
   ident?: string;
   date: string;
+  /** Minutes after local midnight. */
+  time?: number;
+}
+
+/**
+ * The provider window of a query, as UTC instants: the local day at the origin (else the destination),
+ * narrowed to TIME_WINDOW_MS either side of `time` within that day; with no place, noon UTC the day
+ * before to noon UTC the day after, which holds `date` at any origin (UTC-12 to UTC+12 in full).
+ */
+async function windowOf(
+  db: SupabaseClient,
+  q: Query,
+): Promise<{ start: Date; end: Date }> {
+  const place = q.origin ?? q.destination;
+  if (!place) {
+    const noon = Date.parse(`${q.date}T12:00:00Z`);
+    return { start: new Date(noon - DAY_MS), end: new Date(noon + DAY_MS) };
+  }
+  const tz = await timezoneOf(db, place);
+  const dayStart = zonedDayStart(tz, q.date).getTime();
+  const dayEnd = zonedDayStart(tz, nextDate(q.date)).getTime();
+  if (q.time === undefined) {
+    return { start: new Date(dayStart), end: new Date(dayEnd) };
+  }
+  // Local clock minutes from the day's start: a DST change that day moves it by an hour at most.
+  const at = dayStart + q.time * 60_000;
+  return {
+    start: new Date(Math.max(dayStart, at - TIME_WINDOW_MS)),
+    end: new Date(Math.min(dayEnd, at + TIME_WINDOW_MS)),
+  };
+}
+
+/** The rows leaving on `date` at their origin, read in its timezone (UTC when the table has none). */
+async function leavingOn(
+  db: SupabaseClient,
+  rows: ScheduledFlight[],
+  date: string,
+): Promise<ScheduledFlight[]> {
+  const tzs = await timezonesOf(db, [...new Set(rows.map((r) => r.origin))]);
+  return rows.filter((r) =>
+    localDate(tzs.get(r.origin) ?? "UTC", r.scheduled_out) === date
+  );
 }
 
 /**
@@ -123,10 +192,17 @@ async function cachedSchedule(
   deps: Deps,
   q: Query,
   now: Date,
-): Promise<{ flights: ScheduledFlight[]; fetched_at: string; stale: boolean }> {
+): Promise<
+  {
+    flights: ScheduledFlight[];
+    fetched_at: string;
+    stale: boolean;
+    truncated: boolean;
+  }
+> {
   const key = cacheKey(q, q.date);
   const hit = await deps.db.from("schedules_cache").select(
-    "flights, fetched_at",
+    "flights, fetched_at, truncated",
   ).eq("key", key).maybeSingle();
   if (hit.error) {
     throw new Error(`schedules_cache read failed: ${hit.error.message}`);
@@ -135,27 +211,27 @@ async function cachedSchedule(
     ? {
       flights: hit.data.flights as ScheduledFlight[],
       fetched_at: new Date(hit.data.fetched_at).toISOString(),
+      truncated: hit.data.truncated === true,
     }
     : null;
   if (cached && now.getTime() - Date.parse(cached.fetched_at) < CACHE_TTL_MS) {
     return { ...cached, stale: false };
   }
 
-  // The local day at the origin (else the destination, else UTC), as UTC instants.
-  const place = q.origin ?? q.destination;
-  const tz = place ? await timezoneOf(deps.db, place) : "UTC";
+  const { start, end } = await windowOf(deps.db, q);
   const m = q.ident ? IDENT.exec(q.ident) : null;
-  let flights: ScheduledFlight[];
+  let flights: ScheduledFlight[], truncated: boolean;
   try {
-    const rows = await deps.aero.schedules(
+    const got = await deps.aero.scheduleWindow(
       q.origin,
       q.destination,
-      zonedDayStart(tz, q.date),
-      zonedDayStart(tz, nextDate(q.date)),
-      3,
+      start,
+      end,
+      MAX_PAGES,
       { airline: m?.[1] ?? q.airline, flightNumber: m?.[2] },
     );
-    flights = rows.map(toScheduledFlight)
+    truncated = got.truncated;
+    flights = got.flights.map(toScheduledFlight)
       .filter((r): r is ScheduledFlight => r !== null)
       .sort((a, b) =>
         a.scheduled_out.localeCompare(b.scheduled_out) ||
@@ -175,15 +251,20 @@ async function cachedSchedule(
       "Airline schedules are unavailable right now",
     );
   }
+  // A wider window than the day (no place): keep the flights leaving on it at their own origin.
+  if (!q.origin && !q.destination) {
+    flights = await leavingOn(deps.db, flights, q.date);
+  }
   const fetchedAt = now.toISOString();
   const { error } = await deps.db.from("schedules_cache").upsert({
     key,
     flights,
     fetched_at: fetchedAt,
+    truncated,
   });
   // A failed write is logged, never a failed answer: the caller already has what it paid for.
   if (error) console.error("schedules_cache write failed", error.message);
-  return { flights, fetched_at: fetchedAt, stale: false };
+  return { flights, fetched_at: fetchedAt, stale: false, truncated };
 }
 
 export async function handler(req: Request, deps: Deps): Promise<Response> {
@@ -233,6 +314,18 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         "airline must be an IATA or ICAO code such as UA",
       );
     }
+    const time = body.time;
+    if (
+      time !== undefined &&
+      !(Number.isInteger(time) && (time as number) >= 0 &&
+        (time as number) < 1440)
+    ) {
+      throw new ApiError(
+        "invalid_request",
+        400,
+        "time must be minutes after local midnight, 0 to 1439",
+      );
+    }
 
     const date = body.date;
     if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -273,13 +366,21 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
 
     const got = await cachedSchedule(
       deps,
-      { origin, destination, airline, ident, date },
+      {
+        origin,
+        destination,
+        airline,
+        ident,
+        date,
+        time: time as number | undefined,
+      },
       now,
     );
     return json({
       date,
       fetched_at: got.fetched_at,
       stale: got.stale,
+      truncated: got.truncated,
       flights: got.flights,
     });
   } catch (e) {
