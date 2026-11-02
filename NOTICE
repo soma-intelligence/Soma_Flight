@@ -1,0 +1,17 @@
+Soma Flight
+Copyright (c) 2026 Soma Labs, Inc.
+
+The source code in this repository is licensed under the GNU Affero General
+Public License v3.0 (see LICENSE).
+
+Third-party material is not covered by that licence and stays under its own
+terms:
+
+- Airline names, logos, symbols and liveries (for example under assets/logos
+  and Packages/FlightKit/Sources/FlightKit/Resources/Logos) are trademarks of
+  their owners. Their sources and licences are listed in
+  Packages/FlightKit/Sources/FlightKit/Resources/Licenses/airline-logos.json
+  and Packages/FlightKit/Sources/FlightKit/Resources/Logos/commons-logos.json.
+  Their use here does not imply any endorsement.
+- Airport, airline and aircraft reference data under supabase/seed comes from
+  the sources listed in docs/data-sources.md.
