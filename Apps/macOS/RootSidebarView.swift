@@ -149,7 +149,8 @@ struct RootSidebarView: View {
                 switch home.tab {
                 case .flights:
                     MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
-                                  lookup: env.lookup)
+                                  lookup: env.lookup, planned: home.followLater.items,
+                                  onRemovePlanned: { home.followLater.remove($0) })
                 case .friends:
                     FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
                 case .passport:

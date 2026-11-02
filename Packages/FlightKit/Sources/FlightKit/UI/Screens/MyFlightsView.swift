@@ -15,6 +15,8 @@ public struct MyFlightsView: View {
     var lookup: (String) -> Airport?
     var fixedNow: Date?
     var scrolls: Bool
+    var planned: [UpcomingFlight]
+    var onRemovePlanned: (UpcomingFlight.ID) -> Void
     @Environment(\.reference) private var reference
     @Environment(\.connectivity) private var connectivity
 
@@ -22,15 +24,30 @@ public struct MyFlightsView: View {
     ///   - onSearch: opens the search sheet from the empty state; nil hides the button.
     ///   - lookup: airport by ICAO, for city names and local times on the rows.
     ///   - now: a fixed clock for previews; nil follows the real time.
+    ///   - planned: flights added ahead of time and not followed yet (the follow-later queue), listed in
+    ///     Upcoming with a "PLANNED" row; they have no detail screen, so tapping one does nothing.
+    ///   - onRemovePlanned: deletes a planned flight by its id (swipe or the long-press menu).
     public init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)? = nil,
-                lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil) {
-        self.init(store: store, onSelect: onSelect, onSearch: onSearch, lookup: lookup, now: now, scrolls: true)
+                lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
+                planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in }) {
+        self.init(store: store, onSelect: onSelect, onSearch: onSearch, lookup: lookup, now: now, scrolls: true,
+                  planned: planned, onRemovePlanned: onRemovePlanned)
     }
 
     init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)?,
-         lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool) {
+         lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
+         planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in }) {
         self.store = store; self.onSelect = onSelect; self.onSearch = onSearch
         self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls
+        self.planned = planned; self.onRemovePlanned = onRemovePlanned
+    }
+
+    /// One row of a group: a followed flight or a planned one, with the time it leaves for ordering.
+    struct Row: Identifiable {
+        enum Kind { case followed(Flight), planned(UpcomingFlight) }
+        var id: String
+        var departure: Date
+        var kind: Kind
     }
 
     /// Cached-list age past which the offline badge turns amber.
@@ -49,11 +66,25 @@ public struct MyFlightsView: View {
         .background(Theme.background)
     }
 
-    private var groups: [(title: String, flights: [Flight])] {
-        let upcoming = store.upcoming
-        let later = upcoming.filter { $0.status == .scheduled || $0.status == .unknown }
-        let done = upcoming.filter { $0.status != .scheduled && $0.status != .unknown }
-        return [("In the Air", store.live), ("Upcoming", later), ("Recent", done)].filter { !$0.flights.isEmpty }
+    /// The groups in order: in the air, upcoming (followed and planned flights together, by departure),
+    /// then recent. Empty groups are left out, so planned flights alone keep the empty state away.
+    static func groups(live: [Flight], upcoming: [Flight], planned: [UpcomingFlight],
+                       lookup: (String) -> Airport?) -> [(title: String, rows: [Row])] {
+        func followed(_ f: Flight) -> Row { Row(id: f.id.uuidString, departure: f.scheduledOut ?? .distantFuture, kind: .followed(f)) }
+        let later = upcoming.filter { $0.status == .scheduled || $0.status == .unknown }.map(followed)
+        let waiting = planned.map { u in
+            Row(id: u.id, departure: PlannedFlight.departure(u, origin: u.origin.flatMap(lookup)), kind: .planned(u))
+        }
+        // A stable merge: equal departures keep followed flights first.
+        let merged = (later + waiting).enumerated()
+            .sorted { $0.element.departure == $1.element.departure ? $0.offset < $1.offset : $0.element.departure < $1.element.departure }
+            .map(\.element)
+        let done = upcoming.filter { $0.status != .scheduled && $0.status != .unknown }.map(followed)
+        return [("In the Air", live.map(followed)), ("Upcoming", merged), ("Recent", done)].filter { !$0.rows.isEmpty }
+    }
+
+    private var groups: [(title: String, rows: [Row])] {
+        Self.groups(live: store.live, upcoming: store.upcoming, planned: planned, lookup: lookup)
     }
 
     @ViewBuilder private func content(now: Date) -> some View {
@@ -90,22 +121,13 @@ public struct MyFlightsView: View {
                 }
             } else {
                 ForEach(groups, id: \.title) { group in
-                    CapsHeader(group.title, trailing: group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights")
+                    CapsHeader(group.title, trailing: group.rows.count == 1 ? "1 flight" : "\(group.rows.count) flights")
                         .scaledPadding(.top, 6)
                         .scaledPadding(.bottom, 10)
-                    ForEach(group.flights) { flight in
-                        Button { onSelect(flight) } label: {
-                            MyFlightRow(flight: flight, origin: lookup(flight.originIcao),
-                                        destination: lookup(flight.destinationIcao), airline: airline(flight), now: now)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeToDelete("Delete \(Format.ident(flight.ident))") {
-                            Task { await store.unfollow(flight) }
-                        }
-                        .contextMenu {
-                            Button("Delete Flight", systemImage: "trash", role: .destructive) {
-                                Task { await store.unfollow(flight) }
-                            }
+                    ForEach(group.rows) { row in
+                        switch row.kind {
+                        case .followed(let flight): followedRow(flight, now: now)
+                        case .planned(let flight): plannedRow(flight, now: now)
                         }
                     }
                     Spacer().frame(height: 0).scaledPadding(.bottom, 14)
@@ -114,6 +136,33 @@ public struct MyFlightsView: View {
         }
         .scaledPadding(.horizontal, 16)
         .scaledPadding(.bottom, 24)
+    }
+
+    private func followedRow(_ flight: Flight, now: Date) -> some View {
+        Button { onSelect(flight) } label: {
+            MyFlightRow(flight: flight, origin: lookup(flight.originIcao),
+                        destination: lookup(flight.destinationIcao), airline: airline(flight), now: now)
+        }
+        .buttonStyle(.plain)
+        .swipeToDelete("Delete \(Format.ident(flight.ident))") {
+            Task { await store.unfollow(flight) }
+        }
+        .contextMenu {
+            Button("Delete Flight", systemImage: "trash", role: .destructive) {
+                Task { await store.unfollow(flight) }
+            }
+        }
+    }
+
+    /// A planned flight has no detail screen, so the row is not a button: a tap does nothing.
+    private func plannedRow(_ flight: UpcomingFlight, now: Date) -> some View {
+        PlannedFlightRow(flight: flight, origin: flight.origin.flatMap(lookup),
+                         destination: flight.destination.flatMap(lookup),
+                         airline: reference.airline(ident: flight.ident), now: now)
+            .swipeToDelete("Delete \(Format.ident(flight.ident))") { onRemovePlanned(flight.id) }
+            .contextMenu {
+                Button("Delete Flight", systemImage: "trash", role: .destructive) { onRemovePlanned(flight.id) }
+            }
     }
 
     private func reload() { Task { await store.load() } }
