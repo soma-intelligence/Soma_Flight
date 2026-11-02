@@ -176,6 +176,11 @@ enum DateWords {
         return i + 2 < w.count ? meridiem(hour, minute, w[i + 2], i..<(i + 3)) : nil
     }
 
+    /// True for a weekday or month name on its own ("sun", "mer", "dec"): never an airport code.
+    static func isCalendarWord(_ w: Substring) -> Bool {
+        weekdays[String(w)] != nil || months[String(w)] != nil
+    }
+
     // MARK: Tables
 
     /// Folded month names and short forms, English and French, to 1...12.

@@ -142,6 +142,7 @@ public struct SearchSuggester: Sendable {
         var typo: TypoKeys
         /// Large airports first, those with no IATA code (strips and heliports) last.
         var boost: Int
+        var size: AirportSize
     }
 
     /// What a typo is measured against, split once: each word for a one-word query, the whole names
@@ -176,12 +177,16 @@ public struct SearchSuggester: Sendable {
         var words: [String]
         var typo: TypoKeys
         var callsign: String
+        /// The name without a generic tail: "delta" for Delta Air Lines; nil when there is none.
+        var short: String?
     }
 
     private let airports: [AirportEntry]
     private let airlines: [AirlineEntry]
     private let airportByCode: [String: Airport]
     private let airlineByCode: [String: Airline]
+    /// Indices into `airports` by folded city.
+    private let airportsByCity: [String: [Int]]
 
     public init(airports: [Airport], airlines: [Airline], sizes: AirportSizes = .bundled) {
         self.airports = airports.map { a in
@@ -190,14 +195,18 @@ public struct SearchSuggester: Sendable {
             let boost = (size == .large ? 60 : size == .medium ? 20 : 0) - (a.iata == nil ? 40 : 0)
             let words = Array(Set(SearchText.words(city).map(String.init) + SearchText.words(name).map(String.init)))
             return AirportEntry(airport: a, city: city, name: name, words: words,
-                                typo: TypoKeys(words: words, whole: [city, name]), boost: boost)
+                                typo: TypoKeys(words: words, whole: [city, name]), boost: boost, size: size)
         }
         self.airlines = airlines.map { a in
             let name = SearchText.fold(a.name)
             let words = SearchText.words(name).map(String.init)
+            let tail = Self.airlineTails.first { name.hasSuffix($0) && name.count > $0.count }
             return AirlineEntry(airline: a, name: name, words: words, typo: TypoKeys(words: words, whole: [name]),
-                                callsign: SearchText.fold(a.callsign ?? ""))
+                                callsign: SearchText.fold(a.callsign ?? ""), short: tail.map { String(name.dropLast($0.count)) })
         }
+        var byCity: [String: [Int]] = [:]
+        for (i, e) in self.airports.enumerated() where !e.city.isEmpty { byCity[e.city, default: []].append(i) }
+        airportsByCity = byCity
         var codes: [String: Airport] = [:]
         for a in airports { codes[a.id.uppercased()] = a }
         for a in airports { if let i = a.iata?.uppercased(), codes[i] == nil { codes[i] = a } }
@@ -477,6 +486,91 @@ public struct SearchSuggester: Sendable {
               let o = bestAirport(from), o.score >= 900, let d = bestAirport(to), d.score >= 900,
               o.airport.id != d.airport.id else { return nil }
         return (o.airport, d.airport)
+    }
+
+    // MARK: Lookups
+
+    /// How a lookup read a name: through a typo, by a short form, or whole.
+    enum NameMatch: Int, Comparable, Sendable {
+        case typo, short, exact
+        static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+    }
+
+    /// Generic tails an airline is often named without.
+    private static let airlineTails = [" air lines", " airlines", " airline", " airways"]
+
+    /// The airline with this code (IATA or ICAO).
+    func airline(code: String) -> Airline? { airlineByCode[code.uppercased()] }
+
+    /// The airport with this code (IATA or ICAO).
+    func airport(code: String) -> Airport? { airportByCode[code.uppercased()] }
+
+    /// The airline named `phrase` in full ("air france"), by its name without a generic tail ("delta"),
+    /// or within the typos `SearchText.allowedTypos` allows.
+    func airline(named phrase: String) -> (airline: Airline, match: NameMatch)? {
+        let q = SearchText.fold(phrase)
+        guard !q.isEmpty else { return nil }
+        if let e = airlines.first(where: { $0.name == q }) { return (e.airline, .exact) }
+        if let e = airlines.first(where: { $0.short == q }) { return (e.airline, .short) }
+        let limit = Self.typoLimit(q)
+        guard limit > 0 else { return nil }
+        let scalars = Array(q.unicodeScalars)
+        var best: (Airline, Int)?
+        for e in airlines {
+            for key in [e.name, e.short].compactMap({ $0 }) {
+                guard let d = Self.wholeDistance(scalars, key, limit: limit), d < (best?.1 ?? .max) else { continue }
+                best = (e.airline, d)
+            }
+        }
+        return best.map { ($0.0, .typo) }
+    }
+
+    /// The airports `phrase` names: a city's ("paris" gives CDG and Orly, see `cityAirports`), one
+    /// airport by the words of its name ("heathrow"), or a city within the typos allowed ("zurih").
+    func airports(named phrase: String) -> (airports: [Airport], match: NameMatch)? {
+        let q = SearchText.fold(phrase)
+        guard !q.isEmpty else { return nil }
+        if let ids = airportsByCity[q] { return (cityAirports(ids), .exact) }
+        let qWords = SearchText.words(q).map(String.init)
+        if q.count >= 4, qWords.contains(where: { !Self.genericAirportWords.contains($0) }),
+           let e = airports.filter({ e in qWords.allSatisfy { e.words.contains($0) } }).max(by: { $0.boost < $1.boost }) {
+            return ([e.airport], .short)
+        }
+        let limit = Self.typoLimit(q)
+        guard limit > 0 else { return nil }
+        let scalars = Array(q.unicodeScalars)
+        var best: (city: String, d: Int, boost: Int)?
+        for e in airports where !e.city.isEmpty {
+            guard let d = Self.wholeDistance(scalars, e.city, limit: limit) else { continue }
+            if let b = best, (d, -e.boost) >= (b.d, -b.boost) { continue }
+            best = (e.city, d, e.boost)
+        }
+        guard let best, let ids = airportsByCity[best.city] else { return nil }
+        return (cityAirports(ids), .typo)
+    }
+
+    /// Words that name no airport on their own.
+    private static let genericAirportWords: Set<String> = [
+        "airport", "international", "intl", "regional", "municipal", "airfield", "field", "aeroport", "aeropuerto",
+        "air", "base", "heliport", "county", "city", "san", "saint", "new", "the", "de", "la",
+    ]
+
+    /// A city's airports: those that are not small, in the country of its largest (London is not also
+    /// London, Ontario), large first; the largest alone when every one is small.
+    private func cityAirports(_ ids: [Int]) -> [Airport] {
+        let entries = ids.map { airports[$0] }
+        guard let top = entries.max(by: { ($0.boost, $1.airport.id) < ($1.boost, $0.airport.id) }) else { return [] }
+        let rank: (AirportSize) -> Int = { $0 == .large ? 0 : $0 == .medium ? 1 : 2 }
+        let kept = entries.filter { $0.size != .small && $0.airport.country == top.airport.country }
+        guard !kept.isEmpty else { return [top.airport] }
+        return kept.sorted { (rank($0.size), $0.airport.id) < (rank($1.size), $1.airport.id) }.map(\.airport)
+    }
+
+    /// The typos from `q` to the whole of `key`, within `limit`; the first letters must agree.
+    private static func wholeDistance(_ q: [Unicode.Scalar], _ key: String, limit: Int) -> Int? {
+        let k = Array(key.unicodeScalars)
+        guard k.first == q.first, abs(k.count - q.count) <= limit else { return nil }
+        return SearchText.prefixDistance(q, k, limit: limit)
     }
 
     // MARK: Recent
