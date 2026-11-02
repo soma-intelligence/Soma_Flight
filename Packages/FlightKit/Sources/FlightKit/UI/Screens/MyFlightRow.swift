@@ -35,6 +35,138 @@ extension DetailFacts {
     }
 }
 
+// MARK: - Shared chrome
+
+/// The layout both My Flights rows share, so they cannot drift apart: the countdown column beside the
+/// airline logo, flight number and date, the route, and the two codes, closed by a hairline. At
+/// accessibility sizes the countdown leads the text as one line. Only the countdown and the data differ.
+struct FlightRowChrome<Countdown: View, Ends: View>: View {
+    var airline: Airline?
+    var code: String
+    var ident: String
+    var day: String?
+    var from: String
+    var to: String
+    /// The accessibility-size one-line countdown and its colour.
+    var line: String
+    var lineColor: Color
+    var accessibilityText: String
+    @ViewBuilder var countdown: Countdown
+    @ViewBuilder var ends: Ends
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .largeTitle) private var column: CGFloat = 66
+    /// The airline's mark beside the flight number.
+    @ScaledMetric(relativeTo: .subheadline) private var mark: CGFloat = 24
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                // No room for a column: the countdown leads the text as one line.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(line)
+                        .scaledFont(20, weight: .semibold)
+                        .foregroundStyle(lineColor)
+                    details
+                }
+                .scaledPadding(.vertical, 14)
+                .overlay(alignment: .bottom) { Hairline() }
+            } else {
+                HStack(alignment: .center, spacing: 13) {
+                    countdown
+                        .frame(width: column)
+                    VStack(alignment: .leading, spacing: 0) {
+                        details
+                            .scaledPadding(.vertical, 14)
+                        Hairline()
+                    }
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 8) {
+                    logoAndIdent
+                    Spacer(minLength: 8)
+                    dayText
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    logoAndIdent
+                    dayText
+                }
+            }
+            RouteText(from: from, to: to)
+                .fixedSize(horizontal: false, vertical: true)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) { ends }
+                VStack(alignment: .leading, spacing: 4) { ends }
+            }
+            .scaledPadding(.top, 2)
+        }
+    }
+
+    private var logoAndIdent: some View {
+        HStack(alignment: .center, spacing: 8) {
+            AirlineLogo(airline: airline, code: code, size: mark, decorative: true)
+            Text(ident)
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize()
+        }
+    }
+
+    @ViewBuilder private var dayText: some View {
+        if let day {
+            Text(day)
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize()
+        }
+    }
+}
+
+/// One end of a row's route: the arrow disc, the airport code and its local time ("--:--" when unknown),
+/// with the arrival's day marker ("+1") when given.
+struct FlightRowEnd: View {
+    var icon: String
+    var code: String
+    var time: Date?
+    var tz: TimeZone?
+    var marker: String?
+    @Environment(\.units) private var units
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 6) {
+            Image(systemName: icon)
+                .scaledFont(10, weight: .bold)
+                .foregroundStyle(Theme.background)
+                .scaledPadding(.all, 4)
+                .background(Circle().fill(Theme.secondary.opacity(0.75)))
+                .accessibilityHidden(true)
+            Text(code)
+                .foregroundStyle(Theme.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(time.map { Format.clock($0, tz ?? .current, units.clock) } ?? "--:--")
+                    .foregroundStyle(Theme.primary)
+                if let marker {
+                    Text(marker)
+                        .scaledFont(11, weight: .medium)
+                        .foregroundStyle(Theme.primary)
+                        .baselineOffset(8)
+                }
+            }
+        }
+        .scaledFont(17)
+        .monospacedDigit()
+        .lineLimit(1)
+    }
+}
+
 // MARK: - Row
 
 /// A followed flight in My Flights: the countdown column, then the airline logo, flight number and date,
@@ -46,11 +178,6 @@ public struct MyFlightRow: View {
     var destination: Airport?
     var airline: Airline?
     var now: Date
-    @Environment(\.units) private var units
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @ScaledMetric(relativeTo: .largeTitle) private var column: CGFloat = 66
-    /// The airline's mark beside the flight number.
-    @ScaledMetric(relativeTo: .subheadline) private var mark: CGFloat = 24
 
     public init(flight: Flight, origin: Airport?, destination: Airport?, airline: Airline?, now: Date = .now) {
         self.flight = flight; self.origin = origin; self.destination = destination
@@ -74,32 +201,20 @@ public struct MyFlightRow: View {
 
     public var body: some View {
         let count = DetailFacts.countdownColumn(flight, now: now)
-        Group {
-            if typeSize.isAccessibilitySize {
-                // No room for a column: the countdown leads the text as one line.
-                VStack(alignment: .leading, spacing: 6) {
-                    Text([count.value, count.unit].filter { !$0.isEmpty }.joined(separator: " "))
-                        .scaledFont(20, weight: .semibold)
-                        .foregroundStyle(count.value.isEmpty ? unitColor : Theme.primary)
-                    details
-                }
-                .scaledPadding(.vertical, 14)
-                .overlay(alignment: .bottom) { Hairline() }
-            } else {
-                HStack(alignment: .center, spacing: 13) {
-                    countdown(count)
-                        .frame(width: column)
-                    VStack(alignment: .leading, spacing: 0) {
-                        details
-                            .scaledPadding(.vertical, 14)
-                        Hairline()
-                    }
-                }
-            }
+        FlightRowChrome(
+            airline: airline, code: code, ident: Format.ident(flight.ident), day: Self.day(flight, origin: origin),
+            from: origin?.city ?? flight.originCode, to: destination?.city ?? flight.destinationCode,
+            line: [count.value, count.unit].filter { !$0.isEmpty }.joined(separator: " "),
+            lineColor: count.value.isEmpty ? unitColor : Theme.primary,
+            accessibilityText: accessibilityText(count)
+        ) {
+            countdown(count)
+        } ends: {
+            FlightRowEnd(icon: "arrow.up.right", code: flight.originCode, time: DetailFacts.bestOut(flight),
+                         tz: origin?.timeZone, marker: nil)
+            FlightRowEnd(icon: "arrow.down.right", code: flight.destinationCode, time: DetailFacts.bestIn(flight),
+                         tz: destination?.timeZone, marker: Self.marker(flight, origin: origin, destination: destination))
         }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText(count))
     }
 
     private func countdown(_ c: (value: String, unit: String)) -> some View {
@@ -130,81 +245,6 @@ public struct MyFlightRow: View {
 
     private var code: String {
         flight.operator.map(AirportFacts.airlineCode) ?? TravelFacts.airlineCode(ident: flight.ident)
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 8) {
-                    logoAndIdent
-                    Spacer(minLength: 8)
-                    dayText
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    logoAndIdent
-                    dayText
-                }
-            }
-            RouteText(from: origin?.city ?? flight.originCode, to: destination?.city ?? flight.destinationCode)
-                .fixedSize(horizontal: false, vertical: true)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 14) { ends }
-                VStack(alignment: .leading, spacing: 4) { ends }
-            }
-            .scaledPadding(.top, 2)
-        }
-    }
-
-    private var logoAndIdent: some View {
-        HStack(alignment: .center, spacing: 8) {
-            AirlineLogo(airline: airline, code: code, size: mark, decorative: true)
-            Text(Format.ident(flight.ident))
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize()
-        }
-    }
-
-    @ViewBuilder private var dayText: some View {
-        if let day = Self.day(flight, origin: origin) {
-            Text(day)
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize()
-        }
-    }
-
-    @ViewBuilder private var ends: some View {
-        end(icon: "arrow.up.right", code: flight.originCode, time: DetailFacts.bestOut(flight),
-            tz: origin?.timeZone, marker: nil)
-        end(icon: "arrow.down.right", code: flight.destinationCode, time: DetailFacts.bestIn(flight),
-            tz: destination?.timeZone, marker: Self.marker(flight, origin: origin, destination: destination))
-    }
-
-    private func end(icon: String, code: String, time: Date?, tz: TimeZone?, marker: String?) -> some View {
-        HStack(alignment: .center, spacing: 6) {
-            Image(systemName: icon)
-                .scaledFont(10, weight: .bold)
-                .foregroundStyle(Theme.background)
-                .scaledPadding(.all, 4)
-                .background(Circle().fill(Theme.secondary.opacity(0.75)))
-                .accessibilityHidden(true)
-            Text(code)
-                .foregroundStyle(Theme.secondary)
-            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(time.map { Format.clock($0, tz ?? .current, units.clock) } ?? "--:--")
-                    .foregroundStyle(Theme.primary)
-                if let marker {
-                    Text(marker)
-                        .scaledFont(11, weight: .medium)
-                        .foregroundStyle(Theme.primary)
-                        .baselineOffset(8)
-                }
-            }
-        }
-        .scaledFont(17)
-        .monospacedDigit()
-        .lineLimit(1)
     }
 
     private func accessibilityText(_ c: (value: String, unit: String)) -> String {

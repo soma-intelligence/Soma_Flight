@@ -590,7 +590,13 @@ public final class HomeModel {
     /// A follow went through: says so over the tab pill, reloads My Flights, then (the first time) asks
     /// for notifications.
     public func didFollow(_ flight: Flight? = nil) async {
-        if let flight { showToast("Added \(Format.ident(flight.ident))") }
+        if let flight {
+            showToast("Added \(Format.ident(flight.ident))")
+            // Followed by hand while waiting in the queue: it is no longer planned.
+            for u in followLater.items where PlannedFlight.matches(u, flight, reference: env.reference, airport: env.lookup) {
+                followLater.remove(u.id)
+            }
+        }
         await myFlights.load()
         await push?.didFollow()
     }

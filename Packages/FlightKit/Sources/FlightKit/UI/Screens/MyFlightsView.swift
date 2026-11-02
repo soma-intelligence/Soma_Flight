@@ -67,9 +67,15 @@ public struct MyFlightsView: View {
     }
 
     /// The groups in order: in the air, upcoming (followed and planned flights together, by departure),
-    /// then recent. Empty groups are left out, so planned flights alone keep the empty state away.
+    /// then recent. Empty groups are left out, so planned flights alone keep the empty state away. A planned
+    /// flight that is also followed (same number, same day at the origin) shows once, as the followed one.
     static func groups(live: [Flight], upcoming: [Flight], planned: [UpcomingFlight],
-                       lookup: (String) -> Airport?) -> [(title: String, rows: [Row])] {
+                       lookup: (String) -> Airport?,
+                       reference: ReferenceData = .bundled()) -> [(title: String, rows: [Row])] {
+        let all = live + upcoming
+        let planned = planned.filter { u in
+            !all.contains { PlannedFlight.matches(u, $0, reference: reference, airport: lookup) }
+        }
         func followed(_ f: Flight) -> Row { Row(id: f.id.uuidString, departure: f.scheduledOut ?? .distantFuture, kind: .followed(f)) }
         let later = upcoming.filter { $0.status == .scheduled || $0.status == .unknown }.map(followed)
         let waiting = planned.map { u in
@@ -84,7 +90,8 @@ public struct MyFlightsView: View {
     }
 
     private var groups: [(title: String, rows: [Row])] {
-        Self.groups(live: store.live, upcoming: store.upcoming, planned: planned, lookup: lookup)
+        Self.groups(live: store.live, upcoming: store.upcoming, planned: planned, lookup: lookup,
+                    reference: reference)
     }
 
     @ViewBuilder private func content(now: Date) -> some View {
@@ -159,11 +166,14 @@ public struct MyFlightsView: View {
         PlannedFlightRow(flight: flight, origin: flight.origin.flatMap(lookup),
                          destination: flight.destination.flatMap(lookup),
                          airline: reference.airline(ident: flight.ident), now: now)
-            .swipeToDelete("Delete \(Format.ident(flight.ident))") { onRemovePlanned(flight.id) }
+            .swipeToDelete("Delete \(Format.ident(flight.ident))") { deletePlanned(flight) }
             .contextMenu {
-                Button("Delete Flight", systemImage: "trash", role: .destructive) { onRemovePlanned(flight.id) }
+                Button("Delete Flight", systemImage: "trash", role: .destructive) { deletePlanned(flight) }
             }
     }
+
+    /// What the swipe and the menu's Delete Flight both do for a planned flight.
+    func deletePlanned(_ flight: UpcomingFlight) { onRemovePlanned(flight.id) }
 
     private func reload() { Task { await store.load() } }
 
