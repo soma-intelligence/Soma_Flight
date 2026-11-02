@@ -453,3 +453,48 @@ public actor FakePushService: PushService {
         registrations.append(Registration(deviceToken: deviceToken, kind: kind, flightId: flightId))
     }
 }
+
+/// Believable schedules for screenshot runs and tests: the seed's flights (followed and boards) moved onto the
+/// asked day, keeping their times of day (UTC), then filtered by the query's origin, destination, airline and
+/// flight number, so a route always shows the same list.
+public actor FakeScheduleService: ScheduleService {
+    public var nextError: APIError?
+    private let seed: [Flight]
+
+    public init() {
+        var byID: [Flight.ID: Flight] = [:]
+        for f in FakeSeed.flights("followed", shift: 0) { byID[f.id] = f }
+        for b in FakeSeed.boards(shift: 0) { for f in b.flights where byID[f.id] == nil { byID[f.id] = f } }
+        seed = byID.values.filter { $0.scheduledOut != nil }
+    }
+
+    public func setNextError(_ error: APIError?) { nextError = error }
+
+    public func schedules(_ q: ScheduleQuery) async throws(APIError) -> [ScheduledFlight] {
+        if let e = nextError { nextError = nil; throw e }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        guard let start = utc.date(from: DateComponents(year: q.day.year, month: q.day.month, day: q.day.day)) else {
+            throw .rejected("Not a day")
+        }
+        func same(_ a: String?, _ b: String) -> Bool {
+            guard let a else { return true }
+            return normalized(a) == normalized(b)
+        }
+        func code(_ s: String) -> String { s.filter { !$0.isWhitespace }.uppercased() }
+        var rows: [ScheduledFlight] = []
+        for f in seed {
+            guard let out = f.scheduledOut,
+                  same(q.origin, f.originIcao), same(q.destination, f.destinationIcao),
+                  q.airline.map({ code($0) == code(f.operator ?? "") }) ?? true,
+                  q.ident.map({ code($0) == code(f.ident) }) ?? true else { continue }
+            // Same time of day on the asked day: the seed's out time, less its own UTC midnight.
+            let shift = start.timeIntervalSince(utc.startOfDay(for: out))
+            rows.append(ScheduledFlight(ident: f.ident, airline: f.operator, origin: f.originIcao,
+                                        destination: f.destinationIcao, scheduledOut: out.addingTimeInterval(shift),
+                                        scheduledIn: f.scheduledIn?.addingTimeInterval(shift),
+                                        aircraftType: f.aircraftType))
+        }
+        return rows.sorted { ($0.scheduledOut, $0.ident) < ($1.scheduledOut, $1.ident) }
+    }
+}

@@ -31,6 +31,9 @@ public struct AppEnvironment: Sendable {
     /// Other direct flights on a route, for the Connection Assistant (paid data, like `insights`): the fakes
     /// with `-useFakes`, `alternate-flights` when `INSIGHTS_ENABLED` is on, nothing otherwise.
     public var alternates: any AlternateFlightsService = UnavailableAlternateFlightsService()
+    /// Airline schedules for a day, so the search finds flights days or weeks ahead (paid data, like
+    /// `insights`): the fakes with `-useFakes`, `flight-schedules` when `INSIGHTS_ENABLED` is on, nothing otherwise.
+    public var schedules: any ScheduleService = UnavailableScheduleService()
     /// Live flight links for the flight sheet's Share (`share-flight`); `FlightScreen` puts it in
     /// `\.flightSharing`. None (text only) unless a builder sets it.
     public var sharing: any FlightShareService = UnavailableFlightShareService()
@@ -107,6 +110,7 @@ public struct AppEnvironment: Sendable {
                                  passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
             .with(gates: FakeGateHistoryService())
             .withAlternates(FakeAlternateFlightsService(flights: flights))
+            .withSchedules(FakeScheduleService())
         env.sharing = FakeFlightShareService(now: now)
         env.friends = FakeFriendsService(now: now)
         env.airportOverview = FakeAirportOverviewService(now: now)
@@ -152,6 +156,7 @@ public struct AppEnvironment: Sendable {
                               faa: SupabaseFAAService(backend: backend))
             .with(gates: SupabaseGateHistoryService(backend: backend))
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
+            .withSchedules(insights ? SupabaseScheduleService(backend: backend) : UnavailableScheduleService())
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
         env.airportOverview = SupabaseAirportOverviewService(backend: backend)
