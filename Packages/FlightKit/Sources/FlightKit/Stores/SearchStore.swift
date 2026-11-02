@@ -232,7 +232,9 @@ public final class SearchStore {
         let today = LocalDay(now(), in: i.origins.first.map(zone) ?? timeZone)
         let day = i.day ?? today
         let near = today.days(to: day) <= 2
-        let when = i.day.map(noon) ?? date
+        // The origin-local day on every path, typed or not: the board shortcut, the lookup's date and
+        // `rowDay` must agree (a phone in Los Angeles at 16:00 is already tomorrow in Paris).
+        let when = noon(day)
         var r = SearchRoute(key: "", origins: Set(i.origins), destinations: Set(i.destinations),
                             airline: i.airline, timeOfDay: i.timeOfDay)
         if let ident = i.ident {
@@ -265,7 +267,9 @@ public final class SearchStore {
                     fromOrigin ? ScheduleQuery(origin: $0, airline: i.airline?.id, day: day, time: i.timeOfDay)
                                : ScheduleQuery(destination: $0, airline: i.airline?.id, day: day, time: i.timeOfDay)
                 }
-                r.rowDay = day
+                // The backend reads a destination-only query on the destination's day: holding its rows
+                // to their origin's day would drop most of them.
+                if fromOrigin { r.rowDay = day }
             }
         } else {
             return nil

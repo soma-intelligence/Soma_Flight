@@ -171,8 +171,8 @@ test("the origin's local day is the provider's window, filters go through", asyn
   await fresh(byIdent);
   const idRes = await handler(post(user, { ...byIdent, date: DATE }), d);
   assertEquals(idRes.status, 200);
-  // No place: noon UTC the day before to noon UTC the day after, which holds the day anywhere.
-  assertEquals(aero.calls[1].start, "2026-11-02T12:00:00.000Z");
+  // No place: 10:00Z the day before (UTC+14's midnight) to noon UTC the day after, the day anywhere.
+  assertEquals(aero.calls[1].start, "2026-11-02T10:00:00.000Z");
   assertEquals(aero.calls[1].end, "2026-11-04T12:00:00.000Z");
   assertEquals(aero.calls[1].query.airline, "UA");
   assertEquals(aero.calls[1].query.flight_number, "1958");
@@ -244,7 +244,7 @@ test("a flight number alone keeps the flights leaving on the day at their origin
       "2026-12-13T01:00:00.000Z",
     ],
   );
-  assertEquals(aero.calls[0].start, "2026-12-11T12:00:00.000Z");
+  assertEquals(aero.calls[0].start, "2026-12-11T10:00:00.000Z");
   assertEquals(aero.calls[0].end, "2026-12-13T12:00:00.000Z");
 
   // NH 10 leaves Tokyo at 06:00 (JST): 21:00Z the day before. The 13 Dec one is 21:00Z on 12 Dec.

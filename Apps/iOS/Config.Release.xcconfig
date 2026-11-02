@@ -8,13 +8,13 @@ SUPABASE_ANON_KEY =
 
 // The flight sheet's arrival forecast and inbound plane (edge function flight-insights, paid AeroAPI
 // calls on the backend). Off until the owner approves the cost: set INSIGHTS_ENABLED = YES in
+// Config.local.xcconfig to turn them on. NO hides both sections and makes no call.
+INSIGHTS_ENABLED = NO
 
 // The search's days ahead (edge function flight-schedules, paid AeroAPI schedules). NO in both until
 // the function is deployed: Debug builds then search fake schedules, Release builds say future dates
 // need the live service. YES asks flight-schedules.
 SCHEDULES_ENABLED = NO
-// Config.local.xcconfig to turn them on. NO hides both sections and makes no call.
-INSIGHTS_ENABLED = NO
 
 #include? "Config.local.xcconfig"
 

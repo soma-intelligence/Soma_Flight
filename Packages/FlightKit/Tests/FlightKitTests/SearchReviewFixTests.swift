@@ -72,6 +72,31 @@ import FlightImportKit
         #expect(!SupabaseFlightService.boardServes(date: Self.ny(11, 1, 12), origin: "LFPG", now: late, airport: lookup, timeZone: ny))
     }
 
+    /// A phone in Los Angeles late in the afternoon is already the next day in Paris: with no day typed,
+    /// a route from Paris asks the Paris day, and its rows (on that day in Paris) survive.
+    @Test func noTypedDayAsksTheOriginsToday() async {
+        let la = TimeZone(identifier: "America/Los_Angeles")!
+        // 16:00 in Los Angeles on 1 Nov is 01:00 on 2 Nov in Paris.
+        let flights = RecordingFlights { q in
+            guard case .route(let o, let d, _) = q else { return [] }
+            return [R.flight("AF6", o, d, out: R.at(2, 10, 30))]
+        }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = la
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 16))!
+        let s = SearchStore(flights: flights, schedules: RecordingSchedules(), now: { now })
+        s.timeZone = la
+        s.monthFirst = true
+        s.date = now
+        s.text = "CDG JFK"
+        await s.search()
+        guard case .route(_, _, let date)? = flights.queries.first else {
+            Issue.record("not a route lookup: \(flights.queries)"); return
+        }
+        #expect(SupabaseBackend.day(date, in: la) == "2026-11-02")
+        #expect(R.idents(s) == ["AF6"])
+    }
+
     // MARK: Far flight numbers keep the origin's day
 
     /// The schedules of a flight number span the day either side: only the flight leaving on the asked
@@ -87,6 +112,19 @@ import FlightImportKit
         #expect(schedules.queries.count == 1)
         #expect(schedules.queries.first?.day == LocalDay(year: 2026, month: 12, day: 12))
         #expect(s.items.map(\.scheduledOut) == [Self.ny(12, 12, 20)])
+    }
+
+    /// "To Tokyo 12 dec": the backend reads a destination-only query on the destination's day, so the
+    /// rows are not held to their origin's day, and a departure the evening before at the origin stays.
+    @Test func aFarDestinationOnlySearchKeepsTheBackendsDay() async {
+        let schedules = RecordingSchedules { _ in
+            [R.planned("AA167", "KJFK", "RJTT", out: Self.ny(12, 11, 13)), R.planned("NH9", "KJFK", "RJTT", out: Self.ny(12, 12, 1))]
+        }
+        let s = R.store(RecordingFlights(), schedules)
+        s.text = "to Tokyo 12 dec"
+        await s.search()
+        #expect(!schedules.queries.isEmpty && schedules.queries.allSatisfy { $0.destination != nil && $0.origin == nil })
+        #expect(Set(R.idents(s)) == ["AA167", "NH9"])
     }
 
     // MARK: Time of day and cut answers

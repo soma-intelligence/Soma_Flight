@@ -5,8 +5,8 @@
 // fly on a day, from an airport, to an airport, under an airline or flight number. Needs at least one
 // of origin, destination and ident. `date` is the local date at the origin (else the destination), up to
 // MAX_DAYS_AHEAD days from now. A flight number alone has no place to read the day in: the provider is
-// asked from noon UTC the day before to noon UTC the day after, and the flights kept are those leaving
-// on `date` at their own origin. `time` (minutes after local midnight) narrows a search with a place
+// asked from 10:00Z the day before (UTC+14's midnight) to noon UTC the day after, and the flights
+// kept are those leaving on `date` at their own origin. `time` (minutes after local midnight) narrows a search with a place
 // to TIME_WINDOW_MS either side, within the day, so a busy airport's evening is not lost past the
 // pages read; `truncated` says when the provider still had pages after MAX_PAGES.
 //
@@ -145,8 +145,8 @@ interface Query {
 
 /**
  * The provider window of a query, as UTC instants: the local day at the origin (else the destination),
- * narrowed to TIME_WINDOW_MS either side of `time` within that day; with no place, noon UTC the day
- * before to noon UTC the day after, which holds `date` at any origin (UTC-12 to UTC+12 in full).
+ * narrowed to TIME_WINDOW_MS either side of `time` within that day; with no place, 10:00Z the day
+ * before to noon UTC the day after, which holds `date` at any origin (UTC-12 to UTC+14 in full).
  */
 async function windowOf(
   db: SupabaseClient,
@@ -155,7 +155,10 @@ async function windowOf(
   const place = q.origin ?? q.destination;
   if (!place) {
     const noon = Date.parse(`${q.date}T12:00:00Z`);
-    return { start: new Date(noon - DAY_MS), end: new Date(noon + DAY_MS) };
+    return {
+      start: new Date(noon - DAY_MS - 2 * 3600_000),
+      end: new Date(noon + DAY_MS),
+    };
   }
   const tz = await timezoneOf(db, place);
   const dayStart = zonedDayStart(tz, q.date).getTime();

@@ -466,7 +466,7 @@ schedules. Paid (AeroAPI schedules). A schedule is a plan: no status, no estimat
   `ident` as `airline` plus `flight_number`.
 - `date` is `YYYY-MM-DD`, the local day at the origin, else at the destination. Within 330 days ahead and no
   more than 2 days back, else 400 `out_of_window`; a bad date is 400 `invalid_request`. A flight number alone
-  has no place: the provider is asked from noon UTC the day before to noon UTC the day after, and only the
+  has no place: the provider is asked from 10:00Z the day before (midnight at UTC+14) to noon UTC the day after, and only the
   flights leaving on `date` in their origin's timezone are kept (a 20:00 New York departure is 01:00Z the next
   day and still counts for `date`).
 - `time` (optional) is minutes after local midnight, an integer 0 to 1439 (else 400 `invalid_request`). With an
