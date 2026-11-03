@@ -122,10 +122,23 @@ public struct SettingsView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ScreenTitle("Settings")
-                .scaledPadding(.horizontal, Theme.gutter)
-                .scaledPadding(.top, 22)
-                .scaledPadding(.bottom, 16)
+            if onClose != nil {
+                // The sheet's bar: the title centred on the line of the round X, as OnePass sets Settings.
+                Text("Settings")
+                    .scaledFont(17, weight: .semibold, relativeTo: .headline)
+                    .foregroundStyle(Theme.primary)
+                    .accessibilityAddTraits(.isHeader)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .scaledPadding(.top, 16)
+                    .scaledPadding(.horizontal, 64)
+                    .scaledPadding(.bottom, 6)
+            } else {
+                ScreenTitle("Settings")
+                    .scaledPadding(.horizontal, Theme.gutter)
+                    .scaledPadding(.top, 22)
+                    .scaledPadding(.bottom, 16)
+            }
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
@@ -177,39 +190,43 @@ public struct SettingsView: View {
                 SettingsSection("Profile", footer: "Only friends see your name and emoji.") { ProfileRows(store: friends) }
             }
             SettingsSection("Units") {
-                SettingsRow(icon: "ruler.fill", title: "Distance") {
+                SettingsRow(icon: "ruler.fill", title: "Distance", tint: SettingsStyle.teal) {
                     PillPicker(options: [(DistanceUnit.km, "Kilometers"), (.mi, "Miles")], selection: $units.distance)
                 }
-                SettingsRow(icon: "clock.fill", title: "Time", last: true) {
+                SettingsRow(icon: "clock.fill", title: "Time", tint: SettingsStyle.indigo, last: true) {
                     PillPicker(options: [(TimeStyle.h24, "24-Hour"), (.h12, "12-Hour")], selection: $units.clock)
                 }
             }
             SettingsSection("Alerts and Travel") {
                 SettingsRow(icon: "bell.badge.fill", title: "Notifications",
                             subtitle: notifications == nil ? "Gate changes, delays, take-off and landing"
-                                : "Delays, gates, take-off and landing, bags, reminders",
+                                : "Delays, gates, take-off and landing, bags, reminders", tint: SettingsStyle.red,
                             action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
                     RowChevron()
                 }
                 if calendar != nil {
                     SettingsRow(icon: "calendar", title: "Calendar", subtitle: "Put followed flights in your calendar",
+                                tint: SettingsStyle.orange,
                                 action: { showingCalendar = true }) { RowChevron() }
                 }
                 if documents != nil {
                     SettingsRow(icon: "person.text.rectangle.fill", title: "Travel Documents",
                                 subtitle: "Loyalty, passport and trusted traveler numbers, on this device only",
+                                tint: SettingsStyle.blue,
                                 action: { showingDocuments = true }) { RowChevron() }
                 }
                 SettingsRow(icon: "checkmark.shield.fill", title: "I Have TSA PreCheck",
-                            subtitle: "Leave times count the PreCheck lane", last: true) {
+                            subtitle: "Leave times count the PreCheck lane", tint: SettingsStyle.green, last: true) {
                     Toggle("I Have TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
                 }
                 .accessibilityElement(children: .combine)
             }
             if let history {
                 SettingsSection("Your Data", footer: "Exports are built on this device.") {
-                    ExportRow(icon: "curlybraces", title: "Export History as JSON", format: .json, history: history)
-                    ExportRow(icon: "tablecells.fill", title: "Export History as CSV", format: .csv, history: history, last: true)
+                    ExportRow(icon: "curlybraces", title: "Export History as JSON", tint: SettingsStyle.slate, format: .json,
+                              history: history)
+                    ExportRow(icon: "tablecells.fill", title: "Export History as CSV", tint: SettingsStyle.green, format: .csv,
+                              history: history, last: true)
                 }
             }
             if session.session != nil {
@@ -230,18 +247,22 @@ public struct SettingsView: View {
             }
             SettingsSection("Privacy and Support",
                             footer: "We keep your email, name and photo, the flights you follow and your flight history.") {
-                SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", tone: .neutral,
+                SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", tone: .neutral, tint: SettingsStyle.blue,
                             action: { openURL(Self.privacyURL) }) { RowLink() }
-                SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", tone: .neutral,
+                SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", tone: .neutral, tint: SettingsStyle.purple,
                             action: { openURL(Self.supportURL) }) { RowLink() }
                 SettingsRow(icon: "doc.text.fill", title: "Acknowledgements", tone: .neutral, last: true,
                             action: { showingAcknowledgements = true }) { RowChevron() }
             }
-            Text("Soma Flight \(Self.version)")
-                .scaledFont(12)
-                .foregroundStyle(Theme.secondary.opacity(0.8))
-                .frame(maxWidth: .infinity)
-                .scaledPadding(.top, 26)
+            VStack(spacing: 2) {
+                Text("Soma Flight is open source (AGPL-3.0)")
+                Text("Version \(Self.version)")
+            }
+            .scaledFont(13)
+            .foregroundStyle(Theme.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .scaledPadding(.top, 16)
             if dataNote {
                 MinimalDataNote()
                     .scaledPadding(.horizontal, 16)
@@ -343,65 +364,33 @@ public struct SettingsView: View {
 
 // MARK: - Rows
 
-/// Who is signed in, as the head of Settings: a large photo, the name and the account's email, centred, with
-/// Edit Profile under them (the profile editor); without a profile, the email alone; signed out, Sign In.
+/// Who is signed in, as the head of Settings, the way OnePass opens its own: a card with the photo, the name
+/// and the account's email, and a chevron when the row opens something (the profile editor, or Sign In when
+/// signed out). Without a profile the email alone, and nothing to open.
 struct SettingsHero: View {
     var session: UserSession?
     var profile: ProfileStore?
     var onSignIn: (() -> Void)?
     @State private var editing = false
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
         let editable = session != nil && profile?.owner != nil
         let name = editable ? (profile?.displayName ?? "") : ""
-        VStack(spacing: 0) {
-            UserAvatar(photo: editable ? profile?.photo : nil, name: name.isEmpty ? nil : name,
-                       id: profile?.owner ?? session?.userId, size: 84)
-                .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
-            Text(title(name))
-                .scaledFont(22, weight: .bold)
-                .foregroundStyle(Theme.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .scaledPadding(.top, 12)
-            Text(detail)
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .scaledPadding(.top, 3)
-            if editable {
-                Button { editing = true } label: {
-                    Text(name.isEmpty ? "Add Name and Photo" : "Edit Profile")
-                        .scaledFont(15, weight: .semibold)
-                        .foregroundStyle(Theme.accent)
-                        .scaledPadding(.horizontal, 16)
-                        .scaledPadding(.vertical, 8)
-                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .scaledPadding(.top, 14)
-                .accessibilityHint("Edit your name and photo")
-            } else if session == nil, let onSignIn {
-                Button(action: onSignIn) {
-                    Text("Sign In")
-                        .scaledFont(15, weight: .semibold)
-                        .foregroundStyle(.white)
-                        .scaledPadding(.horizontal, 22)
-                        .scaledPadding(.vertical, 9)
-                        .background(Capsule().fill(Theme.accent))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .scaledPadding(.top, 14)
+        let action: (() -> Void)? = editable ? { editing = true } : (session == nil ? onSignIn : nil)
+        Group {
+            if let action {
+                Button(action: action) { card(name: name, opens: true) }
+                    .buttonStyle(SettingsRowStyle())
+                    .accessibilityHint(editable ? "Edit your name and photo" : "Sign in")
+            } else {
+                card(name: name, opens: false)
             }
         }
-        .frame(maxWidth: .infinity)
-        .scaledPadding(.horizontal, 24)
+        .background(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous).fill(Theme.card))
+        .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
+        .scaledPadding(.horizontal, 16)
         .scaledPadding(.top, 4)
-        .scaledPadding(.bottom, 6)
-        .accessibilityElement(children: .contain)
         .sheet(isPresented: $editing) {
             if let profile {
                 ProfileOnboardingView(store: profile, mode: .edit) { editing = false }
@@ -413,6 +402,34 @@ struct SettingsHero: View {
         }
     }
 
+    private func card(name: String, opens: Bool) -> some View {
+        HStack(spacing: 14) {
+            UserAvatar(photo: session != nil && profile?.owner != nil ? profile?.photo : nil,
+                       name: name.isEmpty ? nil : name, id: profile?.owner ?? session?.userId,
+                       size: Theme.metric(56, scale))
+                .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title(name))
+                    .scaledFont(20, weight: .semibold, relativeTo: .title3)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(detail)
+                    .scaledFont(15)
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if opens { RowChevron() }
+        }
+        .multilineTextAlignment(.leading)
+        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.vertical, 12)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
     private func title(_ name: String) -> String {
         guard let session else { return "Not Signed In" }
         if !name.isEmpty { return name }
@@ -422,11 +439,36 @@ struct SettingsHero: View {
     private var detail: String {
         guard let session else { return "Sign in to keep your flights on every device." }
         if profile?.owner != nil, !(profile?.displayName ?? "").isEmpty { return Self.detail(session) }
+        if profile?.owner != nil { return "Add your name and photo" }
         return session.email == nil ? "Signed in with Apple" : "Signed in"
     }
 
     /// The line under the name: the account's email, or how it signed in when Apple hid the email.
     static func detail(_ session: UserSession) -> String { session.email ?? "Signed in with Apple" }
+}
+
+/// A row's tile, as OnePass sets its Settings: a white symbol on a rounded square of the row's hue, lit from
+/// above by the hue's own gradient, with a hairline of white around it.
+struct SettingsTile: View {
+    var symbol: String
+    var color: Color
+    @Environment(\.metricsScale) private var scale
+
+    var body: some View {
+        let side = Theme.metric(SettingsStyle.iconSide, scale)
+        let shape = RoundedRectangle(cornerRadius: Theme.metric(SettingsStyle.iconRadius, scale), style: .continuous)
+        shape
+            .fill(color.gradient)
+            .overlay { shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.5) }
+            .frame(width: side, height: side)
+            .overlay {
+                Image(systemName: symbol)
+                    .font(.system(size: side * 0.52, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.12), radius: 0.5, y: 0.5)
+            }
+            .accessibilityHidden(true)
+    }
 }
 
 /// A titled group of rows on a rounded card, inset from the screen's edges, with an optional grey note under it
@@ -468,14 +510,25 @@ struct SettingsSection<Content: View>: View {
     }
 }
 
-/// Settings' shared measures and its icon palette: one blue for what the app does, one graphite for the
-/// account, privacy and support links, red only for deleting.
+/// Settings' shared measures and its tile palette, after OnePass's Settings: each row wears a tile of its
+/// own hue, graphite for the account and the plain links, red for deleting.
 enum SettingsStyle {
-    static let radius: CGFloat = 12
-    static let iconSide: CGFloat = 30
+    /// The inset grouped card's corner, as the system's own settings cards turn.
+    static let radius: CGFloat = 26
+    static let iconSide: CGFloat = 29
+    /// The tile's corner: 27 percent of its side.
+    static let iconRadius: CGFloat = iconSide * 0.27
     /// Where a row's text starts, so the separators between rows start there too.
     static let textInset: CGFloat = 16 + iconSide + 14
-    static let graphite = Color(light: 0x8E8E93, dark: 0x636366)
+    static let graphite = Color(light: 0x8A8C94, dark: 0x8A8C94)
+    static let blue = Color(light: 0x3378F5, dark: 0x3378F5)
+    static let teal = Color(light: 0x008CB3, dark: 0x008CB3)
+    static let indigo = Color(light: 0x5957D6, dark: 0x5957D6)
+    static let purple = Color(light: 0x7D3BED, dark: 0x7D3BED)
+    static let green = Color(light: 0x21A16B, dark: 0x21A16B)
+    static let orange = Color(light: 0xE09400, dark: 0xE09400)
+    static let red = Color(light: 0xE5372C, dark: 0xE5372C)
+    static let slate = Color(light: 0x475569, dark: 0x475569)
 }
 
 /// A history export row: opens the share sheet with `soma-flight-history-YYYY-MM-DD.<ext>`, built on
@@ -483,6 +536,7 @@ enum SettingsStyle {
 struct ExportRow: View {
     var icon: String
     var title: String
+    var tint: Color?
     var format: ExportFormat
     var history: any HistoryService
     var last = false
@@ -490,7 +544,7 @@ struct ExportRow: View {
     var body: some View {
         ShareLink(item: HistoryExport(format: format, history: history),
                   preview: SharePreview(HistoryExport.fileName(for: format, on: .now))) {
-            SettingsRow(icon: icon, title: title, last: last) { RowChevron() }
+            SettingsRow(icon: icon, title: title, tint: tint, last: last) { RowChevron() }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -535,6 +589,8 @@ struct SettingsRow<Accessory: View>: View {
     var title: String
     var subtitle: String?
     var tone: Tone = .feature
+    /// The tile's own hue; nil takes the tone's.
+    var tint: Color?
     var last = false
     var action: (() -> Void)?
     @ViewBuilder var accessory: Accessory
@@ -555,7 +611,8 @@ struct SettingsRow<Accessory: View>: View {
     }
 
     private var fill: Color {
-        switch tone {
+        if let tint { return tint }
+        return switch tone {
         case .feature: Theme.accent
         case .neutral: SettingsStyle.graphite
         case .destructive: Theme.veryLate
@@ -564,12 +621,7 @@ struct SettingsRow<Accessory: View>: View {
 
     private var row: some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .scaledFont(15, weight: .semibold)
-                .foregroundStyle(.white)
-                .frame(width: Theme.metric(SettingsStyle.iconSide, scale), height: Theme.metric(SettingsStyle.iconSide, scale))
-                .background(RoundedRectangle(cornerRadius: Theme.metric(7.5, scale), style: .continuous).fill(fill))
-                .accessibilityHidden(true)
+            SettingsTile(symbol: icon, color: fill)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).scaledFont(17).foregroundStyle(tone == .destructive ? Theme.veryLate : Theme.primary)
                 if let subtitle {
@@ -586,7 +638,7 @@ struct SettingsRow<Accessory: View>: View {
 }
 
 /// A row pressed: the card darkens under the finger, as the system's lists do.
-private struct SettingsRowStyle: ButtonStyle {
+struct SettingsRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(configuration.isPressed ? Theme.primary.opacity(0.08) : .clear)
