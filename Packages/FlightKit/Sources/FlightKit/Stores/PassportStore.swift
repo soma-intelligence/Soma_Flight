@@ -31,6 +31,15 @@ public final class PassportStore {
     private var all: [PastFlight] = [] {
         didSet { remap() }
     }
+    /// Followed flights that are over but not archived yet (`showLanded`), shown until the history has
+    /// their archived row. Never saved to the device's copy.
+    private var landed: [PastFlight] = [] {
+        didSet { if landed != oldValue { remap() } }
+    }
+    /// The history plus the landed flights it does not hold yet.
+    private var rows: [PastFlight] {
+        landed.isEmpty ? all : all + landed.filter { l in !all.contains { LandedFlights.same($0, l) } }
+    }
     /// `all` as the core reads it: airlines as ICAO codes, countries filled from the airports.
     private var mapped: [PastFlight] = []
     private var core: [FlightCore.PastFlight] = []
@@ -80,12 +89,12 @@ public final class PassportStore {
 
     /// Flights in the selected year (by local departure date), newest first.
     public var flights: [PastFlight] {
-        all.filter { year == nil || $0.localYear == year }.sorted { $0.date > $1.date }
+        rows.filter { year == nil || $0.localYear == year }.sorted { $0.date > $1.date }
     }
     /// Every flight of the history, whatever the year (airlines as the core reads them, ICAO when known).
     public var allFlights: [PastFlight] { mapped }
     /// Years with at least one flight, newest first.
-    public var years: [Int] { Array(Set(all.map(\.localYear))).sorted(by: >) }
+    public var years: [Int] { Array(Set(rows.map(\.localYear))).sorted(by: >) }
 
     /// The selected year's flights that arrived latest, most late first, ten at most (the delay page's list).
     public var mostDelayed: [PastFlight] { PassportPicks.mostDelayed(flights) }
@@ -130,6 +139,14 @@ public final class PassportStore {
             if isOffline, let cache { lastUpdated = await cache.pastSavedAt(); fetchedAt = lastUpdated }
         }
         await loadFacts()
+    }
+
+    /// Shows the followed flights that are over (`LandedFlights.isOver`) in the history straight away,
+    /// until the server's archive row for each arrives with a later load.
+    public func showLanded(_ followed: [Flight], now: Date = .now) {
+        landed = followed.filter { LandedFlights.isOver($0, now: now) }
+            .map { LandedFlights.pastFlight($0, airport: airport) }
+            .sorted { $0.date > $1.date }
     }
 
     // MARK: Writes
@@ -177,7 +194,7 @@ public final class PassportStore {
 
     /// What importing `data` would add, skip and leave out as duplicates of the history as loaded.
     public func importPreview(_ data: Data, now: Date = .now) throws(PastFlightImport.Failure) -> PastFlightImport.Preview {
-        try PastFlightImport.preview(data, existing: all, airport: airport, reference: reference, now: now)
+        try PastFlightImport.preview(data, existing: rows, airport: airport, reference: reference, now: now)
     }
 
     /// Stores the flights of an import; the number stored, nil when any flight was not (`writeError`
@@ -214,7 +231,7 @@ public final class PassportStore {
 
     private func loadFacts() async {
         guard let factsService else { return }
-        let regs = Array(Set(all.compactMap(\.registration).filter { !$0.isEmpty })).sorted()
+        let regs = Array(Set(rows.compactMap(\.registration).filter { !$0.isEmpty })).sorted()
         guard regs != factsAskedFor else { return }
         factsAskedFor = regs
         let got: [AircraftFact]
@@ -232,7 +249,7 @@ public final class PassportStore {
     }
 
     private func remap() {
-        mapped = Self.mapped(all, reference: reference, airport: airport)
+        mapped = Self.mapped(rows, reference: reference, airport: airport)
         core = mapped.map(\.coreFlight)
         recompute()
     }

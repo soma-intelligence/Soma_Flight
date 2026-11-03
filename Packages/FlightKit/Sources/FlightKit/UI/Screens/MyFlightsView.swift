@@ -69,12 +69,17 @@ public struct MyFlightsView: View {
     /// The groups in order: in the air, upcoming (followed and planned flights together, by departure),
     /// then recent. Empty groups are left out, so planned flights alone keep the empty state away. A planned
     /// flight that is also followed (same number, same day at the origin) shows once, as the followed one.
+    /// Given `now`, a flight that is over (`LandedFlights.isOver`) is left out, Passport shows it, and so is
+    /// a planned flight whose day passed more than a day ago without being followed (the next load drops it
+    /// from the queue).
     static func groups(live: [Flight], upcoming: [Flight], planned: [UpcomingFlight],
                        lookup: (String) -> Airport?,
-                       reference: ReferenceData = .bundled()) -> [(title: String, rows: [Row])] {
+                       reference: ReferenceData = .bundled(), now: Date? = nil) -> [(title: String, rows: [Row])] {
+        let upcoming = now.map { t in upcoming.filter { !LandedFlights.isOver($0, now: t) } } ?? upcoming
         let all = live + upcoming
         let planned = planned.filter { u in
-            !all.contains { PlannedFlight.matches(u, $0, reference: reference, airport: lookup) }
+            (now.map { ImportFollower.daysAhead(u, now: $0, zone: .current) >= -1 } ?? true)
+                && !all.contains { PlannedFlight.matches(u, $0, reference: reference, airport: lookup) }
         }
         func followed(_ f: Flight) -> Row { Row(id: f.id.uuidString, departure: f.scheduledOut ?? .distantFuture, kind: .followed(f)) }
         let later = upcoming.filter { $0.status == .scheduled || $0.status == .unknown }.map(followed)
@@ -89,13 +94,13 @@ public struct MyFlightsView: View {
         return [("In the Air", live.map(followed)), ("Upcoming", merged), ("Recent", done)].filter { !$0.rows.isEmpty }
     }
 
-    private var groups: [(title: String, rows: [Row])] {
+    private func groups(now: Date) -> [(title: String, rows: [Row])] {
         Self.groups(live: store.live, upcoming: store.upcoming, planned: planned, lookup: lookup,
-                    reference: reference)
+                    reference: reference, now: now)
     }
 
     @ViewBuilder private func content(now: Date) -> some View {
-        let groups = self.groups
+        let groups = self.groups(now: now)
         VStack(alignment: .leading, spacing: 0) {
             // Offline is not an error here: the saved list keeps working, so the banner stays calm.
             if store.isOffline || connectivity?.isOnline == false {

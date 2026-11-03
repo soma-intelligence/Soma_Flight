@@ -59,13 +59,13 @@ select throws_ok(
     values ('a9a9a9a9-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', now(), 'X')$$,
   '23505', null, 'unique on (user_id, flight_id)');
 
--- F2: arrived 2 hours ago. F3: diverted (planned KSFO, landed KOAK) 30 hours ago.
+-- F2: arrived 30 minutes ago. F3: diverted (planned KSFO, landed KOAK) 30 hours ago.
 -- F4: out 23:30, in 01:10 the next day, 10 minutes late. F5: canceled 3 days ago, no actuals.
 insert into flights (id, provider_id, ident, origin_icao, destination_icao, status,
   scheduled_out, scheduled_in, estimated_in, actual_out, actual_in)
 values
   ('f2000000-0000-0000-0000-000000000002', 'ARCH-F2', 'UAL1', 'KSFO', 'KJFK', 'arrived',
-   now() - interval '8 hours', now() - interval '2 hours', null, now() - interval '8 hours', now() - interval '2 hours'),
+   now() - interval '6 hours', now() - interval '40 minutes', null, now() - interval '6 hours', now() - interval '30 minutes'),
   ('f3000000-0000-0000-0000-000000000003', 'ARCH-F3', 'UAL2', 'KLAX', 'KOAK', 'diverted',
    now() - interval '32 hours', now() - interval '31 hours', null, now() - interval '32 hours', now() - interval '30 hours'),
   ('f4000000-0000-0000-0000-000000000004', 'ARCH-F4', 'UAL3', 'KSFO', 'KLAX', 'arrived',
@@ -79,7 +79,7 @@ insert into user_flights (user_id, flight_id) values
   ('a9a9a9a9-0000-0000-0000-000000000001', 'f5000000-0000-0000-0000-000000000005');
 select is(archive_landed_flights(), 3, 'diverted, overnight and canceled flights archived');
 select is((select count(*) from past_flights where flight_id = 'f2000000-0000-0000-0000-000000000002'),
-  0::bigint, 'flight arrived 2 hours ago is not archived');
+  0::bigint, 'flight arrived 30 minutes ago is not archived');
 select is((select count(*) from user_flights where flight_id = 'f2000000-0000-0000-0000-000000000002'),
   1::bigint, 'its follow stays');
 select results_eq(

@@ -11,8 +11,11 @@ extension HomeModel {
     public func followWaiting(now: Date = .now) async {
         var budget = Self.followWaitingBudget
         for u in followLater.items {
+            let ahead = ImportFollower.daysAhead(u, now: now, zone: .current)
+            // Its day has passed: let it go without spending a lookup.
+            if ahead < -1 { followLater.remove(u.id); continue }
             guard budget > 0 else { return }
-            if ImportFollower.daysAhead(u, now: now, zone: .current) > ImportFollower.reach { continue }
+            if ahead > ImportFollower.reach { continue }
             budget -= 1
             switch await ImportFollower.follow(u, flights: env.flights, reference: env.reference, airport: env.lookup, now: now) {
             case .followed(let flight):

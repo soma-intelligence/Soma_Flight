@@ -60,8 +60,11 @@ public final class MyFlightsStore {
 
     /// Departed or en route, soonest departure first.
     public var live: [Flight] { all.values.filter { Self.isLive($0) }.sorted(by: Self.byOut) }
-    /// Everything else (scheduled, canceled, diverted, landed) by scheduled out. Canceled stays until unfollowed.
+    /// Everything else (scheduled, canceled, diverted, landed) by scheduled out. My Flights leaves out the
+    /// ones that are over (`LandedFlights.isOver`): Passport shows those.
     public var upcoming: [Flight] { all.values.filter { !Self.isLive($0) }.sorted(by: Self.byOut) }
+    /// Every followed flight, over or not, in no order: what Passport reads its just landed flights from.
+    public var flights: [Flight] { Array(all.values) }
 
     private static func isLive(_ f: Flight) -> Bool { f.status == .departed || f.status == .enRoute }
     private static func byOut(_ a: Flight, _ b: Flight) -> Bool {

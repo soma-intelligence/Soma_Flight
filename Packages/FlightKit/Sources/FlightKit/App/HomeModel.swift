@@ -75,7 +75,10 @@ public final class HomeModel {
     /// The section on show. Each tab gets back the sheet detent it was left in this session (medium the
     /// first time).
     public var tab: HomeTab = .flights {
-        didSet { shell.showTab(tab, from: oldValue) }
+        didSet {
+            shell.showTab(tab, from: oldValue)
+            if tab == .passport { showLanded() }
+        }
     }
     /// The Passport page open over the home, if any.
     public var fullPage: FullPage?
@@ -154,6 +157,7 @@ public final class HomeModel {
         airportsList.tripAirports = { [weak self] in
             self?.followed.flatMap { [$0.originIcao, $0.destinationIcao] } ?? []
         }
+        wireListChange()
     }
 
     // MARK: Session watch
@@ -380,6 +384,7 @@ public final class HomeModel {
         await myFlights.load()
         myFlights.startUpdates()
         await passport.load()
+        showLanded()
         if !env.requiresSignIn || owner != nil {
             await notificationSettings.load()
             await friends.load()
@@ -533,8 +538,8 @@ public final class HomeModel {
                 leaveTimes.onChange = { reminders.resync() }
             }
         }
-        guard activities != nil || widgets != nil || reminders != nil || watch != nil || calendar != nil else { return }
         myFlights.onListChange = { [weak self] list in
+            self?.passport.showLanded(list)
             // Scheduled synchronously, so each runs the lists in the order the store changed.
             activities?.scheduleSync(list)
             reminders?.scheduleSync(list)
@@ -544,6 +549,12 @@ public final class HomeModel {
             widgets?.write(list)
             watch?.write(list)
         }
+    }
+
+    /// Puts the followed flights that are over (`LandedFlights`) in Passport until the server archives
+    /// them. Runs after each load, on every change of My Flights and when the Passport tab opens.
+    public func showLanded(now: Date = .now) {
+        passport.showLanded(myFlights.flights, now: now)
     }
 
     /// Signed out, the widgets and the watch show nothing: a later account must never see the previous
