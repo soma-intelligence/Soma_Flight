@@ -68,6 +68,8 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | `usage-alert` | `AEROAPI_DAILY_CAP_USD` | the cap mode alerts at 80% of it; set it on `usage-alert` too |
 | `brand-assets-sync` | `LOGO_PROVIDER`, `AIRHEX_KEY` | set after the licence is signed: `LOGO_PROVIDER=airhex` and the licensed key. Until both are set the function answers `{ skipped: "provider not configured" }` and does nothing, which is the production state |
 | `brand-assets-sync` | `SIDE_VIEW_PROVIDER`, `SIDE_VIEW_BASE` | unset in production until the owner picks and signs a side view provider (Logostream API or Airliners Illustrated delivery); the licensed adapter is added to `brand-assets-sync/index.ts` then. `SIDE_VIEW_PROVIDER=recorded` with `SIDE_VIEW_BASE` (an http(s) URL of a fixture folder) replays recorded files for local rehearsals. Unset, `mode=side_views` answers `{ skipped: "provider not configured" }` |
+| `nearby-flights` | `RADAR_ENABLED`, `AEROAPI_KEY` | the radar answers only when `RADAR_ENABLED` is `true` and the key is set; unset (the production state) it answers 503 `provider_unavailable` |
+| `flight-brief` | `LLM_ENABLED`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `LLM_CALL_COST_USD`, `AEROAPI_DAILY_CAP_USD` | language-model texts, **off until the owner says yes on cost**: answers 503 `llm_unavailable` unless `LLM_ENABLED` is exactly `true` and the endpoint (https) and key are set. `AZURE_OPENAI_DEPLOYMENT` defaults to `gpt-6-luna` (Responses API, `POST {endpoint}/openai/v1/responses`). `LLM_CALL_COST_USD` is the cost counted per model call in `usage_counters` (default 0.01, cautious until measured); it shares the AeroAPI daily cap. See `docs/api-contract.md#flight-brief` |
 | `usage-alert` | `RESEND_API_KEY`, `OWNER_EMAIL` | required to send; missing gives 503 |
 | `usage-alert` | `USAGE_ALERT_USD` | threshold in USD, default 25 |
 | `usage-alert` | `USAGE_ALERT_FROM` | sender, default `Soma Flight <alerts@somalabs.me>` (domain must be verified in Resend) |
@@ -126,6 +128,24 @@ Today's spend so far:
 select endpoint, calls, estimated_cost from usage_counters where day = (now() at time zone 'utc')::date
 order by estimated_cost desc;
 ```
+
+## Nearby radar (off)
+
+`nearby-flights` (the map's radar) is paid and switched OFF. Three things turn it on, all by the owner:
+
+1. Function secrets: `supabase secrets set RADAR_ENABLED=true` (and `AEROAPI_KEY`, already set for the other
+   AeroAPI functions). Without `RADAR_ENABLED=true` or without the key the function answers 503
+   `provider_unavailable` and calls nothing.
+2. Apply `supabase/migrations/20261107000001_radar_cache.sql` (the `radar_cache` table and its daily prune) and
+   deploy the function. Neither has been done.
+3. Build with `RADAR_ENABLED = YES` in the app's xcconfigs (Info.plist `RadarEnabled`); NO hides the button.
+
+Cost: each refresh that misses the 60 second cache is one or two `/flights/search` result sets at $0.05
+(`ENDPOINT_COST`), counted in `usage_counters` under `/flights/search` and held by `AEROAPI_DAILY_CAP_USD` like
+every other AeroAPI call. A busy area watched by many users costs at most 2 x $0.05 a minute per snapped box,
+shared by everyone in it. Before switching on: send one real request and check the `-latlong` term and the result
+fields (`docs/api-contract.md`, nearby-flights, UNVERIFIED). Off again: unset `RADAR_ENABLED`; cached rows are
+harmless and pruned after a day. Spend today by endpoint: the `usage_counters` query under the spend cap.
 
 ## Logo and brand colour sync
 

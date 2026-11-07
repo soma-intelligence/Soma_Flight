@@ -429,6 +429,10 @@ verify_jwt = true
 [functions.alternate-flights]
 verify_jwt = true
 
+# Nearby radar: flights in the air around a place (paid AeroAPI search, cached 60 s per box; off unless RADAR_ENABLED=true).
+[functions.nearby-flights]
+verify_jwt = true
+
 # Airline schedules for a day, days or weeks ahead: the "add a flight" search.
 [functions.flight-schedules]
 verify_jwt = true

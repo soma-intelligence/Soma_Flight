@@ -1,0 +1,39 @@
+{
+  "box": {
+    "south": 36.5,
+    "north": 38.75,
+    "west": -123.75,
+    "east": -121
+  },
+  "fetched_at": "2026-11-07T18:00:00.000Z",
+  "stale": false,
+  "truncated": false,
+  "flights": [
+    {
+      "id": "AFR84-2",
+      "ident": "AF84",
+      "operator": "AF",
+      "type": "A359",
+      "lat": 37.9,
+      "lon": -122.6,
+      "altitude": 38000,
+      "groundspeed": 489,
+      "heading": 262,
+      "origin": "CDG",
+      "destination": "SFO"
+    },
+    {
+      "id": "UAL1-1",
+      "ident": "UA1",
+      "operator": "UA",
+      "type": "B789",
+      "lat": 37.7123,
+      "lon": -122.1,
+      "altitude": 35000,
+      "groundspeed": 460,
+      "heading": 1,
+      "origin": "SFO",
+      "destination": "LHR"
+    }
+  ]
+}

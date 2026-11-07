@@ -63,6 +63,24 @@ export interface AeroScheduledFlight {
   seats_cabin_first?: number | null;
 }
 
+/**
+ * One item of GET /flights/search (subset): a flight with its latest position. UNVERIFIED shape: the
+ * fields the radar reads, all optional so a missing one drops the flight instead of failing the call.
+ */
+export interface AeroSearchFlight {
+  fa_flight_id?: string | null;
+  ident?: string | null;
+  ident_iata?: string | null;
+  ident_icao?: string | null;
+  operator?: string | null;
+  operator_icao?: string | null;
+  operator_iata?: string | null;
+  aircraft_type?: string | null;
+  origin?: AeroAirportRef | null;
+  destination?: AeroAirportRef | null;
+  last_position?: AeroPosition | null;
+}
+
 /** One item of GET /airports/{id}/flights/to/{dest_id}: a possibly multi-leg itinerary. */
 export interface AeroFullFlight {
   segments: AeroFlight[];

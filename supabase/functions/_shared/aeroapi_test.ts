@@ -480,6 +480,12 @@ Deno.test("estimateCost covers every endpoint the client uses and throws on unkn
   ).flightHistory("AF84", new Date(NOW.getTime() - 7 * 86_400_000), NOW);
   await new AeroApi("k", ok(await fixture("schedules_ksfo_kord.json")), record)
     .schedules("KSFO", "KORD", NOW, new Date(NOW.getTime() + 86_400_000));
+  await new AeroApi("k", ok('{"flights":[]}'), record).searchArea({
+    south: 37,
+    west: -123,
+    north: 38,
+    east: -121,
+  });
   assertEquals(
     used.size,
     Object.keys(ENDPOINT_COST).length - 0,
@@ -493,7 +499,7 @@ Deno.test("estimateCost covers every endpoint the client uses and throws on unkn
     0.005,
   );
   assertEquals(estimateCost("/alerts"), 0);
-  assertThrows(() => estimateCost("/flights/search"));
+  assertEquals(estimateCost("/flights/search"), 0.05);
   assertThrows(() => estimateCost("/nope"));
 });
 

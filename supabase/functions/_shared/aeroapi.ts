@@ -6,6 +6,7 @@ import type {
   AeroFullFlight,
   AeroInFlightStatus,
   AeroScheduledFlight,
+  AeroSearchFlight,
   FlightRow,
   PositionRow,
 } from "./aeroapi_types.ts";
@@ -13,6 +14,7 @@ import type {
 export type {
   AeroFlight,
   AeroScheduledFlight,
+  AeroSearchFlight,
   FlightRow,
   PositionRow,
 } from "./aeroapi_types.ts";
@@ -36,6 +38,8 @@ export type AirportListKind =
  * before purchase.
  * UNVERIFIED: /schedules/{date_start}/{date_end} is not in docs/provider-check.md either; 0.02 is the
  * same cautious stand-in until the pricing page is read again.
+ * /flights/search is $0.050 per result set on the official pricing page (docs/provider-check.md, flight
+ * search). Used only by the nearby radar (searchArea), switched off with RADAR_ENABLED.
  */
 export const ENDPOINT_COST: Record<string, number> = {
   "/flights/{ident}": 0.005,
@@ -47,6 +51,7 @@ export const ENDPOINT_COST: Record<string, number> = {
   "/airports/{id}/flights/scheduled_arrivals": 0.005,
   "/airports/{id}/flights/to/{dest_id}": 0.02,
   "/schedules/{date_start}/{date_end}": 0.02,
+  "/flights/search": 0.05,
   "/alerts": 0,
   "/alerts/{id}": 0,
 };
@@ -192,6 +197,30 @@ export class AeroApi {
       position_heading: p.heading != null ? Math.round(p.heading) : null,
       position_at: p.timestamp,
     };
+  }
+
+  /**
+   * Flights whose last known position is inside a box, from /flights/search with the `-latlong`
+   * term ("minLat minLon maxLat maxLon", south-west then north-east corner). Each result set is one
+   * billed call; follows links.next up to `maxPages` pages, and `more` says pages were left unread.
+   * UNVERIFIED against the official OpenAPI file (not in this repo): the `-latlong` term and the
+   * corner order follow FlightAware's search syntax; the first real answer must confirm them.
+   */
+  async searchArea(
+    box: { south: number; west: number; north: number; east: number },
+    maxPages = 2,
+  ): Promise<{ flights: AeroSearchFlight[]; more: boolean }> {
+    const q = new URLSearchParams({
+      query: `-latlong "${box.south} ${box.west} ${box.north} ${box.east}"`,
+    });
+    const { rows, more } = await this.pages<AeroSearchFlight>(
+      "/flights/search",
+      "/flights/search",
+      "flights",
+      maxPages,
+      q,
+    );
+    return { flights: rows, more };
   }
 
   /**

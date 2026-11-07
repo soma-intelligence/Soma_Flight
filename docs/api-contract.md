@@ -131,6 +131,7 @@ No row means every category is on, so the app writes the row the first time some
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `alternate-flights` | GET | `origin`, `destination` (ICAO), `after` (ISO time) (below) | `{ origin, destination, after, fetched_at, stale, flights }` |
 | `flight-brief` | POST | `{ kind, subject, facts }` (below) | `{ kind, subject, text, facts_used, generated_at, cached }` |
+| `nearby-flights` | GET | `lat`, `lon`, `radius_km?` (below) | `{ box, fetched_at, stale, truncated, flights }`; 503 `provider_unavailable` while off |
 | `flight-schedules` | POST | `{ origin?, destination?, airline?, ident?, date, time? }` (below) | `{ date, fetched_at, stale, truncated, flights }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
@@ -467,6 +468,47 @@ asks only when `INSIGHTS_ENABLED` is on, like `flight-insights`.
 - Cost: one to three `/schedules` result sets per route and hour, shared by everyone; the price is not on the
   pricing page checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
 - Tapping a row in the app looks the flight up by number (`flight-lookup`) and follows it.
+
+## nearby-flights
+
+The map's radar: planes in the air around the user (only when location is already allowed) or around a chosen
+airport. Paid (AeroAPI flight search, $0.05 a result set) and OFF: the function answers 503 `provider_unavailable`
+(`{ "error": { "code": "provider_unavailable", "message": ... } }`, before auth or any database read) unless its
+env `RADAR_ENABLED` is `true` and `AEROAPI_KEY` is set, and the app shows no radar button unless Info.plist
+`RadarEnabled` (`RADAR_ENABLED` in the xcconfigs, NO everywhere) is yes.
+
+`GET /nearby-flights?lat=37.62&lon=-122.38&radius_km=100`
+
+```json
+{ "box": { "south": 36.5, "north": 38.75, "west": -123.75, "east": -121 }, "fetched_at": "2026-11-07T18:00:00.000Z",
+  "stale": false, "truncated": false,
+  "flights": [ { "id": "UAL1-1", "ident": "UA1", "operator": "UA", "type": "B789", "lat": 37.7123, "lon": -122.1,
+                 "altitude": 35000, "groundspeed": 460, "heading": 1, "origin": "SFO", "destination": "LHR" } ] }
+```
+
+- `lat` -90 to 90 and `lon` -180 to 180 are required (else 400 `invalid_request`). `radius_km` is clamped to 10 to
+  150 (default 100): a bigger ask is not refused, it gets the 150 km box. The box is the radius's square, snapped
+  outward to a 0.25 degree grid and cut at the poles and the date line, so one call is bounded and everyone
+  looking at the same area shares one read. The answer's `box` is the snapped box that was read.
+- `flights` are planes with a position and a ground speed of 40 knots or more, one per provider id, sorted by
+  `ident`, 80 at most. `altitude` is feet, `groundspeed` knots, `heading` degrees true (null if unknown), `origin`
+  and `destination` IATA (else ICAO) codes, `ident` the IATA designator (else the provider's), `operator` the IATA
+  (else ICAO) airline code. `truncated` is true when the provider had result sets beyond the two read.
+- The provider read is `/flights/search` with `query=-latlong "south west north east"`, at most 2 result sets, each
+  counted in `usage_counters` through `charge_usage` (so it stops at the daily spend cap) and cached whole for 60
+  seconds per snapped box in `radar_cache` (service role only, pruned daily). `stale` and 503 `provider_unavailable`
+  as in `alternate-flights`: a refused refresh (cap, outage, provider rate limit) serves the cached row of any age
+  with `stale: true`; with nothing cached the call fails and the radar shows its unavailable note.
+- Limit: 90 calls per user per hour (429 `rate_limited`): one refresh a minute plus a few area changes.
+- UNVERIFIED: the `-latlong` search term, its corner order and the result item shape (`last_position`, `origin`,
+  `destination`, `aircraft_type`, `operator*`) follow FlightAware's search syntax and the `/flights/{id}/position`
+  shapes in `aeroapi_types.ts`; the OpenAPI file is not in this repo. The first real answer must confirm them
+  before the radar is switched on. Price: $0.05 per result set from `docs/provider-check.md` (flight search).
+- The answer in `supabase/functions/nearby-flights/contract/` is checked by the function's tests
+  (`UPDATE_CONTRACT=1` rewrites it) and decoded by `NearbyFlightsTests` in FlightKit.
+- The app sends the place rounded to two decimals, never asks for location permission on its own (it reads the
+  grant the leave-by reminders asked for), refreshes every 60 seconds only while the radar is on screen, and
+  follows a tapped plane by searching around it.
 
 ## flight-schedules
 

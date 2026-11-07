@@ -50,6 +50,7 @@ struct RootTabView: View {
             .overlay(alignment: .topTrailing) {
                 AirportsMapButton { home.openAirports() }.padding(.trailing, 12).padding(.top, 8 + 89 + 10)
             }
+            .overlay(alignment: .topTrailing) { RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10) }
             .mapScope(mapScope)
             .sheet(isPresented: .constant(true)) { sheet }
             .onChange(of: selection) { _, picked in

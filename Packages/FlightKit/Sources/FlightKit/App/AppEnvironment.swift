@@ -35,6 +35,9 @@ public struct AppEnvironment: Sendable {
     /// Other direct flights on a route, for the Connection Assistant (paid data, like `insights`): the fakes
     /// with `-useFakes`, `alternate-flights` when `INSIGHTS_ENABLED` is on, nothing otherwise.
     public var alternates: any AlternateFlightsService = UnavailableAlternateFlightsService()
+    /// The nearby radar (paid data, off by default): the fakes with `-useFakes`, `nearby-flights` when
+    /// `RADAR_ENABLED` is on, nothing (and no button) otherwise.
+    public var nearby: any NearbyFlightsService = UnavailableNearbyFlightsService()
     /// Airline schedules for a day, so the search finds flights days or weeks ahead (paid data): the fakes
     /// with `-useFakes`, `flight-schedules` when `SCHEDULES_ENABLED` is on, else the fakes in debug builds
     /// and nothing in release builds.
@@ -121,6 +124,7 @@ public struct AppEnvironment: Sendable {
             .with(gates: FakeGateHistoryService())
             .withAlternates(FakeAlternateFlightsService(flights: flights))
             .withSchedules(FakeScheduleService())
+        env.nearby = FakeNearbyFlightsService()
         env.sharing = FakeFlightShareService(now: now)
         env.friends = FakeFriendsService(now: now)
         env.airportOverview = FakeAirportOverviewService(now: now)
@@ -138,7 +142,8 @@ public struct AppEnvironment: Sendable {
     @concurrent public static func live() async throws -> AppEnvironment {
         var env = try supabase(config: SupabaseConfig.fromBundle(), cache: CacheStore.onDisk(), recents: .standard,
                                insights: SupabaseInsightsService.isEnabled(),
-                               schedules: SupabaseScheduleService.isEnabled())
+                               schedules: SupabaseScheduleService.isEnabled(),
+                               radar: SupabaseNearbyFlightsService.isEnabled())
         env.passes = .onDisk()
         env.googleSignIn = (Bundle.main.object(forInfoDictionaryKey: "GoogleSignInEnabled") as? String)?.uppercased() == "YES"
         return env
@@ -150,10 +155,11 @@ public struct AppEnvironment: Sendable {
     ///   - insights: true asks `flight-insights` for the paid sections; false shows none and calls nothing.
     ///   - schedules: true asks `flight-schedules` for days ahead; false (until it is deployed) searches the
     ///     fake schedules in debug builds and shows the note in release builds.
+    ///   - radar: true asks `nearby-flights` for the radar and shows its button; false shows neither.
     public static func supabase(config: SupabaseConfig, cache: CacheStore, recents: RecentsStorage,
                                 directory: AirportDirectory = .bundled(),
                                 authStorage: (any AuthLocalStorage)? = nil,
-                                insights: Bool = false, schedules: Bool = false) -> AppEnvironment {
+                                insights: Bool = false, schedules: Bool = false, radar: Bool = false) -> AppEnvironment {
         let backend = SupabaseBackend(config: config, authStorage: authStorage)
         let lookup = directory.lookup
         let push = SupabasePushService(backend: backend, defaults: recents == .memory ? nil : .standard)
@@ -172,6 +178,7 @@ public struct AppEnvironment: Sendable {
             .with(gates: SupabaseGateHistoryService(backend: backend))
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
             .withSchedules(schedules ? SupabaseScheduleService(backend: backend) : schedulesOff)
+        env.nearby = radar ? SupabaseNearbyFlightsService(backend: backend) : UnavailableNearbyFlightsService()
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.flightBrief = SupabaseFlightBriefService.isEnabled()
             ? SupabaseFlightBriefService(backend: backend) : UnavailableFlightBriefService()
