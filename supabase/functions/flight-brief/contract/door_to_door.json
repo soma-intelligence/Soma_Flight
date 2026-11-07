@@ -1,0 +1,11 @@
+{
+  "kind": "door_to_door",
+  "subject": "6f1c2b1e-0a47-4b6e-9d2c-3b1d0a7c5e11",
+  "text": "Gate K45 is about a 12 minute walk from security.",
+  "facts_used": [
+    "gate",
+    "walk_minutes"
+  ],
+  "generated_at": "2026-11-07T12:00:00.000Z",
+  "cached": false
+}

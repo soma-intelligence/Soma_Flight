@@ -179,6 +179,7 @@ struct AirportSections: View {
                     WeatherBlock(weather: weather, timeZone: tz, now: now)
                 }
             }
+            AirportBriefSection(store: store)
             if let security = store.security {
                 section { AirportSecuritySection(wait: security, timeZone: tz) }
             }

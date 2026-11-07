@@ -130,6 +130,7 @@ No row means every category is on, so the app writes the row the first time some
 | `brand-asset` | GET | `airline`, `kind`, `type?` (below) | `{ version, format, width, url, smallUrl, expiresAt }` |
 | `flight-insights` | GET | `mode=arrival_forecast&ident=` or `mode=inbound&flight_id=` (below) | `{ ident, fetched_at, stale, forecast }` or `{ flight_id, fetched_at, stale, legs }` |
 | `alternate-flights` | GET | `origin`, `destination` (ICAO), `after` (ISO time) (below) | `{ origin, destination, after, fetched_at, stale, flights }` |
+| `flight-brief` | POST | `{ kind, subject, facts }` (below) | `{ kind, subject, text, facts_used, generated_at, cached }` |
 | `flight-schedules` | POST | `{ origin?, destination?, airline?, ident?, date, time? }` (below) | `{ date, fetched_at, stale, truncated, flights }` |
 | `security-wait` | GET | `airport` (IATA or ICAO) | `{ airport, iata, available, reason, live, source, fetched_at, checkpoints }` (below) |
 | `share-flight` | POST, GET, DELETE | POST `{ flight_id }`; GET and DELETE `?flight_id=` | `{ url, expires_at }`, `{ active, expires_at }`, `{ revoked }` (below) |
@@ -371,6 +372,47 @@ Both modes:
 - Cost: an inbound refresh is 1 + legs calls to `/flights/{ident}` ($0.005 each). A forecast refresh is
   one `/history/flights/{ident}` result set per window, 9 at most; its price is not on the pricing page
   checked in `docs/provider-check.md` and is counted at a cautious $0.02 until confirmed.
+
+## flight-brief
+
+Short language-model texts written from facts the app already shows. **Switched off** until the owner says
+yes on cost: without `LLM_ENABLED=true` and the Azure OpenAI settings (`docs/operations.md`) every call
+answers 503 `llm_unavailable`, and the app ships with `LLMEnabled` NO (Info.plist, `LLM_ENABLED` in the
+xcconfigs) so it makes no call and shows no section.
+
+`POST /flight-brief` with `{ "kind", "subject", "facts": [{ "id", "value" }] }`. A signed-in user is required.
+
+| kind | subject | what it writes |
+| --- | --- | --- |
+| `door_to_door` | flight id (uuid) | a short guide from the leave-by inputs, terminal, gate, walk, security wait |
+| `delay_cause` | flight id (uuid) | why the flight is late: late inbound plane, METAR, FAA program, gate changes |
+| `airport_summary` | airport code (IATA or ICAO) | current conditions from the weather, delays, FAA program and security wait |
+
+Answer: `{ kind, subject, text, facts_used, generated_at, cached }`. `facts_used` is the list of fact ids the
+text relies on.
+
+Facts (`supabase/functions/flight-brief/facts.ts` holds the list per kind): each has an `id` from a fixed list
+and a value of a strict type (a whole number in a range, a flag, an airport or flight code, a 24 hour clock
+time local to the airport, a short code, a word from a list, a METAR or advisory line in a safe alphabet).
+Free text, names, booking codes, documents and the vault have no id, so they cannot be sent; an unknown id,
+a repeated id, a value that does not fit, or fewer than 2 or more than 24 facts is 400 `invalid_request`.
+`FlightBriefTests` checks that every id the app sends is on the backend's list for its kind.
+
+Guardrail: the prompt holds the facts and fixed instructions only. The model must answer JSON
+`{ text, facts_used }`. The answer is dropped, with 503 `llm_unavailable` and nothing cached, when it is not
+that JSON, cites no fact or an id that was not sent, writes a number that is not in a cited fact, spells a
+large number out, holds a link, address or markup, or is shorter than 20 or longer than 480 characters.
+
+Other errors: 401 `unauthorized`, 429 `rate_limited` (30 calls per user per hour, cache hits included), 503
+`llm_unavailable` (off, not configured, the daily spend cap reached, the provider failed, or the answer
+dropped). The app hides the section on any failure and shows no banner.
+
+Cache: `llm_brief_cache`, one row per subject, kind and SHA-256 of the facts, served for 6 hours (rows are
+pruned after a day). Identical facts never pay twice. Each model call is counted in `usage_counters` as
+`llm:flight-brief` through `charge_usage`, under the same daily cap as AeroAPI (`AEROAPI_DAILY_CAP_USD`).
+
+The example answer in `supabase/functions/flight-brief/contract/door_to_door.json` is checked by the function's
+tests and decoded by `FlightBriefTests` in FlightKit.
 
 ## alternate-flights
 

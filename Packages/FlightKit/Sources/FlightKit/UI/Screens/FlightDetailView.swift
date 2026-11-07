@@ -218,6 +218,7 @@ public struct FlightDetailView: View {
                            advisories: FAAFacts.rows(store, flight: flight, clock: units.clock, now: now),
                            onAirport: onAirport)
                     .id("goodToKnow")
+                FlightBriefSections(store: store, flight: flight, now: now)
                 // Canceled or diverted: no arrival forecast and no inbound plane.
                 let insights = FlightDetailStore.showsInsights(flight.status)
                 if insights {

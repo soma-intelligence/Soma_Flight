@@ -16,6 +16,7 @@ and see runs in `cron.job_run_details`.
 | `brand-side-views-sync` | `41 * * * *` | `brand-assets-sync?mode=side_views&limit=100`: side views (airline livery on one aircraft type) from the side view provider, up to 100 files a run; pairs whose version is unchanged cost no fetch. A no-op until `SIDE_VIEW_PROVIDER` is configured (below) |
 | `cron-history-prune` | `45 3 * * *` | deletes `cron.job_run_details` rows older than 7 days |
 | `insights-cache-prune` | `50 3 * * *` | deletes `forecast_cache` and `inbound_cache` rows fetched more than 2 days ago (`20261030000011_insights_cache.sql`) |
+| `llm-brief-cache-prune` | `55 3 * * *` | deletes `llm_brief_cache` rows older than a day (`20261107000040_llm_brief_cache.sql`) |
 | `faa-status-sweep` | `*/5 * * * *` | `faa-status?mode=sweep`: reads the FAA's NAS status (free, no key) and sends the `airport_program` alert for each new ground stop, ground delay program or closure that holds a followed flight (`20261030000019_faa.sql`) |
 | `faa-notam-cache-prune` | `57 3 * * *` | deletes `faa_notam_cache` rows fetched more than a day ago |
 | `provider-poll` | `*/5 * * * *` | `maintenance?mode=poll`: the polling refresh of followed flights for a status provider without a webhook (`20261031000027_free_providers.sql`, docs/free-providers.md). Answers `{ skipped }` and calls nothing while `STATUS_PROVIDER` is `aeroapi` or `none` |
@@ -84,6 +85,16 @@ The spend alert claims the day in `usage_alerts` before sending and sets `sent_a
 most one email per UTC day. A failed send releases the claim and the next hourly run retries; a claim
 left by a crash (no `sent_at`) is taken over after 15 minutes. Trigger it by hand with
 `select public.invoke_edge_function('usage-alert');`.
+
+## Turning on the language-model texts
+
+Off by default on both sides. To switch on, after the owner says yes on cost:
+
+1. Apply `20261107000040_llm_brief_cache.sql` and deploy `flight-brief`.
+2. `supabase secrets set LLM_ENABLED=true AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com AZURE_OPENAI_API_KEY=<key>` (and `AZURE_OPENAI_DEPLOYMENT` if the deployment is not `gpt-6-luna`). Optionally set `LLM_CALL_COST_USD` to the measured cost of one call.
+3. Set `LLM_ENABLED = YES` in the xcconfigs of the build that should show the sections.
+
+Spend: a model call is counted as endpoint `llm:flight-brief` in `usage_counters` and counts against the same daily cap as AeroAPI, so a busy day of texts can use the budget AeroAPI needs: watch `select endpoint, calls, estimated_cost from usage_counters where day = current_date;`. Switch off at once with `supabase secrets set LLM_ENABLED=false`.
 
 ## Daily AeroAPI spend cap
 

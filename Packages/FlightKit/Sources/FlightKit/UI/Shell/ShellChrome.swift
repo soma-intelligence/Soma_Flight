@@ -9,6 +9,7 @@ public struct FlightScreen: View {
     var onClose: () -> Void
     var onStopTracking: ((Flight.ID) async -> APIError?)?
     var sharing: any FlightShareService
+    var brief: any FlightBriefService
     /// The More menu's "Text Me Updates In Flight" for this flight.
     @State private var texts: FlightTextsModel
 
@@ -18,7 +19,7 @@ public struct FlightScreen: View {
                 onClose: @escaping () -> Void, onStopTracking: ((Flight.ID) async -> APIError?)? = nil) {
         _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
         self.onAirport = onAirport; self.onClose = onClose; self.onStopTracking = onStopTracking
-        sharing = env.sharing
+        sharing = env.sharing; brief = env.flightBrief
         _texts = State(initialValue: FlightTextsModel(flight: id, service: env.textAlerts))
     }
 
@@ -26,6 +27,7 @@ public struct FlightScreen: View {
         FlightDetailView(store: store, onAirport: onAirport, onClose: onClose, onStopTracking: onStopTracking)
             .environment(\.flightSharing, sharing)
             .environment(\.flightTexts, texts)
+            .environment(\.flightBrief, brief)
             .task { await texts.load() }
             .task {
                 await store.load()
@@ -81,16 +83,19 @@ public struct AirportScreen: View {
     var favoriteAlerts: any FavoriteAirportAlertsService
     var pastFlights: [PastFlight]
     var onClose: () -> Void
+    var brief: any FlightBriefService
 
     public init(env: AppEnvironment, code: String, favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = [],
                 onClose: @escaping () -> Void) {
         _store = State(initialValue: env.makeAirportStore(code: code))
         self.lookup = env.lookup; self.favorites = favorites; self.pastFlights = pastFlights; self.onClose = onClose
+        brief = env.flightBrief
         self.favoriteAlerts = env.favoriteAirportAlerts
     }
 
     public var body: some View {
         AirportView(store: store, lookup: lookup, favorites: favorites, pastFlights: pastFlights)
+            .environment(\.flightBrief, brief)
             .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
             .overlay(alignment: .topTrailing) {
                 FavoriteAirportToggle(service: favoriteAlerts, icao: store.airport?.id, country: store.airport?.country)

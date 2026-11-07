@@ -7,7 +7,8 @@ export type ErrorCode =
   | "plan_limit"
   | "unauthorized"
   | "invalid_request"
-  | "out_of_window";
+  | "out_of_window"
+  | "llm_unavailable";
 
 export class ApiError extends Error {
   readonly code: ErrorCode;

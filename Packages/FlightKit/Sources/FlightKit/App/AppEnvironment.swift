@@ -20,6 +20,10 @@ public struct AppEnvironment: Sendable {
     /// The flight sheet's paid insights (arrival forecast, inbound chain): the fakes with `-useFakes`,
     /// `flight-insights` in live builds whose Info.plist turns them on (`INSIGHTS_ENABLED`), nothing otherwise.
     public var insights: any InsightsService
+    /// The language-model texts (door to door, why it is late, airport summary): the fakes with `-useFakes`,
+    /// `flight-brief` in live builds whose Info.plist turns them on (`LLM_ENABLED`, NO until the owner approves
+    /// the cost), nothing otherwise.
+    public var flightBrief: any FlightBriefService = UnavailableFlightBriefService()
     /// The account's alert categories (Settings > Notifications); the home's `notificationSettings`.
     public var notificationPreferences: any NotificationPreferencesService
     /// Security (TSA) waits for Good to Know and the airport sheet: the fakes with `-useFakes`,
@@ -121,6 +125,7 @@ public struct AppEnvironment: Sendable {
         env.friends = FakeFriendsService(now: now)
         env.airportOverview = FakeAirportOverviewService(now: now)
         env.airportFavoritesPersist = false
+        env.flightBrief = FakeFlightBriefService(now: now)
         env.textAlerts = FakeTextAlertsService()
         env.favoriteAirportAlerts = FakeFavoriteAirportAlertsService()
         env.profiles = FakeProfileService(now: now)
@@ -168,6 +173,8 @@ public struct AppEnvironment: Sendable {
             .withAlternates(insights ? SupabaseAlternateFlightsService(backend: backend) : UnavailableAlternateFlightsService())
             .withSchedules(schedules ? SupabaseScheduleService(backend: backend) : schedulesOff)
         env.sharing = SupabaseFlightShareService(backend: backend)
+        env.flightBrief = SupabaseFlightBriefService.isEnabled()
+            ? SupabaseFlightBriefService(backend: backend) : UnavailableFlightBriefService()
         env.friends = SupabaseFriendsService(backend: backend)
         env.travelVault = SupabaseTravelVaultService(backend: backend)
         env.airportOverview = SupabaseAirportOverviewService(backend: backend)
