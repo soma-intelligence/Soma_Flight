@@ -157,42 +157,94 @@ import Testing
         #expect(String(decoding: identity, as: UTF8.self).contains("19AB12345"))
     }
 
-    @Test func iCloudSyncIsOffByDefaultAndRewritesBothItems() async throws {
+    @Test func syncIsOnByDefaultAndRewritesBothItems() async throws {
         let defaults = try #require(UserDefaults(suiteName: "travel-docs-\(UUID().uuidString)"))
         let secrets = MemorySecretStore()
         let s = Self.store(secrets: secrets, defaults: defaults)
-        #expect(!s.syncsWithICloud)
+        #expect(s.syncsWithICloud)
         _ = s.saveLoyalty(airline: "UAL", number: "AB123456", programme: nil)
         #expect(await s.saveHidden(.redress, "1234567"))
-        #expect(secrets.isSynchronizable(TravelDocumentsStore.profileAccount) == false)
-        #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == false)
-        await s.setSync(true)
-        #expect(s.syncsWithICloud && defaults.bool(forKey: TravelDocumentsStore.syncKey))
         #expect(secrets.isSynchronizable(TravelDocumentsStore.profileAccount) == true)
         #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == true)
         await s.setSync(false)
+        #expect(!s.syncsWithICloud && defaults.object(forKey: TravelDocumentsStore.syncKey) as? Bool == false)
+        #expect(secrets.isSynchronizable(TravelDocumentsStore.profileAccount) == false)
         #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == false)
+        await s.setSync(true)
+        #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == true)
     }
 
-    @Test func turningSyncOnNeedsTheCheckWhenHiddenNumbersExist() async {
+    @Test func turningSyncOffNeedsTheCheckWhenHiddenNumbersExist() async {
         let check = FakeDeviceOwnerCheck()
         let secrets = MemorySecretStore()
         #expect(await Self.store(check: check, secrets: secrets).saveHidden(.redress, "1234567"))
         let s = Self.store(check: check, secrets: secrets)
         check.answer(false)
-        await s.setSync(true)
-        #expect(!s.syncsWithICloud)
-        #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == false)
+        await s.setSync(false)
+        #expect(s.syncsWithICloud)
+        #expect(secrets.isSynchronizable(TravelDocumentsStore.identityAccount) == true)
     }
 
-    @Test func deleteAllRemovesBothItems() async {
+    @Test func deleteAllRemovesBothItems() async throws {
         let secrets = MemorySecretStore()
         let s = Self.store(secrets: secrets)
         _ = s.saveLoyalty(airline: "UAL", number: "AB123456", programme: nil)
         #expect(await s.saveHidden(.redress, "1234567"))
         s.deleteAll()
-        #expect(secrets.accounts.isEmpty)
+        #expect(try secrets.read(TravelDocumentsStore.profileAccount) == nil)
+        #expect(try secrets.read(TravelDocumentsStore.identityAccount) == nil)
         #expect(s.profile.isEmpty && s.identityKinds.isEmpty && !s.isRevealed)
+    }
+
+    // MARK: Account copy
+
+    @Test func theAccountCopyIsSealedAndFillsANewDevice() async throws {
+        let cloud = FakeTravelVaultService()
+        // The iCloud Keychain both devices share: only the sealing key travels through it here.
+        let first = MemorySecretStore()
+        let s = Self.store(secrets: first)
+        await s.attach(cloud: cloud)
+        _ = s.saveLoyalty(airline: "AFR", number: "1234567890", programme: "Flying Blue")
+        #expect(await s.savePassport(number: "19AB12345", country: "FR", expires: nil))
+        await s.syncWithCloud()
+        let copy = try #require(await cloud.stored)
+        let sent = (copy.profile ?? Data()) + (copy.identity ?? Data())
+        #expect(!sent.isEmpty)
+        for plain in ["1234567890", "19AB12345", "Flying Blue"] {
+            #expect(sent.range(of: Data(plain.utf8)) == nil)
+        }
+
+        let second = MemorySecretStore()
+        try second.write(try #require(try first.read(TravelDocumentsStore.vaultKeyAccount)),
+                         account: TravelDocumentsStore.vaultKeyAccount, synchronizable: true)
+        let other = Self.store(secrets: second)
+        await other.attach(cloud: cloud)
+        #expect(other.profile.loyalty.map(\.number) == ["1234567890"])
+        #expect(other.identityKinds == [.passport])
+        #expect(await other.reveal())
+        #expect(other.identity?.passportNumber == "19AB12345")
+    }
+
+    @Test func withoutTheKeyANewDeviceStaysEmpty() async throws {
+        let cloud = FakeTravelVaultService()
+        let s = Self.store()
+        await s.attach(cloud: cloud)
+        _ = s.saveLoyalty(airline: "AFR", number: "1234567890", programme: nil)
+        await s.syncWithCloud()
+        let other = Self.store()
+        await other.attach(cloud: cloud)
+        #expect(other.profile.isEmpty)
+    }
+
+    @Test func turningSyncOffRemovesTheAccountCopy() async throws {
+        let cloud = FakeTravelVaultService()
+        let s = Self.store()
+        await s.attach(cloud: cloud)
+        _ = s.saveLoyalty(airline: "AFR", number: "1234567890", programme: nil)
+        await s.syncWithCloud()
+        #expect(await cloud.stored != nil)
+        await s.setSync(false)
+        #expect(await cloud.stored == nil)
     }
 
     @Test func aLockedKeychainSaysSoAndChangesNothing() {

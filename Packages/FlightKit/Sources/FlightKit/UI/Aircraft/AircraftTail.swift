@@ -2,8 +2,7 @@ import SwiftUI
 
 /// The tail end of an aircraft's side view: the rear fuselage and the fin, cut just aft of the wing (and of
 /// wing-mounted engines) so no wing shows, on a transparent ground. Cut from the same picture
-/// `AircraftImage` shows: the provider side view when there is one, else our drawing in the airline's
-/// livery.
+/// `AircraftImage` shows: the provider side view when there is one, else its bundled stand-in.
 struct TailSection: @unchecked Sendable {
     // CGImage is immutable; it only crosses actors here.
     var image: CGImage
@@ -172,44 +171,19 @@ struct AircraftTail: View {
         .accessibilityElement()
         .accessibilityLabel(AircraftImage.label(airline: airline, type: type))
         .accessibilityAddTraits(.isImage)
-        .task(id: airline?.id ?? "") {
-            guard let airline else { return }
-            let before = AircraftArtMemo.shared.art(AircraftArtMemo.finKey(airline.id))?.version
-            let after = await FinArt.load(icao: airline.id, service: service)
-            if after?.version != before { revision += 1 }
-        }
         .task(id: sideKey) {
-            guard let airline, sideKey != nil else { return }
-            let before = sideKey.flatMap { AircraftArtMemo.shared.art($0) }?.version
+            let before = AircraftArtMemo.shared.art(sideKey)?.version
             let after = await AircraftImage.load(airline: airline, type: type, service: service)
-            if after?.version != before { revision += 1 }
+            if after?.version != before || before == nil { revision += 1 }
         }
     }
 
-    private var sideKey: String? {
-        guard let airline, let type, !type.id.isEmpty else { return nil }
-        return AircraftArtMemo.sideKey(airline.id, type.id)
-    }
+    private var sideKey: String { AircraftImage.sideKey(airline: airline, type: type) }
 
-    /// The provider side view's tail when there is one, else our drawing's.
+    /// The tail of the side view `AircraftImage` shows (never a drawing); nil until it is decoded.
     private var section: TailSection? {
+        guard let art = AircraftArtMemo.shared.art(sideKey) else { return nil }
         let start = TailSection.start(type: type)
-        if let key = sideKey, let art = AircraftArtMemo.shared.art(key) {
-            return TailSectionMemo.section("\(key)/\(art.version)") { TailSection.cut(art.image, start: start) }
-        }
-        let fin = airline.flatMap { AircraftArtMemo.shared.art(AircraftArtMemo.finKey($0.id)) }
-        let livery = airline.map { reference.livery($0.id) } ?? .plain
-        let key = "drawn/\(livery.hashValue)/\(AircraftGeometry.cacheKey(type))/\(fin?.version ?? "-")"
-        return TailSectionMemo.section(key) {
-            // Drawn large enough that the tail is sharp in a full-width block.
-            let height: CGFloat = 420
-            let size = CGSize(width: height * AircraftSideView.aspect(type: type), height: height)
-            let canvas = AircraftCanvas(geometry: AircraftGeometry.geometry(type: type), livery: livery, style: .livery,
-                                        gearDown: false, finArt: fin)
-                .frame(width: size.width, height: size.height)
-            let renderer = ImageRenderer(content: canvas)
-            renderer.scale = 1
-            return renderer.cgImage.flatMap { TailSection.cut($0, start: start) }
-        }
+        return TailSectionMemo.section("\(sideKey)/\(art.version)") { TailSection.cut(art.image, start: start) }
     }
 }

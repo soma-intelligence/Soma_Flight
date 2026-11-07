@@ -220,7 +220,7 @@ struct LiveryTests {
         let side = Self.asset(width: 400, height: 100)
         let service = FakeBrandAssetService(seeded: [("UAL", .sideView, side)], type: "B77W")
         let source = await AircraftImage.source(airline: reference.airline("UAL"), type: reference.type("B77W"),
-                                                service: service, reference: reference)
+                                                service: service)
         #expect(source == .provider(side))
         // Clear margins are cropped before the shape is judged: a 400 x 200 canvas holding a 380 x 80 plane.
         let padded = BrandAsset(data: Self.png(width: 400, height: 200, inset: 0), format: "png", version: "v1")
@@ -245,23 +245,43 @@ struct LiveryTests {
         return BrandAsset(data: data as Data, format: "png", version: "v1")
     }
 
-    @Test func aircraftImageFallsBackToRenderer() async {
+    /// Never a drawing: whatever the service lacks, a bundled photoreal side view stands in.
+    @Test func aircraftImageFallsBackToBundledSideViews() async {
         let reference = ReferenceData.bundled()
         let service = FakeBrandAssetService(seeded: [("UAL", .sideView, Self.asset(width: 400, height: 100))], type: "B77W")
-        // Another type: no provider picture, the UAL seed livery.
+        // Another type: the bundled United 787-9.
         let other = await AircraftImage.source(airline: reference.airline("UAL"), type: reference.type("B789"),
-                                               service: service, reference: reference)
-        #expect(other == .renderer(LiverySeed.all["UAL"]!))
-        // Derived livery for an airline without a seed entry, plain without an airline.
-        let dlh = await AircraftImage.source(airline: reference.airline("DLH"), type: reference.type("A320"),
-                                             service: service, reference: reference)
-        #expect(dlh == .renderer(.derived(from: reference.airline("DLH")!)))
-        let none = await AircraftImage.source(airline: nil, type: nil, service: service, reference: reference)
-        #expect(none == .renderer(.plain))
-        // A square "side view" is no profile: the renderer draws instead.
+                                               service: service)
+        #expect(other == .bundled("UAL-B789"))
+        // Lufthansa City Airlines (VL, the MRS flight) flies Lufthansa's livery: Lufthansa's A320neo.
+        #expect(reference.airline("VL")?.id == "LHX")
+        let lhx = await AircraftImage.source(airline: reference.airline("VL"), type: reference.type("A20N"), service: service)
+        #expect(lhx == .bundled("DLH-A20N"))
+        // No airline, or no type: a plain white aircraft.
+        let none = await AircraftImage.source(airline: nil, type: nil, service: service)
+        #expect(none == .bundled("ZZZ-A320"))
+        let plain = await AircraftImage.source(airline: nil, type: reference.type("B789"), service: service)
+        #expect(plain == .bundled("ZZZ-B789"))
+        // A square "side view" is no profile: the bundled one shows instead.
         let square = FakeBrandAssetService(seeded: [("UAL", .sideView, Self.asset(width: 200, height: 200))], type: "B77W")
         let fallback = await AircraftImage.source(airline: reference.airline("UAL"), type: reference.type("B77W"),
-                                                  service: square, reference: reference)
-        #expect(fallback == .renderer(LiverySeed.all["UAL"]!))
+                                                  service: square)
+        #expect(fallback == .bundled("UAL-B77W"))
+    }
+
+    @Test func sideViewFallbackChain() {
+        // Exact pair, then the parent's, then plain white, then the family's closest type.
+        #expect(BundledSideViews.fallbackKey("UAL", type: "B38M") == "UAL-B38M")
+        #expect(BundledSideViews.fallbackKey("LHX", type: "A319") == "DLH-A319")
+        #expect(BundledSideViews.fallbackKey("QQQ", type: "A359") == "ZZZ-A359")
+        #expect(BundledSideViews.fallbackKey("DLH", type: "A21N") == "DLH-A21N")
+        // Unknown type of a known family: the family's common type, in the airline's colours.
+        #expect(BundledSideViews.fallbackKey("UAL", family: .b787) == "UAL-B789")
+        // No type: the airline's first bundled pair, its parent's, else a plain A320.
+        #expect(BundledSideViews.fallbackKey("UAL", type: nil)?.hasPrefix("UAL-") == true)
+        #expect(BundledSideViews.fallbackKey("EJU", type: "")?.hasPrefix("EZY-") == true)
+        #expect(BundledSideViews.fallbackKey(nil, type: nil) == "ZZZ-A320")
+        #expect(AirlineParents.chain("TAX") == ["TAX", "XAX", "AXM"])
+        #expect(AirlineParents.chain("dlh") == ["DLH"])
     }
 }

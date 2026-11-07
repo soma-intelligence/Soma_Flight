@@ -115,6 +115,14 @@ public struct SettingsView: View {
         } card: { page in
             PushedPage(onClose: closePage) { pageView(page) }
         }
+        #if DEBUG
+        // Screenshot runs: `-settingsPage documents` opens Travel Documents over the list.
+        .onAppear {
+            if UserDefaults.standard.string(forKey: "settingsPage") == "documents", documents != nil {
+                showingDocuments = true
+            }
+        }
+        #endif
         #else
         list
         #endif
@@ -187,7 +195,7 @@ public struct SettingsView: View {
                 }
             }
             if profile?.owner == nil, let friends {
-                SettingsSection("Profile", footer: "Only friends see your name and emoji.") { ProfileRows(store: friends) }
+                SettingsSection("Profile") { ProfileRows(store: friends) }
             }
             SettingsSection("Units") {
                 SettingsRow(icon: "ruler.fill", title: "Distance", tint: SettingsStyle.teal) {
@@ -198,31 +206,25 @@ public struct SettingsView: View {
                 }
             }
             SettingsSection("Alerts and Travel") {
-                SettingsRow(icon: "bell.badge.fill", title: "Notifications",
-                            subtitle: notifications == nil ? "Gate changes, delays, take-off and landing"
-                                : "Delays, gates, take-off and landing, bags, reminders", tint: SettingsStyle.red,
+                SettingsRow(icon: "bell.badge.fill", title: "Notifications", tint: SettingsStyle.red,
                             action: notifications == nil ? openNotificationSettings : { showingNotifications = true }) {
                     RowChevron()
                 }
                 if calendar != nil {
-                    SettingsRow(icon: "calendar", title: "Calendar", subtitle: "Put followed flights in your calendar",
-                                tint: SettingsStyle.orange,
+                    SettingsRow(icon: "calendar", title: "Calendar", tint: SettingsStyle.orange,
                                 action: { showingCalendar = true }) { RowChevron() }
                 }
                 if documents != nil {
-                    SettingsRow(icon: "person.text.rectangle.fill", title: "Travel Documents",
-                                subtitle: "Loyalty, passport and trusted traveler numbers, on this device only",
-                                tint: SettingsStyle.blue,
+                    SettingsRow(icon: "person.text.rectangle.fill", title: "Travel Documents", tint: SettingsStyle.blue,
                                 action: { showingDocuments = true }) { RowChevron() }
                 }
-                SettingsRow(icon: "checkmark.shield.fill", title: "I Have TSA PreCheck",
-                            subtitle: "Leave times count the PreCheck lane", tint: SettingsStyle.green, last: true) {
-                    Toggle("I Have TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
+                SettingsRow(icon: "checkmark.shield.fill", title: "TSA PreCheck", tint: SettingsStyle.green, last: true) {
+                    Toggle("TSA PreCheck", isOn: $precheck).labelsHidden().tint(Theme.accent)
                 }
                 .accessibilityElement(children: .combine)
             }
             if let history {
-                SettingsSection("Your Data", footer: "Exports are built on this device.") {
+                SettingsSection("Your Data") {
                     ExportRow(icon: "curlybraces", title: "Export History as JSON", tint: SettingsStyle.slate, format: .json,
                               history: history)
                     ExportRow(icon: "tablecells.fill", title: "Export History as CSV", tint: SettingsStyle.green, format: .csv,
@@ -245,8 +247,7 @@ public struct SettingsView: View {
                     }
                 }
             }
-            SettingsSection("Privacy and Support",
-                            footer: "We keep your email, name and photo, the flights you follow and your flight history.") {
+            SettingsSection("Privacy and Support") {
                 SettingsRow(icon: "hand.raised.fill", title: "Privacy Policy", tone: .neutral, tint: SettingsStyle.blue,
                             action: { openURL(Self.privacyURL) }) { RowLink() }
                 SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", tone: .neutral, tint: SettingsStyle.purple,

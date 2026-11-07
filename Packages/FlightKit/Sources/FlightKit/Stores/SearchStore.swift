@@ -430,12 +430,16 @@ public final class SearchStore {
         note = answer.note
     }
 
-    /// The lookups for what is typed, when the gate allows them: a whole flight number or route, or a
-    /// sentence with a day. A later change of text cancels them and drops their answer. Errors stay quiet
-    /// while typing (return shows them), but a limit stops live lookups for a while.
+    /// The lookups for what is typed, when the gate allows them: a whole flight number in any form the
+    /// intent reads ("84 af", "air france 84"), a route both of whose ends are typed in full ("paris
+    /// marseille"), or a sentence with a day. A half-typed place ("Paris to San F") waits. A later change
+    /// of text cancels them and drops their answer. Errors stay quiet while typing (return shows them),
+    /// but a limit stops live lookups for a while.
     func lookUpLive() async {
         intent = readIntent()
-        guard liveQuery() != nil || (intent.day != nil && intent.isSearchable), let r = currentRoute() else { return }
+        let bothEnds = !intent.origins.isEmpty && !intent.destinations.isEmpty && intent.leftover.isEmpty
+        guard liveQuery() != nil || intent.ident != nil || bothEnds || (intent.day != nil && intent.isSearchable),
+              let r = currentRoute() else { return }
         let cost = cost(r)
         switch gate.verdict(for: r.key, cost: cost, now: now()) {
         case .wait: return

@@ -1,10 +1,14 @@
+import CryptoKit
 import Foundation
 import Observation
 import SwiftUI
 
 /// Settings > Travel Documents and the flight sheet's loyalty row: the traveller's loyalty numbers,
-/// passport, Known Traveler and Redress numbers, kept in two Keychain items on this device and nowhere
-/// else (no server, no iCloud unless the traveller turns iCloud Keychain sync on, off by default).
+/// passport, Known Traveler and Redress numbers, kept in two Keychain items. Sync is on by default: the
+/// items sync through iCloud Keychain, and a copy goes to the account (`TravelVaultService`) sealed with
+/// AES-GCM under a key that lives only in the iCloud Keychain, so the server holds ciphertext. A new
+/// device signed in to the same Apple ID and account gets them back. Sync off keeps them on this device
+/// and removes the account copy.
 ///
 /// `profile` (loyalty numbers, the passport's country and expiry) reads freely. `identity` (passport,
 /// Known Traveler and Redress numbers) is read into memory only by `reveal()`, after Face ID or the
@@ -14,8 +18,10 @@ import SwiftUI
 public final class TravelDocumentsStore {
     public static let profileAccount = "profile"
     public static let identityAccount = "identity"
-    /// The iCloud Keychain switch, in the app's defaults. Off by default.
+    /// The sync switch, in the app's defaults. On by default.
     public static let syncKey = "travel.icloudSync"
+    /// The Keychain item holding the key that seals the account copy; always synced through iCloud.
+    public static let vaultKeyAccount = "vault-key"
 
     public private(set) var profile = TravelProfile()
     /// The hidden numbers, nil until revealed.
@@ -29,12 +35,13 @@ public final class TravelDocumentsStore {
     @ObservationIgnored private let secrets: any SecretStore
     @ObservationIgnored private let check: any DeviceOwnerCheck
     @ObservationIgnored private let defaults: UserDefaults?
+    @ObservationIgnored private var cloud: (any TravelVaultService)?
 
     public var isRevealed: Bool { identity != nil }
 
     public init(secrets: any SecretStore, check: any DeviceOwnerCheck, defaults: UserDefaults? = .standard) {
         self.secrets = secrets; self.check = check; self.defaults = defaults
-        syncsWithICloud = defaults?.bool(forKey: Self.syncKey) ?? false
+        syncsWithICloud = defaults?.object(forKey: Self.syncKey) as? Bool ?? true
         load()
     }
 
@@ -168,13 +175,79 @@ public final class TravelDocumentsStore {
         return write(profile: p, identity: id)
     }
 
-    /// Turns iCloud Keychain sync on or off, rewriting both items with the new setting.
+    /// Turns sync on or off, rewriting both items with the new setting. On sends the account copy, off
+    /// removes it.
     public func setSync(_ on: Bool) async {
         guard on != syncsWithICloud else { return }
         if !identityKinds.isEmpty, !(await reveal()) { return }
         syncsWithICloud = on
         defaults?.set(on, forKey: Self.syncKey)
         write(profile: profile, identity: identity ?? TravelIdentity())
+        if !on, let cloud { try? await cloud.delete() }
+    }
+
+    // MARK: Account copy
+
+    /// Starts the account copy: from now on every change is sent, and this call fills an empty device
+    /// from the account or sends what the device has. Signed out, nothing happens.
+    public func attach(cloud: any TravelVaultService) async {
+        self.cloud = cloud
+        await syncWithCloud()
+    }
+
+    /// An empty device takes the account copy; a device with documents sends them.
+    public func syncWithCloud() async {
+        guard syncsWithICloud, let cloud else { return }
+        let empty = profile.isEmpty && identityKinds.isEmpty
+        if empty {
+            guard let copy = try? await cloud.load(), let key = try? vaultKey(create: false) else { return }
+            do {
+                if let box = copy.profile, let kept = try Self.open(box, key), !kept.isEmpty {
+                    try secrets.write(kept, account: Self.profileAccount, synchronizable: true)
+                }
+                if let box = copy.identity, let id = try Self.open(box, key), !id.isEmpty {
+                    try secrets.write(id, account: Self.identityAccount, synchronizable: true)
+                }
+                load()
+            } catch {
+                // A copy sealed under another key (iCloud Keychain off on the first device) stays unread.
+            }
+        } else {
+            await pushToCloud()
+        }
+    }
+
+    /// Seals both Keychain items as they are and sends them. Reads the hidden item without Face ID: it
+    /// leaves the device only sealed.
+    private func pushToCloud() async {
+        guard syncsWithICloud, let cloud else { return }
+        do {
+            let key = try vaultKey(create: true)
+            let profileBox = try Self.seal(try secrets.read(Self.profileAccount) ?? Data(), key)
+            let identityBox = try Self.seal(try secrets.read(Self.identityAccount) ?? Data(), key)
+            try await cloud.save(profile: profileBox, identity: identityBox)
+        } catch {
+            // Offline or signed out: the next change or launch sends it.
+        }
+    }
+
+    /// The sealing key from the iCloud Keychain, made on first use when `create`.
+    private func vaultKey(create: Bool) throws -> SymmetricKey? {
+        if let raw = try secrets.read(Self.vaultKeyAccount) { return SymmetricKey(data: raw) }
+        guard create else { return nil }
+        let key = SymmetricKey(size: .bits256)
+        try secrets.write(key.withUnsafeBytes { Data($0) }, account: Self.vaultKeyAccount, synchronizable: true)
+        return key
+    }
+
+    static func seal(_ data: Data, _ key: SymmetricKey?) throws -> Data {
+        guard let key, let box = try AES.GCM.seal(data, using: key).combined else { throw SecretStoreError(status: -1) }
+        return box
+    }
+
+    static func open(_ box: Data, _ key: SymmetricKey?) throws -> Data? {
+        guard let key else { return nil }
+        return try AES.GCM.open(AES.GCM.SealedBox(combined: box), using: key)
     }
 
     /// Removes every travel document from this device (and from iCloud Keychain when they synced).
@@ -183,6 +256,7 @@ public final class TravelDocumentsStore {
             try secrets.delete(Self.profileAccount)
             try secrets.delete(Self.identityAccount)
             profile = TravelProfile(); identity = nil; identityKinds = []; failure = nil
+            if let cloud { Task { try? await cloud.delete() } }
         } catch {
             failure = Self.failureText
         }
@@ -233,6 +307,7 @@ public final class TravelDocumentsStore {
             let kept = Kept(profile: p, identityKinds: identityKinds.map(\.rawValue).sorted())
             try secrets.write(try JSONEncoder().encode(kept), account: Self.profileAccount, synchronizable: syncsWithICloud)
             profile = p; failure = nil
+            Task { await pushToCloud() }
             return true
         } catch {
             failure = Self.failureText
@@ -253,6 +328,7 @@ public final class TravelDocumentsStore {
             let kept = Kept(profile: p, identityKinds: kinds.map(\.rawValue).sorted())
             try secrets.write(try JSONEncoder().encode(kept), account: Self.profileAccount, synchronizable: syncsWithICloud)
             profile = p; identity = id; identityKinds = kinds; failure = nil
+            Task { await pushToCloud() }
             return true
         } catch {
             failure = Self.failureText

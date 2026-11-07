@@ -3,7 +3,7 @@ import Testing
 @testable import FlightKit
 
 /// What the square airline mark shows: tiles cut to rounded corners, bare marks, the fin before a
-/// wordmark, and the monogram last.
+/// wordmark, the parent airline's mark, and the neutral glyph last (never letters).
 struct AirlineMarkFaceTests {
     /// A 96 px RGBA image painted by `paint`.
     private func image(_ paint: (CGContext, CGRect) -> Void) -> CGImage {
@@ -56,7 +56,27 @@ struct AirlineMarkFaceTests {
         #expect(AirlineLogo.face(logo: wordmark, hasFin: true) == .fin)
         #expect(AirlineLogo.face(logo: wordmark, hasFin: false) == .logo)
         #expect(AirlineLogo.face(logo: nil, hasFin: true) == .fin)
-        #expect(AirlineLogo.face(logo: nil, hasFin: false) == .monogram)
+        #expect(AirlineLogo.face(logo: nil, hasFin: false) == .neutral)
+    }
+
+    /// An operator without a mark of its own takes its parent's (Lufthansa City Airlines shows the crane).
+    @MainActor @Test func parentMarkBeforeNeutral() {
+        let symbol = (version: "v-symbol", aspect: CGFloat(1))
+        let wordmark = (version: "v-wordmark", aspect: CGFloat(2.3))
+        #expect(AirlineLogo.pick([("LHX", nil, false), ("DLH", symbol, false)]) == ("DLH", .logo))
+        #expect(AirlineLogo.pick([("EJU", nil, false), ("EZY", wordmark, true)]) == ("EZY", .fin))
+        // The operator's own wordmark gives way to the parent's symbol, but beats nothing.
+        #expect(AirlineLogo.pick([("AAA", wordmark, false), ("BBB", symbol, false)]) == ("BBB", .logo))
+        #expect(AirlineLogo.pick([("AAA", wordmark, false), ("BBB", nil, false)]) == ("AAA", .logo))
+        #expect(AirlineLogo.pick([("QQQ", nil, false)]).face == .neutral)
+        // Every airline in the reference list has a mark of its own or through its parent: no neutral glyph.
+        let reference = ReferenceData.bundled()
+        let marked = BundledLogos.wordmarks.union(BundledLogos.symbols)
+        let bare = reference.airlines.map(\.id).filter { code in
+            !AirlineParents.chain(code).contains { marked.contains($0) || AirlineTailMark.fin($0) != nil }
+        }
+        // Four still lack one: BHA, FJL and RPB, and Airlink (LNK), whose fin the image model refuses to redraw.
+        #expect(bare.count <= 4, "airlines with no mark at all: \(bare.sorted())")
     }
 
     /// The fin is found from either code: French bee (BF / FBU) and Flair (F8 / FLE) resolve to their

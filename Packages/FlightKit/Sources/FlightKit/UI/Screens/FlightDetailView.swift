@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// One followed flight in full: the airline, flight number and route pinned at the top; then the
-/// countdown card, a canceled or diverted notice, departure and arrival with their gates, the booking
+/// countdown card, a canceled or diverted notice, the "At a glance" card (on time or late, both gates,
+/// boarding, the belt), departure and arrival with their gates, the booking
 /// code and seat tiles, the boarding pass, Good to Know, the arrival forecast and where the plane is (paid data, when
 /// insights are on), the detailed timetable, the airline, the user's
 /// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
@@ -178,6 +179,11 @@ public struct FlightDetailView: View {
                                                             destination: plannedDestination(flight), unit: units.distance)
                                   ?? DetailFacts.countdownCaption(flight, airline: airline(flight)),
                               tone: DetailFacts.statusTone(flight))
+                // The key facts in one card: on time or late, both gates, boarding and the belt.
+                AtAGlanceCard(flight: flight, origin: store.origin,
+                              aircraft: flight.aircraftType.flatMap { reference.type($0) },
+                              pass: store.boardingPass, prediction: store.delayPrediction(now: now),
+                              predictedGate: store.gatePrediction)
                 DepartArrive(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now,
                              onAirport: onAirport, predictedGate: store.gatePrediction)
                     .scaledPadding(.top, 16)

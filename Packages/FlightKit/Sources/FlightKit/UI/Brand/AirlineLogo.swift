@@ -172,8 +172,9 @@ final class BrandArtMemo {
 
 /// The airline's mark in a square of `size`, on nothing: the dark variant in dark mode when there is one,
 /// else the logo. The logotype alone, never the name: a logo that is a wordmark gives way to the airline's
-/// tail fin when the bundle has one, and with no logo at all the fin stands in; only with neither does a
-/// quiet grey monogram (the IATA code) show.
+/// tail fin when the bundle has one, and with no logo at all the fin stands in. An operator with neither
+/// takes the mark of the airline whose livery it flies (`AirlineParents`: Lufthansa City Airlines shows the
+/// crane); only an airline nobody knows gets the neutral mark, a grey aircraft glyph. Never letters.
 ///
 /// No plate, ring or shadow. A logo that is a filled tile (opaque near its corners, United's square) is
 /// cut to the rounded square; any other logo sits bare, as large as the square allows. A bare logo lost on
@@ -194,7 +195,7 @@ public struct AirlineLogo: View {
 
     /// Corner radius as a share of the side.
     nonisolated static let cornerRatio: CGFloat = 0.22
-    /// The monogram's text size as a share of the side (12 pt on a 34 pt badge).
+    /// The neutral mark's glyph size as a share of the side (12 pt on a 34 pt badge, before its 1.2 scale).
     nonisolated static let textRatio: CGFloat = 12 / 34
     /// Inset of the logo inside the square, as a share of the side: on a plate, and with no plate.
     nonisolated static let platePadding: CGFloat = 0.14
@@ -216,11 +217,6 @@ public struct AirlineLogo: View {
 
     public init(airline: Airline?, code: String, size: CGFloat, decorative: Bool = false) {
         self.airline = airline; self.code = code; self.size = size; self.decorative = decorative
-    }
-
-    /// The letters of the fallback: the IATA code, else the first two letters of `code`.
-    public nonisolated static func monogram(airline: Airline?, code: String) -> String {
-        airline?.iata ?? String(code.prefix(2))
     }
 
     /// The ICAO code to ask the brand service with: the airline's, else `code` when it reads as an ICAO
@@ -276,13 +272,27 @@ public struct AirlineLogo: View {
     }
 
     /// What a square slot shows.
-    enum Face: Equatable, Sendable { case logo, fin, monogram }
+    enum Face: Equatable, Sendable { case logo, fin, neutral }
 
-    /// The logo when it is a mark, else the fin, else a wordmark logo, else the monogram.
+    /// The logo when it is a mark, else the fin, else a wordmark logo, else the neutral mark.
     nonisolated static func face(logo: (version: String, aspect: CGFloat)?, hasFin: Bool) -> Face {
         if let logo, !isWordmark(version: logo.version, aspect: logo.aspect) { return .logo }
         if hasFin { return .fin }
-        return logo == nil ? .monogram : .logo
+        return logo == nil ? .neutral : .logo
+    }
+
+    /// Which airline of the chain (`AirlineParents.chain`, the operator first) gives the mark and what it
+    /// shows: the first with a symbol or a fin; else the first with a wordmark logo; else none (`.neutral`).
+    nonisolated static func pick(_ marks: [(code: String, logo: (version: String, aspect: CGFloat)?, hasFin: Bool)])
+        -> (code: String?, face: Face) {
+        for m in marks {
+            let face = face(logo: m.logo, hasFin: m.hasFin)
+            if face == .fin || (face == .logo && m.logo.map { !isWordmark(version: $0.version, aspect: $0.aspect) } == true) {
+                return (m.code, face)
+            }
+        }
+        if let m = marks.first(where: { $0.logo != nil }) { return (m.code, .logo) }
+        return (nil, .neutral)
     }
 
     enum Plate: Equatable, Sendable { case light, dark }
@@ -340,7 +350,7 @@ public struct AirlineLogo: View {
 
     /// Fills the memo for these airlines in both schemes (renders that cannot wait for a task).
     public static func preload(_ icaos: [String], service: any BrandAssetService, maxPixel: Int = 192) async {
-        for icao in Set(icaos.map { $0.uppercased() }) {
+        for icao in Set(icaos.flatMap { AirlineParents.chain($0) }) {
             await load(icao: icao, dark: true, service: service, maxPixel: maxPixel)
             await load(icao: icao, kinds: [.wordmark], service: service, maxPixel: maxPixel)
         }
@@ -358,13 +368,17 @@ public struct AirlineLogo: View {
         let pixels = Int((size * displayScale).rounded(.up))
         // Read so a stored logo redraws the view.
         let _ = revision
-        let art = icao.flatMap { Self.held(icao: $0, dark: dark) }
-        let fin = icao.flatMap { AirlineTailMark.fin($0) }
+        let chain = icao.map { AirlineParents.chain($0) } ?? []
+        let marks = chain.map { code in
+            (code: code, art: Self.held(icao: code, dark: dark), fin: AirlineTailMark.fin(code))
+        }
+        let pick = Self.pick(marks.map { ($0.code, $0.art.map { ($0.version, $0.aspect) }, $0.fin != nil) })
+        let chosen = marks.first { $0.code == pick.code }
         Group {
-            switch Self.face(logo: art.map { ($0.version, $0.aspect) }, hasFin: fin != nil) {
-            case .logo: if let art { logo(art, dark: dark) }
-            case .fin: if let fin { finMark(fin) }
-            case .monogram: monogramTile
+            switch pick.face {
+            case .logo: if let art = chosen?.art { logo(art, dark: dark) }
+            case .fin: if let fin = chosen?.fin { finMark(fin) }
+            case .neutral: neutralTile
             }
         }
         .frame(width: size, height: size)
@@ -374,20 +388,26 @@ public struct AirlineLogo: View {
         .accessibilityHidden(decorative)
         .task(id: icao.map { "\($0)-\(dark)-\(pixels)" }) {
             guard let icao else { return }
-            let before = Self.held(icao: icao, dark: dark)
-            let after = await Self.load(icao: icao, dark: dark, service: service, maxPixel: pixels)
-            if after?.version != before?.version || after?.pixelSize != before?.pixelSize { revision += 1 }
+            var changed = false
+            for code in AirlineParents.chain(icao) {
+                let before = Self.held(icao: code, dark: dark)
+                let after = await Self.load(icao: code, dark: dark, service: service, maxPixel: pixels)
+                if after?.version != before?.version || after?.pixelSize != before?.pixelSize { changed = true }
+                // The operator's own symbol or fin ends the chain.
+                if let after, !Self.isWordmark(version: after.version, aspect: after.aspect) { break }
+                if AirlineTailMark.fin(code) != nil { break }
+            }
+            if changed { revision += 1 }
         }
     }
 
     private var radius: CGFloat { size * Self.cornerRatio }
 
-    /// The last resort: the code in grey on a faint grey square, quiet beside real marks.
-    private var monogramTile: some View {
-        Text(Self.monogram(airline: airline, code: code))
-            .font(.system(size: size * Self.textRatio, weight: .semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
+    /// The last resort, for an airline nobody knows: an aircraft in grey on a faint grey square, quiet
+    /// beside real marks. Never letters.
+    private var neutralTile: some View {
+        Image(systemName: "airplane")
+            .font(.system(size: size * Self.textRatio * 1.2, weight: .semibold))
             .foregroundStyle(Theme.secondary)
             .frame(width: size, height: size)
             .background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(Theme.secondary.opacity(0.12)))

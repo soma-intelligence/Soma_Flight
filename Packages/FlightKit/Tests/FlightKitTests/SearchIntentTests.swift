@@ -247,4 +247,43 @@ import FlightImportKit
         #expect(suggester.airport(code: "DEL")?.id == "VIDP")
         #expect(suggester.airline(code: "AF")?.id == "AFR")
     }
+    // MARK: Forgiving input
+
+    /// A flight number however it is typed: glued, spaced, the airline by name, the number first.
+    @Test(arguments: ["af84", "AF 84", "air france 84", "84 af", "Air France 84", "84 air france", "AF84 "])
+    func flightNumberAnyForm(_ text: String) {
+        let i = parse(text)
+        #expect(i.ident == "AF84", "\(text)")
+        #expect(i.chips.first == .ident("AF84"), "\(text)")
+        #expect(i.leftover.isEmpty, "\(text)")
+    }
+
+    /// A number named by an airline that is not on the device's list stays a leftover, never an ident.
+    @Test func bareNumberWithoutAirlineIsNoFlight() {
+        let i = parse("84")
+        #expect(i.ident == nil)
+        #expect(!i.isSearchable)
+    }
+
+    @Test func twoCitiesNoDay() {
+        let i = parse("paris marseille")
+        #expect(i.origins == ["LFPG", "LFPO"])
+        #expect(i.destinations == ["LFML"])
+        #expect(i.day == nil)
+        #expect(i.isSearchable)
+    }
+
+    @Test func twoCodesAndADay() {
+        let i = parse("cdg mrs tomorrow")
+        #expect(i.origins == ["LFPG"])
+        #expect(i.destinations == ["LFML"])
+        #expect(i.day == d(2026, 11, 2))
+        #expect(kinds(i) == ["place", "place", "day"])
+    }
+
+    @Test func flightNumberByNameWithADay() {
+        let i = parse("air france 84 tomorrow")
+        #expect(i.ident == "AF84")
+        #expect(i.day == d(2026, 11, 2))
+    }
 }

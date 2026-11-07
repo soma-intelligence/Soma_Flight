@@ -128,4 +128,7 @@ public extension EnvironmentValues {
     /// The detent the iOS home sheet rests in, for a tab screen that shows more as the sheet rises (the
     /// Friends code row hides at collapsed). Nil elsewhere (modal sheets, the Mac): everything shows.
     @Entry var sheetDetent: SheetDetent? = nil
+    /// What shows of a tab screen's content in that detent, between its title and the tab pill
+    /// (`SheetGeometry.contentRoom`). Nil where there is no home sheet.
+    @Entry var sheetContentRoom: CGFloat? = nil
 }

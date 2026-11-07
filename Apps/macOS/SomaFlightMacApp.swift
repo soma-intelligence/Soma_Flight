@@ -45,7 +45,7 @@ struct SomaFlightMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var home: HomeModel?
     @State private var failure: String?
-    /// Travel documents live in this device's Keychain, apart from any account.
+    /// Travel documents live in the Keychain, with a sealed copy on the account once the home is built.
     @State private var documents = TravelDocumentsStore.forLaunch()
     /// A sign-in link opened before the home was built, handed over once it is.
     @State private var pendingURL: URL?
@@ -90,6 +90,8 @@ struct SomaFlightMacApp: App {
                     built.attachCalendar(CalendarSync.forLaunch(env: built.env))
                     // A long import finishes in the background and says so.
                     built.attachImportNotifier(SystemImportNotifier())
+                    // Travel documents sync with the account, sealed on the device.
+                    Task { await documents.attach(cloud: built.env.travelVault) }
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil

@@ -59,6 +59,14 @@ extension ComponentSnapshotTests {
             FriendsView(store: empty, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
                 .safeAreaInset(edge: .bottom, spacing: 0) { HomeTabPill(tab: .constant(.friends), bottom: 20, onSearch: {}) }
         }
+        // The collapsed home sheet (its 291 pt on a 6.3 inch iPhone): the two jets alone, filling the room
+        // between the title and the pill.
+        try screen("friends-empty-collapsed", height: SheetGeometry.standard.height(of: .collapsed)) {
+            FriendsView(store: empty, onOpenFriend: { _ in }, lookup: PreviewData.airport, now: now, scrolls: false)
+                .environment(\.sheetDetent, .collapsed)
+                .environment(\.sheetContentRoom, SheetGeometry.standard.contentRoom(in: .collapsed))
+                .safeAreaInset(edge: .bottom, spacing: 0) { HomeTabPill(tab: .constant(.friends), bottom: 20, onSearch: {}) }
+        }
     }
 
     @Test func myFlightsScreens() async throws {

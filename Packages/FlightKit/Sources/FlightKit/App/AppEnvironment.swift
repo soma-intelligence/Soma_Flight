@@ -44,6 +44,8 @@ public struct AppEnvironment: Sendable {
     /// The Friends tab: friends, their shared flights, invitations. The fakes (two friends) with `-useFakes`,
     /// `friends` and the friend database functions in live builds (free, so always on).
     public var friends: any FriendsService = UnavailableFriendsService()
+    /// The account's sealed copy of the travel documents; the app attaches it to the travel documents store.
+    public var travelVault: any TravelVaultService = UnavailableTravelVaultService()
     /// The Airports list and the airport card's live layer: weather and FAA programs (free, always on), the
     /// board provider's numbers (answers "needs a data plan" without one) and Runway Regulars. The fakes with
     /// `-useFakes` (`-fakeNoProvider` answers like a backend without a board provider).
@@ -163,6 +165,7 @@ public struct AppEnvironment: Sendable {
             .withSchedules(schedules ? SupabaseScheduleService(backend: backend) : schedulesOff)
         env.sharing = SupabaseFlightShareService(backend: backend)
         env.friends = SupabaseFriendsService(backend: backend)
+        env.travelVault = SupabaseTravelVaultService(backend: backend)
         env.airportOverview = SupabaseAirportOverviewService(backend: backend)
         env.textAlerts = SupabaseTextAlertsService(backend: backend)
         env.profiles = SupabaseProfileService(backend: backend)

@@ -26,6 +26,8 @@ struct EmptyStateIllustration: View {
     var variant: Variant = .stamp
     /// The width of the picture in points; accessibility text sizes take it down to 72% to leave room for the words.
     var size: CGFloat = 300
+    /// Room kept above and below the picture for its float and shadow.
+    var verticalPadding: CGFloat = 12
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -43,7 +45,7 @@ struct EmptyStateIllustration: View {
             // A soft shadow under the jet: it lifts the white paint off the light sheet, and barely shows in dark.
             .shadow(color: Color.black.opacity(scheme == .dark ? 0.5 : 0.14), radius: 14, y: 12)
             .offset(y: floating ? -4 : 4)
-            .scaledPadding(.vertical, 12)
+            .scaledPadding(.vertical, verticalPadding)
             .frame(maxWidth: .infinity)
             .accessibilityHidden(true)
             .onAppear {

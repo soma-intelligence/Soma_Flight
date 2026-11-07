@@ -78,8 +78,7 @@ import FlightImportKit
     }
 
     @Test func theCopySaysAnyOrderWorks() {
-        #expect(SearchView.screenSubtitle == "Flight, airline, cities, a day, any order")
-        #expect(SearchView.prompt == "AF 84 tomorrow, or Paris Rome Dec 12")
+        #expect(SearchView.prompt == "AF 84 tomorrow, or Paris Rome")
         // Each example in the prompt reads the way it promises.
         let s = SearchRoutingTests.store(RecordingFlights())
         let examples = SearchView.prompt.components(separatedBy: ", or ")
@@ -89,8 +88,6 @@ import FlightImportKit
         s.text = examples[1]; s.textChanged()
         #expect(!s.intent.origins.isEmpty)
         #expect(!s.intent.destinations.isEmpty)
-        #expect(s.intent.day?.month == 12)
-        #expect(s.intent.day?.day == 12)
     }
 
     @Test func removingAChipTakesItsWordsFromTheText() {

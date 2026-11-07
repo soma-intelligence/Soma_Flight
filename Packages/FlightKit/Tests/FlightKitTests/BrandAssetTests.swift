@@ -89,12 +89,10 @@ struct BrandAssetTests {
         return ((try? FileManager.default.contentsOfDirectory(atPath: ual.path)) ?? []).sorted()
     }
 
-    // MARK: Monogram (Review Focus 1)
+    // MARK: Fallback tint (Review Focus 1)
 
-    @Test func monogramUsesIata() {
+    @Test func tintUsesBrandColour() {
         let united = Airline(id: "UAL", iata: "UA", name: "United", colorPrimary: "#0033A0")
-        #expect(AirlineLogo.monogram(airline: united, code: "UAL") == "UA")
-        #expect(AirlineLogo.monogram(airline: united, code: "XX") == "UA")
         #expect(AirlineLogo.tintSource(airline: united, code: "UA") == .brand(r: 0, g: 0x33 / 255.0, b: 0xA0 / 255.0))
     }
 
@@ -128,12 +126,8 @@ struct BrandAssetTests {
         #expect(unknown.isEmpty, "side views for airlines the reference list does not know: \(unknown)")
     }
 
-    @Test func unknownAirlineMonogram() {
-        #expect(AirlineLogo.monogram(airline: nil, code: "ZED") == "ZE")
-        #expect(AirlineLogo.monogram(airline: nil, code: "Q") == "Q")
-        // Known but without an IATA code: the code's first two letters.
+    @Test func unknownAirlineTint() {
         let noIata = Airline(id: "XAX", name: "Charter", colorPrimary: "not a colour")
-        #expect(AirlineLogo.monogram(airline: noIata, code: "XAX") == "XA")
         #expect(AirlineLogo.tintSource(airline: nil, code: "ZED") == .palette("ZED"))
         #expect(AirlineLogo.tintSource(airline: noIata, code: "XA") == .palette("XAX"))
     }
@@ -309,7 +303,7 @@ struct BrandAssetTests {
         // No dark variant: the logo in both schemes.
         let one = FakeBrandAssetService(seeded: [("QQB", .logo, light)])
         #expect(await AirlineLogo.load(icao: "QQB", dark: true, service: one)?.version == "light-1")
-        // Nothing at all: the monogram.
+        // Nothing at all: the neutral mark.
         #expect(await AirlineLogo.load(icao: "ZZZ", dark: true, service: FakeBrandAssetService()) == nil)
         #expect(AirlineLogo.held(icao: "ZZZ", dark: true) == nil)
     }
@@ -552,8 +546,9 @@ final class RedirectStub: URLProtocol, @unchecked Sendable {
         let service = BundledSideViews(over: FakeBrandAssetService(seeded: [("UAL", .logo, logo)]))
         #expect(await service.asset("UAL", .logo) == logo)
         #expect(await service.lookup(" ual ", .sideView, type: "b38m ").asset != nil)
-        #expect(await service.lookup("UAL", .sideView, type: "ZZZZ") == .missing)
-        #expect(await service.asset("UAL", .sideView, type: nil) == nil)
+        // An unknown or missing type still gets a bundled picture (the airline's first), never nothing.
+        #expect(await service.lookup("UAL", .sideView, type: "ZZZZ").asset != nil)
+        #expect(await service.asset("UAL", .sideView, type: nil) != nil)
     }
 
     /// A pair neither the bundle nor the wrapped service has gets the type's plain side view; the wrapped
@@ -569,7 +564,7 @@ final class RedirectStub: URLProtocol, @unchecked Sendable {
         let served = BrandAsset(data: Data([2]), format: "webp", version: "provider")
         let wrapped = BundledSideViews(over: FakeBrandAssetService(seeded: [("QQQ", .sideView, served)], type: "A359"))
         #expect(await wrapped.asset("QQQ", .sideView, type: "A359") == served)
-        // No plain view for an unknown type: the wrapped service's answer stands.
-        #expect(await service.lookup("QQQ", .sideView, type: "ZZZZ") == .missing)
+        // An unknown type of an unknown airline: a plain A320 rather than nothing.
+        #expect(await service.asset("QQQ", .sideView, type: "ZZZZ") == BundledSideViews.fallback(nil, type: "A320"))
     }
 }

@@ -17,13 +17,14 @@ public struct FollowedFlights: Sendable, Equatable {
     }
 }
 
-/// Find a flight to follow: one field for a flight number, a route or an airport, in any words ("Paris
-/// New York 12 dec", "AF 84 demain"). Under it, chips show what the text reads as, each removable. Empty,
-/// it offers Today and Tomorrow, the frequently used airlines and airports, the recent searches and ways
-/// to search; while typing, ranked suggestions on the device (`SearchSuggester`) and, after a pause on
-/// something searchable, its results: live flights to follow now, planned ones (weeks ahead) to add
-/// for later, each with an Add button. Return picks the top suggestion. Errors show in a banner and the
-/// typed text stays.
+/// Find a flight to follow: one field at the very top, focused on open, for a flight number, a route or
+/// an airport in any words ("Paris New York 12 dec", "AF 84 demain", "air france 84"). Under it, chips
+/// show what the text reads as, each removable. Empty, it offers the frequently used airlines and
+/// airports, the recent searches and Import; while typing, after a short pause on something searchable,
+/// its results come first, right under the field (live flights to follow now, planned ones weeks ahead
+/// to add for later, each with an Add button and opening its flight on a tap), then the ranked
+/// suggestions on the device (`SearchSuggester`). Return picks the top suggestion. Errors show in a
+/// banner and the typed text stays.
 public struct SearchView: View {
     @Bindable var store: SearchStore
     var onFollowed: (Flight) -> Void
@@ -36,6 +37,8 @@ public struct SearchView: View {
     var known: [KnownFlight]
     var onPlan: (UpcomingFlight) -> Void
     var planned: Set<UpcomingFlight.ID>
+    var onOpen: ((Flight) -> Void)?
+    var onClose: (() -> Void)?
 
     @State private var followed: Set<Flight.ID> = []
     /// Planned flights added from this screen, before `planned` hears of them.
@@ -54,40 +57,49 @@ public struct SearchView: View {
     ///   - known: the followed and past flights flight numbers are suggested from.
     ///   - onPlan: keeps a planned flight to follow once it is within reach (`FollowLaterQueue.add`).
     ///   - planned: the flights already kept that way, which show "Added".
+    ///   - onOpen: opens a live result's flight when its row is tapped; nil leaves rows to their Add button.
+    ///   - onClose: draws a close button beside the field; nil leaves it to the container.
     public init(store: SearchStore, onFollowed: @escaping (Flight) -> Void,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, alreadyFollowed: FollowedFlights = .init(),
                 frequent: [FrequentItem] = [], onImport: (() -> Void)? = nil,
                 onAirport: ((String) -> Void)? = nil, known: [KnownFlight] = [],
-                onPlan: @escaping (UpcomingFlight) -> Void = { _ in }, planned: Set<UpcomingFlight.ID> = []) {
+                onPlan: @escaping (UpcomingFlight) -> Void = { _ in }, planned: Set<UpcomingFlight.ID> = [],
+                onOpen: ((Flight) -> Void)? = nil, onClose: (() -> Void)? = nil) {
         self.init(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
                   frequent: frequent, scrolls: true, onImport: onImport, onAirport: onAirport, known: known,
-                  onPlan: onPlan, planned: planned)
+                  onPlan: onPlan, planned: planned, onOpen: onOpen, onClose: onClose)
     }
 
     init(store: SearchStore, onFollowed: @escaping (Flight) -> Void, lookup: @escaping (String) -> Airport?,
          alreadyFollowed: FollowedFlights = .init(), frequent: [FrequentItem] = [], scrolls: Bool,
          onImport: (() -> Void)? = nil, onAirport: ((String) -> Void)? = nil, known: [KnownFlight] = [],
-         onPlan: @escaping (UpcomingFlight) -> Void = { _ in }, planned: Set<UpcomingFlight.ID> = []) {
+         onPlan: @escaping (UpcomingFlight) -> Void = { _ in }, planned: Set<UpcomingFlight.ID> = [],
+         onOpen: ((Flight) -> Void)? = nil, onClose: (() -> Void)? = nil) {
         self.store = store; self.onFollowed = onFollowed; self.lookup = lookup
         self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.scrolls = scrolls
         self.onImport = onImport; self.onAirport = onAirport; self.known = known
-        self.onPlan = onPlan; self.planned = planned
+        self.onPlan = onPlan; self.planned = planned; self.onOpen = onOpen; self.onClose = onClose
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ScreenTitle("Add Flight", subtitle: Self.screenSubtitle)
-                .scaledPadding(.horizontal, 20)
-                .scaledPadding(.top, 22)
-            field
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 16)
-                .scaledPadding(.bottom, 8)
+            // The field is the top of the screen: no title over it, the close button beside it.
+            HStack(spacing: 10) {
+                field
+                if let onClose { RoundButton(systemImage: "xmark", label: "Close", action: onClose) }
+            }
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.top, 14)
+            .scaledPadding(.bottom, 8)
             understood
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
-        .onAppear { store.known = known }
+        .onAppear {
+            store.known = known
+            // The keyboard is up on open: typing is the only thing this screen asks.
+            if !staticControls { focused = true }
+        }
         .onChange(of: known) { _, k in store.known = k }
         .onChange(of: store.text) { store.textChanged() }
         .onChange(of: store.suggestions) { _, s in
@@ -143,14 +155,12 @@ public struct SearchView: View {
             }
         }
         .scaledPadding(.horizontal, 14)
-        .frame(minHeight: 48)
+        .frame(minHeight: 44)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
     }
 
-    /// Both lines fit an iPhone SE (375 pt) at the default text size: 275 pt of 295 for the subtitle,
-    /// 293 pt of 315 for the prompt.
-    static let screenSubtitle = "Flight, airline, cities, a day, any order"
-    static let prompt = "AF 84 tomorrow, or Paris Rome Dec 12"
+    /// Fits the field beside the close button on an iPhone SE (375 pt) at the default text size.
+    static let prompt = "AF 84 tomorrow, or Paris Rome"
 
     private var input: some View {
         TextField("", text: $store.text, prompt: Text(Self.prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
@@ -197,12 +207,13 @@ public struct SearchView: View {
         .scaledPadding(.bottom, 24)
     }
 
-    /// While typing: the ranked suggestions, then the live (or returned) results.
+    /// While typing: the live (or returned) results first, right under the field, then the suggestions
+    /// they do not already show.
     @ViewBuilder private var typing: some View {
-        SearchSuggestionList(suggestions: store.suggestions, lookup: lookup) { handle(store.pick($0)) }
-        if !store.items.isEmpty {
-            results
-        } else if store.suggestions.isEmpty, !store.isSearching, store.error == nil, store.note == nil,
+        let shown = Self.typingSuggestions(store.suggestions, results: store.items)
+        if !store.items.isEmpty { results }
+        SearchSuggestionList(suggestions: shown, lookup: lookup) { handle(store.pick($0)) }
+        if store.items.isEmpty, shown.isEmpty, !store.isSearching, store.error == nil, store.note == nil,
                   store.intent.isSearchable || store.intent.chips.isEmpty {
             Text("Press return to search \u{201C}\(store.text.trimmingCharacters(in: .whitespaces))\u{201D}")
                 .scaledFont(15)
@@ -212,25 +223,41 @@ public struct SearchView: View {
         }
     }
 
+    /// The suggestions under the results: recent searches only show with the field empty, and a flight
+    /// number already in the results is not offered twice.
+    static func typingSuggestions(_ s: SearchSuggestions, results: [SearchResult]) -> SearchSuggestions {
+        let found = Set(results.map { SearchText.ident($0.ident) })
+        let groups = s.groups.compactMap { g -> SearchSuggestions.Group? in
+            guard g.kind != .recent else { return nil }
+            var g = g
+            g.items = g.items.filter {
+                if case .flight(let ident, _) = $0 { return !found.contains(SearchText.ident(ident)) }
+                return true
+            }
+            return g.items.isEmpty ? nil : g
+        }
+        return SearchSuggestions(groups: groups)
+    }
+
     private var results: some View {
         VStack(alignment: .leading, spacing: 0) {
             let count = store.items.count
             CapsHeader("Results", trailing: count == 1 ? "1 flight" : "\(count) flights")
                 .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, isBlank ? 16 : 22)
-                .scaledPadding(.bottom, 4)
+                .scaledPadding(.top, 8)
+                .scaledPadding(.bottom, 2)
             ForEach(store.items) { item in
                 switch item {
                 case .live(let flight):
                     ResultRow(flight: flight, origin: lookup(flight.originIcao), destination: lookup(flight.destinationIcao),
-                              state: followState(flight)) { follow(flight) }
+                              state: followState(flight), onOpen: onOpen.map { open in { open(flight) } }) { follow(flight) }
                 case .planned(let p):
                     let origin = lookup(p.origin)
                     ResultRow(planned: p, origin: origin, destination: lookup(p.destination),
                               state: plannedHere.contains(UpcomingFlight(p, tz: origin?.timeZone ?? .gmt).id)
                                   ? .following : Self.planState(p, origin: origin, planned: planned)) { plan(p, origin: origin) }
                 }
-                Hairline(leading: 62)
+                Hairline(leading: ResultRow.textInset)
             }
         }
     }
@@ -256,36 +283,16 @@ public struct SearchView: View {
         onPlan(u)
     }
 
-    /// A day shortcut: its word joins the field, which keeps the keyboard for the rest.
-    private func addDay(_ d: SearchStart.DayShortcut) {
-        store.text = SearchStart.appending(d.word, to: store.text)
-        store.textChanged()
-        focused = true
-    }
-
+    /// The field empty: recent searches first (the likeliest next search), then the frequently used
+    /// airlines and airports, then Import. No day shortcuts: a day is one word in the field.
     private var suggestions: some View {
         let start = SearchStart(frequent: frequent)
         return VStack(alignment: .leading, spacing: 0) {
-            ChipFlow(spacing: 8) {
-                ForEach(start.days, id: \.self) { d in
-                    SearchChip(title: d.title) { addDay(d) }
-                        .accessibilityHint("Adds \(d.word) to the search")
-                }
-            }
-            .scaledPadding(.horizontal, 16)
-            .scaledPadding(.top, 14)
-            if !start.frequent.isEmpty {
-                CapsHeader("Frequently used")
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 22)
-                    .scaledPadding(.bottom, 4)
-                ForEach(start.frequent) { frequentRow($0) }
-            }
             if !store.recent.isEmpty {
                 CapsHeader("Recent searches")
                     .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 22)
-                    .scaledPadding(.bottom, 4)
+                    .scaledPadding(.top, 8)
+                    .scaledPadding(.bottom, 2)
                 ForEach(store.recent, id: \.self) { q in
                     let intent = store.intent(for: q)
                     OptionRow(icon: Self.recentIcon(intent), title: q, subtitle: Self.recentSubtitle(intent, clock: units.clock)) {
@@ -293,14 +300,18 @@ public struct SearchView: View {
                     }
                 }
             }
-            CapsHeader("More")
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 22)
-                .scaledPadding(.bottom, 4)
-            OptionRow(icon: Self.routeIcon, title: "Find by route", subtitle: nil) {
-                focused = true
+            if !start.frequent.isEmpty {
+                CapsHeader("Frequently used")
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, store.recent.isEmpty ? 8 : 16)
+                    .scaledPadding(.bottom, 2)
+                ForEach(start.frequent) { frequentRow($0) }
             }
             if let onImport {
+                CapsHeader("More")
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, 16)
+                    .scaledPadding(.bottom, 2)
                 OptionRow(icon: "square.and.arrow.down", title: "Import flights",
                           subtitle: "From another app, your calendar, an email or a CSV file", action: onImport)
             }
@@ -379,26 +390,26 @@ struct OptionRow: View {
     var title: String
     var subtitle: String?
     var action: () -> Void
-    @ScaledMetric(relativeTo: .body) private var glyph = 30
+    @ScaledMetric(relativeTo: .body) private var glyph = 26
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .scaledFont(19, weight: .medium)
+                    .scaledFont(17, weight: .medium)
                     .foregroundStyle(Theme.primary)
                     .frame(width: glyph, height: glyph)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).scaledFont(17).foregroundStyle(Theme.primary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
                     if let subtitle {
-                        Text(subtitle).scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
+                        Text(subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
             }
             .scaledPadding(.horizontal, 16)
-            .scaledPadding(.vertical, 12)
+            .scaledPadding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -414,16 +425,16 @@ struct FrequentRow<Icon: View>: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 icon
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).scaledFont(17).foregroundStyle(Theme.primary).lineLimit(1)
-                    Text(subtitle).scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             .scaledPadding(.horizontal, 16)
-            .scaledPadding(.vertical, 10)
+            .scaledPadding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -431,8 +442,10 @@ struct FrequentRow<Icon: View>: View {
     }
 }
 
-/// A found flight: number and status, route with local times, and an Add button. A planned flight
-/// (from an airline's schedule) has no status yet and reads "Planned" under its times.
+/// A found flight on two short lines: the airline's mark, the flight number and route codes, then the
+/// day and local times with a status dot, and an Add button. A planned flight (from an airline's
+/// schedule) has no status yet and says "Planned" after its times. A tap elsewhere on a live row opens
+/// its flight.
 struct ResultRow: View {
     enum FollowState { case idle, pending, following }
 
@@ -440,19 +453,28 @@ struct ResultRow: View {
     var origin: Airport?
     var destination: Airport?
     var state: FollowState
+    var onOpen: (() -> Void)?
     var onFollow: () -> Void
     @Environment(\.units) private var units
+    @ScaledMetric(relativeTo: .body) private var mark: CGFloat = 32
 
-    init(flight: Flight, origin: Airport?, destination: Airport?, state: FollowState, onFollow: @escaping () -> Void) {
-        self.init(result: .live(flight), origin: origin, destination: destination, state: state, onFollow: onFollow)
+    /// Where the text starts, for the hairline under the row: padding, mark and gap.
+    static let textInset: CGFloat = 16 + 32 + 12
+
+    init(flight: Flight, origin: Airport?, destination: Airport?, state: FollowState, onOpen: (() -> Void)? = nil,
+         onFollow: @escaping () -> Void) {
+        self.init(result: .live(flight), origin: origin, destination: destination, state: state, onOpen: onOpen,
+                  onFollow: onFollow)
     }
 
     init(planned: ScheduledFlight, origin: Airport?, destination: Airport?, state: FollowState, onFollow: @escaping () -> Void) {
         self.init(result: .planned(planned), origin: origin, destination: destination, state: state, onFollow: onFollow)
     }
 
-    init(result: SearchResult, origin: Airport?, destination: Airport?, state: FollowState, onFollow: @escaping () -> Void) {
-        self.result = result; self.origin = origin; self.destination = destination; self.state = state; self.onFollow = onFollow
+    init(result: SearchResult, origin: Airport?, destination: Airport?, state: FollowState, onOpen: (() -> Void)? = nil,
+         onFollow: @escaping () -> Void) {
+        self.result = result; self.origin = origin; self.destination = destination; self.state = state
+        self.onOpen = onOpen; self.onFollow = onFollow
     }
 
     /// The button's words.
@@ -486,30 +508,37 @@ struct ResultRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            AirlineMark(code: airline.code, key: airline.key, decorative: true)
+        HStack(alignment: .center, spacing: 12) {
+            AirlineMark(code: airline.code, key: airline.key, size: mark, decorative: true)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(Format.ident(result.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.secondary)
-                    Text("\(originCode) \u{2192} \(destinationCode)").scaledFont(15).foregroundStyle(Theme.secondary.opacity(0.8))
+                HStack(spacing: 8) {
+                    Text(Format.ident(result.ident)).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
+                    Text("\(originCode) \u{2192} \(destinationCode)").scaledFont(16).foregroundStyle(Theme.primary)
                 }
-                RouteText(from: origin?.city ?? originCode, to: destination?.city ?? destinationCode)
-                    .lineLimit(1)
+                .lineLimit(1)
                 HStack(spacing: 5) {
                     if case .live(let f) = result {
                         Circle().fill(f.level.color).frame(width: 7, height: 7)
                     }
-                    Text(times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit()
-                }
-                if case .planned = result {
-                    Text("Planned").scaledFont(13).foregroundStyle(Theme.secondary)
+                    Text(times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit().lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
             followButton
         }
         .scaledPadding(.horizontal, 16)
-        .scaledPadding(.vertical, 10)
+        .scaledPadding(.vertical, 8)
+        .contentShape(Rectangle())
+        // The Add button keeps its own taps; the rest of the row opens the flight.
+        .onTapGesture { onOpen?() }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Self.spoken(result, from: origin?.city ?? originCode, to: destination?.city ?? destinationCode))
+        .accessibilityAction(named: "Open flight") { onOpen?() }
+    }
+
+    /// "AF 84, Paris to New York": the cities the codes stand for.
+    static func spoken(_ result: SearchResult, from: String, to: String) -> String {
+        "\(Format.ident(result.ident)), \(ScreenFormat.route(from, to))"
     }
 
     /// Each end's time in its own airport's zone.
@@ -522,7 +551,8 @@ struct ResultRow: View {
         let out = outDate.map { Format.clock($0, o, units.clock) } ?? "--:--"
         let inn = inDate.map { Format.clock($0, d, units.clock) } ?? "--:--"
         let day = result.scheduledOut.map { ScreenFormat.chipDay($0, o) } ?? ""
-        return "\(day)  \(out) \u{2192} \(inn)"
+        let planned = if case .planned = result { "  \u{00B7}  Planned" } else { "" }
+        return "\(day)  \(out) \u{2192} \(inn)\(planned)"
     }
 
     @ViewBuilder private var followButton: some View {

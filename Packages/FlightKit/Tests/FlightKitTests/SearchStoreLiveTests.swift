@@ -46,6 +46,45 @@ import Testing
         #expect(s.recent.isEmpty)
     }
 
+    /// Every way of typing a flight number looks it up after the pause, no return needed.
+    @Test(arguments: ["af84", "AF 84", "air france 84", "84 af"])
+    func aPauseOnAnyFormOfANumberLooksItUp(_ text: String) async {
+        let svc = ScriptedFlights(stall: .zero)
+        let s = Self.store(svc)
+        s.text = text
+        s.textChanged()
+        await eventually { !s.results.isEmpty }
+        #expect(s.results.allSatisfy { $0.ident == "AF84" }, "\(text)")
+        #expect(svc.lookups == 1, "\(text)")
+    }
+
+    /// Two places with no day look the route up on the pause; a lone place still waits for a day.
+    @Test func aPauseOnTwoPlacesLooksTheRouteUp() async {
+        let svc = ScriptedFlights(stall: .zero)
+        let s = Self.store(svc)
+        s.text = "paris"
+        await s.lookUpLive()
+        #expect(svc.lookups == 0)
+        s.text = "paris marseille"
+        await s.lookUpLive()
+        #expect(svc.lookups > 0)
+    }
+
+    /// The results come first while typing: the suggestions under them drop the flight number already
+    /// found and the recent searches.
+    @Test func typingSuggestionsSkipWhatTheResultsShow() async {
+        let s = Self.store()
+        s.known = SearchSuggesterTests.known
+        s.seedRecent(["AF84"])
+        s.text = "AF84"
+        await s.search()
+        s.suggestNow()
+        let shown = SearchView.typingSuggestions(s.suggestions, results: s.items)
+        #expect(!s.items.isEmpty)
+        #expect(!shown.all.contains { if case .flight(let i, _) = $0 { SearchText.ident(i) == "AF84" } else { false } })
+        #expect(!shown.groups.contains { $0.kind == .recent })
+    }
+
     @Test func typingOnCancelsThePendingLookup() async {
         let svc = ScriptedFlights(stall: .zero)
         let s = Self.store(svc)

@@ -2,13 +2,12 @@ import SwiftUI
 
 /// The words of Settings > Travel Documents. No SwiftUI here, so the tests read the exact text.
 enum TravelDocumentsCopy {
-    static let intro = "Keep your loyalty numbers, passport and trusted traveler numbers at hand. The flight sheet shows the loyalty number for each airline you fly."
-    static let footnote = "Kept only in this device's Keychain. Soma Flight never sends them anywhere. Passport, Known Traveler and Redress numbers show after Face ID or your passcode, and copied ones leave the clipboard after two minutes."
-    static let syncTitle = "Sync with iCloud Keychain"
-    static let syncOff = "Off: they stay on this device"
-    static let syncOn = "On: your devices share them through iCloud Keychain, end to end encrypted"
+    static let footnote = "Encrypted on your device before it syncs."
+    static let syncTitle = "Sync"
+    static let syncOff = "This device only"
+    static let syncOn = "Encrypted, on all your devices"
     static let deleteTitle = "Delete all travel documents?"
-    static let deleteMessage = "Loyalty numbers, passport details and trusted traveler numbers are removed from this device and from iCloud Keychain. This can't be undone."
+    static let deleteMessage = "This removes them from all your devices. It can't be undone."
 
     /// "Air France · Flying Blue", or the airline's code when the list does not know it.
     static func loyaltyTitle(_ n: LoyaltyNumber, airline: Airline?) -> String {
@@ -26,7 +25,7 @@ enum TravelDocumentsCopy {
 }
 
 /// Settings > Travel Documents: loyalty numbers per airline, the passport, the Known Traveler and Redress
-/// numbers, the iCloud Keychain switch (off by default) and a way to remove everything.
+/// numbers, the sync switch (on by default) and a way to remove everything.
 public struct TravelDocumentsView: View {
     var store: TravelDocumentsStore
     var onDone: (() -> Void)?
@@ -63,7 +62,7 @@ public struct TravelDocumentsView: View {
             ScreenScroll(scrolls: true) { content }
         }
         .background(Theme.background)
-        .onAppear { store.load() }
+        .onAppear { store.load(); Task { await store.syncWithCloud() } }
         .onDisappear { store.hide() }
         // Hidden numbers never stay in memory behind the app switcher.
         .onChange(of: phase) { _, new in if new != .active { store.hide() } }
@@ -84,15 +83,10 @@ public struct TravelDocumentsView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(TravelDocumentsCopy.intro)
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.horizontal, 16)
             if let failure = store.failure {
                 Text(failure).scaledFont(13).foregroundStyle(Theme.late).scaledPadding(.horizontal, 16).scaledPadding(.top, 8)
             }
-            group("Loyalty Numbers") {
+            group("Loyalty") {
                 ForEach(store.profile.loyalty) { n in
                     SettingsRow(icon: "star.circle.fill",
                                 title: TravelDocumentsCopy.loyaltyTitle(n, airline: reference.airline(n.airline)),
@@ -103,17 +97,17 @@ public struct TravelDocumentsView: View {
                 SettingsRow(icon: "plus.circle.fill", title: "Add Loyalty Number", last: true,
                             action: { editing = .loyalty(nil) }) { EmptyView() }
             }
-            group("Passport and Trusted Traveler") {
+            group("Documents") {
                 SettingsRow(icon: "person.text.rectangle.fill", title: "Passport",
                             subtitle: passportLine, action: { editing = .passport }) {
                     hiddenAccessory(.passport)
                 }
                 SettingsRow(icon: "checkmark.shield.fill", title: TravelDocumentKind.knownTraveler.title,
-                            subtitle: store.display(.knownTraveler) ?? "Not added", action: { editing = .knownTraveler }) {
+                            subtitle: store.display(.knownTraveler), action: { editing = .knownTraveler }) {
                     hiddenAccessory(.knownTraveler)
                 }
                 SettingsRow(icon: "number.circle.fill", title: TravelDocumentKind.redress.title,
-                            subtitle: store.display(.redress) ?? "Not added", last: true,
+                            subtitle: store.display(.redress), last: true,
                             action: { editing = .redress }) {
                     hiddenAccessory(.redress)
                 }
@@ -131,7 +125,7 @@ public struct TravelDocumentsView: View {
                 .buttonStyle(.plain)
                 .scaledPadding(.top, 16)
             }
-            group("iCloud") {
+            group("Sync") {
                 SettingsRow(icon: "icloud.fill", title: TravelDocumentsCopy.syncTitle,
                             subtitle: store.syncsWithICloud ? TravelDocumentsCopy.syncOn : TravelDocumentsCopy.syncOff,
                             last: true) {
@@ -163,12 +157,12 @@ public struct TravelDocumentsView: View {
         .scaledPadding(.bottom, 32)
     }
 
-    private var passportLine: String {
+    private var passportLine: String? {
         let summary = TravelDocumentsCopy.passportSubtitle(store.profile,
                                                            country: store.profile.passportCountry.flatMap(country))
         let number = store.display(.passport)
         let parts = [number, summary].compactMap { $0 }
-        return parts.isEmpty ? "Not added" : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func country(_ code: String) -> Country? { reference.countries.first { $0.id.uppercased() == code } }

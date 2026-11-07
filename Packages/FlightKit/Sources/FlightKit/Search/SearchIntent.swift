@@ -142,7 +142,9 @@ public struct SearchIntent: Sendable, Equatable {
     /// The first flight number in `w` ("af 84", "af84", "u2 1234"), by the rule of `FlightQuery.parse`,
     /// when its code is an airline's. A three-letter code that is also an airport's, and a code that is
     /// also a small word ("de", "la"), yield to a date that reads its number ("cdg 12 dec" is CDG on
-    /// 12 December, "vol de 12 dec" the 12th; "dal 220" is Delta 220, "la 800" LATAM 800).
+    /// 12 December, "vol de 12 dec" the 12th; "dal 220" is Delta 220, "la 800" LATAM 800). Then the
+    /// forgiving forms: the number first ("84 af"), and the airline by name on either side of it ("air
+    /// france 84", "84 air france"); a number a date reads stays the date's ("delta 12 dec").
     private static func ident(_ w: [Substring], now: Date, tz: TimeZone, monthFirst: Bool,
                               suggester: SearchSuggester) -> (String, Range<Int>)? {
         func airlineCode(_ c: Substring) -> Bool {
@@ -165,6 +167,39 @@ public struct SearchIntent: Sendable, Equatable {
             if i + 1 < w.count, w[i].wholeMatch(of: /[a-z]{2,3}|[a-z][0-9]|[0-9][a-z]/) != nil,
                w[i + 1].wholeMatch(of: /[0-9]{1,4}/) != nil, airlineCode(w[i]), !yieldsToDate(w[i], number: i + 1) {
                 return ((w[i] + w[i + 1]).uppercased(), i..<(i + 2))
+            }
+        }
+        return looseIdent(w, now: now, tz: tz, monthFirst: monthFirst, suggester: suggester)
+    }
+
+    /// "84 af", "air france 84", "84 air france": a number of one to four digits beside a known airline's
+    /// two-character code (number first) or its name, whole or short. Never a number a date reads.
+    private static func looseIdent(_ w: [Substring], now: Date, tz: TimeZone, monthFirst: Bool,
+                                   suggester: SearchSuggester) -> (String, Range<Int>)? {
+        let datesRead = DateWords.day(w, now: now, tz: tz, monthFirst: monthFirst)?.used ?? 0..<0
+        func number(_ k: Int) -> Bool {
+            w.indices.contains(k) && w[k].wholeMatch(of: /[0-9]{1,4}/) != nil && !datesRead.contains(k)
+        }
+        /// The airline named by the `n` words at `k`, with the code its flight numbers use.
+        func airline(at k: Int, words n: Int) -> String? {
+            guard k >= 0, k + n <= w.count else { return nil }
+            let p = w[k..<(k + n)].joined(separator: " ")
+            guard let hit = suggester.airline(named: p), hit.match == .exact || hit.match == .short else { return nil }
+            return hit.airline.iata ?? hit.airline.id
+        }
+        for i in w.indices where number(i) {
+            // The number first, then a two-character code ("84 af").
+            if i + 1 < w.count, w[i + 1].count == 2, w[i + 1].contains(where: \.isLetter),
+               !toWords.contains(String(w[i + 1])), !fromWords.contains(String(w[i + 1])),
+               !fillerWords.contains(String(w[i + 1])), let a = suggester.airline(code: String(w[i + 1])) {
+                return ((a.iata ?? String(w[i + 1])).uppercased() + w[i], i..<(i + 2))
+            }
+            // The airline's name just before the number, the longest first, then just after.
+            for n in stride(from: min(4, i), through: 1, by: -1) {
+                if let code = airline(at: i - n, words: n) { return (code.uppercased() + w[i], (i - n)..<(i + 1)) }
+            }
+            for n in stride(from: min(4, w.count - i - 1), through: 1, by: -1) {
+                if let code = airline(at: i + 1, words: n) { return (code.uppercased() + w[i], i..<(i + 1 + n)) }
             }
         }
         return nil

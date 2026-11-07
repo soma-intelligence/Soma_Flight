@@ -12,8 +12,8 @@ struct SearchSuggestionList: View {
             ForEach(Array(suggestions.groups.enumerated()), id: \.element.id) { index, group in
                 CapsHeader(group.kind.title)
                     .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, index == 0 ? 14 : 22)
-                    .scaledPadding(.bottom, 4)
+                    .scaledPadding(.top, index == 0 ? 8 : 14)
+                    .scaledPadding(.bottom, 2)
                     .accessibilityAddTraits(.isHeader)
                 ForEach(group.items) { item in
                     SearchSuggestionRow(item: item, lookup: lookup) { onPick(item) }
