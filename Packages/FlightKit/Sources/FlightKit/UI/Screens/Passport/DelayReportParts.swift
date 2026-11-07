@@ -131,7 +131,7 @@ struct LEDStrip: View {
         HStack(spacing: 0) {
             ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
                 if i > 0 { Spacer(minLength: 10) }
-                Text(p)
+                Text(ui: p)
                     .scaledFont(22, weight: .bold, design: .monospaced)
                     .foregroundStyle(i == 0 ? Color(red: 1.0, green: 0.86, blue: 0.62) : DelayInk.amber)
                     .lineLimit(1)
@@ -225,7 +225,7 @@ struct AirlineLossBar: View {
                     AircraftTail(type: losses.first { $0.key == part.key }?.type.flatMap { reference.type($0) },
                                  airline: airline, rise: Self.rise)
                 } else {
-                    Text(part.label)
+                    Text(ui: part.label)
                         .scaledFont(22, weight: .bold)
                         .foregroundStyle(.white.opacity(0.75))
                         .lineLimit(1)
@@ -261,7 +261,7 @@ struct ShareBarRow<Leading: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 leading
-                Text(title)
+                Text(ui: title)
                     .scaledFont(17, weight: .medium)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -323,7 +323,7 @@ struct ReportSection<Content: View>: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(22, weight: .bold)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
@@ -349,7 +349,7 @@ struct ReportSection<Content: View>: View {
     /// The section at phone width over the report's dark ground, signed with the app's name.
     @MainActor private func render() {
         let card = VStack(alignment: .leading, spacing: 14) {
-            Text(title).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
+            Text(ui: title).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
             content
             DelayFacts.signature
         }

@@ -76,7 +76,7 @@ public struct DelayChart: View {
     private func item(_ label: String, _ color: Color) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 2.5).fill(color).frame(width: 8, height: 8)
-            Text(label)
+            Text(ui: label)
         }
     }
 

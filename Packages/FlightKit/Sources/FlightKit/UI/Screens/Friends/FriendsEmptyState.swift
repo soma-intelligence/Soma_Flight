@@ -44,11 +44,11 @@ struct FriendsEmptyState: View {
 
     @ViewBuilder private var details: some View {
         VStack(spacing: 0) {
-            Text(FriendFacts.emptyTitle)
+            Text(ui: FriendFacts.emptyTitle)
                 .scaledFont(19, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .scaledPadding(.top, 18)
-            Text(FriendFacts.emptyText)
+            Text(ui: FriendFacts.emptyText)
                 .scaledFont(14)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -84,10 +84,10 @@ struct RouteHistoryCard: View {
 
     private func figure(_ label: String, symbol: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).scaledFont(16, weight: .medium).foregroundStyle(Theme.secondary)
+            Text(ui: label).scaledFont(16, weight: .medium).foregroundStyle(Theme.secondary)
             HStack(spacing: 6) {
                 Image(systemName: symbol).scaledFont(17, weight: .semibold).accessibilityHidden(true)
-                Text(value).scaledFont(19).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                Text(ui: value).scaledFont(19).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             }
             .foregroundStyle(Theme.primary)
         }

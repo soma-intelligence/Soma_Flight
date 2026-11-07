@@ -165,9 +165,9 @@ struct ConnectionCard: View {
 
     private func fact(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(label).scaledFont(15).foregroundStyle(Theme.secondary)
+            Text(ui: label).scaledFont(15).foregroundStyle(Theme.secondary)
             Spacer(minLength: 12)
-            Text(value).scaledFont(15, weight: .medium).foregroundStyle(Theme.primary).multilineTextAlignment(.trailing)
+            Text(ui: value).scaledFont(15, weight: .medium).foregroundStyle(Theme.primary).multilineTextAlignment(.trailing)
         }
         .scaledPadding(.vertical, 7)
         .accessibilityElement(children: .combine)
@@ -211,7 +211,7 @@ struct AlternateFlightsCard: View {
             VStack(spacing: 0) {
                 if store.alternates.isEmpty {
                     if store.alternatesLoaded {
-                        Text(ConnectionCopy.alternatesEmpty).scaledFont(15).foregroundStyle(Theme.secondary)
+                        Text(ui: ConnectionCopy.alternatesEmpty).scaledFont(15).foregroundStyle(Theme.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .scaledPadding(.vertical, 8)
                     } else {
@@ -226,7 +226,7 @@ struct AlternateFlightsCard: View {
                 }
             }
             .scaledPadding(.top, 12)
-            Text(ConnectionCopy.alternatesFootnote).scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(ui: ConnectionCopy.alternatesFootnote).scaledFont(13).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.top, 10)
         }
@@ -246,7 +246,7 @@ struct AlternateFlightsCard: View {
             if store.pending == f.id {
                 ProgressView().controlSize(.small)
             } else {
-                Text(status.text).scaledFont(15, weight: .medium).foregroundStyle(status.color)
+                Text(ui: status.text).scaledFont(15, weight: .medium).foregroundStyle(status.color)
                 Image(systemName: "plus.circle").scaledFont(17).foregroundStyle(Theme.accent).accessibilityHidden(true)
             }
         }

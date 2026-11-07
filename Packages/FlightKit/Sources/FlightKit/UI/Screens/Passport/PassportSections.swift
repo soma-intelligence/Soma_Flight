@@ -48,7 +48,7 @@ struct SectionShareButton<Content: View>: View {
     static func sharePage(title: String, units: Units, reference: ReferenceData,
                           content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
+            Text(ui: title).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
             content()
             Text("Soma Flight Passport").scaledFont(13, weight: .medium).foregroundStyle(Theme.secondary)
         }
@@ -108,7 +108,7 @@ struct PassportSection<Content: View>: View {
             Rectangle().fill(Theme.separator).frame(height: 1)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center) {
-                    Text(title)
+                    Text(ui: title)
                         .scaledFont(20, weight: .semibold)
                         .foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
@@ -146,7 +146,7 @@ struct UnitNumber: View {
             let (i, p) = item
             let number = Text((i > 0 ? " " : "") + p.number).font(.system(size: size, weight: weight))
                 .foregroundStyle(Theme.primary)
-            let unit = Text(p.unit).font(.system(size: unitSize, weight: .regular)).foregroundStyle(Theme.secondary)
+            let unit = Text(ui: p.unit).font(.system(size: unitSize, weight: .regular)).foregroundStyle(Theme.secondary)
             return Text("\(text)\(number)\(unit)")
         }
         .monospacedDigit()
@@ -189,7 +189,7 @@ private struct FlightsBody: View {
                     .scaledPadding(.trailing, 10)
                 ForEach(PassportFacts.Period.allCases) { p in
                     Button { period = p } label: {
-                        Text(p.rawValue)
+                        Text(ui: p.rawValue)
                             .scaledFont(15, weight: .medium)
                             .foregroundStyle(p == period ? Theme.primary : Theme.secondary)
                             .scaledPadding(.horizontal, 12)
@@ -208,7 +208,7 @@ private struct FlightsBody: View {
 
     private func line(_ n: UInt32, _ label: String) -> some View {
         let number = Text(PassportFacts.count(n)).fontWeight(.semibold).foregroundStyle(Theme.primary)
-        return Text("\(number) \(Text(label).foregroundStyle(Theme.secondary))")
+        return Text("\(number) \(Text(ui: label).foregroundStyle(Theme.secondary))")
             .scaledFont(17)
             .monospacedDigit()
     }
@@ -313,7 +313,7 @@ struct RatioBar: View {
                     .padding(.leading, 3)
                 HStack(spacing: 0) {
                     Spacer()
-                    Text("\(Text(value).fontWeight(.semibold)) \(Text(label).foregroundStyle(Theme.primary.opacity(0.85)))")
+                    Text("\(Text(ui: value).fontWeight(.semibold)) \(Text(ui: label).foregroundStyle(Theme.primary.opacity(0.85)))")
                         .foregroundStyle(Theme.primary)
                         .scaledFont(16)
                         .monospacedDigit()
@@ -341,7 +341,7 @@ struct ExtremeBlock: View {
         if let flight {
             VStack(alignment: .leading, spacing: 14) {
                 Rectangle().fill(Theme.separator).frame(height: 1)
-                Text(title).scaledFont(18).foregroundStyle(Theme.primary).scaledPadding(.top, 8)
+                Text(ui: title).scaledFont(18).foregroundStyle(Theme.primary).scaledPadding(.top, 8)
                 row(flight)
             }
             .scaledPadding(.top, 20)
@@ -410,7 +410,7 @@ struct PassportTimeSection: View {
 
     private var grid: some View {
         var cells: [(String, AnyView)] = PassportFacts.timeUnits(minutes: detail.flightMinutes).map { u in
-            (u.label, AnyView(Text(u.value).scaledFont(22, weight: .semibold).monospacedDigit().foregroundStyle(Theme.primary)))
+            (u.label, AnyView(Text(ui: u.value).scaledFont(22, weight: .semibold).monospacedDigit().foregroundStyle(Theme.primary)))
         }
         func hm(_ m: UInt64) -> AnyView { AnyView(UnitNumber(parts: PassportFacts.hoursMinutes(m), size: 22, unitSize: 19, weight: .semibold)) }
         cells.append(("Avg. flight time", hm(detail.avgFlightMinutes)))
@@ -430,7 +430,7 @@ struct PassportTimeSection: View {
 
     private func cell(_ c: (String, AnyView)) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(c.0).scaledFont(14).foregroundStyle(Theme.secondary)
+            Text(ui: c.0).scaledFont(14).foregroundStyle(Theme.secondary)
             c.1
         }
         .frame(maxWidth: .infinity, alignment: .leading)

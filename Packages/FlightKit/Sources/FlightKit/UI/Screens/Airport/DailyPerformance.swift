@@ -29,10 +29,10 @@ struct DailyPerformanceCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(dateLine).scaledFont(15).foregroundStyle(Theme.secondary)
+            Text(ui: dateLine).scaledFont(15).foregroundStyle(Theme.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text("\(stats.total)").scaledFont(33, weight: .bold)
-                Text(noun).scaledFont(25, weight: .semibold)
+                Text(ui: noun).scaledFont(25, weight: .semibold)
             }
             .foregroundStyle(Theme.primary)
             .scaledPadding(.top, 1)
@@ -57,7 +57,7 @@ struct DailyPerformanceCard: View {
     private func line(_ label: String, _ color: Color, _ n: Int) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 1).fill(color).frame(width: 2.5, height: 13)
-            Text(label).scaledFont(15).foregroundStyle(Theme.primary)
+            Text(ui: label).scaledFont(15).foregroundStyle(Theme.primary)
             Spacer()
             Text("\(share(n))%").scaledFont(15).foregroundStyle(Theme.primary)
             Text("\(n)").scaledFont(15).foregroundStyle(Theme.secondary).frame(minWidth: 36, alignment: .trailing)
@@ -125,16 +125,16 @@ struct DisruptionBars: View {
             Group { if hatched { Hatch(spacing: 3) } else { color } }
                 .frame(width: 11, height: 11)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
-            Text(text).scaledFont(12.5).foregroundStyle(Theme.secondary)
+            Text(ui: text).scaledFont(12.5).foregroundStyle(Theme.secondary)
         }
     }
 
     private func row(_ item: Item) -> some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(item.code).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)
+                Text(ui: item.code).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)
                 if let caption = item.caption {
-                    Text(caption).scaledFont(11.5).foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(ui: caption).scaledFont(11.5).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
             }
             .frame(width: 56, alignment: .leading)
@@ -188,7 +188,7 @@ struct AirportCountsGrid: View {
     private func cell(_ n: Int, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(n)").scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
-            Text(label).scaledFont(13.5).foregroundStyle(Theme.primary)
+            Text(ui: label).scaledFont(13.5).foregroundStyle(Theme.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)

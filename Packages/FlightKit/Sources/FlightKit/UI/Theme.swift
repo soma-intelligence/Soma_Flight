@@ -288,11 +288,11 @@ public struct SectionHeader: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            (info && subtitle == nil ? Text("\(title) \(glyph.foregroundStyle(Theme.secondary))") : Text(title))
+            (info && subtitle == nil ? Text("\(title) \(glyph.foregroundStyle(Theme.secondary))") : Text(ui: title))
                 .themeFont(large ? .sheetTitle : .sectionTitle)
                 .foregroundStyle(Theme.primary)
             if let subtitle {
-                let line = info ? Text("\(subtitle) \(glyph)") : Text(subtitle)
+                let line = info ? Text("\(subtitle) \(glyph)") : Text(ui: subtitle)
                 Group {
                     if large { line.scaledFont(14) } else { line.themeFont(.sectionSubtitle) }
                 }

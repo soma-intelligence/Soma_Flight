@@ -90,6 +90,8 @@ public final class WidgetSnapshotWriter {
     private static func reloadWidgets() {
         #if canImport(WidgetKit) && os(iOS)
         WidgetCenter.shared.reloadAllTimelines()
+        // The Control Center's Next Flight control reads the same snapshot.
+        ControlCenter.shared.reloadAllControls()
         #endif
     }
 }

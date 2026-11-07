@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 // MARK: - Wording
 
@@ -98,13 +99,14 @@ struct LeaveByRow: View {
     /// Read so the row redraws when the PreCheck switch changes.
     @AppStorage(LeaveTimeSettings.precheckKey) private var precheck = false
     @State private var showing = false
+    private let tip = LeaveByTip()
 
     var body: some View {
         if let estimator, let t = estimator.leaveTime(for: flight), t.departure > now {
             let tz = estimator.timeZone(for: flight)
             let _ = precheck
             DetailCard(padded: false) {
-                Button { showing = true } label: {
+                Button { tip.invalidate(reason: .actionPerformed); showing = true } label: {
                     InfoRow(symbol: "car.fill", tint: t.leaveAt <= now ? Theme.late : Theme.primary,
                             title: LeaveTimeFacts.title(t, tz: tz, clock: units.clock, now: now),
                             text: LeaveTimeFacts.summary(t), chevron: true)
@@ -113,6 +115,7 @@ struct LeaveByRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Shows how this time is worked out")
+                .popoverTip(tip, arrowEdge: .bottom)
             }
             .task(id: flight.id) { await estimator.measure(flight) }
             .sheet(isPresented: $showing) {
@@ -207,7 +210,7 @@ struct LeaveTimeSheet: View {
 
     private func button(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -220,7 +223,7 @@ struct LeaveTimeSheet: View {
     }
 
     private func note(_ text: String) -> some View {
-        Text(text)
+        Text(ui: text)
             .scaledFont(13)
             .foregroundStyle(Theme.secondary)
             .fixedSize(horizontal: false, vertical: true)

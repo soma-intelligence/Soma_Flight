@@ -17,7 +17,7 @@ struct AppIconPicker: View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(AppIconPlane.allCases, id: \.self) { plane in
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(plane.title.uppercased())
+                    Text(verbatim: UIText.localized(plane.title).uppercased())
                         .scaledFont(11, weight: .semibold)
                         .foregroundStyle(Theme.secondary)
                         .scaledPadding(.horizontal, 16)
@@ -73,7 +73,7 @@ struct AppIconPicker: View {
                         }
                     }
                     .scaleEffect(selected ? 1 : 0.94)
-                Text(choice.label)
+                Text(ui: choice.label)
                     .scaledFont(12, weight: selected ? .semibold : .regular)
                     .foregroundStyle(selected ? Theme.primary : Theme.secondary)
                     .lineLimit(2)

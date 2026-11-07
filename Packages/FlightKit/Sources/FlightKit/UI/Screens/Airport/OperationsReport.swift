@@ -86,7 +86,7 @@ public struct OperationsReportView: View {
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.top, 4)
-            Text(report.summary)
+            Text(ui: report.summary)
                 .scaledFont(18, weight: .medium)
                 .foregroundStyle(Theme.primary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -138,11 +138,11 @@ public struct OperationsReportView: View {
                 ForEach(Array(r.periods.enumerated()), id: \.offset) { _, p in
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
-                            Text(p.label).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
+                            Text(ui: p.label).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
                             Spacer(minLength: 0)
                             CategoryTag(category: p.category, compact: true)
                         }
-                        Text(p.text)
+                        Text(ui: p.text)
                             .scaledFont(15.5)
                             .foregroundStyle(Theme.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -189,7 +189,7 @@ public struct OperationsReportView: View {
     @ViewBuilder private func sourceRow(_ label: String, _ date: Date?, now: Date) -> some View {
         if let date {
             HStack(alignment: .firstTextBaseline) {
-                Text(label.uppercased())
+                Text(verbatim: UIText.localized(label).uppercased())
                 Spacer(minLength: 8)
                 Text("\(Format.clock(date, tz, units.clock)) • \(Format.ago(date, now: now).uppercased())")
             }
@@ -254,7 +254,7 @@ struct BriefSection<Content: View>: View {
                     .symbolRenderingMode(.monochrome)
                     .scaledFont(13, weight: .semibold)
                     .accessibilityHidden(true)
-                Text(title.uppercased())
+                Text(verbatim: UIText.localized(title).uppercased())
                     .scaledFont(14, weight: .semibold)
                     .accessibilityAddTraits(.isHeader)
                 DottedRule()
@@ -291,10 +291,10 @@ struct BriefItem: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(tint ?? Theme.primary)
-            Text(text)
+            Text(ui: text)
                 .scaledFont(16)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -309,7 +309,7 @@ struct SourceLine: View {
     var text: String
 
     var body: some View {
-        Text(text.uppercased())
+        Text(verbatim: UIText.localized(text).uppercased())
             .scaledFont(11.5, design: .monospaced)
             .foregroundStyle(Theme.secondary.opacity(0.75))
             .fixedSize(horizontal: false, vertical: true)
@@ -321,7 +321,7 @@ struct RawReport: View {
     var text: String
 
     var body: some View {
-        Text(text)
+        Text(ui: text)
             .scaledFont(12.5, design: .monospaced)
             .foregroundStyle(Theme.primary.opacity(0.85))
             .textSelection(.enabled)
@@ -342,14 +342,14 @@ struct CategoryTag: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            Text(category.rawValue)
+            Text(ui: category.rawValue)
                 .scaledFont(12.5, weight: .semibold)
                 .foregroundStyle(.white)
                 .scaledPadding(.horizontal, 6)
                 .scaledPadding(.vertical, 2)
                 .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(category.color))
             if !compact {
-                Text(category.name).scaledFont(14, weight: .medium).foregroundStyle(category.color)
+                Text(ui: category.name).scaledFont(14, weight: .medium).foregroundStyle(category.color)
             }
         }
         .accessibilityElement(children: .combine)
@@ -362,7 +362,7 @@ struct BriefChip: View {
     var text: String
 
     var body: some View {
-        Text(text)
+        Text(ui: text)
             .themeFont(.chip)
             .foregroundStyle(Theme.secondary)
             .scaledPadding(.horizontal, 5)

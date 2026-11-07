@@ -71,7 +71,7 @@ struct PredictedGateBadge: View {
         HStack(spacing: 3) {
             Image(systemName: arriving ? "arrow.down.right" : "arrow.up.right")
                 .scaledFont(14, weight: .bold)
-            Text(label).scaledFont(18, weight: .semibold)
+            Text(ui: label).scaledFont(18, weight: .semibold)
         }
         .foregroundStyle(GateBadge.yellow.opacity(0.85))
         .scaledPadding(.horizontal, 10)

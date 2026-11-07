@@ -135,7 +135,7 @@ struct PassportTicker: View {
             ForEach(Array(shown.enumerated()), id: \.offset) { _, code in
                 HStack(spacing: 4) {
                     Image(systemName: "airplane.circle.fill")
-                    Text(code).font(.system(size: size, weight: .semibold, design: .monospaced))
+                    Text(ui: code).font(.system(size: size, weight: .semibold, design: .monospaced))
                 }
                 ForEach(0..<4, id: \.self) { _ in Image(systemName: "airplane") }
             }

@@ -9,7 +9,7 @@ struct PillPicker<Value: Hashable>: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.0) { value, label in
                 Button { selection = value } label: {
-                    Text(label)
+                    Text(ui: label)
                         .scaledFont(14, weight: .medium)
                         .foregroundStyle(value == selection ? Theme.primary : Theme.secondary)
                         .scaledPadding(.horizontal, 12)
@@ -50,7 +50,7 @@ struct FilterPill<Value: Hashable>: View {
     private var label: some View {
         HStack(spacing: 6) {
             if let icon { Image(systemName: icon).scaledFont(13, weight: .medium) }
-            Text(title).scaledFont(14, weight: .medium).lineLimit(1)
+            Text(ui: title).scaledFont(14, weight: .medium).lineLimit(1)
             Image(systemName: "chevron.down").scaledFont(11, weight: .semibold).foregroundStyle(Theme.secondary)
         }
         .foregroundStyle(Theme.primary)

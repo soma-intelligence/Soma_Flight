@@ -130,7 +130,7 @@ public struct AirportsListView: View {
 
     private var timeLabel: some View {
         HStack(spacing: 4) {
-            Text(store.timeframe.title)
+            Text(ui: store.timeframe.title)
             Image(systemName: "chevron.down").scaledFont(11, weight: .semibold)
         }
         .scaledFont(15, weight: .semibold)
@@ -158,7 +158,7 @@ public struct AirportsListView: View {
             ForEach(AirportRegionFilter.allCases, id: \.self) { region in
                 let selected = store.region == region
                 Button { withAnimation(.snappy) { store.region = region } } label: {
-                    Text(region.title)
+                    Text(ui: region.title)
                         .scaledFont(15, weight: selected ? .semibold : .regular)
                         .foregroundStyle(selected ? Theme.primary : Theme.secondary)
                         .scaledPadding(.horizontal, 14)
@@ -196,12 +196,12 @@ public struct AirportsListView: View {
             }
             ForEach(sections) { section in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(section.title)
+                    Text(ui: section.title)
                         .scaledFont(17, weight: .semibold)
                         .foregroundStyle(Theme.primary)
                         .accessibilityAddTraits(.isHeader)
                     if let subtitle = section.subtitle {
-                        Text(subtitle).scaledFont(13).foregroundStyle(Theme.secondary)
+                        Text(ui: subtitle).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
                 }
                 .scaledPadding(.horizontal, Theme.gutter)
@@ -253,11 +253,11 @@ struct AirportListRowView: View {
             }
             .frame(width: 44)
             VStack(alignment: .leading, spacing: 3) {
-                Text(row.airport.name)
+                Text(ui: row.airport.name)
                     .scaledFont(16.5, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
-                Text(statusLine)
+                Text(ui: statusLine)
                     .scaledFont(13.5, weight: row.status.level > .normal ? .medium : .regular)
                     .foregroundStyle(row.status.level > .normal ? AirportStatusColor.of(row.status.level) : Theme.secondary)
                     .lineLimit(1)
@@ -296,7 +296,7 @@ struct AirportListRowView: View {
 
     private func column(_ title: String, _ live: AirportLiveSummary, _ value: @escaping (AirportBrief) -> String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).scaledFont(11.5, weight: .medium).foregroundStyle(Theme.secondary)
+            Text(ui: title).scaledFont(11.5, weight: .medium).foregroundStyle(Theme.secondary)
             ForEach([("airplane.departure", live.departures), ("airplane.arrival", live.arrivals)], id: \.0) { icon, brief in
                 HStack(spacing: 5) {
                     Image(systemName: icon).scaledFont(10, weight: .semibold).foregroundStyle(Theme.secondary)
@@ -310,7 +310,7 @@ struct AirportListRowView: View {
 
     private func weather(_ w: AirportConditions) -> some View {
         HStack(spacing: 8) {
-            Text(w.category.rawValue)
+            Text(ui: w.category.rawValue)
                 .scaledFont(11, weight: .bold, design: .monospaced)
                 .foregroundStyle(FlightCategoryColor.of(w.category))
                 .scaledPadding(.horizontal, 6).scaledPadding(.vertical, 2)

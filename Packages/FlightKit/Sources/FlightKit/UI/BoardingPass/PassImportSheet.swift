@@ -88,7 +88,7 @@ struct PassImportSheet: View {
     }
 
     private func message(_ text: String) -> some View {
-        Text(text)
+        Text(ui: text)
             .scaledFont(16)
             .foregroundStyle(Theme.secondary)
             .fixedSize(horizontal: false, vertical: true)

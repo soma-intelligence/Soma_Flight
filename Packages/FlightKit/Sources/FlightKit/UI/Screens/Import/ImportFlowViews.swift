@@ -10,7 +10,7 @@ struct ImportReviewSummary: View {
     var body: some View {
         DetailCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text(review.title)
+                Text(ui: review.title)
                     .scaledFont(15, weight: .medium)
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(2)
@@ -46,7 +46,7 @@ struct ImportFigure: View {
                 .foregroundStyle(tint ?? Theme.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            Text(label.uppercased())
+            Text(verbatim: UIText.localized(label).uppercased())
                 .scaledFont(11, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
@@ -71,7 +71,7 @@ struct ImportDisclosure<Item: Identifiable, Row: View>: View {
                 withAnimation(.snappy(duration: 0.25)) { open = !isOpen }
             } label: {
                 HStack(spacing: 8) {
-                    Text(title.uppercased())
+                    Text(verbatim: UIText.localized(title).uppercased())
                     Text(items.count.formatted()).monospacedDigit()
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -107,10 +107,10 @@ struct ImportReasonRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             if !label.isEmpty {
-                Text(label).scaledFont(15, weight: .medium).monospacedDigit().foregroundStyle(Theme.secondary)
+                Text(ui: label).scaledFont(15, weight: .medium).monospacedDigit().foregroundStyle(Theme.secondary)
                     .fixedSize()
             }
-            Text(reason).scaledFont(15).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
+            Text(ui: reason).scaledFont(15).foregroundStyle(Theme.primary).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .scaledPadding(.horizontal, 20)
@@ -193,7 +193,7 @@ struct ImportResultPanel: View {
                     .foregroundStyle(failedCount == 0 ? Theme.onTime : Theme.late)
                     .symbolEffect(.bounce, value: summary.added)
                     .accessibilityHidden(true)
-                Text(summary.headline)
+                Text(ui: summary.headline)
                     .scaledFont(22, weight: .bold)
                     .foregroundStyle(Theme.primary)
                     .multilineTextAlignment(.center)
@@ -220,7 +220,7 @@ struct ImportResultPanel: View {
             .scaledPadding(.horizontal, 16)
 
             if let extra = followLine {
-                Text(extra)
+                Text(ui: extra)
                     .scaledFont(15)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -289,7 +289,7 @@ struct ImportToast: View {
         Button(action: dismiss) {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.onTime).accessibilityHidden(true)
-                Text(text)
+                Text(ui: text)
                     .scaledFont(15, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .multilineTextAlignment(.leading)

@@ -419,7 +419,7 @@ struct PlanDrawing: View {
                 let centre = CGPoint(x: x + len / 2, y: 0).applying(t)
                 let letter = min(rect.height * s * 0.5, 11)
                 if len * s > letter * 1.4 {
-                    ctx.draw(Text(z.code).font(.system(size: letter, weight: .semibold, design: .monospaced))
+                    ctx.draw(Text(ui: z.code).font(.system(size: letter, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Theme.blueprint), at: centre)
                 }
                 x += len + 0.25
@@ -511,7 +511,7 @@ struct PlanDrawing: View {
                 }
                 ctx.stroke(ticks, with: .color(ink), lineWidth: 0.9)
                 let mid = CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2)
-                var label = ctx.resolve(Text(label).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(ink))
+                var label = ctx.resolve(Text(ui: label).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(ink))
                 label.shading = .color(ink)
                 let sz = label.measure(in: CGSize(width: 200, height: 40))
                 if vertical {

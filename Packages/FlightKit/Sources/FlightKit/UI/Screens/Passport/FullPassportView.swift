@@ -103,7 +103,7 @@ struct MRZStrip: View {
                 .opacity(0.7)
                 .scaledPadding(.bottom, 6)
             ForEach(lines, id: \.self) { line in
-                Text(line)
+                Text(ui: line)
                     .font(.system(size: 14, weight: .regular, design: .monospaced))
                     .foregroundStyle(Color(red: 0.72, green: 0.70, blue: 0.86))
                     .lineLimit(1)

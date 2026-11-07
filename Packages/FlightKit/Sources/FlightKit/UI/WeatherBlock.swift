@@ -75,13 +75,13 @@ public struct WeatherBlock: View {
     private var categoryCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
-                Text(weather.category.rawValue)
+                Text(ui: weather.category.rawValue)
                     .scaledFont(13.5, weight: .semibold)
                     .foregroundStyle(.white)
                     .scaledPadding(.horizontal, 7)
                     .scaledPadding(.vertical, 3)
                     .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(weather.category.color))
-                Text(weather.category.name)
+                Text(ui: weather.category.name)
                     .scaledFont(16, weight: .medium)
                     .foregroundStyle(weather.category.color)
             }
@@ -170,14 +170,14 @@ private struct ScaleColumn: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: icon).scaledFont(12)
-                Text(label).scaledFont(13.5)
+                Text(ui: label).scaledFont(13.5)
             }
             .foregroundStyle(Theme.secondary)
             Group {
                 if let unit = value.1 {
-                    Text("\(Text("\(value.0) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text(unit).font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
+                    Text("\(Text("\(value.0) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text(ui: unit).font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
                 } else {
-                    Text(value.0).font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold))
+                    Text(ui: value.0).font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold))
                 }
             }
                 .foregroundStyle(Theme.primary)
@@ -198,7 +198,7 @@ private struct ScaleColumn: View {
                         .frame(width: 8, height: 8)
                         .offset(x: knobX - 4)
                     let idx = CGFloat(FlightCategory.scale.firstIndex(of: category) ?? 3)
-                    Text(category.rawValue)
+                    Text(ui: category.rawValue)
                         .scaledFont(12, weight: .medium)
                         .foregroundStyle(category.color)
                         .frame(width: seg, alignment: .trailing)
@@ -230,7 +230,7 @@ private struct WindColumn: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "wind").scaledFont(12)
-                        Text(label).scaledFont(13.5)
+                        Text(ui: label).scaledFont(13.5)
                     }
                     .foregroundStyle(Theme.secondary)
                     if let kmh {

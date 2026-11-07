@@ -150,7 +150,7 @@ struct DepartArrive: View {
                     Image(systemName: line.hasSuffix("Overnight") ? "moon" : "clock")
                         .scaledFont(13, weight: .medium)
                         .accessibilityHidden(true)
-                    Text(line)
+                    Text(ui: line)
                         .scaledFont(14, weight: .medium)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -214,14 +214,14 @@ struct DepartArrive: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(stacked ? 0.9 : 0.6)
                             if let marker {
-                                Text(marker)
+                                Text(ui: marker)
                                     .scaledFont(15, weight: .semibold)
                                     .foregroundStyle(tone)
                                     .accessibilityLabel(marker.hasPrefix("-") ? "previous day" : "\(marker) day")
                             }
                         }
                         if let struck {
-                            Text(struck)
+                            Text(ui: struck)
                                 .scaledFont(15, weight: .medium)
                                 .monospacedDigit()
                                 .strikethrough()
@@ -236,16 +236,16 @@ struct DepartArrive: View {
                     }
                 }
                 if stacked {
-                    Text(status).scaledFont(14, weight: .medium).foregroundStyle(statusTone)
+                    Text(ui: status).scaledFont(14, weight: .medium).foregroundStyle(statusTone)
                     badges(gate: gate, belt: belt, arriving: arriving).scaledPadding(.top, 6)
-                    Text(terminalText).scaledFont(14).foregroundStyle(Theme.secondary)
+                    Text(ui: terminalText).scaledFont(14).foregroundStyle(Theme.secondary)
                 } else {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(status)
+                        Text(ui: status)
                             .scaledFont(14, weight: offset == nil ? .regular : .medium)
                             .foregroundStyle(statusTone)
                         Spacer(minLength: 12)
-                        Text(terminalText)
+                        Text(ui: terminalText)
                             .scaledFont(14)
                             .foregroundStyle(Theme.secondary)
                             .lineLimit(1)
@@ -278,7 +278,7 @@ struct BeltBadge: View {
         HStack(spacing: 4) {
             Image(systemName: "suitcase.rolling.fill")
                 .scaledFont(14, weight: .bold)
-            Text(belt).scaledFont(18, weight: .bold)
+            Text(ui: belt).scaledFont(18, weight: .bold)
         }
         .foregroundStyle(.black)
         .scaledPadding(.horizontal, 10)
@@ -304,7 +304,7 @@ struct GateBadge: View {
                 HStack(spacing: 3) {
                     Image(systemName: arriving ? "arrow.down.right" : "arrow.up.right")
                         .scaledFont(14, weight: .heavy)
-                    Text(gate).scaledFont(18, weight: .bold)
+                    Text(ui: gate).scaledFont(18, weight: .bold)
                 }
                 .foregroundStyle(.black)
                 .scaledPadding(.horizontal, 10)

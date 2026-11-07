@@ -177,10 +177,10 @@ struct BoardingPassTicket: View {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(facts, id: \.label) { fact in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(fact.label.uppercased())
+                            Text(verbatim: UIText.localized(fact.label).uppercased())
                                 .scaledFont(11, weight: .semibold)
                                 .foregroundStyle(Theme.secondary)
-                            Text(fact.value)
+                            Text(ui: fact.value)
                                 .scaledFont(20, weight: .semibold)
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.primary)

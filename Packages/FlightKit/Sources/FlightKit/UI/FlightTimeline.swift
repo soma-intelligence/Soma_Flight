@@ -57,8 +57,8 @@ public struct FlightTimeline: View {
                     }
                     .frame(width: 12)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(step.title).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
-                        Text(step.place).scaledFont(13).foregroundStyle(Theme.secondary)
+                        Text(ui: step.title).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
+                        Text(ui: step.place).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
                     .scaledPadding(.bottom, 18)
                     Spacer()

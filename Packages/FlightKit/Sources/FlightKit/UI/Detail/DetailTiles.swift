@@ -69,7 +69,7 @@ struct DetailTiles: View {
                 tile(icon: "carseat.right", title: "Seat", value: DetailFacts.seatLine(details), field: .seat)
             }
             if let hint {
-                Text(hint)
+                Text(ui: hint)
                     .scaledFont(14)
                     .foregroundStyle(Theme.veryLate)
                     .scaledPadding(.leading, 4)
@@ -87,7 +87,7 @@ struct DetailTiles: View {
                     .frame(minHeight: 26, alignment: .leading)
                     .accessibilityHidden(true)
                     .scaledPadding(.bottom, 12)
-                Text(title)
+                Text(ui: title)
                     .scaledFont(17, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
@@ -274,7 +274,7 @@ struct DetailEditSheet: View {
         #if os(macOS)
         // A popover shows no toolbar: title on top, the form, then Cancel and Save.
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
+            Text(ui: title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
             form.formStyle(.grouped).scrollDisabled(model.field != .notes)
             HStack {
                 Spacer()
@@ -352,7 +352,7 @@ struct DetailEditSheet: View {
                 Section("Reason") {
                     Picker("Reason", selection: $model.draft.reason) {
                         Text("None").tag(TripReason?.none)
-                        ForEach(TripReason.allCases, id: \.self) { r in Text(r.title).tag(Optional(r)) }
+                        ForEach(TripReason.allCases, id: \.self) { r in Text(ui: r.title).tag(Optional(r)) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -375,7 +375,7 @@ struct DetailEditSheet: View {
 
     @ViewBuilder private var footer: some View {
         if let error = model.error {
-            Text(error)
+            Text(ui: error)
                 .foregroundStyle(Theme.veryLate)
                 .accessibilityLabel("Error: \(error)")
         }

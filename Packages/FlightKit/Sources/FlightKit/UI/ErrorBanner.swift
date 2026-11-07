@@ -15,7 +15,7 @@ public struct ErrorBanner: View {
                 Circle().fill(Theme.veryLate.opacity(0.22)).frame(width: 20, height: 20)
                 Circle().fill(Theme.veryLate).frame(width: 9, height: 9)
             }
-            Text(error.message)
+            Text(ui: error.message)
                 .scaledFont(15)
                 .foregroundStyle(Theme.primary.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)

@@ -245,14 +245,14 @@ struct FriendRow: View {
             HStack(spacing: 14) {
                 FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 46, id: friend.id)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(friend.name).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(ui: friend.name).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
                     if let next {
                         let when = FriendFacts.when(next, now: now)
                         Text(FriendFacts.route(next, lookup: lookup))
                             .scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1)
                         HStack(spacing: 6) {
                             Circle().fill(when.color).frame(width: 7, height: 7)
-                            Text(when.text).scaledFont(15, weight: .medium).foregroundStyle(when.color).lineLimit(1)
+                            Text(ui: when.text).scaledFont(15, weight: .medium).foregroundStyle(when.color).lineLimit(1)
                         }
                     } else {
                         Text(friend.sharesFlights ? FriendFacts.since(friend.since) : "Not sharing flights with you")
@@ -359,7 +359,7 @@ struct AddFriendSheet: View {
                             .disabled(FriendLink.code(code) == nil || sending)
                     }
                     if let result {
-                        Text(result).scaledFont(14)
+                        Text(ui: result).scaledFont(14)
                             .foregroundStyle(resultIsError ? Theme.veryLate : Theme.onTime)
                             .scaledPadding(.top, 8)
                     }

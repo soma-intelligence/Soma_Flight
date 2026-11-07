@@ -37,7 +37,7 @@ struct ScreenTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(32, weight: .bold, relativeTo: .largeTitle)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
@@ -46,7 +46,7 @@ struct ScreenTitle: View {
                     if let collapse = detentActions?.collapse { Button("Collapse", action: collapse) }
                 }
             if let subtitle {
-                Text(subtitle).scaledFont(17).foregroundStyle(Theme.secondary)
+                Text(ui: subtitle).scaledFont(17).foregroundStyle(Theme.secondary)
             }
         }
         .scaledPadding(.trailing, 60)
@@ -65,9 +65,9 @@ struct CapsHeader: View {
 
     var body: some View {
         HStack {
-            Text(text.uppercased())
+            Text(verbatim: UIText.localized(text).uppercased())
             Spacer()
-            if let trailing { Text(trailing.uppercased()) }
+            if let trailing { Text(verbatim: UIText.localized(trailing).uppercased()) }
         }
         .scaledFont(13)
         .foregroundStyle(Theme.secondary)
@@ -82,7 +82,7 @@ struct CodeChip: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text)
+        Text(ui: text)
             .themeFont(.chip)
             .foregroundStyle(Theme.secondary)
             .scaledPadding(.horizontal, 5)

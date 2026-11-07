@@ -62,13 +62,13 @@ public struct BoardRow: View {
             times
                 .frame(width: timeColumn, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
-                Text(place)
+                Text(ui: place)
                     .scaledFont(16.5)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                 HStack(spacing: 5) {
                     Circle().fill(level.color).frame(width: 8, height: 8)
-                    Text(statusText)
+                    Text(ui: statusText)
                         .scaledFont(14.5)
                         .foregroundStyle(level == .onTime || level == .canceled ? Theme.secondary : level.color)
                         .lineLimit(1)

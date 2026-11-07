@@ -88,7 +88,7 @@ struct TimetableCard: View {
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Hairline() }
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(group.section.rawValue.uppercased())
+                    Text(verbatim: UIText.localized(group.section.rawValue).uppercased())
                         .scaledFont(14, weight: .medium)
                         .foregroundStyle(Theme.secondary.opacity(0.7))
                         .scaledPadding(.top, 16)
@@ -114,7 +114,7 @@ struct TimetableCard: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
         layout {
-            Text(row.title)
+            Text(ui: row.title)
                 .scaledFont(17)
                 .foregroundStyle(Theme.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,8 +131,8 @@ struct TimetableCard: View {
 
     private func cell(_ label: String, _ value: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).scaledFont(15).foregroundStyle(Theme.secondary)
-            Text(value).scaledFont(19).monospacedDigit().foregroundStyle(color)
+            Text(ui: label).scaledFont(15).foregroundStyle(Theme.secondary)
+            Text(ui: value).scaledFont(19).monospacedDigit().foregroundStyle(color)
         }
         .frame(minWidth: 82, alignment: .leading)
     }

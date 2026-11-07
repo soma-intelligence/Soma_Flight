@@ -50,9 +50,9 @@ struct AirlineCard: View {
             HStack(spacing: 14) {
                 AirlineLogo(airline: airline, code: airline.id, size: 48, decorative: true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(airline.name).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
+                    Text(ui: airline.name).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
                     if let alliance = airline.alliance {
-                        Text(alliance.title).scaledFont(16, weight: .medium).foregroundStyle(Theme.secondary)
+                        Text(ui: alliance.title).scaledFont(16, weight: .medium).foregroundStyle(Theme.secondary)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -64,7 +64,7 @@ struct AirlineCard: View {
                                          count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
                     ForEach(links, id: \.self) { link in
                         Button { openURL(link.url) } label: {
-                            Text(link.title)
+                            Text(ui: link.title)
                                 .scaledFont(15, weight: .medium)
                                 .foregroundStyle(Theme.primary)
                                 .frame(maxWidth: .infinity)
@@ -83,9 +83,9 @@ struct AirlineCard: View {
             layout {
                 ForEach(Self.codes(airline), id: \.self) { code in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(code.label).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
+                        Text(ui: code.label).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
                         // One word callsigns (SOUTHWEST) shrink rather than break mid-word.
-                        Text(code.value).scaledFont(18).foregroundStyle(Theme.primary)
+                        Text(ui: code.value).scaledFont(18).foregroundStyle(Theme.primary)
                             .lineLimit(1).minimumScaleFactor(0.6)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

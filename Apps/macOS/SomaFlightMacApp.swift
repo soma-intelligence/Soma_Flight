@@ -53,6 +53,11 @@ struct SomaFlightMacApp: App {
     @State private var attempt = 0
     @StoredUnits private var units: Units
 
+    init() {
+        // The one-time hints (TipKit); hidden on screenshot runs.
+        FlightTips.configure()
+    }
+
     var body: some Scene {
         // One window: the panel's navigation and the session belong to the one home.
         Window("Soma Flight", id: "main") {

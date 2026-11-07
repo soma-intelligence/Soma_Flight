@@ -10,6 +10,8 @@ struct SomaFlightApp: App {
     @State private var documents = TravelDocumentsStore.forLaunch()
     /// A sign-in link opened before the home was built, handed over once it is.
     @State private var pendingURL: URL?
+    /// The device's own reminders; the passport one re-plans when the expiry in the travel documents changes.
+    @State private var reminders: ReminderScheduler?
 
     /// Live Activities run on the backend. Screenshot runs (`-useFakes`, Debug only) leave the lock screen
     /// alone, unless the Debug-only `-startLiveActivity YES` asks for one (the fake flight in the air).
@@ -20,6 +22,11 @@ struct SomaFlightApp: App {
         #else
         return false
         #endif
+    }
+
+    init() {
+        // The one-time hints (TipKit); hidden on screenshot runs.
+        FlightTips.configure()
     }
 
     var body: some Scene {
@@ -39,6 +46,9 @@ struct SomaFlightApp: App {
                 // it waits in the inbox until the home is built and someone is signed in.
                 if let id = FlightLink.flightID(from: url) {
                     appDelegate.inbox.receiveTap(PushPayload(flightId: id))
+                } else if let query = FlightLink.searchQuery(from: url) {
+                    // Siri or Shortcuts: "Find UA 1527 in Soma Flight" opens Search with it.
+                    if let home { home.searchRequest = query } else { pendingURL = url }
                 } else if FriendLink.token(from: url) != nil, let home {
                     // A friend's invitation (`somaflight://i/<token>`, or the somalabs.me link).
                     Task { await home.handleInvite(url: url) }
@@ -54,6 +64,7 @@ struct SomaFlightApp: App {
                     pendingURL = url
                 }
             }
+            .onChange(of: documents.profile.passportExpires) { reminders?.resync() }
             .task {
                 guard home == nil else { return }
                 do {
@@ -63,7 +74,12 @@ struct SomaFlightApp: App {
                     built.attachPush(inbox: appDelegate.inbox) { UIApplication.shared.registerForRemoteNotifications() }
                     // The home screen and lock screen widgets read My Flights from the App Group.
                     built.attachWidgets(WidgetSnapshotWriter(lookup: built.env.lookup))
-                    built.attachReminders(ReminderScheduler(lookup: built.env.lookup))
+                    let scheduler = ReminderScheduler(lookup: built.env.lookup)
+                    // An international flight gets a reminder when the passport expires too soon for it.
+                    let docs = documents
+                    scheduler.passportExpires = { docs.profile.passportExpires }
+                    built.attachReminders(scheduler)
+                    reminders = scheduler
                     // A long import finishes in the background and says so.
                     built.attachImportNotifier(SystemImportNotifier())
                     // Travel documents sync with the account, sealed on the device.
@@ -80,7 +96,9 @@ struct SomaFlightApp: App {
                     home = built
                     if let url = pendingURL {
                         pendingURL = nil
-                        if FriendLink.token(from: url) != nil {
+                        if let query = FlightLink.searchQuery(from: url) {
+                            built.searchRequest = query
+                        } else if FriendLink.token(from: url) != nil {
                             await built.handleInvite(url: url)
                         } else if PassFile.isPassFile(url) {
                             await built.importPass(from: url)

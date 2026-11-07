@@ -40,12 +40,12 @@ struct WidgetCountdown: View {
         let c = display.countdown
         VStack(alignment: alignment, spacing: 0) {
             if !c.value.isEmpty {
-                Text(c.value)
+                Text(ui: c.value)
                     .activityFont(size, .semibold, relativeTo: .largeTitle, digits: true)
                     .foregroundStyle(ActivityPalette.primary)
                     .widgetAccentable()
             }
-            Text(c.unit)
+            Text(ui: c.unit)
                 .activityFont(c.value.isEmpty ? 15 : 12, .semibold, relativeTo: .caption)
                 .foregroundStyle(c.value.isEmpty ? display.unitColor : ActivityPalette.secondary)
         }
@@ -67,7 +67,7 @@ struct WidgetGateBadge: View {
                 HStack(spacing: 2) {
                     Image(systemName: arriving ? "arrow.down.right" : "arrow.up.right")
                         .font(.system(size: 10, weight: .heavy))
-                    Text(gate).activityFont(13, .bold, relativeTo: .footnote)
+                    Text(ui: gate).activityFont(13, .bold, relativeTo: .footnote)
                 }
                 .foregroundStyle(.black)
                 .padding(.horizontal, 7)
@@ -100,22 +100,22 @@ struct WidgetEnd: View {
 
     var body: some View {
         VStack(alignment: alignment, spacing: 1) {
-            Text(code)
+            Text(ui: code)
                 .activityFont(22, .semibold, relativeTo: .title2)
                 .foregroundStyle(ActivityPalette.primary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 if let scheduled, alignment == .trailing {
-                    Text(scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
+                    Text(ui: scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
                         .activityFont(11, relativeTo: .caption2, digits: true)
                 }
-                Text(time).foregroundStyle(FlightWidgetDisplay.color(tone))
+                Text(ui: time).foregroundStyle(FlightWidgetDisplay.color(tone))
                     .activityFont(15, .semibold, relativeTo: .subheadline, digits: true)
                 if let dayMark {
-                    Text(dayMark).activityFont(10, .semibold, relativeTo: .caption2)
+                    Text(ui: dayMark).activityFont(10, .semibold, relativeTo: .caption2)
                         .foregroundStyle(FlightWidgetDisplay.color(tone))
                 }
                 if let scheduled, alignment == .leading {
-                    Text(scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
+                    Text(ui: scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
                         .activityFont(11, relativeTo: .caption2, digits: true)
                 }
             }
@@ -133,7 +133,7 @@ struct WidgetIdent: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "airplane").font(.system(size: size - 2, weight: .semibold))
-            Text(ident).activityFont(size, .semibold, relativeTo: .footnote)
+            Text(ui: ident).activityFont(size, .semibold, relativeTo: .footnote)
         }
         .foregroundStyle(ActivityPalette.secondary)
         .lineLimit(1)
@@ -156,7 +156,7 @@ public struct NextFlightSmallView: View {
                 Spacer(minLength: 4)
                 Circle().fill(display.levelColor).frame(width: 8, height: 8).accessibilityHidden(true)
             }
-            Text(display.routeCodes)
+            Text(ui: display.routeCodes)
                 .activityFont(19, .semibold, relativeTo: .headline)
                 .foregroundStyle(ActivityPalette.primary)
                 .lineLimit(1)
@@ -169,7 +169,7 @@ public struct NextFlightSmallView: View {
                 Text(display.isPastDeparture ? "Arrives" : "Departs")
                     .activityFont(12, relativeTo: .caption)
                     .foregroundStyle(ActivityPalette.secondary)
-                Text(display.headlineTime)
+                Text(ui: display.headlineTime)
                     .activityFont(15, .semibold, relativeTo: .subheadline, digits: true)
                     .foregroundStyle(display.headlineColor)
             }
@@ -197,7 +197,7 @@ public struct NextFlightMediumView: View {
             HStack(alignment: .firstTextBaseline) {
                 WidgetIdent(ident: display.ident)
                 if let day = display.day {
-                    Text(day).activityFont(13, relativeTo: .footnote).foregroundStyle(ActivityPalette.secondary)
+                    Text(ui: day).activityFont(13, relativeTo: .footnote).foregroundStyle(ActivityPalette.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 6)
@@ -297,10 +297,10 @@ struct UpcomingFlightRow: View {
                     WidgetIdent(ident: display.ident, size: 12)
                     Spacer(minLength: 4)
                     if let day = display.day {
-                        Text(day).activityFont(12, relativeTo: .caption).foregroundStyle(ActivityPalette.secondary)
+                        Text(ui: day).activityFont(12, relativeTo: .caption).foregroundStyle(ActivityPalette.secondary)
                     }
                 }
-                Text(display.routeCities)
+                Text(ui: display.routeCities)
                     .activityFont(14, .semibold, relativeTo: .subheadline)
                     .foregroundStyle(ActivityPalette.primary)
                     .lineLimit(1)
@@ -329,7 +329,7 @@ struct UpcomingFlightRow: View {
                 .foregroundStyle(ActivityPalette.background)
                 .padding(3)
                 .background(Circle().fill(ActivityPalette.secondary.opacity(0.75)))
-            Text(code).foregroundStyle(ActivityPalette.secondary)
+            Text(ui: code).foregroundStyle(ActivityPalette.secondary)
             Text(time + (mark ?? "")).foregroundStyle(FlightWidgetDisplay.color(tone))
         }
         .activityFont(13, .medium, relativeTo: .footnote, digits: true)
@@ -349,14 +349,14 @@ public struct NextFlightRectangularView: View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 Image(systemName: "airplane")
-                Text(display.ident).fontWeight(.bold)
-                Text(display.routeCodes)
+                Text(ui: display.ident).fontWeight(.bold)
+                Text(ui: display.routeCodes)
             }
             .font(.headline)
             .widgetAccentable()
-            Text(display.statusLine)
+            Text(ui: display.statusLine)
                 .font(.subheadline)
-            Text(gateLine)
+            Text(ui: gateLine)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

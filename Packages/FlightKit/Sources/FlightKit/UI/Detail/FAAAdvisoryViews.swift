@@ -162,8 +162,8 @@ struct IssuesProgramRows: View {
                     .scaledPadding(.top, 1)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(r.title).scaledFont(15.5, weight: .medium).foregroundStyle(Theme.primary)
-                    Text(r.text)
+                    Text(ui: r.title).scaledFont(15.5, weight: .medium).foregroundStyle(Theme.primary)
+                    Text(ui: r.text)
                         .scaledFont(14.5)
                         .foregroundStyle(Theme.primary.opacity(0.78))
                         .fixedSize(horizontal: false, vertical: true)

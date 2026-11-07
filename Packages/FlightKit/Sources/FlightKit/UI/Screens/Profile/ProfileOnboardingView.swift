@@ -175,7 +175,7 @@ public struct ProfileOnboardingView: View {
             Text(mode == .onboarding ? "Welcome aboard" : "Your profile")
                 .scaledFont(30, weight: .bold, relativeTo: .largeTitle)
                 .foregroundStyle(Theme.primary)
-            Text(subtitle)
+            Text(ui: subtitle)
                 .scaledFont(16)
                 .foregroundStyle(Theme.secondary)
                 .multilineTextAlignment(.center)
@@ -215,7 +215,7 @@ public struct ProfileOnboardingView: View {
                     .foregroundStyle(text.wrappedValue.isEmpty ? Theme.secondary.opacity(0.75) : Theme.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                TextField("", text: text, prompt: Text(prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
+                TextField("", text: text, prompt: Text(ui: prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
                     .textContentType(field == .first ? .givenName : .familyName)
                     .autocorrectionDisabled()
                     #if os(iOS)

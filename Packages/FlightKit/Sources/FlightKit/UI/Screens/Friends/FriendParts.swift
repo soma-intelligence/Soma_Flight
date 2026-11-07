@@ -149,7 +149,7 @@ struct FriendAvatar: View {
             if let id, let photo = Image.from(data: photos[id]) {
                 photo.resizable().interpolation(.high).scaledToFill().clipShape(Circle())
             } else if let emoji, !emoji.isEmpty {
-                Text(emoji).font(.system(size: size * 0.52))
+                Text(ui: emoji).font(.system(size: size * 0.52))
             } else {
                 Text(FriendAvatarText.initials(name))
                     .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
@@ -178,9 +178,9 @@ struct FriendToggleRow: View {
                     .frame(width: 26)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).scaledFont(17).foregroundStyle(Theme.primary)
+                    Text(ui: title).scaledFont(17).foregroundStyle(Theme.primary)
                     if let subtitle {
-                        Text(subtitle).scaledFont(13).foregroundStyle(Theme.secondary)
+                        Text(ui: subtitle).scaledFont(13).foregroundStyle(Theme.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

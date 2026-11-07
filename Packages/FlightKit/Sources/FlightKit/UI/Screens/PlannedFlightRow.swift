@@ -90,20 +90,20 @@ struct PlannedFlightRow: View {
     private var countdown: some View {
         VStack(spacing: 2) {
             if !count.value.isEmpty {
-                Text(count.value)
+                Text(ui: count.value)
                     .scaledFont(34, weight: .semibold)
                     .monospacedDigit()
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
-            Text(count.unit)
+            Text(ui: count.unit)
                 .scaledFont(13, weight: .medium)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             if !count.value.isEmpty {
-                Text(PlannedFlight.caption)
+                Text(ui: PlannedFlight.caption)
                     .scaledFont(11, weight: .medium)
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(1)

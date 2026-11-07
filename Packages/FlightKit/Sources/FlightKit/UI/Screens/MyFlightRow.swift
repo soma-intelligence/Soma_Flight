@@ -63,7 +63,7 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
             if typeSize.isAccessibilitySize {
                 // No room for a column: the countdown leads the text as one line.
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(line)
+                    Text(ui: line)
                         .scaledFont(20, weight: .semibold)
                         .foregroundStyle(lineColor)
                     details
@@ -113,7 +113,7 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
     private var logoAndIdent: some View {
         HStack(alignment: .center, spacing: 8) {
             AirlineLogo(airline: airline, code: code, size: mark, decorative: true)
-            Text(ident)
+            Text(ui: ident)
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize()
@@ -122,7 +122,7 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
 
     @ViewBuilder private var dayText: some View {
         if let day {
-            Text(day)
+            Text(ui: day)
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize()
@@ -148,13 +148,13 @@ struct FlightRowEnd: View {
                 .scaledPadding(.all, 4)
                 .background(Circle().fill(Theme.secondary.opacity(0.75)))
                 .accessibilityHidden(true)
-            Text(code)
+            Text(ui: code)
                 .foregroundStyle(Theme.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(time.map { Format.clock($0, tz ?? .current, units.clock) } ?? "--:--")
                     .foregroundStyle(Theme.primary)
                 if let marker {
-                    Text(marker)
+                    Text(ui: marker)
                         .scaledFont(11, weight: .medium)
                         .foregroundStyle(Theme.primary)
                         .baselineOffset(8)
@@ -220,14 +220,14 @@ public struct MyFlightRow: View {
     private func countdown(_ c: (value: String, unit: String)) -> some View {
         VStack(spacing: 2) {
             if !c.value.isEmpty {
-                Text(c.value)
+                Text(ui: c.value)
                     .scaledFont(34, weight: .semibold)
                     .monospacedDigit()
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
-            Text(c.unit)
+            Text(ui: c.unit)
                 .scaledFont(13, weight: .medium)
                 .foregroundStyle(unitColor)
                 .lineLimit(1)
@@ -269,7 +269,7 @@ public struct AddedToast: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(Theme.accent)
                 .accessibilityHidden(true)
-            Text(text)
+            Text(ui: text)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

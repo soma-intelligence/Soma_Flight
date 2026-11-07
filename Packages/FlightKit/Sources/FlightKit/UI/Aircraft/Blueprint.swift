@@ -122,7 +122,7 @@ public struct BlueprintTail: View {
                 let (letter, box) = Self.placard(g, size: size, registration: registration, floor: floor)
                 let placard = Path(roundedRect: box, cornerRadius: 2)
                 ctx.stroke(placard, with: .color(ink), lineWidth: 1)
-                ctx.draw(Text(registration).font(.system(size: letter, weight: .medium, design: .monospaced))
+                ctx.draw(Text(ui: registration).font(.system(size: letter, weight: .medium, design: .monospaced))
                     .foregroundStyle(ink), at: CGPoint(x: box.midX, y: box.midY))
                 // The airframe's lines stop at the placard's edge.
                 var outside = Path(CGRect(origin: .zero, size: size))
@@ -187,7 +187,7 @@ public struct CabinPlan: View {
                 HStack(spacing: 8) {
                     Image(systemName: "airplane").scaledFont(13, weight: .semibold)
                     Text("Cockpit").scaledFont(14, weight: .semibold)
-                    Text(cockpit).scaledFont(14).monospacedDigit()
+                    Text(ui: cockpit).scaledFont(14).monospacedDigit()
                 }
                 .scaledPadding(.horizontal, 20)
                 .accessibilityElement(children: .combine)
@@ -210,7 +210,7 @@ public struct CabinPlan: View {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(rows, id: \.0) { name, count in
                     HStack {
-                        Text(name).scaledFont(14)
+                        Text(ui: name).scaledFont(14)
                         Spacer(minLength: 8)
                         Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
                     }
@@ -235,7 +235,7 @@ public struct CabinPlan: View {
             HStack(alignment: .bottom, spacing: gap) {
                 ForEach(rows, id: \.0) { name, count in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(name).scaledFont(14).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(ui: name).scaledFont(14).lineLimit(1).minimumScaleFactor(0.7)
                         HStack {
                             Spacer(minLength: 0)
                             Text(PassportFacts.count(count)).scaledFont(14, weight: .semibold).monospacedDigit()
@@ -264,8 +264,8 @@ public struct CabinPlan: View {
         return layout {
             if let favourite {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(favourite.title).scaledFont(15, weight: .semibold)
-                    Text(favourite.value).scaledFont(16)
+                    Text(ui: favourite.title).scaledFont(15, weight: .semibold)
+                    Text(ui: favourite.value).scaledFont(16)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityElement(children: .combine)
@@ -305,7 +305,7 @@ public struct CabinPlan: View {
         VStack(spacing: 3) {
             Text(PassportFacts.count(count)).scaledFont(16).monospacedDigit()
             glyph(position)
-            Text(name).scaledFont(11, weight: .medium).opacity(0.85).lineLimit(1).fixedSize()
+            Text(ui: name).scaledFont(11, weight: .medium).opacity(0.85).lineLimit(1).fixedSize()
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(count)")
@@ -316,7 +316,7 @@ public struct CabinPlan: View {
         HStack(alignment: .center, spacing: 10) {
             glyph(position)
             Text(PassportFacts.count(count)).scaledFont(16, weight: .semibold).monospacedDigit()
-            Text(name).scaledFont(14).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+            Text(ui: name).scaledFont(14).opacity(0.85).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(count)")

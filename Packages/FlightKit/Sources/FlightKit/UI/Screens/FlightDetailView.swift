@@ -430,8 +430,8 @@ struct StatusNotice: View {
             }
             .scaledPadding(.top, 3)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
-                Text(text).scaledFont(15).foregroundStyle(Theme.primary.opacity(0.8))
+                Text(ui: title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
+                Text(ui: text).scaledFont(15).foregroundStyle(Theme.primary.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -494,9 +494,9 @@ struct AirportLinkRow: View {
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.card))
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(role.uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
+                        Text(verbatim: UIText.localized(role).uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
                         if let tag {
-                            Text(tag.uppercased())
+                            Text(verbatim: UIText.localized(tag).uppercased())
                                 .scaledFont(11, weight: .semibold)
                                 .foregroundStyle(Theme.diverted)
                         }
@@ -537,7 +537,7 @@ struct EventRow: View {
                     .foregroundStyle(Theme.secondary)
                     .frame(width: 20)
                     .accessibilityHidden(true)
-                Text(text).scaledFont(15).foregroundStyle(Theme.primary)
+                Text(ui: text).scaledFont(15).foregroundStyle(Theme.primary)
                 Spacer(minLength: 8)
                 Text(Format.clock(event.receivedAt, timeZone, units.clock))
                     .scaledFont(14)
@@ -582,7 +582,7 @@ struct UpdatesCard: View {
                         }
                         .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(row.text).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
+                            Text(ui: row.text).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
                             Text("\(ScreenFormat.day(row.event.receivedAt, timeZone)), "
                                  + Format.clock(row.event.receivedAt, timeZone, units.clock))
                                 .scaledFont(14)
@@ -625,7 +625,7 @@ struct ReportLink: View {
             .buttonStyle(.plain)
             .accessibilityHint("Writes to support about this flight")
             if copied {
-                Text(DetailFacts.reportCopied)
+                Text(ui: DetailFacts.reportCopied)
                     .scaledFont(14)
                     .foregroundStyle(Theme.secondary)
                     .multilineTextAlignment(.center)

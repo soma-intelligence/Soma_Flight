@@ -39,7 +39,7 @@ struct PlaneSection: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(Self.title)
+                Text(ui: Self.title)
                     .scaledFont(22, weight: .bold)
                     .foregroundStyle(.white)
                     .accessibilityAddTraits(.isHeader)
@@ -97,7 +97,7 @@ struct PlaneSection: View {
     private func node(_ code: String) -> some View {
         HStack(spacing: 12) {
             Circle().strokeBorder(.white.opacity(0.6), lineWidth: 2).frame(width: 14, height: 14).frame(width: 28)
-            Text(code).scaledFont(15, weight: .medium).foregroundStyle(.white.opacity(0.7))
+            Text(ui: code).scaledFont(15, weight: .medium).foregroundStyle(.white.opacity(0.7))
         }
         .scaledPadding(.horizontal, 10)
         .scaledPadding(.vertical, 6)
@@ -114,7 +114,7 @@ struct PlaneSection: View {
                 Text(Format.ident(leg.ident)).scaledFont(14).foregroundStyle(.white.opacity(0.6))
             }
             Spacer(minLength: 8)
-            Text(status.text).scaledFont(15, weight: .medium).foregroundStyle(status.level.color)
+            Text(ui: status.text).scaledFont(15, weight: .medium).foregroundStyle(status.level.color)
         }
         .scaledPadding(.horizontal, 10)
         .scaledPadding(.vertical, 8)

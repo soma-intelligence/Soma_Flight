@@ -36,7 +36,7 @@ struct EstimatedProgressView: View {
             }
             .foregroundStyle(Theme.late)
             HStack(spacing: 10) {
-                Text(from).scaledFont(13, weight: .semibold).foregroundStyle(Theme.secondary)
+                Text(ui: from).scaledFont(13, weight: .semibold).foregroundStyle(Theme.secondary)
                 GeometryReader { geo in
                     let w = geo.size.width, p = CGFloat(estimate.progress)
                     ZStack(alignment: .leading) {
@@ -51,9 +51,9 @@ struct EstimatedProgressView: View {
                     .frame(height: geo.size.height)
                 }
                 .frame(height: 18)
-                Text(to).scaledFont(13, weight: .semibold).foregroundStyle(Theme.secondary)
+                Text(ui: to).scaledFont(13, weight: .semibold).foregroundStyle(Theme.secondary)
             }
-            Text(estimate.detail)
+            Text(ui: estimate.detail)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

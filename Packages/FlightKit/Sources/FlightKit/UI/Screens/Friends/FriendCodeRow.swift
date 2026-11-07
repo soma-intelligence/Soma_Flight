@@ -164,7 +164,7 @@ struct FriendQRSheet: View {
                 .scaledFont(24, weight: .bold)
                 .foregroundStyle(Theme.primary)
                 .scaledPadding(.top, 4)
-            Text(blurb)
+            Text(ui: blurb)
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .multilineTextAlignment(.center)
@@ -189,7 +189,7 @@ struct FriendQRSheet: View {
             .scaledPadding(.top, 24)
             if let failure { ErrorBanner(error: failure, retry: make).scaledPadding(.top, 14) }
             if let me = store.me {
-                Text(me.spacedCode)
+                Text(ui: me.spacedCode)
                     .font(.system(size: 22, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)

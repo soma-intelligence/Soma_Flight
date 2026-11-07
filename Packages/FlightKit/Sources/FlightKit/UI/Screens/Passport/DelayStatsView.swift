@@ -199,7 +199,7 @@ struct DelayReportSections: View {
             VStack(spacing: 10) {
                 ForEach(DelayReport.Bucket.allCases, id: \.self) { b in
                     HStack(spacing: 12) {
-                        Text(b.title)
+                        Text(ui: b.title)
                             .scaledFont(16, weight: .medium)
                             .foregroundStyle(Theme.primary)
                             .lineLimit(1)
@@ -281,7 +281,7 @@ struct DelayReportSections: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Text(text).scaledFont(15).foregroundStyle(Theme.secondary)
+        Text(ui: text).scaledFont(15).foregroundStyle(Theme.secondary)
     }
 }
 
@@ -298,19 +298,19 @@ struct BigFigure: View {
                 VStack(alignment: .leading, spacing: 0) { number; label }
             }
             if let caption {
-                Text(caption).scaledFont(17).foregroundStyle(Theme.secondary)
+                Text(ui: caption).scaledFont(17).foregroundStyle(Theme.secondary)
             }
         }
         .accessibilityElement(children: .combine)
     }
 
     private var number: some View {
-        Text(value).scaledFont(54, weight: .bold).monospacedDigit().foregroundStyle(Theme.primary).lineLimit(1)
+        Text(ui: value).scaledFont(54, weight: .bold).monospacedDigit().foregroundStyle(Theme.primary).lineLimit(1)
             .rollingDigits()
     }
 
     private var label: some View {
-        Text(unit).scaledFont(32, weight: .regular).foregroundStyle(Theme.secondary).lineLimit(1)
+        Text(ui: unit).scaledFont(32, weight: .regular).foregroundStyle(Theme.secondary).lineLimit(1)
     }
 }
 
@@ -339,9 +339,9 @@ struct LateArrivalRow: View {
                     mark
                     ident.frame(minWidth: 66, alignment: .leading)
                     delay.frame(minWidth: 58, alignment: .leading)
-                    Text(route).scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1).fixedSize()
+                    Text(ui: route).scaledFont(15).foregroundStyle(Theme.secondary).lineLimit(1).fixedSize()
                     Spacer(minLength: 4)
-                    Text(day).scaledFont(15).monospacedDigit().foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(ui: day).scaledFont(15).monospacedDigit().foregroundStyle(Theme.secondary).lineLimit(1)
                         .minimumScaleFactor(0.8).layoutPriority(1)
                 }
             }

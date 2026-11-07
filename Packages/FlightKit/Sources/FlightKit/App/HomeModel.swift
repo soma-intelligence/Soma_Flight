@@ -97,6 +97,10 @@ public final class HomeModel {
     @ObservationIgnored private var toastTimer: Task<Void, Never>?
     /// A toast waiting for the search sheet to close (iOS covers the tab pill with it).
     public private(set) var pendingToast: String?
+    /// A search Siri, Shortcuts or a link asked for (`FlightLink.searchURL`): the iOS home opens Search
+    /// with it and sets it back to nil.
+    public var searchRequest: String?
+
     /// True while a sheet covers the tab pill (the iOS search sheet). A toast raised meanwhile waits and
     /// shows, with its full time, once this turns false. The Mac's inline search never sets it.
     public var searchOpen = false {

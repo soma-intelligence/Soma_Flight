@@ -284,7 +284,7 @@ public struct SettingsView: View {
         } message: { action in
             switch action {
             case .signOut: Text("Flights you follow stay on your account. The saved copy on this device is cleared.")
-            case .deleteAccount: Text(Self.deleteMessage)
+            case .deleteAccount: Text(ui: Self.deleteMessage)
             }
         }
         #if !os(iOS)
@@ -410,12 +410,12 @@ struct SettingsHero: View {
                        size: Theme.metric(56, scale))
                 .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title(name))
+                Text(ui: title(name))
                     .scaledFont(20, weight: .semibold, relativeTo: .title3)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                Text(detail)
+                Text(ui: detail)
                     .scaledFont(15)
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(2)
@@ -486,7 +486,7 @@ struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let title {
-                Text(title.uppercased())
+                Text(verbatim: UIText.localized(title).uppercased())
                     .scaledFont(13)
                     .tracking(0.2)
                     .foregroundStyle(Theme.secondary)
@@ -499,7 +499,7 @@ struct SettingsSection<Content: View>: View {
                 .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
                 .scaledPadding(.horizontal, 16)
             if let footer {
-                Text(footer)
+                Text(ui: footer)
                     .scaledFont(13)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -624,9 +624,9 @@ struct SettingsRow<Accessory: View>: View {
         HStack(spacing: 14) {
             SettingsTile(symbol: icon, color: fill)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).scaledFont(17).foregroundStyle(tone == .destructive ? Theme.veryLate : Theme.primary)
+                Text(ui: title).scaledFont(17).foregroundStyle(tone == .destructive ? Theme.veryLate : Theme.primary)
                 if let subtitle {
-                    Text(subtitle).scaledFont(13).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(ui: subtitle).scaledFont(13).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 8)

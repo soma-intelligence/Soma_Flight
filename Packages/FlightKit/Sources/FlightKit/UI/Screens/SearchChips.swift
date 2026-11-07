@@ -85,7 +85,7 @@ struct SearchChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Text(title)
+                Text(ui: title)
                     .scaledFont(15, weight: .medium)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -130,7 +130,7 @@ struct SearchChipsRow: View {
                 }
             }
             if let note {
-                Text(note)
+                Text(ui: note)
                     .scaledFont(13)
                     .foregroundStyle(Theme.secondary)
                     .transition(.opacity)

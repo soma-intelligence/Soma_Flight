@@ -220,7 +220,7 @@ struct RankedBars: View {
         switch item.label {
         case .code(let code):
             GridRow {
-                Text(code)
+                Text(ui: code)
                     .scaledFont(17, weight: .medium)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -258,7 +258,7 @@ private struct BarRow: View {
             RoundedRectangle(cornerRadius: height * 0.24, style: .continuous)
                 .fill(tint)
                 .frame(height: height)
-            Text(caption)
+            Text(ui: caption)
                 .scaledFont(17)
                 .monospacedDigit()
                 .foregroundStyle(Theme.primary.opacity(0.75))
@@ -346,7 +346,7 @@ struct MetricToggle<Metric: RankMetric>: View where Metric.AllCases: RandomAcces
         HStack(spacing: 4) {
             ForEach(Metric.allCases) { m in
                 Button { metric = m } label: {
-                    Text(m.rawValue)
+                    Text(ui: m.rawValue)
                         .scaledFont(16, weight: .medium)
                         .foregroundStyle(m == metric ? Theme.primary : Theme.secondary)
                         .scaledPadding(.horizontal, 17)
@@ -481,7 +481,7 @@ struct PassportCountriesSection: View {
                         .scaledPadding(.top, 10)
                 }
                 if let note = PassportLists.unknownCountryNote(detail.unknownCountryFlights) {
-                    Text(note)
+                    Text(ui: note)
                         .scaledFont(14)
                         .foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -495,8 +495,8 @@ struct PassportCountriesSection: View {
     private func countryRow(_ c: CountryCount) -> some View {
         let name = reference.country(c.iso2)?.name ?? c.iso2
         let flights = PassportLists.flights(c.flights)
-        let nameText = Text(name).scaledFont(18, weight: .medium).foregroundStyle(Theme.primary).lineLimit(2)
-        let flightsText = Text(flights).scaledFont(18).monospacedDigit().foregroundStyle(Theme.secondary)
+        let nameText = Text(ui: name).scaledFont(18, weight: .medium).foregroundStyle(Theme.primary).lineLimit(2)
+        let flightsText = Text(ui: flights).scaledFont(18).monospacedDigit().foregroundStyle(Theme.secondary)
         return HStack(spacing: 18) {
             CountryFlag(code: c.iso2, size: 25, decorative: true)
             VStack(spacing: 0) {
@@ -552,7 +552,7 @@ struct RegionGrid: View {
             .monospacedDigit()
             .foregroundStyle(Theme.secondary)
         return VStack(alignment: .leading, spacing: 0) {
-            Text(r.region.title)
+            Text(ui: r.region.title)
                 .scaledFont(14, weight: .medium)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(2)

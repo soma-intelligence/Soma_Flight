@@ -169,8 +169,8 @@ private struct DonutChart: View {
         .chartLegend(.hidden)
         .overlay {
             VStack(spacing: 2) {
-                Text(donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
-                Text(donut.centerValue)
+                Text(ui: donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
+                Text(ui: donut.centerValue)
                     .scaledFont(valueSize, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -194,7 +194,7 @@ private struct DonutLegend: View {
                 GridRow {
                     RoundedRectangle(cornerRadius: swatch * 0.23, style: .continuous).fill(s.color)
                         .frame(width: swatch, height: swatch)
-                    Text(s.label).scaledFont(18).foregroundStyle(Theme.primary)
+                    Text(ui: s.label).scaledFont(18).foregroundStyle(Theme.primary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(PassportFacts.count(s.count)).scaledFont(18).monospacedDigit().foregroundStyle(Theme.primary)
@@ -251,7 +251,7 @@ struct FrequentTailsSection: View {
 
     private func lead(_ t: TailTally) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(t.registration).scaledFont(40, weight: .bold).foregroundStyle(Theme.primary)
+            Text(ui: t.registration).scaledFont(40, weight: .bold).foregroundStyle(Theme.primary)
             Text(AircraftStatsCopy.flights(t.flights)).scaledFont(20).monospacedDigit().foregroundStyle(Theme.secondary)
                 .rollingDigits(Double(t.flights))
             HStack {
@@ -279,7 +279,7 @@ struct FrequentTailsSection: View {
     private func row(_ t: TailTally) -> some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(t.registration).scaledFont(20, weight: .semibold).foregroundStyle(Theme.primary)
+                Text(ui: t.registration).scaledFont(20, weight: .semibold).foregroundStyle(Theme.primary)
                 Text(AircraftStatsCopy.tailLine(t, reference: reference)).scaledFont(17).foregroundStyle(Theme.secondary)
             }
             Spacer(minLength: 8)
@@ -365,7 +365,7 @@ private struct AgedCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).scaledFont(15).foregroundStyle(Theme.primary)
+            Text(ui: title).scaledFont(15).foregroundStyle(Theme.primary)
             Text(AircraftStatsCopy.ageOld(months: aircraft.ageMonths))
                 .scaledFont(22, weight: .medium)
                 .foregroundStyle(Theme.primary)

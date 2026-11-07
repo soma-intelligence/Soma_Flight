@@ -163,7 +163,7 @@ public struct SearchView: View {
     static let prompt = "AF 84 tomorrow, or Paris Rome"
 
     private var input: some View {
-        TextField("", text: $store.text, prompt: Text(Self.prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
+        TextField("", text: $store.text, prompt: Text(ui: Self.prompt).foregroundStyle(Theme.secondary.opacity(0.75)))
             .scaledFont(17)
             .foregroundStyle(Theme.primary)
             .textFieldStyle(.plain)
@@ -401,9 +401,9 @@ struct OptionRow: View {
                     .frame(width: glyph, height: glyph)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
                     if let subtitle {
-                        Text(subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                        Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
@@ -428,8 +428,8 @@ struct FrequentRow<Icon: View>: View {
             HStack(spacing: 14) {
                 icon
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
-                    Text(subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
@@ -520,7 +520,7 @@ struct ResultRow: View {
                     if case .live(let f) = result {
                         Circle().fill(f.level.color).frame(width: 7, height: 7)
                     }
-                    Text(times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit().lineLimit(1)
+                    Text(ui: times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit().lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
@@ -583,7 +583,7 @@ struct RouteText: View {
     var to: String
 
     var body: some View {
-        Text("\(Text(from).fontWeight(.semibold)) to \(Text(to).fontWeight(.semibold))")
+        Text("\(Text(ui: from).fontWeight(.semibold)) to \(Text(ui: to).fontWeight(.semibold))")
             .scaledFont(17)
             .foregroundStyle(Theme.primary)
     }

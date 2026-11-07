@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The home sheet: followed flights as rows, in the air first, then the ones still to come,
 /// then the finished, canceled and diverted ones until they are removed. Offline it shows the
@@ -132,6 +133,11 @@ public struct MyFlightsView: View {
                         .frame(minHeight: 200)
                 }
             } else {
+                #if os(iOS)
+                TipView(AskSiriTip())
+                    .tipBackground(Theme.card)
+                    .scaledPadding(.bottom, 14)
+                #endif
                 ForEach(groups, id: \.title) { group in
                     CapsHeader(group.title, trailing: group.rows.count == 1 ? "1 flight" : "\(group.rows.count) flights")
                         .scaledPadding(.top, 6)

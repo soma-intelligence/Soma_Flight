@@ -63,7 +63,7 @@ public struct CalendarSettingsView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(Self.intro)
+            Text(ui: Self.intro)
                 .scaledFont(15)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -104,7 +104,7 @@ public struct CalendarSettingsView: View {
                 }
             }
             if let failure = sync.failure {
-                Text(failure)
+                Text(ui: failure)
                     .scaledFont(13)
                     .foregroundStyle(Theme.late)
                     .scaledPadding(.horizontal, 16)
@@ -117,7 +117,7 @@ public struct CalendarSettingsView: View {
                         .accessibilityElement(children: .combine)
                 }
             }
-            Text(Self.footnote)
+            Text(ui: Self.footnote)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -174,11 +174,11 @@ struct CalendarChoiceRow: View {
                         .frame(width: SettingsStyle.iconSide)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(calendar.title).scaledFont(17).foregroundStyle(Theme.primary)
+                        Text(ui: calendar.title).scaledFont(17).foregroundStyle(Theme.primary)
                         let caption = [calendar.source.isEmpty ? nil : calendar.source, madeByApp ? "Made by Soma Flight" : nil]
                             .compactMap { $0 }.joined(separator: " · ")
                         if !caption.isEmpty {
-                            Text(caption).scaledFont(13).foregroundStyle(Theme.secondary)
+                            Text(ui: caption).scaledFont(13).foregroundStyle(Theme.secondary)
                         }
                     }
                     Spacer(minLength: 8)

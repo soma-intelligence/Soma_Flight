@@ -96,7 +96,7 @@ public struct PassportView: View {
             set: { if !$0 { importState = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
-            if case .failed(let message) = importState { Text(message) }
+            if case .failed(let message) = importState { Text(ui: message) }
         }
         .confirmationDialog("Delete this flight from your history?", isPresented: Binding(
             get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible,

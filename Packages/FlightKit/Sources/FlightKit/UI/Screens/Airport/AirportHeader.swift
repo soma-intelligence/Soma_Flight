@@ -42,7 +42,7 @@ struct AirportHeader: View {
     }
 
     private func chip(_ text: String) -> some View {
-        Text(text)
+        Text(ui: text)
             .themeFont(.chip)
             .foregroundStyle(Theme.secondary)
             .scaledPadding(.horizontal, 5)
@@ -110,8 +110,8 @@ struct IssuesCard: View {
                 .scaledPadding(.top, 1)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).scaledFont(15.5, weight: .medium).foregroundStyle(Theme.primary)
-                Text(text)
+                Text(ui: title).scaledFont(15.5, weight: .medium).foregroundStyle(Theme.primary)
+                Text(ui: text)
                     .scaledFont(14.5)
                     .foregroundStyle(Theme.primary.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)

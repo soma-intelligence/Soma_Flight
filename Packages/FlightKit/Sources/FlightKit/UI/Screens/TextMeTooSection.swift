@@ -23,7 +23,7 @@ struct TextMeTooSection: View {
                 }
             }
             if let error = store.error {
-                Text(error.message)
+                Text(ui: error.message)
                     .scaledFont(13)
                     .foregroundStyle(Theme.veryLate)
                     .fixedSize(horizontal: false, vertical: true)
@@ -102,7 +102,7 @@ struct TextMeTooSection: View {
             .scaledPadding(.trailing, 16)
             .frame(minHeight: 50)
             if let message = store.codeMessage {
-                Text(message)
+                Text(ui: message)
                     .scaledFont(13).foregroundStyle(Theme.late)
                     .scaledPadding(.leading, 60).scaledPadding(.bottom, 10)
             }

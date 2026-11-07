@@ -41,10 +41,10 @@ struct ForecastSection: View {
 
     private func figure(_ label: String, symbol: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
+            Text(ui: label).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
             HStack(spacing: 6) {
                 Image(systemName: symbol).scaledFont(16, weight: .semibold).accessibilityHidden(true)
-                Text(value).scaledFont(19, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                Text(ui: value).scaledFont(19, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             }
             .foregroundStyle(Theme.primary)
         }
@@ -54,7 +54,7 @@ struct ForecastSection: View {
 
     private func bar(_ b: ForecastBucket, percent: Int) -> some View {
         HStack(spacing: 12) {
-            Text(b.title)
+            Text(ui: b.title)
                 .scaledFont(15, weight: .medium)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)

@@ -13,7 +13,7 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     # Soma Labs team (the one Prism signs with), so a regenerated project archives without picking it by hand.
-    DEVELOPMENT_TEAM: 2RFY9Z4UVH
+    DEVELOPMENT_TEAM: M968YV4J8W
 packages:
   FlightKit:
     path: Packages/FlightKit
@@ -24,6 +24,10 @@ targets:
     sources:
       - path: Apps/iOS
         excludes: ["Info*.plist", "*.xcconfig", "*.entitlements"]
+      # Siri, Shortcuts and the controls' intents, shared with the widget extension.
+      - path: Apps/Intents
+      # The French catalogs (Localizable for the screens, InfoPlist for the permission prompts).
+      - path: Apps/Shared
     configFiles:
       Debug: Apps/iOS/Config.Debug.xcconfig
       Release: Apps/iOS/Config.Release.xcconfig
@@ -85,6 +89,7 @@ targets:
     sources:
       - path: Apps/macOS
         excludes: ["Info*.plist", "*.xcconfig", "*.entitlements"]
+      - path: Apps/Shared
     configFiles:
       Debug: Apps/macOS/Config.Debug.xcconfig
       Release: Apps/macOS/Config.Release.xcconfig
@@ -130,6 +135,10 @@ targets:
     sources:
       - path: Apps/Widgets
         excludes: ["Info.plist", "*.entitlements"]
+      # The intents the Control Center controls run.
+      - path: Apps/Intents
+      # The widgets look their words up in their own bundle.
+      - path: Apps/Shared/Localizable.xcstrings
     entitlements:
       path: Apps/Widgets/SomaFlightWidgets.entitlements
       properties:
@@ -179,6 +188,7 @@ targets:
     sources:
       - path: Apps/Watch
         excludes: ["*.entitlements"]
+      - path: Apps/Shared/Localizable.xcstrings
     entitlements:
       path: Apps/Watch/SomaFlightWatch.entitlements
       properties:
@@ -204,6 +214,7 @@ targets:
     sources:
       - path: Apps/WatchWidgets
         excludes: ["Info.plist", "*.entitlements"]
+      - path: Apps/Shared/Localizable.xcstrings
     entitlements:
       path: Apps/WatchWidgets/SomaFlightComplications.entitlements
       properties:

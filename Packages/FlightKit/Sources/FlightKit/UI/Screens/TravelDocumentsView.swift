@@ -77,14 +77,14 @@ public struct TravelDocumentsView: View {
             Button("Delete All", role: .destructive) { store.deleteAll() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(TravelDocumentsCopy.deleteMessage)
+            Text(ui: TravelDocumentsCopy.deleteMessage)
         }
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let failure = store.failure {
-                Text(failure).scaledFont(13).foregroundStyle(Theme.late).scaledPadding(.horizontal, 16).scaledPadding(.top, 8)
+                Text(ui: failure).scaledFont(13).foregroundStyle(Theme.late).scaledPadding(.horizontal, 16).scaledPadding(.top, 8)
             }
             group("Loyalty") {
                 ForEach(store.profile.loyalty) { n in
@@ -142,7 +142,7 @@ public struct TravelDocumentsView: View {
                                 action: { confirmingDelete = true }) { EmptyView() }
                 }
             }
-            Text(TravelDocumentsCopy.footnote)
+            Text(ui: TravelDocumentsCopy.footnote)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -236,7 +236,7 @@ struct TravelDocumentEditor: View {
                 CardTitle(title).scaledPadding(.trailing, 44)
                 fields
                 if invalid {
-                    Text(invalidText).scaledFont(13).foregroundStyle(Theme.late)
+                    Text(ui: invalidText).scaledFont(13).foregroundStyle(Theme.late)
                 }
                 Button(action: save) {
                     Text(saving ? "Saving…" : "Save")
@@ -292,7 +292,7 @@ struct TravelDocumentEditor: View {
         if case .loyalty = subject {
             field("Airline code or name", text: $airline)
             if let match = airlineMatch {
-                Text(match.name).scaledFont(13).foregroundStyle(Theme.secondary)
+                Text(ui: match.name).scaledFont(13).foregroundStyle(Theme.secondary)
             }
             field("Number", text: $number)
             field("Programme name (optional)", text: $programme)

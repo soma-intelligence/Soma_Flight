@@ -216,7 +216,7 @@ struct LiveryRenderer {
         guard let title = livery.title, let layout = Self.titleLayout(title, geometry: geometry) else { return }
         let size = layout.size * scale
         guard size >= 2.5 else { return }
-        let text = Text(title.text)
+        let text = Text(ui: title.text)
             .font(.system(size: size, weight: Self.weight(title.weight)))
             .tracking(size * title.tracking)
             .foregroundColor(Self.color(title.color, .black))

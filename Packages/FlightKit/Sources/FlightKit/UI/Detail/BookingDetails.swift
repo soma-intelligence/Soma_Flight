@@ -207,7 +207,7 @@ struct BookingDetailsSheet: View {
     }
 
     private func heading(_ text: String) -> some View {
-        Text(text)
+        Text(ui: text)
             .scaledFont(20, weight: .semibold)
             .foregroundStyle(Theme.primary)
             .scaledPadding(.bottom, 10)
@@ -237,7 +237,7 @@ struct BookingDetailsSheet: View {
             .frame(minHeight: 56)
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.pill))
             if let error {
-                Text(error)
+                Text(ui: error)
                     .scaledFont(14)
                     .foregroundStyle(Theme.veryLate)
                     .scaledPadding(.leading, 4)
@@ -264,7 +264,7 @@ struct Chip: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let badge {
-                    Text(badge)
+                    Text(ui: badge)
                         .scaledFont(badge.count > 1 ? 10 : 12, weight: .heavy)
                         .foregroundStyle(selected ? Theme.primary : Theme.background)
                         .frame(width: 22, height: 22)
@@ -272,7 +272,7 @@ struct Chip: View {
                 } else if let symbol {
                     Image(systemName: symbol).scaledFont(16, weight: .semibold)
                 }
-                Text(title).scaledFont(17, weight: .medium)
+                Text(ui: title).scaledFont(17, weight: .medium)
             }
             .foregroundStyle(ink)
             .lineLimit(1)

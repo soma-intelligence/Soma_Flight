@@ -23,7 +23,7 @@ struct BoardingPassView: View {
                         if pass.source == .wallet {
                             WalletActions(store: store)
                         }
-                        Text(BoardingPassFacts.privacy)
+                        Text(ui: BoardingPassFacts.privacy)
                             .scaledFont(13)
                             .foregroundStyle(Theme.secondary)
                             .multilineTextAlignment(.center)
@@ -101,7 +101,7 @@ struct PassCard: View {
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)
                     if let day = dayLine {
-                        Text(day).scaledFont(14).foregroundStyle(Theme.secondary)
+                        Text(ui: day).scaledFont(14).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 8)
@@ -166,11 +166,11 @@ struct PassCard: View {
 
     private func end(code: String, city: String?, time: Date?, timeZone: TimeZone?, alignment: HorizontalAlignment) -> some View {
         VStack(alignment: alignment, spacing: 2) {
-            Text(code)
+            Text(ui: code)
                 .scaledFont(40, weight: .bold)
                 .foregroundStyle(Theme.primary)
             if let city {
-                Text(city).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                Text(ui: city).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
             }
             if let time, let timeZone {
                 Text(Format.clock(time, timeZone, clock))
@@ -184,17 +184,17 @@ struct PassCard: View {
 
     private func fact(_ label: String, _ value: String, note: String? = nil, large: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label.uppercased())
+            Text(verbatim: UIText.localized(label).uppercased())
                 .scaledFont(11, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
-            Text(value)
+            Text(ui: value)
                 .scaledFont(large ? 20 : 19, weight: .semibold)
                 .monospacedDigit()
                 .foregroundStyle(Theme.primary)
                 .lineLimit(large ? 2 : 1)
                 .minimumScaleFactor(0.7)
             if let note {
-                Text(note).scaledFont(12, weight: .medium).foregroundStyle(Theme.late)
+                Text(ui: note).scaledFont(12, weight: .medium).foregroundStyle(Theme.late)
             }
         }
         .accessibilityElement(children: .combine)
@@ -222,7 +222,7 @@ struct BarcodePlate: View {
             .frame(maxWidth: .infinity)
             .frame(height: barcode.format == .pdf417 || barcode.format == .code128 ? 120 : 240)
             if let caption {
-                Text(caption)
+                Text(ui: caption)
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(Color.black.opacity(0.7))
                     .lineLimit(1)

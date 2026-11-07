@@ -151,7 +151,7 @@ public struct ImportView: View {
             if canGoBack {
                 RoundButton(systemImage: "chevron.left", label: "Back") { back() }
             }
-            Text(title)
+            Text(ui: title)
                 .scaledFont(22, weight: .bold)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
@@ -209,7 +209,7 @@ public struct ImportView: View {
             Button {
                 Task { await store.commit() }
             } label: {
-                if store.isCommitting { ProgressView() } else { Text(store.commitTitle) }
+                if store.isCommitting { ProgressView() } else { Text(ui: store.commitTitle) }
             }
             .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(Theme.accent)
             .disabled(store.isCommitting || (store.selectedPast.isEmpty && store.selectedUpcoming.isEmpty))
@@ -236,7 +236,7 @@ public struct ImportView: View {
         case .importing(let progress):
             ImportProgressPanel(progress: progress)
         case .failed(_, let message):
-            Text(message)
+            Text(ui: message)
                 .scaledFont(16)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -272,7 +272,7 @@ public struct ImportView: View {
             Hairline(leading: 60)
             OptionRow(icon: "doc.text", title: "From a CSV File",
                       subtitle: "Any file with a date, from and to") { picker.open(.csv) }
-            Text(Self.privacyLine)
+            Text(ui: Self.privacyLine)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -392,7 +392,7 @@ struct ImportReviewList: View {
             CapsHeader(title, trailing: "\(rows.filter { selected.contains($0.id) }.count) of \(rows.count)")
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.top, 22)
-            Text(note).scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(ui: note).scaledFont(13).foregroundStyle(Theme.secondary)
                 .scaledPadding(.horizontal, 20).scaledPadding(.bottom, 6)
             ForEach(rows) { c in
                 Hairline()
@@ -433,10 +433,10 @@ struct CandidateRow: View {
                         Text(Self.headline(candidate.source)).scaledFont(16)
                     }
                     ForEach(candidate.source.evidence, id: \.self) { line in
-                        Text(line).scaledFont(13).foregroundStyle(Theme.secondary).lineLimit(2)
+                        Text(ui: line).scaledFont(13).foregroundStyle(Theme.secondary).lineLimit(2)
                     }
                     ForEach(candidate.warnings, id: \.self) { w in
-                        Text(w).scaledFont(13).foregroundStyle(Theme.secondary)
+                        Text(ui: w).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 0)

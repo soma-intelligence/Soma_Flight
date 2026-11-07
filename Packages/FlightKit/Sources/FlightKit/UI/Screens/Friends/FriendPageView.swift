@@ -56,7 +56,7 @@ public struct FriendPageView: View {
             HStack(alignment: .center, spacing: 14) {
                 FriendAvatar(name: friend.displayName, emoji: friend.emoji, size: 60, id: friend.id)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(friend.name).scaledFont(28, weight: .bold).foregroundStyle(Theme.primary).lineLimit(2)
+                    Text(ui: friend.name).scaledFont(28, weight: .bold).foregroundStyle(Theme.primary).lineLimit(2)
                     Text(FriendFacts.since(friend.since)).scaledFont(15).foregroundStyle(Theme.secondary)
                 }
                 Spacer(minLength: 8)
@@ -139,8 +139,8 @@ public struct FriendPageView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), spacing: 14) {
                 ForEach(cells, id: \.1) { value, label in
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(value).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
-                        Text(label).scaledFont(13).foregroundStyle(Theme.secondary)
+                        Text(ui: value).scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
+                        Text(ui: label).scaledFont(13).foregroundStyle(Theme.secondary)
                     }
                     .accessibilityElement(children: .combine)
                 }

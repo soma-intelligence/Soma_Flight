@@ -1,0 +1,46 @@
+{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "NSCalendarsFullAccessUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight ajoute les vols que tu suis au calendrier de ton choix et les tient à jour, et retrouve les vols dans tes événements quand tu les importes. Rien ne quitte ton appareil."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight utilise ta position quand l'app est ouverte pour calculer quand partir pour l'aéroport. Elle n'est jamais enregistrée ni envoyée à Soma Flight."
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight utilise Face ID pour afficher ton passeport et tes numéros de voyageur de confiance. Ils restent sur cet appareil."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight utilise l'appareil photo pour scanner une carte d'embarquement."
+          }
+        }
+      }
+    }
+  }
+}

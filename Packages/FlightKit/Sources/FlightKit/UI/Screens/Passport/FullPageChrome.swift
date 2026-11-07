@@ -112,7 +112,7 @@ struct FullPageChrome<Hero: View, Content: View>: View {
 
     private var topBar: some View {
         ZStack {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)

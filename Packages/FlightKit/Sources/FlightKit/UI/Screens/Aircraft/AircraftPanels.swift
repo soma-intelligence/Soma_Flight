@@ -284,15 +284,15 @@ struct AircraftTotalsPanel: View {
 
     private func column(_ title: String, value: String, number: Double, sub: String?, chip: String?, big: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).scaledFont(15, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
+            Text(ui: title).scaledFont(15, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
             // One value height in every column, so the chips line up.
-            Text(value).scaledFont(big ? 30 : 21, weight: .regular).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(ui: value).scaledFont(big ? 30 : 21, weight: .regular).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 .rollingDigits(number)
                 .frame(minHeight: valueHeight, alignment: .bottomLeading)
             Text(sub ?? " ").scaledFont(13).monospacedDigit().opacity(sub == nil ? 0 : 0.75)
                 .rollingDigits(sub.flatMap(Double.init))
             if let chip {
-                Text(chip)
+                Text(ui: chip)
                     .scaledFont(12, weight: .medium, design: .monospaced)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -407,9 +407,9 @@ struct FrequentedTailPanel: View {
                     if let airline = tail.airline { AirlineTailMark(airline: airline, size: 30) }
                 }
                 .scaledPadding(.top, 8)
-                Text(tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)
-                if let name = tail.name { Text(name).scaledFont(15).opacity(0.85) }
-                Text(detailLine).scaledFont(13).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+                Text(ui: tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)
+                if let name = tail.name { Text(ui: name).scaledFont(15).opacity(0.85) }
+                Text(ui: detailLine).scaledFont(13).opacity(0.85).fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(Blueprint.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -495,7 +495,7 @@ struct CabinBlueprint: View {
                         caption("Section A-A", "Looking forward")
                         if let fav = AircraftStatsCopy.favoriteSeat(stats) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(fav.title).scaledFont(13, weight: .semibold)
+                                Text(ui: fav.title).scaledFont(13, weight: .semibold)
                                 Text(stats.favouriteSeat?.seat ?? "")
                                     .scaledFont(30, weight: .regular, design: .monospaced)
                                 Text(fav.value.drop { $0 != "(" }.trimmingCharacters(in: CharacterSet(charactersIn: "()")))
@@ -519,7 +519,7 @@ struct CabinBlueprint: View {
             if let cockpit = CabinPlan.cockpitLine(p) {
                 HStack(spacing: 8) {
                     Text("Cockpit").scaledFont(13, weight: .semibold)
-                    Text(cockpit).scaledFont(13).monospacedDigit()
+                    Text(ui: cockpit).scaledFont(13).monospacedDigit()
                 }
                 .scaledPadding(.horizontal, 20)
                 .scaledPadding(.top, 12)
@@ -539,8 +539,8 @@ struct CabinBlueprint: View {
 
     private func caption(_ title: String, _ sub: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(title).scaledFont(11, weight: .semibold, design: .monospaced).textCase(.uppercase).tracking(0.8)
-            Text(sub).scaledFont(11, design: .monospaced).opacity(0.7)
+            Text(ui: title).scaledFont(11, weight: .semibold, design: .monospaced).textCase(.uppercase).tracking(0.8)
+            Text(ui: sub).scaledFont(11, design: .monospaced).opacity(0.7)
         }
         .accessibilityHidden(true)
     }
@@ -551,7 +551,7 @@ struct CabinBlueprint: View {
             Text("Plan · \(family.title)").scaledFont(11, weight: .semibold, design: .monospaced).textCase(.uppercase).tracking(0.8)
             Spacer(minLength: 8)
             if let typeName {
-                Text(typeName).scaledFont(11, design: .monospaced).lineLimit(1).minimumScaleFactor(0.7).opacity(0.75)
+                Text(ui: typeName).scaledFont(11, design: .monospaced).lineLimit(1).minimumScaleFactor(0.7).opacity(0.75)
             }
         }
         .scaledPadding(.horizontal, 20)
@@ -566,11 +566,11 @@ struct CabinBlueprint: View {
             ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
-                        Text(row.code)
+                        Text(ui: row.code)
                             .scaledFont(10, weight: .bold, design: .monospaced)
                             .frame(width: 17, height: 17)
                             .overlay(Circle().stroke(Theme.blueprintInk.opacity(0.8), lineWidth: 0.75))
-                        Text(row.name).scaledFont(13).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(ui: row.name).scaledFont(13).lineLimit(1).minimumScaleFactor(0.7)
                     }
                     Text(PassportFacts.count(row.count))
                         .scaledFont(24, weight: .regular)

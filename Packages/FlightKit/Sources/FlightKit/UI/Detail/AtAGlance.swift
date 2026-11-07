@@ -223,9 +223,9 @@ struct AtAGlanceCard: View {
                 .scaledPadding(.top, 9)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(o.title).scaledFont(19, weight: .semibold)
+                Text(ui: o.title).scaledFont(19, weight: .semibold)
                     .foregroundStyle(o.tone == .neutral ? Theme.primary : tint(o.tone))
-                Text(o.text).scaledFont(14).foregroundStyle(Theme.secondary)
+                Text(ui: o.text).scaledFont(14).foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -235,15 +235,15 @@ struct AtAGlanceCard: View {
 
     private func cell(_ c: GlanceFacts.Cell) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(c.label.uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
-            Text(c.value)
+            Text(verbatim: UIText.localized(c.label).uppercased()).scaledFont(12, weight: .medium).foregroundStyle(Theme.secondary)
+            Text(ui: c.value)
                 .scaledFont(20, weight: c.kind == .placeholder ? .medium : .bold)
                 .monospacedDigit()
                 .foregroundStyle(c.kind == .placeholder ? Theme.secondary : Theme.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             if let caption = c.caption {
-                Text(caption).scaledFont(13, weight: c.kind == .known ? .regular : .medium)
+                Text(ui: caption).scaledFont(13, weight: c.kind == .known ? .regular : .medium)
                     .foregroundStyle(c.kind == .predicted || c.kind == .estimated ? Theme.late : Theme.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

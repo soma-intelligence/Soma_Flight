@@ -168,10 +168,10 @@ struct CountdownCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(18, weight: .semibold)
                 .foregroundStyle(tone ?? Theme.primary)
-            Text(caption)
+            Text(ui: caption)
                 .scaledFont(15, weight: tone == nil ? .regular : .medium)
                 .foregroundStyle(tone.map { $0.opacity(0.85) } ?? Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

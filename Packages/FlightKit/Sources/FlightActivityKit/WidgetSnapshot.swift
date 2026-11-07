@@ -201,4 +201,22 @@ public enum FlightLink {
         guard parts.count == 1 else { return nil }
         return UUID(uuidString: parts[0])
     }
+
+    /// The link Siri and Shortcuts open to search: `somaflight://search?q=UA1527`. An empty query opens
+    /// Search with an empty field.
+    public static func searchURL(query: String) -> URL {
+        var c = URLComponents()
+        c.scheme = scheme; c.host = "search"
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !q.isEmpty { c.queryItems = [URLQueryItem(name: "q", value: String(q.prefix(80)))] }
+        return c.url!
+    }
+
+    /// The query a search link carries ("" for none); nil for any other URL.
+    public static func searchQuery(from url: URL) -> String? {
+        guard url.scheme?.lowercased() == scheme, url.host()?.lowercased() == "search",
+              let c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        let q = c.queryItems?.first { $0.name == "q" }?.value ?? ""
+        return String(q.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+    }
 }

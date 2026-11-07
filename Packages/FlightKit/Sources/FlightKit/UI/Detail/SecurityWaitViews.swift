@@ -106,11 +106,11 @@ struct SecurityCheckpointList: View {
     private func row(_ c: SecurityCheckpoint, yours: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(c.name).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
+                Text(ui: c.name).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
                 let caption = [SecurityWaitFacts.terminalCaption(c), yours ? "Your terminal" : nil]
                     .compactMap { $0 }.joined(separator: " · ")
                 if !caption.isEmpty {
-                    Text(caption).scaledFont(14).foregroundStyle(Theme.secondary)
+                    Text(ui: caption).scaledFont(14).foregroundStyle(Theme.secondary)
                 }
             }
             Spacer(minLength: 8)

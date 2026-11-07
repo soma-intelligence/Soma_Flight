@@ -190,7 +190,7 @@ public struct HomeTabPill: View {
                 Image(systemName: systemImage)
                     .font(.system(size: Theme.metric(21, scale), weight: .medium))
                     .frame(height: Theme.metric(25, scale))
-                Text(title)
+                Text(ui: title)
                     .font(.system(size: Theme.fontSize(11, scale), weight: .semibold))
             }
             .foregroundStyle(selected ? Theme.accent : Theme.primary)
@@ -287,7 +287,7 @@ public struct LaunchPlaceholder: View {
             Color.black.ignoresSafeArea()
             if let failure {
                 VStack(spacing: 16) {
-                    Text(failure)
+                    Text(ui: failure)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

@@ -46,7 +46,7 @@ public struct PerformanceSplit: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 1).fill(part.color).frame(width: 2.5, height: 12)
-                Text(part.label).scaledFont(13).foregroundStyle(Theme.primary)
+                Text(ui: part.label).scaledFont(13).foregroundStyle(Theme.primary)
             }
             .scaledPadding(.bottom, 4)
             Text("\(share(part.count))%")

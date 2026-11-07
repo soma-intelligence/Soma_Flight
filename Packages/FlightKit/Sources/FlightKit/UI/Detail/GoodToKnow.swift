@@ -72,12 +72,12 @@ struct CardTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title)
+            Text(ui: title)
                 .scaledFont(22, weight: .bold)
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
             if let subtitle {
-                Text(subtitle).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
+                Text(ui: subtitle).scaledFont(15, weight: .medium).foregroundStyle(Theme.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -142,7 +142,7 @@ struct GoodToKnow: View {
         DetailCard(padded: false) {
             Button { onAirport(side.icao) } label: {
                 HStack(spacing: 4) {
-                    Text(side.code).scaledFont(19, weight: .medium)
+                    Text(ui: side.code).scaledFont(19, weight: .medium)
                     Image(systemName: "chevron.right").scaledFont(15, weight: .semibold)
                     Spacer(minLength: 0)
                 }
@@ -212,8 +212,8 @@ struct InfoRow: View {
                 .frame(width: iconWidth)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).scaledFont(19, weight: .medium).foregroundStyle(titleTint)
-                (chevron ? Text("\(text) \(Image(systemName: "chevron.right"))") : Text(text))
+                Text(ui: title).scaledFont(19, weight: .medium).foregroundStyle(titleTint)
+                (chevron ? Text("\(text) \(Image(systemName: "chevron.right"))") : Text(ui: text))
                     .scaledFont(16)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)

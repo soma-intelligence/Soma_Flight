@@ -26,9 +26,9 @@ struct AirportStatusCard: View {
             HStack(spacing: 10) {
                 AirportStatusDot(level: status.level, size: 10)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
+                    Text(ui: title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
                     if let line = status.line {
-                        Text(line).scaledFont(13.5).foregroundStyle(Theme.secondary)
+                        Text(ui: line).scaledFont(13.5).foregroundStyle(Theme.secondary)
                     }
                 }
                 Spacer(minLength: 0)
@@ -46,7 +46,7 @@ struct AirportStatusCard: View {
                         .scaledFont(15)
                         .frame(width: 20)
                         .accessibilityHidden(true)
-                    Text(weather.summary)
+                    Text(ui: weather.summary)
                         .scaledFont(14.5)
                         .foregroundStyle(Theme.primary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -165,7 +165,7 @@ struct AirlineMonogram: View {
     }
 
     var body: some View {
-        Text(code)
+        Text(ui: code)
             .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
@@ -304,7 +304,7 @@ struct RunwayRegularsSection: View {
                 HStack(spacing: 12) {
                     Text("\(i + 4)").scaledFont(14, weight: .semibold).foregroundStyle(Theme.secondary).frame(width: 22)
                     avatar(r, size: 30)
-                    Text(r.name).scaledFont(15).foregroundStyle(Theme.primary)
+                    Text(ui: r.name).scaledFont(15).foregroundStyle(Theme.primary)
                     Spacer()
                     Text(visits(r)).scaledFont(14).foregroundStyle(Theme.secondary)
                 }
@@ -323,7 +323,7 @@ struct RunwayRegularsSection: View {
                 let r = top[rank]
                 VStack(spacing: 6) {
                     avatar(r, size: rank == 0 ? 56 : 46)
-                    Text(r.name).scaledFont(14, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(ui: r.name).scaledFont(14, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
                     Text(visits(r)).scaledFont(12.5).foregroundStyle(Theme.secondary).monospacedDigit()
                     ZStack(alignment: .top) {
                         UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10, style: .continuous)
@@ -348,7 +348,7 @@ struct RunwayRegularsSection: View {
         ZStack {
             Circle().fill(r.isMe ? Theme.accent.opacity(0.18) : Theme.friend.opacity(0.18))
             if let e = r.emoji, !e.isEmpty {
-                Text(e).font(.system(size: size * 0.5))
+                Text(ui: e).font(.system(size: size * 0.5))
             } else {
                 Text(String(r.name.prefix(1)).uppercased())
                     .font(.system(size: size * 0.42, weight: .semibold, design: .rounded))
@@ -436,7 +436,7 @@ struct AirportHistorySection: View {
     private func number(_ n: Int, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(n)").scaledFont(22, weight: .semibold).foregroundStyle(Theme.primary)
-            Text(label).scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(ui: label).scaledFont(13).foregroundStyle(Theme.secondary)
         }
         .monospacedDigit()
         .accessibilityElement(children: .combine)
@@ -493,7 +493,7 @@ struct AirportBottomBar: View {
     private func label(_ title: String, _ icon: String, tint: Color?) -> some View {
         VStack(spacing: 3) {
             Image(systemName: icon).scaledFont(18, weight: .medium).frame(height: 22)
-            Text(title).scaledFont(10.5, weight: .semibold)
+            Text(ui: title).scaledFont(10.5, weight: .semibold)
         }
         .foregroundStyle(tint ?? Theme.primary)
         .frame(maxWidth: .infinity)
@@ -524,7 +524,7 @@ struct AirportShareCard: View {
                 Spacer()
                 Text("Soma Flight").scaledFont(13, weight: .semibold).foregroundStyle(Theme.secondary)
             }
-            Text(airport.name).scaledFont(18, weight: .semibold)
+            Text(ui: airport.name).scaledFont(18, weight: .semibold)
             Text("\(airport.city), \(airport.country)").scaledFont(14).foregroundStyle(Theme.secondary)
             AirportStatusCard(status: status, live: nil, weather: weather)
         }

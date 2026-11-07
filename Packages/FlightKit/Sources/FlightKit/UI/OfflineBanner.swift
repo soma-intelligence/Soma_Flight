@@ -18,7 +18,7 @@ public struct OfflineBanner: View {
                 .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
                 .accessibilityHidden(true)
-            Text(text)
+            Text(ui: text)
                 .scaledFont(15)
                 .foregroundStyle(Theme.primary.opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)

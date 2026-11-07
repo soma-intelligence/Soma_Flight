@@ -100,17 +100,17 @@ struct PassportCard: View {
     private func stat(_ label: String, _ value: String, big: Bool = false, caption: String? = nil,
                       value number: Double? = nil) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(label.uppercased())
+            Text(verbatim: UIText.localized(label).uppercased())
                 .scaledFont(14)
                 .foregroundStyle(Self.soft)
-            Text(value)
+            Text(ui: value)
                 .scaledFont(big ? 34 : 24, weight: .bold)
                 .foregroundStyle(Self.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .rollingDigits(number)
             if let caption {
-                Text(caption)
+                Text(ui: caption)
                     .scaledFont(15)
                     .foregroundStyle(Self.soft)
                     .lineLimit(1)
@@ -140,13 +140,13 @@ struct DelaysCard: View {
     func face(row: Bool = true) -> some View {
         let lost = TravelFacts.delayLost(.seconds(Int64(report.lostMinutes) * 60))
         return VStack(alignment: .leading, spacing: 0) {
-            Text(lost.value)
+            Text(ui: lost.value)
                 .scaledFont(64, weight: .bold)
                 .monospacedDigit()
                 .rollingDigits(Double(report.lostMinutes))
                 .foregroundStyle(.white)
                 .scaledPadding(.bottom, -4)
-            Text(lost.caption)
+            Text(ui: lost.caption)
                 .scaledFont(20, weight: .semibold)
                 .rollingDigits()
                 .foregroundStyle(.white)
@@ -207,13 +207,13 @@ struct AircraftCard: View {
             Text("Most flown aircraft")
                 .scaledFont(20, weight: .semibold)
                 .foregroundStyle(Self.ink)
-            Text(name)
+            Text(ui: name)
                 .scaledFont(32)
                 .foregroundStyle(Self.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .scaledPadding(.top, 2)
-            Text(flightsText)
+            Text(ui: flightsText)
                 .scaledFont(17)
                 .monospacedDigit()
                 .rollingDigits(Double(count))
@@ -250,7 +250,7 @@ struct CardRow: View {
 
     var body: some View {
         HStack {
-            Text(title).scaledFont(17, weight: .medium)
+            Text(ui: title).scaledFont(17, weight: .medium)
             Spacer(minLength: 8)
             Image(systemName: "chevron.right").scaledFont(15, weight: .semibold).opacity(0.8)
         }
@@ -319,7 +319,7 @@ struct PastFlightsSection: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(TravelFacts.groups(flights, by: sort, city: city)) { group in
                     HStack {
-                        Text(group.title).scaledFont(17, weight: .bold).foregroundStyle(Theme.primary)
+                        Text(ui: group.title).scaledFont(17, weight: .bold).foregroundStyle(Theme.primary)
                         Spacer()
                         Text((group.flights.count == 1 ? "1 flight" : "\(group.flights.count) flights").uppercased())
                             .scaledFont(13, weight: .semibold)

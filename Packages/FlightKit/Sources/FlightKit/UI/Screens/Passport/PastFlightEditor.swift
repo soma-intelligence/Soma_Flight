@@ -196,7 +196,7 @@ struct PastFlightEditorSheet: View {
     var body: some View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
+            Text(ui: title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
             ScrollView { content.scaledPadding(.all, 20) }
             HStack {
                 Spacer()
@@ -253,7 +253,7 @@ struct PastFlightEditorSheet: View {
         @Bindable var model = model
         return VStack(alignment: .leading, spacing: 0) {
             if let error = model.saveError {
-                Text(error)
+                Text(ui: error)
                     .scaledFont(15, weight: .medium)
                     .foregroundStyle(Theme.veryLate)
                     .scaledPadding(.bottom, 16)
@@ -285,7 +285,7 @@ struct PastFlightEditorSheet: View {
             heading("Aircraft").scaledPadding(.top, 24)
             field(icon: "airplane", placeholder: "Type, like B738 (optional)", text: $model.aircraftType, problem: .aircraftType)
             if let name = reference.type(model.aircraftType)?.name {
-                Text(name).scaledFont(14).foregroundStyle(Theme.secondary).scaledPadding(.leading, 4).scaledPadding(.top, 4)
+                Text(ui: name).scaledFont(14).foregroundStyle(Theme.secondary).scaledPadding(.leading, 4).scaledPadding(.top, 4)
             }
             field(icon: "tag", placeholder: "Registration (optional)", text: $model.registration, problem: .registration)
                 .scaledPadding(.top, 10)
@@ -382,7 +382,7 @@ struct PastFlightEditorSheet: View {
     }
 
     private func heading(_ text: String) -> some View {
-        Text(text)
+        Text(ui: text)
             .scaledFont(20, weight: .semibold)
             .foregroundStyle(Theme.primary)
             .scaledPadding(.bottom, 10)
@@ -391,7 +391,7 @@ struct PastFlightEditorSheet: View {
 
     @ViewBuilder private func errorLine(_ problem: PastFlightRules.Problem) -> some View {
         if let error = model.errors[problem] {
-            Text(error)
+            Text(ui: error)
                 .scaledFont(14)
                 .foregroundStyle(Theme.veryLate)
                 .scaledPadding(.leading, 4)
@@ -515,9 +515,9 @@ private struct PickerRow: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
+                Text(ui: title).scaledFont(17, weight: .medium).foregroundStyle(Theme.primary)
                 if let subtitle {
-                    Text(subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

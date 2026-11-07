@@ -12,6 +12,8 @@ struct RootTabView: View {
     @State private var labels = true
     @State private var threeD = false
     @State private var showSearch = false
+    /// The query Search runs when it opens from Siri, Shortcuts or a search link.
+    @State private var searchQuery: String?
     /// Where a Passport card zooms into its full page.
     @Namespace private var pageZoom
     /// Ties the compass under the map buttons to the globe: the map's own safe area moves with the sheet,
@@ -72,6 +74,7 @@ struct RootTabView: View {
                 #endif
             }
             .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
+            .onChange(of: home.searchRequest, initial: true) { _, query in openSearch(query) }
             // A notification opens a flight under Search or Settings: they close so it shows.
             .onChange(of: shell.path) { _, path in
                 if !path.isEmpty { showSearch = false; showSettings = false }
@@ -82,6 +85,15 @@ struct RootTabView: View {
             .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
             .environment(\.units, units)
             .environment(\.connectivity, home.connectivity)
+    }
+
+    /// Opens Search for a query Siri, Shortcuts or a link asked for, over any open card.
+    private func openSearch(_ query: String?) {
+        guard let query else { return }
+        home.searchRequest = nil
+        showSettings = false
+        searchQuery = query.isEmpty ? nil : query
+        showSearch = true
     }
 
     // MARK: Sheet
@@ -115,7 +127,8 @@ struct RootTabView: View {
                         onImport: { showSearch = false; home.showImport = true },
                         onAirport: { code in showSearch = false; home.open(airport: code) },
                         onOpen: { flight in showSearch = false; home.open(flight: flight) },
-                        onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)))
+                        onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)),
+                        query: searchQuery)
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -272,15 +285,18 @@ private struct SearchSheet: View {
     var onOpen: (Flight) -> Void
     var onPlan: (UpcomingFlight) -> Void
     var planned: Set<UpcomingFlight.ID>
+    /// Run once when given (Siri, Shortcuts, a search link).
+    var query: String?
     @Environment(\.dismiss) private var dismiss
 
     init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem], known: [KnownFlight],
          onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void, onAirport: @escaping (String) -> Void,
-         onOpen: @escaping (Flight) -> Void, onPlan: @escaping (UpcomingFlight) -> Void, planned: Set<UpcomingFlight.ID>) {
+         onOpen: @escaping (Flight) -> Void, onPlan: @escaping (UpcomingFlight) -> Void, planned: Set<UpcomingFlight.ID>,
+         query: String? = nil) {
         _store = State(initialValue: env.makeSearchStore())
         self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.known = known
         self.onFollowed = onFollowed; self.onImport = onImport; self.onAirport = onAirport; self.onOpen = onOpen
-        self.onPlan = onPlan; self.planned = planned
+        self.onPlan = onPlan; self.planned = planned; self.query = query
     }
 
     var body: some View {
@@ -288,6 +304,11 @@ private struct SearchSheet: View {
         SearchView(store: store, onFollowed: onFollowed, lookup: lookup, alreadyFollowed: alreadyFollowed,
                    frequent: frequent, onImport: onImport, onAirport: onAirport, known: known,
                    onPlan: onPlan, planned: planned, onOpen: onOpen, onClose: { dismiss() })
+            .task(id: query) {
+                guard let query, !query.isEmpty else { return }
+                store.text = query
+                await store.search()
+            }
             #if DEBUG
             // Screenshot runs: `-searchText UA1527` runs that search when the sheet opens.
             .task {

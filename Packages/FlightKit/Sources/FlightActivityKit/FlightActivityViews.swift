@@ -80,7 +80,7 @@ public struct FlightActivityLockScreenView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(display.ident)
+                Text(ui: display.ident)
                     .activityFont(17, .semibold, relativeTo: .headline)
                     .foregroundStyle(ActivityPalette.primary)
                 Spacer(minLength: 8)
@@ -97,9 +97,9 @@ public struct FlightActivityLockScreenView: View {
                     .accessibilityLabel(display.spokenEnd(departure: false))
             }
             HStack {
-                Text(display.originGate)
+                Text(ui: display.originGate)
                 Spacer()
-                Text(display.destinationGate)
+                Text(ui: display.destinationGate)
             }
             .activityFont(13, relativeTo: .footnote)
             .foregroundStyle(ActivityPalette.secondary)
@@ -119,7 +119,7 @@ public struct FlightActivityStatus: View {
     public var body: some View {
         HStack(spacing: 5) {
             Circle().fill(display.levelColor).frame(width: 8, height: 8).accessibilityHidden(true)
-            Text(display.statusText)
+            Text(ui: display.statusText)
                 .activityFont(size, .medium, relativeTo: .subheadline)
                 .foregroundStyle(display.statusColor)
                 .lineLimit(1)
@@ -143,16 +143,16 @@ public struct FlightActivityEnd: View {
 
     public var body: some View {
         VStack(alignment: alignment, spacing: 2) {
-            Text(code)
+            Text(ui: code)
                 .activityFont(28, .semibold, relativeTo: .title)
                 .foregroundStyle(ActivityPalette.primary)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 if let scheduled {
-                    Text(scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
+                    Text(ui: scheduled).strikethrough().foregroundStyle(ActivityPalette.secondary)
                 }
-                Text(time).foregroundStyle(ActivityPalette.primary)
+                Text(ui: time).foregroundStyle(ActivityPalette.primary)
                 if let dayMark {
-                    Text(dayMark).activityFont(11, .semibold, relativeTo: .caption2).foregroundStyle(ActivityPalette.secondary)
+                    Text(ui: dayMark).activityFont(11, .semibold, relativeTo: .caption2).foregroundStyle(ActivityPalette.secondary)
                 }
             }
             .activityFont(15, relativeTo: .subheadline, digits: true)
@@ -205,7 +205,7 @@ public struct FlightActivityCompactLeading: View {
     public var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "airplane").foregroundStyle(display.levelColor)
-            Text(display.attributes.destinationIata).foregroundStyle(ActivityPalette.primary)
+            Text(ui: display.attributes.destinationIata).foregroundStyle(ActivityPalette.primary)
         }
         .activityFont(15, .semibold, relativeTo: .subheadline)
         .lineLimit(1)
@@ -221,7 +221,7 @@ public struct FlightActivityCompactTrailing: View {
     public init(_ display: FlightActivityDisplay) { self.display = display }
 
     public var body: some View {
-        Text(display.compactTime)
+        Text(ui: display.compactTime)
             .activityFont(15, .semibold, relativeTo: .subheadline, digits: true)
             .foregroundStyle(display.statusColor)
             .lineLimit(1)
@@ -263,8 +263,8 @@ public struct FlightActivityExpandedEnd: View {
 
     public var body: some View {
         VStack(alignment: alignment, spacing: 0) {
-            Text(code).activityFont(24, .semibold, relativeTo: .title2).foregroundStyle(ActivityPalette.primary)
-            Text(time).activityFont(14, relativeTo: .subheadline, digits: true).foregroundStyle(ActivityPalette.secondary)
+            Text(ui: code).activityFont(24, .semibold, relativeTo: .title2).foregroundStyle(ActivityPalette.primary)
+            Text(ui: time).activityFont(14, relativeTo: .subheadline, digits: true).foregroundStyle(ActivityPalette.secondary)
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
@@ -280,7 +280,7 @@ public struct FlightActivityExpandedCenter: View {
 
     public var body: some View {
         VStack(spacing: 2) {
-            Text(display.ident).activityFont(15, .semibold, relativeTo: .subheadline).foregroundStyle(ActivityPalette.primary)
+            Text(ui: display.ident).activityFont(15, .semibold, relativeTo: .subheadline).foregroundStyle(ActivityPalette.primary)
             FlightActivityStatus(display: display, size: 13)
         }
     }
@@ -295,9 +295,9 @@ public struct FlightActivityExpandedBottom: View {
         VStack(spacing: 6) {
             FlightActivityProgress(display: display)
             HStack {
-                Text(display.originGate)
+                Text(ui: display.originGate)
                 Spacer()
-                Text(display.destinationGate)
+                Text(ui: display.destinationGate)
             }
             .activityFont(13, relativeTo: .footnote)
             .foregroundStyle(ActivityPalette.secondary)

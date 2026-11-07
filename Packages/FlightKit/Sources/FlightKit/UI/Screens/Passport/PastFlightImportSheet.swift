@@ -99,7 +99,7 @@ struct PastFlightImportSheet: View {
                 .foregroundStyle(Theme.secondary)
                 .scaledPadding(.horizontal, 20)
             if let error {
-                Text(error)
+                Text(ui: error)
                     .scaledFont(15, weight: .medium)
                     .foregroundStyle(Theme.veryLate)
                     .scaledPadding(.horizontal, 20)
@@ -114,7 +114,7 @@ struct PastFlightImportSheet: View {
                         PastFlightRow(flight: row.flight, origin: lookup(row.flight.originIcao),
                                       destination: lookup(row.flight.destinationIcao))
                         ForEach(row.warnings, id: \.self) { w in
-                            Text(w).scaledFont(13).foregroundStyle(Theme.secondary)
+                            Text(ui: w).scaledFont(13).foregroundStyle(Theme.secondary)
                                 .scaledPadding(.leading, 18).scaledPadding(.bottom, 4)
                         }
                     }
@@ -132,7 +132,7 @@ struct PastFlightImportSheet: View {
                 Hairline()
                 HStack(spacing: 12) {
                     Text("Row \(s.row)").scaledFont(15, weight: .medium).monospacedDigit().foregroundStyle(Theme.secondary)
-                    Text(s.reason.message).scaledFont(15).foregroundStyle(Theme.primary)
+                    Text(ui: s.reason.message).scaledFont(15).foregroundStyle(Theme.primary)
                     Spacer(minLength: 0)
                 }
                 .scaledPadding(.horizontal, 20)

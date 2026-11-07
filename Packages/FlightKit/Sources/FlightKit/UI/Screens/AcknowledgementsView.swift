@@ -175,7 +175,7 @@ public struct AcknowledgementsView: View {
                 .scaledPadding(.top, 34)
                 .scaledPadding(.bottom, 8)
             Hairline().scaledPadding(.horizontal, 16)
-            Text(Self.circleFlagsLicense)
+            Text(ui: Self.circleFlagsLicense)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -199,7 +199,7 @@ public struct AcknowledgementsView: View {
             Hairline().scaledPadding(.horizontal, 16)
             let blocks = Array(Self.thirdPartyBlocks.prefix(textLimit ?? .max))
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                Text(block)
+                Text(ui: block)
                     .scaledFont(12)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -214,11 +214,11 @@ public struct AcknowledgementsView: View {
     private func logoCredit(_ credit: LogoCredit) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(credit.name) (\(credit.icao))").scaledFont(15).foregroundStyle(Theme.primary)
-            Text(credit.author).scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(ui: credit.author).scaledFont(13).foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             license(credit.license, url: credit.license_url)
             if let note = LicenseNote.modification(changes: credit.changes, cropped: false, license: credit.license) {
-                Text(note).scaledFont(13).foregroundStyle(Theme.secondary)
+                Text(ui: note).scaledFont(13).foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let url = URL(string: credit.source) {
@@ -228,16 +228,16 @@ public struct AcknowledgementsView: View {
                 .accessibilityHint(credit.source)
             }
             if let symbol = credit.symbol {
-                Text(symbol.creditLine).scaledFont(13).foregroundStyle(Theme.secondary)
+                Text(ui: symbol.creditLine).scaledFont(13).foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.top, 4)
                 license(symbol.license, url: symbol.license_url)
                 if let line = symbol.provenanceLine {
-                    Text(line).scaledFont(13).foregroundStyle(Theme.secondary)
+                    Text(ui: line).scaledFont(13).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let note = symbol.modificationNote {
-                    Text(note).scaledFont(13).foregroundStyle(Theme.secondary)
+                    Text(ui: note).scaledFont(13).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !symbol.isCrop, let url = URL(string: symbol.source) {
@@ -257,11 +257,11 @@ public struct AcknowledgementsView: View {
     @ViewBuilder private func license(_ name: String, url: String?) -> some View {
         if let deed = LicenseNote.deed(url) {
             Link(destination: deed) {
-                Text(name).scaledFont(13).foregroundStyle(Theme.accent)
+                Text(ui: name).scaledFont(13).foregroundStyle(Theme.accent)
             }
             .accessibilityHint("Opens the \(name) license deed")
         } else {
-            Text(name).scaledFont(13).foregroundStyle(Theme.secondary)
+            Text(ui: name).scaledFont(13).foregroundStyle(Theme.secondary)
         }
     }
 
@@ -269,12 +269,12 @@ public struct AcknowledgementsView: View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.name).scaledFont(17).foregroundStyle(Theme.primary)
-                    Text(entry.detail).scaledFont(13).foregroundStyle(Theme.secondary)
+                    Text(ui: entry.name).scaledFont(17).foregroundStyle(Theme.primary)
+                    Text(ui: entry.detail).scaledFont(13).foregroundStyle(Theme.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
-                Text(entry.license).scaledFont(15).foregroundStyle(Theme.secondary)
+                Text(ui: entry.license).scaledFont(15).foregroundStyle(Theme.secondary)
             }
             .scaledPadding(.horizontal, 16)
             .frame(minHeight: 60)
