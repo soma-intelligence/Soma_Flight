@@ -2,6 +2,16 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "%lld in the air": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld en vol"
+          }
+        }
+      }
+    },
     "1 day": {
       "localizations": {
         "fr": {
@@ -152,6 +162,16 @@
         }
       }
     },
+    "12-Hour": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "12 h"
+          }
+        }
+      }
+    },
     "15m Late": {
       "localizations": {
         "fr": {
@@ -198,6 +218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "20D (2 fois)"
+          }
+        }
+      }
+    },
+    "24-Hour": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24 h"
           }
         }
       }
@@ -308,6 +338,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une copie ajoutée à Apple Wallet reste dans Wallet."
+          }
+        }
+      }
+    },
+    "A different aircraft type or tail number before you leave": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un autre type d'avion ou une autre immatriculation avant le départ"
           }
         }
       }
@@ -538,6 +578,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ajouter une carte d'embarquement"
+          }
+        }
+      }
+    },
+    "Add Flight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un vol"
           }
         }
       }
@@ -802,6 +852,16 @@
         }
       }
     },
+    "Aircraft Changes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changements d'avion"
+          }
+        }
+      }
+    },
     "Aircraft Type Name": {
       "localizations": {
         "fr": {
@@ -992,6 +1052,26 @@
         }
       }
     },
+    "Airport code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code de l'aéroport"
+          }
+        }
+      }
+    },
+    "Airport summary": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résumé de l'aéroport"
+          }
+        }
+      }
+    },
     "Airports": {
       "localizations": {
         "fr": {
@@ -1048,6 +1128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couloir"
+          }
+        }
+      }
+    },
+    "Alert me about this airport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "M'alerter pour cet aéroport"
           }
         }
       }
@@ -1262,6 +1352,16 @@
         }
       }
     },
+    "Altitude": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altitude"
+          }
+        }
+      }
+    },
     "An aircraft type is its ICAO code, like B738 or A20N.": {
       "localizations": {
         "fr": {
@@ -1328,6 +1428,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "avr."
+          }
+        }
+      }
+    },
+    "Around Me": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autour de moi"
           }
         }
       }
@@ -1862,6 +1972,16 @@
         }
       }
     },
+    "Boarding has started, boarding time changes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Début de l'embarquement, changement d'heure d'embarquement"
+          }
+        }
+      }
+    },
     "Boarding pass barcode": {
       "localizations": {
         "fr": {
@@ -2148,6 +2268,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Modifier"
+          }
+        }
+      }
+    },
+    "Change Place": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changer de lieu"
           }
         }
       }
@@ -3292,6 +3422,16 @@
         }
       }
     },
+    "Door to door": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Porte à porte"
+          }
+        }
+      }
+    },
     "Drizzle": {
       "localizations": {
         "fr": {
@@ -3518,6 +3658,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saisis un numéro avec son indicatif de pays"
+          }
+        }
+      }
+    },
+    "Enter an airport code to see flights in the air around it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisis un code d'aéroport pour voir les avions en vol autour."
           }
         }
       }
@@ -3788,6 +3938,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Favori"
+          }
+        }
+      }
+    },
+    "Favorite Airports": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aéroports favoris"
           }
         }
       }
@@ -4092,6 +4252,16 @@
         }
       }
     },
+    "Flights around you": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vols autour de toi"
+          }
+        }
+      }
+    },
     "Flights can be searched from 10 days back to 2 days ahead. Pick another date.": {
       "localizations": {
         "fr": {
@@ -4108,6 +4278,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vols retenus par la FAA"
+          }
+        }
+      }
+    },
+    "Flights near %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vols près de %@"
           }
         }
       }
@@ -4218,6 +4398,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Brouillard"
+          }
+        }
+      }
+    },
+    "Follow": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre"
           }
         }
       }
@@ -4722,6 +4912,26 @@
         }
       }
     },
+    "Ground stops, delay programs and closures": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêts au sol, programmes de retard et fermetures"
+          }
+        }
+      }
+    },
+    "Ground stops, delay programs and closures at airports you follow": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêts au sol, programmes de retard et fermetures dans les aéroports que tu suis"
+          }
+        }
+      }
+    },
     "Group": {
       "localizations": {
         "fr": {
@@ -4768,6 +4978,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Brume sèche"
+          }
+        }
+      }
+    },
+    "Heading": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cap"
           }
         }
       }
@@ -5612,6 +5832,16 @@
         }
       }
     },
+    "Likely Disruption": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perturbation probable"
+          }
+        }
+      }
+    },
     "Likely to be extended": {
       "localizations": {
         "fr": {
@@ -5772,6 +6002,16 @@
         }
       }
     },
+    "Looking for planes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche des avions"
+          }
+        }
+      }
+    },
     "Looking forward": {
       "localizations": {
         "fr": {
@@ -5858,6 +6098,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "METAR observé"
+          }
+        }
+      }
+    },
+    "METAR, observed now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "METAR, observé maintenant"
           }
         }
       }
@@ -6102,6 +6352,16 @@
         }
       }
     },
+    "More flights are in this area than shown": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il y a plus de vols dans cette zone que ceux affichés"
+          }
+        }
+      }
+    },
     "Morning": {
       "localizations": {
         "fr": {
@@ -6242,6 +6502,16 @@
         }
       }
     },
+    "NOTAM": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOTAM"
+          }
+        }
+      }
+    },
     "Name or code": {
       "localizations": {
         "fr": {
@@ -6268,6 +6538,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Marine"
+          }
+        }
+      }
+    },
+    "Nearby Flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vols à proximité"
           }
         }
       }
@@ -6612,6 +6892,16 @@
         }
       }
     },
+    "No flights in the air here right now.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun avion en vol ici pour le moment."
+          }
+        }
+      }
+    },
     "No flights match these filters.": {
       "localizations": {
         "fr": {
@@ -6938,6 +7228,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ne partage pas ses vols avec toi"
+          }
+        }
+      }
+    },
+    "Not the latest positions": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Positions pas à jour"
           }
         }
       }
@@ -8862,6 +9162,16 @@
         }
       }
     },
+    "Show Flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher les vols"
+          }
+        }
+      }
+    },
     "Show Numbers": {
       "localizations": {
         "fr": {
@@ -9402,6 +9712,16 @@
         }
       }
     },
+    "Speed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitesse"
+          }
+        }
+      }
+    },
     "Spent waiting on late arrivals": {
       "localizations": {
         "fr": {
@@ -9462,12 +9782,32 @@
         }
       }
     },
+    "Stop Following": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus suivre"
+          }
+        }
+      }
+    },
     "Stop Sharing": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Arrêter le partage"
+          }
+        }
+      }
+    },
+    "Stop alerts for this airport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter les alertes pour cet aéroport"
           }
         }
       }
@@ -9538,6 +9878,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Réglages des notifications système"
+          }
+        }
+      }
+    },
+    "TAF forecast": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévision TAF"
           }
         }
       }
@@ -9802,6 +10152,16 @@
         }
       }
     },
+    "That airport code is not known.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce code d'aéroport est inconnu."
+          }
+        }
+      }
+    },
     "That boarding pass does not say which flight it is for.": {
       "localizations": {
         "fr": {
@@ -10028,6 +10388,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les notes dépassent 2 000 caractères"
+          }
+        }
+      }
+    },
+    "The radar is unavailable right now.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le radar est indisponible pour le moment."
           }
         }
       }
@@ -11282,6 +11652,16 @@
         }
       }
     },
+    "Why it is late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pourquoi il est en retard"
+          }
+        }
+      }
+    },
     "Widebody twin": {
       "localizations": {
         "fr": {
@@ -11358,6 +11738,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Écrit au support à propos de ce vol"
+          }
+        }
+      }
+    },
+    "Written by a language model from the facts shown": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rédigé par un modèle de langage à partir des faits affichés"
           }
         }
       }
@@ -11642,6 +12032,16 @@
         }
       }
     },
+    "Your location": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta position"
+          }
+        }
+      }
+    },
     "Your name": {
       "localizations": {
         "fr": {
@@ -11738,26 +12138,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ton terminal"
-          }
-        }
-      }
-    },
-    "24-Hour": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "24 h"
-          }
-        }
-      }
-    },
-    "12-Hour": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "12 h"
           }
         }
       }
