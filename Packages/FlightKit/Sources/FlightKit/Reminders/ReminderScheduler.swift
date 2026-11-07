@@ -66,6 +66,10 @@ public final class ReminderScheduler {
     /// the fixed rule for every flight. The home sets it when it has an estimator.
     public var leaveTime: (@MainActor (Flight) -> LeaveTime?)?
 
+    /// The passport's expiry day from the travel documents, read at each sync; nil plans no passport
+    /// reminder. Call `resync()` when it changes.
+    public var passportExpires: (@MainActor () -> String?)?
+
     /// - Parameter clock: the user's clock style, read at each sync (12 or 24 hour times in the text).
     public init(center: any LocalNotificationCenter = SystemLocalNotificationCenter(),
                 lookup: @escaping @Sendable (String) -> Airport?,
@@ -96,10 +100,10 @@ public final class ReminderScheduler {
     /// The reminders `flights` should have now.
     func plan(_ flights: [Flight]) -> [PlannedReminder] {
         guard enabled else { return [] }
-        let at = now(), style = clock()
+        let at = now(), style = clock(), expires = passportExpires?()
         return flights.flatMap {
             ReminderPlanner.plan(for: $0, origin: lookup($0.originIcao), destination: lookup($0.destinationIcao),
-                                 now: at, clock: style, leave: leaveTime?($0))
+                                 now: at, clock: style, leave: leaveTime?($0), passportExpires: expires)
         }
     }
 

@@ -11,6 +11,10 @@ public enum ReminderKind: String, Sendable, CaseIterable {
     /// boarding when the device measured them (`LeaveTimePlanner`), else 3 hours before an international
     /// departure and 2 before a domestic one.
     case leave
+    /// Before an international flight when the passport (Settings > Travel Documents) is expired by the
+    /// departure day or expires within six months of it: 30 days ahead, else 7, else the next 9:00 at the
+    /// departure airport when the flight is more than a day away.
+    case passport
 }
 
 /// A reminder to schedule: where it fires and what it says.
@@ -33,6 +37,10 @@ public enum ReminderPlanner {
     public static let domesticLead: TimeInterval = 2 * 3600
     /// The morning summary's local hour at the departure airport.
     public static let morningHour = 7
+    /// How far ahead the passport reminder fires, the first still in the future.
+    public static let passportLeads: [TimeInterval] = [30 * 86400, 7 * 86400]
+    /// The local hour of the passport reminder when both leads have passed.
+    public static let passportHour = 9
 
     public static func identifier(_ flight: Flight.ID, _ kind: ReminderKind) -> String {
         "\(identifierPrefix)\(flight.uuidString.lowercased()).\(kind.rawValue)"
@@ -50,9 +58,11 @@ public enum ReminderPlanner {
     /// (airlines open it from there); the morning summary and leaving follow the latest estimate. The
     /// morning summary is skipped when 7:00 is not before the time to leave (an early flight).
     /// `leave` is the flight's computed leave time (`LeaveTimePlanner`); nil or a fixed one keeps the
-    /// fixed rule and its words.
+    /// fixed rule and its words. `passportExpires` is the passport's expiry day ("yyyy-MM-dd") from the
+    /// travel documents; nil plans no passport reminder.
     public static func plan(for flight: Flight, origin: Airport?, destination: Airport?, now: Date,
-                            clock: TimeStyle = .h24, leave: LeaveTime? = nil) -> [PlannedReminder] {
+                            clock: TimeStyle = .h24, leave: LeaveTime? = nil,
+                            passportExpires: String? = nil) -> [PlannedReminder] {
         guard flight.actualOut == nil, flight.status == .scheduled || flight.status == .unknown,
               let scheduled = flight.scheduledOut else { return [] }
         let departure = flight.estimatedOut ?? scheduled
@@ -80,7 +90,26 @@ public enum ReminderPlanner {
             add(.leave, leaveAt, ReminderCopy.leave(flight, departure: departure, tz: tz, clock: clock,
                                                     international: international))
         }
+        if international, origin != nil, destination != nil,
+           let notice = TravelDocumentRules.passportNotice(expires: passportExpires, departure: scheduled,
+                                                           international: true),
+           let at = passportFireDate(departure: scheduled, tz: tz, now: now) {
+            add(.passport, at, ReminderCopy.passport(flight, notice: notice))
+        }
         return out.sorted { $0.fireDate < $1.fireDate }
+    }
+
+    /// When the passport reminder fires: 30 days before the departure, else 7, else 9:00 at the departure
+    /// airport the next morning (today's when still ahead) if that is at least a day before the departure.
+    static func passportFireDate(departure: Date, tz: TimeZone, now: Date) -> Date? {
+        if let lead = passportLeads.first(where: { departure.addingTimeInterval(-$0) > now }) {
+            return departure.addingTimeInterval(-lead)
+        }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        guard var nine = cal.date(bySettingHour: passportHour, minute: 0, second: 0, of: now) else { return nil }
+        if nine <= now { nine = cal.date(byAdding: .day, value: 1, to: nine) ?? nine }
+        return nine.addingTimeInterval(86400) <= departure ? nine : nil
     }
 
     /// 7:00 on the local day of `date` in `tz`.

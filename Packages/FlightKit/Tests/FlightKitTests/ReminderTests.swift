@@ -141,7 +141,7 @@ import Testing
         #expect(leave?.fireDate == Self.date("2026-11-03T19:50:00Z"))
         // Unfollow.
         await s.sync([g])
-        #expect(Set(center.pending.keys) == Set(ReminderKind.allCases.map { ReminderPlanner.identifier(g.id, $0) }))
+        #expect(Set(center.pending.keys) == Set([ReminderKind.checkIn, .morning, .leave].map { ReminderPlanner.identifier(g.id, $0) }))
     }
 
     @Test func turningRemindersOffRemovesThemAndOnBringsThemBack() async {
@@ -240,6 +240,44 @@ import Testing
         let events = try FlightJSON.decoder.decode([FlightEvent].self, from: Data(json.utf8))
         #expect(events.map(\.kind) == [.update, .update])
         #expect(events.allSatisfy { DetailFacts.eventText($0) == nil })
+    }
+
+    // MARK: Passport
+
+    @Test func aPassportExpiringWithinSixMonthsGetsAReminderThirtyDaysAhead() {
+        let plan = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                        now: Self.date("2026-09-01T00:00:00Z"), passportExpires: "2027-03-01")
+        let p = plan.first { $0.kind == .passport }
+        #expect(p?.fireDate == Self.date("2026-10-04T22:30:00Z"))
+        #expect(p?.title == "Passport expires soon for AF 84")
+        #expect(p?.id == "reminder.0f8fad5b-d9cb-469f-a165-70867728950e.passport")
+    }
+
+    @Test func thePassportReminderFallsBackToSevenDaysThenTheNextMorning() {
+        let week = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                        now: Self.date("2026-10-20T00:00:00Z"), passportExpires: "2026-10-01")
+        #expect(week.first { $0.kind == .passport }?.fireDate == Self.date("2026-10-27T22:30:00Z"))
+        #expect(week.first { $0.kind == .passport }?.title == "Passport expired for AF 84")
+        // 9:00 in Paris (UTC+1) on 2 Nov, more than a day before the flight.
+        let late = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                        now: Self.date("2026-11-01T12:00:00Z"), passportExpires: "2026-10-01")
+        #expect(late.first { $0.kind == .passport }?.fireDate == Self.date("2026-11-02T08:00:00Z"))
+        // Under a day to go: the flight sheet says it, no notification.
+        let tooLate = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                           now: Self.date("2026-11-03T09:00:00Z"), passportExpires: "2026-10-01")
+        #expect(!tooLate.contains { $0.kind == .passport })
+    }
+
+    @Test func noPassportReminderForAValidPassportOrADomesticFlight() {
+        let valid = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                         now: Self.date("2026-09-01T00:00:00Z"), passportExpires: "2030-01-01")
+        #expect(!valid.contains { $0.kind == .passport })
+        let domestic = ReminderPlanner.plan(for: Self.domestic(), origin: Self.sfo, destination: Self.lax,
+                                            now: Self.date("2026-09-01T00:00:00Z"), passportExpires: "2026-10-01")
+        #expect(!domestic.contains { $0.kind == .passport })
+        let none = ReminderPlanner.plan(for: Self.af84(), origin: Self.cdg, destination: Self.sfo,
+                                        now: Self.date("2026-09-01T00:00:00Z"))
+        #expect(!none.contains { $0.kind == .passport })
     }
 }
 

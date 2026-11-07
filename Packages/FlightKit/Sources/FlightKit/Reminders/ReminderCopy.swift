@@ -58,6 +58,13 @@ public enum ReminderCopy {
                         + "\(queue) at security and \(Format.minutes(Int(b.bagDrop / 60))) to drop bags.")
     }
 
+    /// "Check your passport for AF 84": the passport is expired by the flight, or expires within six months.
+    public static func passport(_ f: Flight, notice: TravelDocumentRules.PassportNotice) -> Text {
+        let id = Format.ident(f.ident)
+        let text = TravelDocumentRules.passportText(notice)
+        return Text(title: "\(text.title) for \(id)", body: text.text)
+    }
+
     /// Whole minutes the departure estimate is past the schedule, nil without both.
     private static func lateMinutes(_ f: Flight) -> Int? {
         guard let est = f.estimatedOut, let sched = f.scheduledOut else { return nil }
