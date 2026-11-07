@@ -30,7 +30,12 @@ export type AlertKind =
   | "reinstated"
   | "diversion"
   | "connection_at_risk"
-  | "airport_program";
+  | "airport_program"
+  | "early_departure"
+  | "taxi_long"
+  | "aircraft_change"
+  | "boarding_started"
+  | "boarding_change";
 
 /** Columns of notification_preferences. `reminders` is only read by the app. */
 export type AlertCategory =
@@ -39,7 +44,10 @@ export type AlertCategory =
   | "takeoff_landing"
   | "baggage"
   | "cancellations"
-  | "reminders";
+  | "reminders"
+  | "boarding"
+  | "aircraft"
+  | "favorite_airports";
 
 export const CATEGORY: Record<AlertKind, AlertCategory> = {
   departure_delay: "delays",
@@ -60,6 +68,11 @@ export const CATEGORY: Record<AlertKind, AlertCategory> = {
   reinstated: "cancellations",
   diversion: "cancellations",
   airport_program: "delays",
+  early_departure: "delays",
+  taxi_long: "delays",
+  aircraft_change: "aircraft",
+  boarding_started: "boarding",
+  boarding_change: "boarding",
 };
 
 /**
@@ -77,7 +90,17 @@ export const IMMEDIATE_ALERTS = new Set<AlertKind>([
   "cancel",
   "reinstated",
   "diversion",
+  "aircraft_change",
+  "boarding_started",
+  "boarding_change",
 ]);
+
+/** A flight that pushes back this many minutes before its schedule is an early departure. */
+export const EARLY_DEPARTURE_MIN = 10;
+/** Pushed back and still on the ground this many minutes later: the taxi out is long. */
+export const TAXI_LONG_MIN = 30;
+/** A boarding time that moves this many minutes is worth a "boarding time change" alert. */
+export const BOARDING_STEP_MIN = 10;
 
 /** A delay alert fires once the delay reaches this, then whenever it moves this far from the last one sent. */
 export const DELAY_STEP_MIN = 15;
@@ -146,6 +169,15 @@ export interface AlertFlight {
   terminal_origin?: string | null;
   terminal_destination?: string | null;
   baggage_belt?: string | null;
+  aircraft_type?: string | null;
+  registration?: string | null;
+  /**
+   * Boarding times. No provider adapter fills these today (AeroAPI and the free providers give no
+   * boarding time), and process_alert does not track them, so the boarding alerts below never fire
+   * until a source and a flights column exist. The detection is ready and tested.
+   */
+  boarding_estimated?: string | null;
+  boarding_actual?: string | null;
   inbound_provider_id?: string | null;
 }
 
@@ -395,6 +427,75 @@ export function detectAlerts(
       from: text(ch.baggage_belt.from),
       to: text(ch.baggage_belt.to),
     });
+  }
+
+  // Aircraft swap: the type or the registration changed on a flight that has not left yet.
+  if (!departed) {
+    const typeMoved = moved("aircraft_type");
+    const regMoved = moved("registration");
+    if (typeMoved || regMoved) {
+      add({
+        kind: "aircraft_change",
+        key: per("aircraft_change"),
+        from: text(ch[typeMoved ? "aircraft_type" : "registration"].from),
+        to: text(ch[typeMoved ? "aircraft_type" : "registration"].to),
+        reason: typeMoved ? "type" : "registration",
+      });
+    }
+  }
+
+  // Boarding (dormant until a source gives a boarding time, see AlertFlight).
+  if (!departed) {
+    if (set("boarding_actual")) {
+      add({
+        kind: "boarding_started",
+        key: "boarding_started",
+        to: text(ch.boarding_actual.to),
+      });
+    } else if (moved("boarding_estimated")) {
+      const step = Math.abs(
+        minutesBetween(ch.boarding_estimated.to, ch.boarding_estimated.from) ??
+          0,
+      );
+      if (step >= BOARDING_STEP_MIN) {
+        add({
+          kind: "boarding_change",
+          key: per("boarding_change"),
+          from: text(ch.boarding_estimated.from),
+          to: text(ch.boarding_estimated.to),
+        });
+      }
+    }
+  }
+
+  // Left the gate early.
+  if (set("actual_out")) {
+    const early = minutesBetween(
+      text(ch.scheduled_out?.to) ?? flight.scheduled_out,
+      ch.actual_out.to,
+    );
+    if (early !== null && early >= EARLY_DEPARTURE_MIN) {
+      add({
+        kind: "early_departure",
+        key: "early_departure",
+        minutes: early,
+        to: text(ch.actual_out.to),
+      });
+    }
+  }
+
+  // Long taxi out: wheels up long after pushback.
+  if (set("actual_off")) {
+    const out = text(ch.actual_out?.to) ?? flight.actual_out;
+    const taxi = minutesBetween(ch.actual_off.to, out);
+    if (taxi !== null && taxi >= TAXI_LONG_MIN) {
+      add({
+        kind: "taxi_long",
+        key: "taxi_long",
+        minutes: taxi,
+        to: text(ch.actual_off.to),
+      });
+    }
   }
 
   // Milestones, each once per flight.

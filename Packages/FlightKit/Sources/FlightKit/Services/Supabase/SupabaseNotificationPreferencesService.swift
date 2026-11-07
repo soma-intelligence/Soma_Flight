@@ -8,18 +8,20 @@ public final class SupabaseNotificationPreferencesService: NotificationPreferenc
 
     public init(backend: SupabaseBackend) { self.backend = backend }
 
-    static let columns = "delays, gates, takeoff_landing, baggage, cancellations, reminders"
+    static let columns = "delays, gates, takeoff_landing, baggage, cancellations, reminders, boarding, aircraft, favorite_airports"
 
     /// The row as PostgREST takes it (snake_case keys written out, since the encoder does not convert).
     struct Row: Encodable {
         var user_id: String
         var delays, gates, takeoff_landing, baggage, cancellations, reminders: Bool
+        var boarding, aircraft, favorite_airports: Bool
         var updated_at: String
 
         init(user: UUID, _ p: NotificationPreferences, at: Date) {
             user_id = user.uuidString.lowercased()
             delays = p.delays; gates = p.gates; takeoff_landing = p.takeoffLanding
             baggage = p.baggage; cancellations = p.cancellations; reminders = p.reminders
+            boarding = p.boarding; aircraft = p.aircraft; favorite_airports = p.favoriteAirports
             updated_at = ISO8601DateFormatter().string(from: at)
         }
     }

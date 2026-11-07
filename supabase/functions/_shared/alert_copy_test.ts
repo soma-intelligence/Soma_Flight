@@ -1,5 +1,11 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { alertText, clock, displayIdent, span } from "./alert_copy.ts";
+import {
+  alertText,
+  clock,
+  displayIdent,
+  favoriteProgramText,
+  span,
+} from "./alert_copy.ts";
 import {
   type Alert,
   type AlertFlight,
@@ -262,4 +268,49 @@ Deno.test("airport programs: what the FAA holds, in the airport's own time", () 
     body: "The FAA lists SFO as closed. Check with your airline about AF 84.",
   });
   assertEquals(text(alert("airport_program")).title, "AF 84 may be delayed");
+});
+
+Deno.test("copy: early departure, taxi, aircraft, boarding, favorite airport", () => {
+  const t = (a: Partial<Alert> & { kind: AlertKind }) => text(alert(a.kind, a));
+  const early = t({
+    kind: "early_departure",
+    minutes: 15,
+    to: "2026-11-03T22:15:00Z",
+  });
+  assertEquals(early.title, "AF 84 left 15m early");
+  const taxi = t({ kind: "taxi_long", minutes: 34 });
+  assertEquals(taxi.title, "AF 84 taxied 34m before take-off");
+  const swap = t({
+    kind: "aircraft_change",
+    from: "A359",
+    to: "B77W",
+    reason: "type",
+  });
+  assertEquals([swap.title, swap.body], [
+    "AF 84 has a different aircraft type",
+    "Now B77W, was A359.",
+  ]);
+  assertEquals(t({ kind: "boarding_started" }).title, "AF 84 is boarding");
+  assertEquals(
+    t({
+      kind: "boarding_change",
+      from: "2026-11-03T21:50:00Z",
+      to: "2026-11-03T22:10:00Z",
+    }).title,
+    "AF 84 boarding time changed",
+  );
+  for (const x of [early, taxi, swap]) {
+    assertEquals(/[—]/.test(x.title + x.body), false);
+  }
+  const gs = favoriteProgramText(
+    {
+      kind: "ground_stop",
+      code: "SFO",
+      reason: "low clouds",
+      ends_at: "2026-11-04T01:00:00Z",
+    },
+    "America/Los_Angeles",
+  );
+  assertEquals(gs.title, "Ground stop at SFO");
+  assertEquals(gs.body.includes("until 5:00 PM"), true);
 });

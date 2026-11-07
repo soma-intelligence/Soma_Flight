@@ -25,7 +25,12 @@ import {
   IMMEDIATE_ALERTS,
   inboundLate,
 } from "../_shared/alerts.ts";
-import { alertText, type CopyContext } from "../_shared/alert_copy.ts";
+import {
+  alertText,
+  type CopyContext,
+  favoriteProgramText,
+} from "../_shared/alert_copy.ts";
+import { readFavoriteAlert } from "../_shared/favorite_alerts.ts";
 import {
   cachesFrom,
   predictedDelay,
@@ -386,6 +391,9 @@ const CATEGORIES: AlertCategory[] = [
   "baggage",
   "cancellations",
   "reminders",
+  "boarding",
+  "aircraft",
+  "favorite_airports",
 ];
 
 /** For each category, the users who turned it off. A user with no row has everything on. */
@@ -517,13 +525,21 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
     if (!(await isServiceCaller(req, key))) {
       throw new ApiError("unauthorized", 401, "Service role only");
     }
-    let body: { flightId?: unknown; eventId?: unknown; program?: unknown };
+    let body: {
+      flightId?: unknown;
+      eventId?: unknown;
+      program?: unknown;
+      favorite?: unknown;
+    };
     try {
       body = await req.json();
     } catch {
       throw new ApiError("invalid_request", 400, "Invalid JSON");
     }
     const { flightId, eventId } = body;
+    if (body.favorite !== undefined) {
+      return await sendFavorite(deps, body.favorite);
+    }
     if (body.program !== undefined) {
       return await sendProgram(deps, flightId, body.program);
     }
@@ -762,6 +778,93 @@ async function sendProgram(
     null,
   );
   return json({ ok: true, alerts, kinds });
+}
+
+/**
+ * One favorite airport push: an FAA program at an airport the user follows. Claimed in
+ * favorite_alert_log (user and key, so one push per user and event however many sweeps see it) before
+ * the send, like every alert. Skipped when the user turned the favorite airports switch off.
+ */
+async function sendFavorite(deps: Deps, raw: unknown): Promise<Response> {
+  const fav = readFavoriteAlert(raw);
+  if (!fav) {
+    throw new ApiError(
+      "invalid_request",
+      400,
+      "favorite must be a favorite airport alert",
+    );
+  }
+  const cfg = deps.config();
+  if (!cfg) {
+    console.error("push-sender: APNS secrets are not set");
+    throw new ApiError("provider_unavailable", 503, "APNs is not configured");
+  }
+  const { db } = deps;
+  const users = new Set([fav.user_id]);
+  const muted = await mutedBy(db, users);
+  if (muted.get("favorite_airports")!.has(fav.user_id)) {
+    return json({
+      ok: true,
+      alerts: { sent: 0, failed: 0, removed: 0 },
+      kinds: [],
+    });
+  }
+  const claimed = await db.from("favorite_alert_log").upsert(
+    { user_id: fav.user_id, key: fav.key, kind: fav.kind },
+    { onConflict: "user_id,key", ignoreDuplicates: true },
+  ).select("key");
+  if (claimed.error) {
+    throw new Error(`favorite claim failed: ${claimed.error.message}`);
+  }
+  if ((claimed.data ?? []).length === 0) {
+    return json({
+      ok: true,
+      alerts: { sent: 0, failed: 0, removed: 0 },
+      kinds: [],
+    });
+  }
+  const [tokens, zone] = await Promise.all([
+    tokensFor(db, "alert", users),
+    tz(db, fav.airport_icao),
+  ]);
+  if (tokens.length === 0) {
+    return json({
+      ok: true,
+      alerts: { sent: 0, failed: 0, removed: 0 },
+      kinds: [],
+    });
+  }
+  const nowS = Math.floor(
+    (deps.now ?? (() => new Date()))().getTime() / 1000,
+  );
+  const jwt = await apnsJwt(cfg.teamId, cfg.keyId, cfg.p8, nowS);
+  const body = {
+    aps: {
+      alert: favoriteProgramText(fav, zone),
+      sound: "default",
+      "thread-id": `airport:${fav.airport_icao}`,
+    },
+    airport: fav.airport_icao,
+    kind: "favorite_airport",
+  };
+  const t = await fanOut(
+    db,
+    "favorite_airport",
+    "alert",
+    tokens,
+    (tok) =>
+      sendApns(tok, body, {
+        pushType: "alert",
+        topic: cfg.bundleId,
+        sandbox: cfg.sandbox,
+        jwt,
+        priority: 10,
+        expiration: nowS + 3600,
+        collapseId: `fav:${fav.airport_icao}:${fav.kind}`.slice(0, 64),
+      }, deps.fetchFn ?? fetch),
+    { onProviderRejected: () => evictApnsJwt(cfg.teamId, cfg.keyId, cfg.p8) },
+  );
+  return json({ ok: true, alerts: t, kinds: ["favorite_airport"] });
 }
 
 interface Watcher {

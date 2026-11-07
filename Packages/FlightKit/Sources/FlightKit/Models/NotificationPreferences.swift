@@ -16,18 +16,39 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
     public var cancellations: Bool
     /// The device's own reminders: check-in, the morning of the flight, leaving for the airport.
     public var reminders: Bool
+    /// Boarding started and boarding time changes (sent only when a source gives a boarding time).
+    public var boarding: Bool
+    /// The airline swapped the aircraft type or the registration before departure.
+    public var aircraft: Bool
+    /// FAA programs (ground stops, ground delay programs, closures) at the airports you follow.
+    public var favoriteAirports: Bool
 
     public init(delays: Bool = true, gates: Bool = true, takeoffLanding: Bool = true, baggage: Bool = true,
-                cancellations: Bool = true, reminders: Bool = true) {
+                cancellations: Bool = true, reminders: Bool = true, boarding: Bool = true,
+                aircraft: Bool = true, favoriteAirports: Bool = true) {
         self.delays = delays; self.gates = gates; self.takeoffLanding = takeoffLanding
         self.baggage = baggage; self.cancellations = cancellations; self.reminders = reminders
+        self.boarding = boarding; self.aircraft = aircraft; self.favoriteAirports = favoriteAirports
+    }
+
+    /// A column the server does not have yet (the migration is not applied) reads as on.
+    public init(from decoder: Decoder) throws {
+        enum Key: String, CodingKey {
+            case delays, gates, takeoffLanding, baggage, cancellations, reminders, boarding, aircraft, favoriteAirports
+        }
+        let c = try decoder.container(keyedBy: Key.self)
+        func flag(_ k: Key) throws -> Bool { try c.decodeIfPresent(Bool.self, forKey: k) ?? true }
+        self.init(delays: try flag(.delays), gates: try flag(.gates), takeoffLanding: try flag(.takeoffLanding),
+                  baggage: try flag(.baggage), cancellations: try flag(.cancellations),
+                  reminders: try flag(.reminders), boarding: try flag(.boarding), aircraft: try flag(.aircraft),
+                  favoriteAirports: try flag(.favoriteAirports))
     }
 
     public static let allOn = NotificationPreferences()
 
     /// One toggle of the Notifications screen.
     public enum Category: String, CaseIterable, Sendable, Identifiable {
-        case delays, gates, takeoffLanding, baggage, cancellations, reminders
+        case delays, gates, takeoffLanding, baggage, cancellations, reminders, boarding, aircraft, favoriteAirports
         public var id: String { rawValue }
 
         public var keyPath: WritableKeyPath<NotificationPreferences, Bool> {
@@ -38,6 +59,9 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
             case .baggage: \.baggage
             case .cancellations: \.cancellations
             case .reminders: \.reminders
+            case .boarding: \.boarding
+            case .aircraft: \.aircraft
+            case .favoriteAirports: \.favoriteAirports
             }
         }
 
@@ -50,6 +74,9 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
             case .baggage: "Baggage"
             case .cancellations: "Cancellations and Diversions"
             case .reminders: "Reminders"
+            case .boarding: "Boarding"
+            case .aircraft: "Aircraft Changes"
+            case .favoriteAirports: "Favorite Airports"
             }
         }
 
@@ -62,6 +89,9 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
             case .baggage: "The belt your bags come out on"
             case .cancellations: "Canceled, back on the schedule, diverted"
             case .reminders: "Check-in opens, the morning of the flight, time to leave"
+            case .boarding: "Boarding has started, boarding time changes"
+            case .aircraft: "A different aircraft type or tail number before you leave"
+            case .favoriteAirports: "Ground stops, delay programs and closures at airports you follow"
             }
         }
 
@@ -73,6 +103,9 @@ public struct NotificationPreferences: Codable, Sendable, Hashable {
             case .baggage: "suitcase.rolling.fill"
             case .cancellations: "xmark.circle"
             case .reminders: "alarm"
+            case .boarding: "figure.walk.departure"
+            case .aircraft: "arrow.triangle.2.circlepath"
+            case .favoriteAirports: "star"
             }
         }
     }

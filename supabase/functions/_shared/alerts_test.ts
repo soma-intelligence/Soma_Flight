@@ -383,3 +383,121 @@ Deno.test("inbound late: needs the inbound row, skips cleanly without it", () =>
   assertEquals(inboundLate(flight, { ...inbound, estimated_in: null }), null);
   assertEquals(emptyHistory().keys.size, 0);
 });
+
+Deno.test("aircraft change: type or registration swap before departure", () => {
+  const t = detectAlerts(
+    ev({ aircraft_type: ["A359", "B77W"] }),
+    flight,
+  );
+  assertEquals(t.map((a) => [a.kind, a.category, a.from, a.to, a.reason]), [
+    ["aircraft_change", "aircraft", "A359", "B77W", "type"],
+  ]);
+  const r = detectAlerts(ev({ registration: ["F-HTYA", "F-HTYB"] }), flight);
+  assertEquals(r.map((a) => [a.kind, a.reason, a.to]), [
+    ["aircraft_change", "registration", "F-HTYB"],
+  ]);
+  // First registration seen is not a swap; nothing after take-off; canceled flights say nothing.
+  assertEquals(kinds(ev({ registration: [null, "F-HTYA"] })), []);
+  assertEquals(kinds(ev({ aircraft_type: ["A359", "B77W"] }), departed), []);
+  assertEquals(
+    kinds(ev({ status: ["scheduled", "canceled"], aircraft_type: ["A", "B"] })),
+    ["cancel"],
+  );
+});
+
+Deno.test("early departure: pushed back 10 minutes or more before schedule", () => {
+  const out = "2026-11-03T22:15:00Z";
+  const early = detectAlerts(
+    ev({ actual_out: [null, out] }),
+    { ...flight, actual_out: out },
+  );
+  const e = early.find((a) => a.kind === "early_departure")!;
+  assertEquals([e.category, e.minutes, e.key], [
+    "delays",
+    15,
+    "early_departure",
+  ]);
+  // Still announced as departed too.
+  assert(early.some((a) => a.kind === "departed"));
+  // 9 minutes early is not early enough; a late push back is not early.
+  assertEquals(
+    kinds(ev({ actual_out: [null, "2026-11-03T22:21:00Z"] })).includes(
+      "early_departure",
+    ),
+    false,
+  );
+  assertEquals(
+    kinds(ev({ actual_out: [null, "2026-11-03T22:50:00Z"] })).includes(
+      "early_departure",
+    ),
+    false,
+  );
+});
+
+Deno.test("long taxi out: take-off 30 minutes or more after push back", () => {
+  const f = { ...departed, actual_out: "2026-11-03T22:41:00Z" };
+  const long = detectAlerts(
+    ev({ actual_off: [null, "2026-11-03T23:15:00Z"] }),
+    f,
+  );
+  const t = long.find((a) => a.kind === "taxi_long")!;
+  assertEquals([t.category, t.minutes, t.key], ["delays", 34, "taxi_long"]);
+  assertEquals(
+    kinds(ev({ actual_off: [null, "2026-11-03T23:05:00Z"] }), f).includes(
+      "taxi_long",
+    ),
+    false,
+  );
+  // Once only.
+  assertEquals(
+    kinds(
+      ev({ actual_off: [null, "2026-11-03T23:15:00Z"] }),
+      f,
+      history(["taxi_long"]),
+    ).includes("taxi_long"),
+    false,
+  );
+});
+
+Deno.test("boarding alerts: only from a boarding time a source gave", () => {
+  const started = detectAlerts(
+    ev({ boarding_actual: [null, "2026-11-03T21:50:00Z"] }),
+    flight,
+  );
+  assertEquals(started.map((a) => [a.kind, a.category, a.key]), [
+    ["boarding_started", "boarding", "boarding_started"],
+  ]);
+  const moved = detectAlerts(
+    ev({
+      boarding_estimated: ["2026-11-03T21:50:00Z", "2026-11-03T22:10:00Z"],
+    }),
+    flight,
+  );
+  assertEquals(moved.map((a) => [a.kind, a.from, a.to]), [[
+    "boarding_change",
+    "2026-11-03T21:50:00Z",
+    "2026-11-03T22:10:00Z",
+  ]]);
+  // A 5 minute shift is noise; nothing once the plane left; nothing without a source.
+  assertEquals(
+    kinds(
+      ev({
+        boarding_estimated: ["2026-11-03T21:50:00Z", "2026-11-03T21:55:00Z"],
+      }),
+    ),
+    [],
+  );
+  assertEquals(
+    kinds(ev({ boarding_actual: [null, "2026-11-03T21:50:00Z"] }), departed),
+    [],
+  );
+  assertEquals(kinds(ev({ gate_origin: ["K36", "K36"] })), []);
+});
+
+Deno.test("new kinds map to preference columns", () => {
+  assertEquals(CATEGORY.early_departure, "delays");
+  assertEquals(CATEGORY.taxi_long, "delays");
+  assertEquals(CATEGORY.aircraft_change, "aircraft");
+  assertEquals(CATEGORY.boarding_started, "boarding");
+  assertEquals(CATEGORY.boarding_change, "boarding");
+});

@@ -111,6 +111,9 @@ No row means every category is on, so the app writes the row the first time some
 | `baggage` | bool, default true | `baggage_belt` |
 | `cancellations` | bool, default true | `cancel`, `reinstated`, `diversion` |
 | `reminders` | bool, default true | the app's local reminders (check-in, morning of the flight, leave for the airport); the server never reads it |
+| `boarding` | bool, default true | `boarding_started`, `boarding_change` (migration 20261107000030) |
+| `aircraft` | bool, default true | `aircraft_change` (migration 20261107000030) |
+| `favorite_airports` | bool, default true | the favorite airport pushes below (migration 20261107000030) |
 | `updated_at` | timestamptz | set by the app on each save |
 
 `user_flights.notify = false` still silences every alert of that flight.
@@ -230,10 +233,28 @@ and `kind` beside `aps`, `thread-id` is the flight id and `apns-collapse-id` is
 | `connection_at_risk` | delays | a user follows this flight and the flight it connects into (below), and the layover from the first flight's best arrival to the second's best departure falls under the connection airport's usual minimum (At risk) or under 15 minutes (Missed); not for a canceled or diverted first flight, a canceled onward flight or one that already left (those have their own alerts); once per pair, claimed on the arriving flight (`connection_at_risk:<onward flights.id>`), sent only to the users who follow both; checked on the events of either flight | "AF 84 connection at risk" |
 | `airport_program` | delays | faa-status's sweep found a ground stop, ground delay program or closure at either airport that holds the flight (see faa-status); once per flight, airport, kind and program start | "Ground delay program at SFO", "Ground stop at EWR", "SFO airport closed" |
 
+| `early_departure` | delays | `actual_out` set 10 min or more before `scheduled_out`; once; sent beside `departed` | "AF 84 left 15m early" |
+| `taxi_long` | delays | `actual_off` set 30 min or more after `actual_out`; once | "AF 84 taxied 34m before take-off" |
+| `aircraft_change` | aircraft | `aircraft_type` or `registration` moved from one value to another before the gate out (not a first value) | "AF 84 has a different aircraft type" |
+| `boarding_started` | boarding | `boarding_actual` set; once. Dormant: no provider gives a boarding time and `process_alert` does not track one, so this never fires until a source and a column exist | "AF 84 is boarding" |
+| `boarding_change` | boarding | `boarding_estimated` moved 10 min or more. Dormant, same reason | "AF 84 boarding time changed" |
+
 An `airport_program` push comes from `POST { flightId, program }`, not from a flight event: its `eventId` is
 null, `apns-collapse-id` is `<flightId>:airport_program`, it updates no Live Activity, and its key in
 `alert_log` is `airport_program:<icao>:<kind>:<program start, to the minute>`, so a program revised by the
 FAA (a new average, a later end) is not announced again, and a new one later that day is.
+
+### Favorite airports
+
+`favorite_airports (user_id, airport_icao)`: owner only (RLS), at most 50 per user, `select`, `insert` and
+`delete` for clients. `favorite-airports?mode=sweep` (service role, pg_cron `favorite-airports-sweep` every
+5 minutes at minute 2, off unless the function secret `FAVORITE_AIRPORT_ALERTS_ENABLED` is `true`) reads the
+shared `faa_status_cache` (never the FAA) and, for each ground stop, ground delay program or closure at a
+followed airport, asks push-sender (`POST { favorite }`) for one push per user. push-sender claims it in
+`favorite_alert_log (user_id, key)` (key `favorite:airport_program:<icao>:<kind>:<start>`), skips users who
+turned `favorite_airports` off, and users who follow a flight with the same program's own `airport_program`
+alert. `thread-id` is `airport:<icao>`, the payload carries `airport` and `kind: favorite_airport`.
+TODO: a conditions level `major` (faa-status conditions summary) should trigger the same push.
 
 Dedupe: once-only alerts use a fixed key (`takeoff`, `gate_assigned:departure`, `inbound_late`...),
 the others `<kind>[:<side>]:<delivery>` where the delivery is the event's `provider_event_id` without

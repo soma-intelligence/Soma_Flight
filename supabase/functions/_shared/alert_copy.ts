@@ -318,6 +318,93 @@ export function alertText(
         };
     case "airport_program":
       return programText(a, id, ctx);
+    case "early_departure": {
+      const when = atOrig(a.to);
+      const early = a.minutes ?? 0;
+      return {
+        title: `${id} left ${span(early)} early`,
+        body: when
+          ? sentence(`pushed back${from(orig)} at ${when}, ahead of schedule`)
+          : "The flight left the gate ahead of schedule.",
+      };
+    }
+    case "taxi_long": {
+      const taxi = a.minutes ?? 0;
+      return {
+        title: `${id} taxied ${span(taxi)} before take-off`,
+        body: sentence(
+          `a long wait on the ground${from(orig)}, so the landing may slip too`,
+        ),
+      };
+    }
+    case "aircraft_change": {
+      const what = a.reason === "registration" ? "aircraft" : "aircraft type";
+      return a.to
+        ? {
+          title: `${id} has a different ${what}`,
+          body: sentence(`now ${a.to}${was}`),
+        }
+        : {
+          title: `${id} has a different ${what}`,
+          body: "The airline swapped the aircraft. Open the app for details.",
+        };
+    }
+    case "boarding_started": {
+      const gate = f.gate_origin ? ` at gate ${f.gate_origin}` : "";
+      return {
+        title: `${id} is boarding`,
+        body: sentence(`boarding started${gate}${from(orig)}`),
+      };
+    }
+    case "boarding_change": {
+      const when = atOrig(a.to);
+      const before = atOrig(a.from);
+      return when
+        ? {
+          title: `${id} boarding time changed`,
+          body: sentence(
+            `boarding now starts at ${when}${before ? `, was ${before}` : ""}`,
+          ),
+        }
+        : {
+          title: `${id} boarding time changed`,
+          body: "Open the app for the new boarding time.",
+        };
+    }
+  }
+}
+
+/** What a favorite airport push says about one FAA program (no flight involved). */
+export function favoriteProgramText(p: {
+  kind: "ground_stop" | "ground_delay" | "closure" | string;
+  code: string;
+  reason?: string | null;
+  average_minutes?: number | null;
+  ends_at?: string | null;
+}, tz: string | null | undefined): AlertText {
+  const until = p.ends_at ? ` until ${clock(p.ends_at, tz)}` : "";
+  const because = p.reason ? ` because of ${p.reason}` : "";
+  switch (p.kind) {
+    case "ground_stop":
+      return {
+        title: `Ground stop at ${p.code}`,
+        body:
+          `Flights to ${p.code} are held before take-off${because}${until}.`,
+      };
+    case "ground_delay": {
+      const avg = p.average_minutes
+        ? `, about ${span(p.average_minutes)} on average`
+        : "";
+      return {
+        title: `Ground delay program at ${p.code}`,
+        body: `Flights to ${p.code} are held before take-off${avg}${because}.`,
+      };
+    }
+    default:
+      return {
+        title: `${p.code} airport closed`,
+        body: `The FAA lists ${p.code} as closed${until}.`,
+      };
   }
 }
 

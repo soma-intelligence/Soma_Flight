@@ -78,6 +78,7 @@ public struct AirportScreen: View {
     @State private var store: AirportStore
     var lookup: (String) -> Airport?
     var favorites: AirportFavorites?
+    var favoriteAlerts: any FavoriteAirportAlertsService
     var pastFlights: [PastFlight]
     var onClose: () -> Void
 
@@ -85,11 +86,16 @@ public struct AirportScreen: View {
                 onClose: @escaping () -> Void) {
         _store = State(initialValue: env.makeAirportStore(code: code))
         self.lookup = env.lookup; self.favorites = favorites; self.pastFlights = pastFlights; self.onClose = onClose
+        self.favoriteAlerts = env.favoriteAirportAlerts
     }
 
     public var body: some View {
         AirportView(store: store, lookup: lookup, favorites: favorites, pastFlights: pastFlights)
             .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
+            .overlay(alignment: .topTrailing) {
+                FavoriteAirportToggle(service: favoriteAlerts, icao: store.airport?.id, country: store.airport?.country)
+                    .scaledPadding(.trailing, 68)
+            }
             .task { await store.load() }
     }
 }

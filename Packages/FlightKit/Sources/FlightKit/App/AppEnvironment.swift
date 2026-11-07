@@ -53,6 +53,9 @@ public struct AppEnvironment: Sendable {
     /// Favourite airports; on this device only (no favourites table in Supabase yet).
     /// False keeps favourite airports in memory (fakes, tests), seeded with one airport.
     public var airportFavoritesPersist = true
+    /// Airports the account follows for disruption alerts (`favorite_airports`): the fakes with `-useFakes`,
+    /// the table in live builds. The bell on the airport sheet reads it.
+    public var favoriteAirportAlerts: any FavoriteAirportAlertsService = UnavailableFavoriteAirportAlertsService()
     /// Text Me Too and in-flight texts (`sms-verify`): the fakes (nothing sent) with `-useFakes`, the backend in
     /// live builds, which answers "not available" until the owner turns texts on (docs/sms-alerts.md).
     public var textAlerts: any TextAlertsService = UnavailableTextAlertsService()
@@ -119,6 +122,7 @@ public struct AppEnvironment: Sendable {
         env.airportOverview = FakeAirportOverviewService(now: now)
         env.airportFavoritesPersist = false
         env.textAlerts = FakeTextAlertsService()
+        env.favoriteAirportAlerts = FakeFavoriteAirportAlertsService()
         env.profiles = FakeProfileService(now: now)
         env.fixedConnectivity = true
         return env
@@ -168,6 +172,7 @@ public struct AppEnvironment: Sendable {
         env.travelVault = SupabaseTravelVaultService(backend: backend)
         env.airportOverview = SupabaseAirportOverviewService(backend: backend)
         env.textAlerts = SupabaseTextAlertsService(backend: backend)
+        env.favoriteAirportAlerts = SupabaseFavoriteAirportAlertsService(backend: backend)
         env.profiles = SupabaseProfileService(backend: backend)
         return env
     }

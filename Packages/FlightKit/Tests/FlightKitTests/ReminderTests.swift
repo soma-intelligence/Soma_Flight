@@ -209,10 +209,27 @@ import Testing
             p[c] = false
         }
         #expect(p == NotificationPreferences(delays: false, gates: false, takeoffLanding: false, baggage: false,
-                                             cancellations: false, reminders: false))
+                                             cancellations: false, reminders: false, boarding: false,
+                                             aircraft: false, favoriteAirports: false))
         #expect(NotificationPreferences.Category.allCases.map(\.title) == [
             "Delays", "Gates and Terminals", "Take-off and Landing", "Baggage", "Cancellations and Diversions", "Reminders",
+            "Boarding", "Aircraft Changes", "Favorite Airports",
         ])
+    }
+
+    @Test func newColumnsDefaultToOnUntilTheServerHasThem() throws {
+        // A row from before the migration has no boarding, aircraft or favorite_airports.
+        let old = #"[{"delays":true,"gates":true,"takeoff_landing":true,"baggage":true,"cancellations":true,"reminders":true}]"#
+        #expect(try SupabaseNotificationPreferencesService.decode(Data(old.utf8)) == .allOn)
+        let row = #"[{"delays":true,"gates":true,"takeoff_landing":true,"baggage":true,"cancellations":true,"reminders":true,"boarding":false,"aircraft":true,"favorite_airports":false}]"#
+        let p = try SupabaseNotificationPreferencesService.decode(Data(row.utf8))
+        #expect(p == NotificationPreferences(boarding: false, favoriteAirports: false))
+        let encoded = try JSONEncoder().encode(SupabaseNotificationPreferencesService.Row(
+            user: UUID(uuidString: "0f8fad5b-d9cb-469f-a165-70867728950e")!, p, at: Self.date("2026-11-01T00:00:00Z")))
+        let json = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(json["boarding"] as? Bool == false)
+        #expect(json["aircraft"] as? Bool == true)
+        #expect(json["favorite_airports"] as? Bool == false)
     }
 
     // MARK: Backend shapes
