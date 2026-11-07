@@ -1273,8 +1273,8 @@ functions' tests write and the app's `AirportsTests` decode:
   `Config.local.xcconfig` next to it, otherwise the app refuses to start ("no server configured"). A plain
   http URL is only accepted for this machine. Never put the service role key in any of these files.
 - `INSIGHTS_ENABLED` (Info.plist `InsightsEnabled`) turns the paid flight sheet sections on
-  (`flight-insights`): YES in `Config.Debug.xcconfig`, NO in `Config.Release.xcconfig` until the owner
-  approves the AeroAPI cost (set it to YES in `Config.local.xcconfig`). Off, the app shows neither section
+  (`flight-insights`): YES in `Config.Debug.xcconfig` and, since the owner's yes on 2026-11-06, in
+  `Config.Release.xcconfig` (answers unavailable until `AEROAPI_KEY` is set). Off, the app shows neither section
   and makes no call. Screenshot runs (`-useFakes`) always show the fakes.
 - Sign in with Apple needs a provisioning profile. The Mac Debug build signs to run locally and leaves the
   capability out (`SomaFlight-Debug.entitlements`), so only email sign-in works there; a Mac Release or iOS
