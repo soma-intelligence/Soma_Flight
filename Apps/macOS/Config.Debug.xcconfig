@@ -16,6 +16,15 @@ INSIGHTS_ENABLED = YES
 // need the live service. YES asks flight-schedules.
 SCHEDULES_ENABLED = NO
 
+// Language-model texts (edge function flight-brief: door-to-door guide, delay causes, airport summaries),
+// Azure OpenAI calls on the backend. NO until the owner's yes on the cost: the sections stay hidden and
+// no call is made. YES asks flight-brief, which answers llm_unavailable while LLM_ENABLED is off there.
+LLM_ENABLED = NO
+
+// The nearby radar (edge function nearby-flights, paid AeroAPI area search). NO until the owner's yes
+// and AEROAPI_KEY: the radar entry stays hidden and no call is made.
+RADAR_ENABLED = NO
+
 #include? "Config.local.xcconfig"
 
 // Sign in with Google (docs/profile-onboarding.md). NO until the owner turns the provider on in Supabase.

@@ -8,6 +8,10 @@
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>InsightsEnabled</key>
 	<string>$(INSIGHTS_ENABLED)</string>
+	<key>LLMEnabled</key>
+	<string>$(LLM_ENABLED)</string>
+	<key>RadarEnabled</key>
+	<string>$(RADAR_ENABLED)</string>
 	<key>SchedulesEnabled</key>
 	<string>$(SCHEDULES_ENABLED)</string>
 	<key>GoogleSignInEnabled</key>
