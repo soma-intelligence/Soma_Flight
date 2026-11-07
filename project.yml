@@ -62,8 +62,16 @@ targets:
         # Every other app icon set in Apps/iOS/Assets.xcassets ships as an alternate icon for Settings > App
         # Icon (each listed in FlightKit's AppIcons.all); actool writes CFBundleAlternateIcons itself.
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
-        # iPhone only in v1 (every layout and screenshot is a phone); iPad later, with all four orientations.
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad. A regular width iPad window gets its own layout (RegularHomeView); compact widths
+        # (iPhone, Slide Over, the small side of Split View) keep the iPhone sheet.
+        TARGETED_DEVICE_FAMILY: "1,2"
+        # All four on iPad, and no UIRequiresFullScreen, so Split View, Slide Over and Stage Manager work.
+        # The iPhone keeps the system default it always had (no key).
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UIRequiresFullScreen: NO
+        # Apple Vision Pro runs the iPad app ("Designed for iPad"). Kept on explicitly: the camera scanner,
+        # Live Activities and the Watch link all check availability at run time and fall back there.
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: YES
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig), the somaflight:// sign-in
         # callback and NSSupportsLiveActivities. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/iOS/Info.plist
@@ -152,7 +160,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.widgets
-        TARGETED_DEVICE_FAMILY: "1"
+        # The app's own families: an embedded extension that leaves out iPad fails App Store validation.
+        TARGETED_DEVICE_FAMILY: "1,2"
         PRODUCT_NAME: SomaFlightWidgets
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Apps/Widgets/Info.plist
@@ -176,7 +185,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.somalabs.flight.share
-        TARGETED_DEVICE_FAMILY: "1"
+        # The app's own families: an embedded extension that leaves out iPad fails App Store validation.
+        TARGETED_DEVICE_FAMILY: "1,2"
         PRODUCT_NAME: SomaFlightShare
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Apps/Share/Info.plist

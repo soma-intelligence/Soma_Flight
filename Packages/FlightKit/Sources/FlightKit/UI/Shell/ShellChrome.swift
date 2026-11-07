@@ -159,7 +159,7 @@ public struct HomeTabPill: View {
     @Environment(\.metricsScale) private var scale
 
     /// Darkens the glass so the cards scrolling under it stay quiet, as in the reference.
-    static let tint = Color(light: 0xFFFFFF, dark: 0x1C1C1E).opacity(0.55)
+    public static let tint = Color(light: 0xFFFFFF, dark: 0x1C1C1E).opacity(0.55)
 
     /// - Parameter bottom: space under the pill; negative reaches into a home indicator inset.
     public init(tab: Binding<HomeTab>, bottom: CGFloat = 0, onSearch: @escaping () -> Void) {
@@ -185,6 +185,7 @@ public struct HomeTabPill: View {
             }
             .buttonStyle(.plain)
             .glassEffect(.regular.tint(Self.tint).interactive(), in: .circle)
+            .pointerHighlight(Circle())
             .accessibilityLabel("Search")
         }
         .scaledPadding(.horizontal, 20)
@@ -215,6 +216,7 @@ public struct HomeTabPill: View {
                 }
             }
             .contentShape(Capsule())
+            .pointerHighlight(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -245,11 +247,22 @@ public struct RoundButton: View {
         }
         .buttonStyle(.plain)
         .roundGlass(tint: tint)
+        .pointerHighlight(Circle())
         .accessibilityLabel(label)
     }
 }
 
 public extension View {
+    /// Lights the control up under an iPad pointer (and the Vision Pro's gaze), in `shape`. Nothing on the
+    /// Mac, nothing on an iPhone, which has no pointer.
+    @ViewBuilder func pointerHighlight(_ shape: some Shape) -> some View {
+        #if os(iOS)
+        contentShape(.hoverEffect, shape).hoverEffect(.highlight)
+        #else
+        self
+        #endif
+    }
+
     /// The interactive Liquid Glass circle of every round floating control (`RoundButton`, the close X,
     /// the round menus beside them), optionally tinted.
     func roundGlass(tint: Color? = nil) -> some View {

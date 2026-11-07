@@ -113,5 +113,19 @@ struct SomaFlightApp: App {
                 }
             }
         }
+        // A hardware keyboard (iPad, or an iPhone with one): both open Search, where a flight is found and
+        // followed. Shown in the iPad menu bar and the Command key overlay.
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Add Flight") { home?.searchRequest = "" }
+                    .keyboardShortcut("n", modifiers: .command)
+                    .disabled(home == nil || home?.needsSignIn == true)
+            }
+            CommandGroup(after: .textEditing) {
+                Button("Search") { home?.searchRequest = "" }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .disabled(home == nil || home?.needsSignIn == true)
+            }
+        }
     }
 }

@@ -6,6 +6,8 @@ import SwiftUI
 /// Passport, a floating tab pill with a round search button, and a gear for Settings. Flights and
 /// airports open as cards sliding up inside the sheet while the globe moves onto them; an open flight
 /// is drawn alone on the globe. The state is FlightKit's `HomeModel`, shared with the Mac sidebar.
+/// A regular width iPad window (and the iPad app on Apple Vision Pro) gets `RegularHomeView` instead: the
+/// same globe with floating panels, the modal sheets shared with the iPhone layout.
 struct RootTabView: View {
     @State private var home: HomeModel
     @State private var selection: GlobeSelection?
@@ -24,6 +26,7 @@ struct RootTabView: View {
     @State private var geometry = SheetGeometry.standard
     @StoredUnits private var units: Units
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -32,7 +35,74 @@ struct RootTabView: View {
     private var env: AppEnvironment { home.env }
     private var shell: ShellModel { home.shell }
 
+    /// An iPad window wide enough for panels. An iPhone stays on the sheet even where its landscape width
+    /// is regular (the Pro Max), so the phone layout never changes.
+    private var isRegular: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && sizeClass == .regular
+    }
+
     var body: some View {
+        Group {
+            if isRegular { regularHome } else { compactHome }
+        }
+        .onChange(of: selection) { _, picked in
+            guard let picked else { return }
+            selection = nil
+            home.select(picked)
+        }
+        // Account changes and the Live Activity rules run above this view (HomeModel's session watch
+        // and SignInGate), so they still run once Sign In has replaced it.
+        .task {
+            await home.start()
+            #if DEBUG
+            home.applyLaunchArguments()
+            // Screenshot runs: `-sheet settings` or `-sheet search` opens that sheet over the home.
+            switch UserDefaults.standard.string(forKey: "sheet") {
+            case "settings": showSettings = true
+            case "search": showSearch = true
+            default: break
+            }
+            await home.applyPushLaunchArguments()
+            await home.applyLiveActivityLaunchArguments()
+            #endif
+        }
+        .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
+        .onChange(of: home.searchRequest, initial: true) { _, query in openSearch(query) }
+        // A notification opens a flight under Search or Settings: they close so it shows.
+        .onChange(of: shell.path) { _, path in
+            if !path.isEmpty { showSearch = false; showSettings = false }
+        }
+        // The search sheet covers the tab pill: a follow's toast waits for it to close.
+        .onChange(of: showSearch) { _, open in home.searchOpen = open }
+        // A confirmation email shared to the app from Mail (the share extension's inbox).
+        .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
+        .environment(\.units, units)
+        .environment(\.connectivity, home.connectivity)
+}
+
+    /// The iPad in a regular width: tabs in the system tab bar (or sidebar), the globe across the window,
+    /// the tab and the open card in floating panels. The modal sheets hang from it directly, as no home
+    /// sheet is up.
+    private var regularHome: some View {
+        modals(RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
+                        onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
+            tabScreen
+        } mapControls: {
+            mapButtons(hidden: false)
+                .overlay(alignment: .topTrailing) {
+                    AirportsMapButton { home.openAirports() }
+                        .pointerHighlight(Circle())
+                        .padding(.trailing, 12).padding(.top, 8 + 89 + 10)
+                }
+                .overlay(alignment: .topTrailing) {
+                    RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10)
+                }
+        }
+        .environment(\.fullPageZoom, pageZoom))
+    }
+
+    /// The iPhone home (and the iPad in a compact width): the globe under the resizable sheet.
+    private var compactHome: some View {
         HomeGlobe(home: home, selection: $selection, labels: labels, threeD: threeD, geometry: geometry,
                   controlsScope: mapScope)
             .background { Color.black.ignoresSafeArea() }
@@ -45,7 +115,7 @@ struct RootTabView: View {
                     } action: { geometry = $0 }
                     .ignoresSafeArea()
             }
-            .overlay(alignment: .topTrailing) { mapButtons }
+            .overlay(alignment: .topTrailing) { mapButtons(hidden: home.shell.detent == .expanded) }
             // Airports: its own round button under the map controls (kept apart from mapButtons).
             .overlay(alignment: .topTrailing) {
                 AirportsMapButton { home.openAirports() }.padding(.trailing, 12).padding(.top, 8 + 89 + 10)
@@ -53,39 +123,6 @@ struct RootTabView: View {
             .overlay(alignment: .topTrailing) { RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10) }
             .mapScope(mapScope)
             .sheet(isPresented: .constant(true)) { sheet }
-            .onChange(of: selection) { _, picked in
-                guard let picked else { return }
-                selection = nil
-                home.select(picked)
-            }
-            // Account changes and the Live Activity rules run above this view (HomeModel's session watch
-            // and SignInGate), so they still run once Sign In has replaced it.
-            .task {
-                await home.start()
-                #if DEBUG
-                home.applyLaunchArguments()
-                // Screenshot runs: `-sheet settings` or `-sheet search` opens that sheet over the home.
-                switch UserDefaults.standard.string(forKey: "sheet") {
-                case "settings": showSettings = true
-                case "search": showSearch = true
-                default: break
-                }
-                await home.applyPushLaunchArguments()
-                await home.applyLiveActivityLaunchArguments()
-                #endif
-            }
-            .onChange(of: home.pushSerial) { Task { await home.processInbox() } }
-            .onChange(of: home.searchRequest, initial: true) { _, query in openSearch(query) }
-            // A notification opens a flight under Search or Settings: they close so it shows.
-            .onChange(of: shell.path) { _, path in
-                if !path.isEmpty { showSearch = false; showSettings = false }
-            }
-            // The search sheet covers the tab pill: a follow's toast waits for it to close.
-            .onChange(of: showSearch) { _, open in home.searchOpen = open }
-            // A confirmation email shared to the app from Mail (the share extension's inbox).
-            .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
-            .environment(\.units, units)
-            .environment(\.connectivity, home.connectivity)
     }
 
     /// Opens Search for a query Siri, Shortcuts or a link asked for, over any open card.
@@ -103,7 +140,7 @@ struct RootTabView: View {
         @Bindable var shell = home.shell
         // Each screen slides up over the one below as a card, and its X drops it back down.
         // A Passport past flight zooms out of its row and back into it; the other cards crossfade.
-        return CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
+        return modals(CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
             tabRoot
         } card: { route in
             HomeDestination(home: home, route: route)
@@ -120,7 +157,13 @@ struct RootTabView: View {
         .presentationBackgroundInteraction(.enabled)
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
-        .interactiveDismissDisabled()
+        .interactiveDismissDisabled())
+    }
+
+    /// Search, Settings, the Passport pages, an invitation and the imports, over whichever home is up.
+    private func modals(_ content: some View) -> some View {
+        @Bindable var home = home
+        return content
         .sheet(isPresented: $showSearch) {
             SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
                         known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
@@ -202,8 +245,8 @@ struct RootTabView: View {
 
     /// The 3D switch over the place-name switch in one glass capsule, as Maps groups its controls. MapKit's
     /// compass shows under it only while the globe is turned. Shown over the map in the medium and
-    /// collapsed detents; expanded, the sheet covers the map and they fade out.
-    private var mapButtons: some View {
+    /// collapsed detents; expanded, the sheet covers the map and they fade out (`hidden`).
+    private func mapButtons(hidden: Bool) -> some View {
         VStack(spacing: 0) {
             Button { threeD.toggle() } label: {
                 Text(threeD ? "2D" : "3D")
@@ -212,6 +255,7 @@ struct RootTabView: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
+            .pointerHighlight(.rect(cornerRadius: 22))
             .accessibilityLabel(threeD ? "Flat View" : "3D View")
             Rectangle().fill(.white.opacity(0.18)).frame(width: 24, height: 1)
             Button { labels.toggle() } label: {
@@ -221,6 +265,7 @@ struct RootTabView: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
+            .pointerHighlight(.rect(cornerRadius: 22))
             .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
         }
         .buttonStyle(.plain)
@@ -233,9 +278,9 @@ struct RootTabView: View {
         }
         .padding(.trailing, 12)
         .padding(.top, 8)
-        .opacity(home.shell.detent == .expanded ? 0 : 1)
-        .allowsHitTesting(home.shell.detent != .expanded)
-        .accessibilityHidden(home.shell.detent == .expanded)
+        .opacity(hidden ? 0 : 1)
+        .allowsHitTesting(!hidden)
+        .accessibilityHidden(hidden)
         .animation(.smooth(duration: 0.25), value: home.shell.detent)
     }
 }
