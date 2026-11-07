@@ -97,11 +97,32 @@ public actor FakeFAAService: FAAService {
         }
     }
 
+    /// The fake conditions at `icao` for `now`: the inferred read that stands in for a program feed outside
+    /// the US (London Heathrow: thunderstorms in the forecast and a runway closed); other airports have none.
+    static func assessment(_ icao: String, now: Date) -> AirportAssessment? {
+        let h: (Double) -> Date = { now.addingTimeInterval($0 * 3600) }
+        switch icao {
+        case "EGLL":
+            return AirportAssessment(level: .major, summary: "Thunderstorms nearby in the forecast", reasons: [
+                .init(source: .forecast, level: .major, text: "Thunderstorms nearby in the forecast",
+                      startsAt: h(2), endsAt: h(6)),
+                .init(source: .notam, level: .minor, text: "Runway 09L/27R closed", startsAt: h(-3), endsAt: h(5)),
+            ])
+        default:
+            return nil
+        }
+    }
+
     public func programs(airport: String) async throws(APIError) -> AirportPrograms? {
         if let e = nextError { nextError = nil; throw e }
         let a = try self.airport(airport)
-        guard a.country == "US" else { return nil }
         let now = clock()
+        guard a.country == "US" else {
+            // No program feed outside the US: only the inferred conditions, where the fakes have some.
+            guard let assessment = Self.assessment(a.id, now: now) else { return nil }
+            return AirportPrograms(airportIcao: a.id, iata: a.iata, fetchedAt: now.addingTimeInterval(-90), programs: [],
+                                   assessment: assessment, hasFeed: false)
+        }
         return AirportPrograms(airportIcao: a.id, iata: a.iata, fetchedAt: now.addingTimeInterval(-90),
                                programs: Self.programs(a.id, now: now))
     }

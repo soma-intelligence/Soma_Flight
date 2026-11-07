@@ -642,7 +642,25 @@ page's own code, and skips anything it does not recognise.
 - Which end matters (the app's `FAAFacts.matters` and the sweep): departure delays and deicing at the origin,
   arrival delays at the destination, closures, ground stops and ground delay programs at either end.
 - Outside the US and its territories: `available: false`, `reason: "outside_us"`, no programs, the feed not
-  read. An unknown or malformed code is 400 `invalid_request`.
+  read (there is no national program feed to read). An unknown or malformed code is 400 `invalid_request`.
+- `conditions` (every airport, US or not; absent only when the function runs without it): what rules over the
+  airport's NOTAMs, METAR and TAF say, with no language model and no national feed. `{ level, summary,
+  reasons, sources }`: `level` is `normal`, `minor` or `major`; `reasons` (most serious first, at most 5) are
+  `{ source: "notam" | "metar" | "forecast", level: "minor" | "major", text, starts_at, ends_at }` with plain
+  English in `text` and no clock times (the app shows `starts_at` and `ends_at` in the airport's time zone);
+  `summary` is the first reason's text, null on a normal day; `sources` is `{ metar, taf, notam }`, each
+  false when that source could not be read (a missing NOTAM key or a failing feed is said, never read as an
+  all clear). `conditions` is null when nothing at all could be read. Rules (`_shared/conditions.ts`): an
+  airport closed by notice is major (closed with exceptions minor; closed to private flights only is
+  ignored); one whole runway closed is minor, two or more major; a runway closed in part and an ILS out of
+  service are minor; taxiway, construction and obstacle notices are not counted. Weather is read by the core's
+  `weatherImpact` (thunderstorms, freezing precipitation, snow, low ceilings, fog, low visibility, strong wind
+  and gusts, heavy rain): a severe reading is major, a moderate one minor, now (METAR) and over the next 12
+  hours (TAF periods; TEMPO and PROB periods are never above minor and read "at times"). Notices count while
+  in effect or starting within 6 hours. At US airports the reasons come next to the FAA's `programs`. The
+  weather is kept 10 minutes per airport in the function instance and the notices come from the same
+  `faa_notam_cache` rows `faa-notams` fills (so the NOTAM key is needed for them; without it `sources.notam`
+  is false). A failing summary never fails the answer (`conditions: null`).
 - Cache: the whole feed in `faa_status_cache` (one row, service role only) for 5 minutes, shared by every
   airport. When the FAA does not answer, a copy up to 30 minutes old answers with `stale: true` (and
   `fetched_at` its read time); older, 503 `provider_unavailable`.
@@ -670,6 +688,12 @@ developer account: function secrets `FAA_NOTAM_CLIENT_ID` and `FAA_NOTAM_CLIENT_
 with no notams and calls nothing; the app then hides every NOTAM row.
 
 `GET /faa-notams?airport=SFO`
+
+Airports outside the US work the same way: the FAA NOTAM API also serves ICAO NOTAMs, and the function asks
+for any airport in `airports` by its ICAO code (`airport=CDG` asks `icaoLocation=LFPG`). The decoder reads
+the ICAO wording too (`E) RWY 09L/27R CLOSED DUE WIP`, `AERODROME CLOSED`, `ILS RWY 27L UNSERVICEABLE`).
+Coverage of foreign airports in the FAA service is not guaranteed: an airport with no notice the FAA holds
+simply answers an empty list.
 
 ```json
 {
@@ -1252,6 +1276,15 @@ functions' tests write and the app's `AirportsTests` decode:
   `category`, wind, temperature, `metar_raw`, `stale`) and, for US airports, the FAA programs
   (`faa: { stale, fetched_at, programs }`, the same program shape as `faa-status`). A failed METAR or
   FAA read leaves that part `null`.
+- `airport-weather?...&forecast=1` adds `forecast` to each airport: the TAF of any airport worldwide that has
+  one, `{ issued_at, taf_raw, periods, stale }`, `null` when the airport has no TAF or NOAA is down with
+  nothing kept. A period is `{ from, to, category, wind_dir_deg, wind_kt, gust_kt, visibility_sm,
+  ceiling_ft, change, probability, wx, summary }` with `change` one of `FM`, `BECMG`, `TEMPO`, `PROB` (null
+  for the base forecast) and `summary` the period in plain words ("Light rain, wind 12 kt gusting 25 kt,
+  visibility 3 mi, cloud base 800 ft", "At times: ..." for TEMPO, "30% chance: ..." for PROB). One batch
+  request for the TAFs not kept; kept 10 minutes, stale up to an hour. Without `forecast=1` the key is
+  absent. The airport sheet reads the same TAF through `airport-board?kind=weather` (the `Weather` model's
+  `forecast`).
 - `airport-stats/contract/detail.json`: `{ available, reason, provider, icao, fetched_at, stale,
   departures, arrivals, today, next_7_days }`. A direction is `{ total, on_time, delayed, canceled,
   avg_delay_minutes, trend: [{ hour, avg_delay_minutes, flights, estimated }], worst_routes,

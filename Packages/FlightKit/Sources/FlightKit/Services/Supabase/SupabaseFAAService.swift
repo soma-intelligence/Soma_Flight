@@ -18,6 +18,29 @@ public final class SupabaseFAAService: FAAService {
         var stale: Bool?
         var fetchedAt: Date
         var programs: [Program]
+        /// Absent from older backends; nil when nothing could be read.
+        var conditions: Conditions?
+
+        struct Conditions: Decodable, Sendable {
+            var level: String
+            var summary: String?
+            var reasons: [Reason]
+            var sources: Sources
+
+            struct Reason: Decodable, Sendable {
+                var source: String
+                var level: String
+                var text: String
+                var startsAt: Date?
+                var endsAt: Date?
+            }
+
+            struct Sources: Decodable, Sendable {
+                var metar: Bool
+                var taf: Bool
+                var notam: Bool
+            }
+        }
 
         struct Program: Decodable, Sendable {
             var airport: String
@@ -56,14 +79,36 @@ public final class SupabaseFAAService: FAAService {
         }
     }
 
-    /// The airport's programs, or nil outside the US. A program of a kind this build does not know (a
+    /// The airport's programs and conditions, or nil outside the US when the backend gave no conditions either
+    /// (`hasFeed` is false when only the conditions came). A program of a kind this build does not know (a
     /// newer backend) is left out rather than failing the rest.
     public static func decodePrograms(_ data: Data) throws -> AirportPrograms? {
         let a = try FlightJSON.decoder.decode(ProgramsAnswer.self, from: data)
-        guard a.available else { return nil }
+        let assessment = a.conditions.map(assessment(from:))
+        guard a.available || assessment != nil else { return nil }
         let programs = a.programs.compactMap(program(from:))
         return AirportPrograms(airportIcao: a.airport, iata: a.iata, isStale: a.stale ?? false,
-                               fetchedAt: a.fetchedAt, programs: AirportProgram.sorted(programs))
+                               fetchedAt: a.fetchedAt, programs: AirportProgram.sorted(programs),
+                               assessment: assessment, hasFeed: a.available)
+    }
+
+    /// The conditions as they travel; a level or source this build does not know reads as the mildest and is
+    /// left out, so a newer backend never fails the rest.
+    static func assessment(from c: ProgramsAnswer.Conditions) -> AirportAssessment {
+        func level(_ s: String) -> AirportStatusLevel {
+            switch s {
+            case "major": .major
+            case "minor": .minor
+            default: .normal
+            }
+        }
+        let reasons: [AirportAssessment.Reason] = c.reasons.compactMap { r in
+            guard let source = AirportAssessment.Source(rawValue: r.source), level(r.level) > .normal else { return nil }
+            return AirportAssessment.Reason(source: source, level: level(r.level), text: r.text,
+                                            startsAt: r.startsAt, endsAt: r.endsAt)
+        }
+        return AirportAssessment(level: level(c.level), summary: c.summary, reasons: reasons,
+                                 readMetar: c.sources.metar, readTaf: c.sources.taf, readNotams: c.sources.notam)
     }
 
     /// One program as it travels (`faa-status`, `airport-weather`); nil for a kind this build does not know.

@@ -258,12 +258,16 @@ public struct AirportStatus: Sendable, Hashable {
     public static let minorOnTime = 75
     public static let majorOnTime = 50
 
-    /// The worst of what is known: the FAA's programs, the weather, and the live numbers when a board
+    /// The worst of what is known: the FAA's programs, the weather, the notice and forecast reading, and the live numbers when a board
     /// provider gives them. With none of them the airport reads as normal: no data is not a problem.
-    public static func of(_ overview: AirportOverview?, live: AirportLiveSummary? = nil) -> AirportStatus {
+    public static func of(_ overview: AirportOverview?, live: AirportLiveSummary? = nil,
+                          assessment: AirportAssessment? = nil) -> AirportStatus {
         var found: [AirportStatus] = []
         for p in overview?.programs ?? [] { found.append(program(p)) }
         if let w = overview?.weather { found.append(weather(w)) }
+        // What notices and the forecast add (and, outside the US, all there is): after the FAA and the weather
+        // now, before the numbers.
+        if let a = assessment, a.level > .normal, let line = a.summary { found.append(.init(level: a.level, line: line)) }
         for (b, word) in [(live?.departures, "Departures"), (live?.arrivals, "Arrivals")] {
             if let b { found.append(board(b, word)) }
         }

@@ -115,6 +115,47 @@ test("a US airport gets its programs, in plain words", async () => {
   assertEquals(faa.calls, 1);
 });
 
+test("conditions ride along at every airport; a failing summary never fails the answer", async () => {
+  const faa = feed(PROGRAMS);
+  const summary = {
+    level: "minor" as const,
+    summary: "Runway 09L/27R closed",
+    reasons: [{
+      source: "notam" as const,
+      level: "minor" as const,
+      text: "Runway 09L/27R closed",
+      starts_at: null,
+      ends_at: null,
+    }],
+    sources: { metar: true, taf: true, notam: true },
+  };
+  const seen: string[] = [];
+  const conditions = (icao: string) => {
+    seen.push(icao);
+    return Promise.resolve(summary);
+  };
+  const cdg = await ask("airport=CDG", { fetchFn: faa.fn, conditions });
+  assertEquals([cdg.body.available, cdg.body.conditions?.level], [
+    false,
+    "minor",
+  ]);
+  assertEquals(faa.calls, 0);
+  const sfo = await ask("airport=SFO", { fetchFn: faa.fn, conditions });
+  assertEquals([sfo.body.available, sfo.body.conditions?.summary], [
+    true,
+    "Runway 09L/27R closed",
+  ]);
+  assertEquals(seen, ["LFPG", "KSFO"]);
+  const broken = await ask("airport=CDG", {
+    fetchFn: faa.fn,
+    conditions: () => Promise.reject(new Error("boom")),
+  });
+  assertEquals([broken.status, broken.body.conditions], [200, null]);
+  // Without the dep the key is absent, as in every example file.
+  const plain = await ask("airport=CDG", { fetchFn: faa.fn });
+  assertEquals("conditions" in plain.body, false);
+});
+
 test("outside the US: not available, and the feed is not read", async () => {
   const faa = feed(PROGRAMS);
   const { status, body } = await ask("airport=CDG", { fetchFn: faa.fn });
@@ -431,6 +472,47 @@ test("contract examples match the handler's answers", async () => {
   await checkContract(
     "not_available",
     (await ask("airport=CDG", { fetchFn: faa.fn })).body,
+  );
+  // A non-US airport: no program feed, but the conditions the rules read from notices and weather. The
+  // summary here is a fixed example, so the file shows the wire shape (the rules have their own tests).
+  const conditions = JSON.parse(`{
+  "level": "major",
+  "summary": "Thunderstorms nearby in the forecast",
+  "reasons": [
+    {
+      "source": "forecast",
+      "level": "major",
+      "text": "Thunderstorms nearby in the forecast",
+      "starts_at": "2026-10-31T22:00:00.000Z",
+      "ends_at": "2026-11-01T02:00:00.000Z"
+    },
+    {
+      "source": "notam",
+      "level": "minor",
+      "text": "Runway 09L/27R closed",
+      "starts_at": "2026-10-31T00:00:00.000Z",
+      "ends_at": "2026-10-31T23:00:00.000Z"
+    },
+    {
+      "source": "forecast",
+      "level": "minor",
+      "text": "Strong winds in the forecast at times",
+      "starts_at": "2026-11-01T02:00:00.000Z",
+      "ends_at": "2026-11-01T07:00:00.000Z"
+    }
+  ],
+  "sources": {
+    "metar": true,
+    "taf": true,
+    "notam": true
+  }
+}`);
+  await checkContract(
+    "conditions_outside_us",
+    (await ask("airport=CDG", {
+      fetchFn: faa.fn,
+      conditions: () => Promise.resolve(conditions),
+    })).body,
   );
   await clear();
   await checkContract(

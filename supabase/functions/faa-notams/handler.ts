@@ -4,9 +4,10 @@
 // most felt first. For the Operations Report and the flight sheet's Good to Know ("2 runway closures").
 // docs/api-contract.md.
 //
-// Source: the FAA NOTAM API (_shared/notam.ts). It needs a client id and secret from the owner's FAA
-// developer account. Without them in the function's env, the answer is configured: false with no
-// notams, and the app hides the section; the API is never called.
+// Source: the FAA NOTAM API (_shared/notam.ts), which serves the ICAO NOTAMs of airports outside the US
+// too: any airport in the airports table is asked by its ICAO code (icaoLocation), US or not. It needs a
+// client id and secret from the owner's FAA developer account. Without them in the function's env, the
+// answer is configured: false with no notams, and the app hides the section; the API is never called.
 //
 // Answers are cached whole per airport in faa_notam_cache for CACHE_TTL_MS. When the API fails, a
 // cached answer up to STALE_MAX_MS old is served with stale: true; older, 503 provider_unavailable.

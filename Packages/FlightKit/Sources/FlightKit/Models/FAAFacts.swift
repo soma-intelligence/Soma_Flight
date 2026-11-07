@@ -122,6 +122,25 @@ public enum FAAFacts {
         "FAA NAS status • \(p.isStale ? "last read" : "updated") \(Format.ago(p.fetchedAt, now: now))"
     }
 
+    /// Where a reason came from, for the report's line under it.
+    public static func reasonSource(_ s: AirportAssessment.Source) -> String {
+        switch s {
+        case .notam: "NOTAM"
+        case .metar: "METAR, observed now"
+        case .forecast: "TAF forecast"
+        }
+    }
+
+    /// The report's line under the likely disruption: what it was read from, and that it is inferred.
+    public static func assessmentSource(_ a: AirportAssessment) -> String {
+        var read: [String] = []
+        if a.readNotams { read.append("NOTAMs") }
+        if a.readMetar { read.append("METAR") }
+        if a.readTaf { read.append("TAF") }
+        let from = read.isEmpty ? "nothing" : read.joined(separator: ", ")
+        return "Inferred from \(from) with simple rules, not an official program"
+    }
+
     /// The source line under the notices.
     public static func notamSource(_ r: NotamReport, now: Date) -> String {
         "FAA NOTAM service • \(r.isStale ? "last read" : "updated") \(Format.ago(r.fetchedAt, now: now))"

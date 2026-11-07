@@ -233,3 +233,33 @@ Deno.test("fetchNotams sends the key in headers, never in the URL", async () => 
       Promise.resolve(new Response("no", { status: 401 }))) as typeof fetch;
   await assertRejects(() => fetchNotams(creds, "KSFO", refused, NOW));
 });
+
+Deno.test("international notices: ICAO wording for closures and instrument landing systems", () => {
+  const icao = (e: string) =>
+    `A1234/26 NOTAMN Q) LFFF/QMRLC/IV/NBO/A/000/999/4900N00232E005 A) LFPG B) 2610300000 C) 2610310500 E) ${e}`;
+  assertEquals(d(icao("RWY 09L/27R CLOSED DUE WIP")), [
+    "runway_closed",
+    "Runway 09L/27R closed",
+    "For construction work.",
+    80,
+  ]);
+  assertEquals(d(icao("RUNWAY 08/26 CLSD")).slice(0, 2), [
+    "runway_closed",
+    "Runway 08/26 closed",
+  ]);
+  assertEquals(d(icao("AERODROME CLOSED")), [
+    "airport_closed",
+    "Airport closed",
+    null,
+    100,
+  ]);
+  assertEquals(d(icao("ILS RWY 27L UNSERVICEABLE")), [
+    "ils_out",
+    "ILS for runway 27L out of service",
+    "Landings in low cloud or fog may be slower.",
+    60,
+  ]);
+  assertEquals(d(icao("ILS/DME RWY 09 U/S"))[0], "ils_out");
+  // Not a passenger matter: left out.
+  assertEquals(d(icao("VOR ABC FREQ CHANGED"))[0], "other");
+});

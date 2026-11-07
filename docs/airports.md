@@ -17,7 +17,9 @@ today, and what needs a paid flight data plan. Without a plan the app says so in
 | Airport names, codes, city, country, flag, local time | the bundled reference data | none (on device) |
 | Weather in plain words ("Partly cloudy with light winds.") and the flight category | NOAA METARs from aviationweather.gov, one batch request for up to 40 airports | `airport-weather` |
 | Ground stops, ground delay programs, delays, closures (US airports) | FAA NAS status, the feed `faa-status` already reads | `airport-weather` (list), `faa-status` (card) |
-| NOTAMs (US) | FAA NOTAM API, when its key is set | `faa-notams` (card, unchanged) |
+| NOTAMs (US and ICAO NOTAMs of other countries) | FAA NOTAM API, when its key is set | `faa-notams` (card) |
+| Inferred disruption outside the US (level and reasons from notices, METAR and TAF; rules only) | NOTAMs above, aviationweather.gov | `faa-status` `conditions` (card), shown like an FAA program, labelled inferred |
+| Terminal forecast (TAF), any airport that has one | aviationweather.gov | `airport-board` weather (card), `airport-weather?forecast=1` |
 | The status dot and line of every airport | worked out on device from the programs and the weather (`AirportStatus.of`) | none |
 | Runway Regulars | our own Passport data: the caller and friends who share their Passport | `airport_regulars(p_icao)` RPC |
 | Your History Here | the user's own Passport, already on the device | none |

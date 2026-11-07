@@ -311,3 +311,104 @@ Deno.test("contract example matches the handler's answer", async () => {
   );
   await checkContract("list", r.body);
 });
+
+// MARK: forecast=1 (the TAF, any airport worldwide)
+
+import { ForecastCache } from "./handler.ts";
+
+const tafKaus = JSON.parse(
+  Deno.readTextFileSync(
+    new URL("../_shared/fixtures/taf_kaus.json", import.meta.url),
+  ),
+)[0];
+const tafLhr = { ...tafKaus, icaoId: "EGLL", rawTAF: "TAF EGLL 071100Z" };
+
+/** A fake NOAA with a METAR answer and a TAF answer; keeps the URLs. */
+function noaaTaf(metars: unknown[] | null, tafs: unknown[] | null) {
+  const f = {
+    urls: [] as string[],
+    tafs,
+    fn: ((input: string | URL | Request) => {
+      const url = String(input);
+      f.urls.push(url);
+      const list = url.includes("/taf?") ? f.tafs : metars;
+      return Promise.resolve(
+        list === null
+          ? new Response("down", { status: 502 })
+          : new Response(JSON.stringify(list), {
+            headers: { "content-type": "application/json" },
+          }),
+      );
+    }) as typeof fetch,
+  };
+  return f;
+}
+
+Deno.test("forecast=1 adds each airport's TAF with plain words, one batch request, any country", async () => {
+  const f = noaaTaf([kaus, ksfo], [tafKaus, tafLhr]);
+  const r = await ask(
+    "airports=AUS,LHR&forecast=1",
+    deps({ fetchFn: f.fn, forecastCache: new ForecastCache() }),
+  );
+  assertEquals(r.status, 200);
+  assertEquals(f.urls.filter((u) => u.includes("/taf?")).length, 1);
+  const taf = f.urls.find((u) => u.includes("/taf?"))!;
+  assert(taf.includes("ids=KAUS%2CEGLL"), taf);
+  const [aus, lhr] = r.body.airports;
+  assertEquals(aus.forecast?.periods.length, 5);
+  assertEquals(aus.forecast?.periods[0].summary.startsWith("Light rain"), true);
+  assertEquals(aus.forecast?.periods[1].change, "FM");
+  assertEquals(aus.forecast?.issued_at, "2026-10-29T17:30:00.000Z");
+  assertEquals(aus.forecast?.stale, false);
+  assertEquals(lhr.forecast?.taf_raw, "TAF EGLL 071100Z");
+});
+
+Deno.test("without forecast=1 there is no TAF request and no forecast key", async () => {
+  const f = noaaTaf([kaus], [tafKaus]);
+  const r = await ask("airports=AUS", deps({ fetchFn: f.fn }));
+  assertEquals(f.urls.some((u) => u.includes("/taf?")), false);
+  assertEquals("forecast" in r.body.airports[0], false);
+});
+
+Deno.test("an airport without a TAF has forecast null; the TAF is kept 10 minutes, stale up to an hour when NOAA fails", async () => {
+  const cache = new ForecastCache();
+  const metarCache = new WeatherCache();
+  const f = noaaTaf([kaus, ksfo], [tafKaus]);
+  const first = await ask(
+    "airports=AUS,SFO&forecast=1",
+    deps({ fetchFn: f.fn, forecastCache: cache, cache: metarCache }),
+  );
+  assertEquals(first.body.airports[1].forecast, null);
+  const calls = f.urls.length;
+  await ask(
+    "airports=AUS,SFO&forecast=1",
+    deps({
+      fetchFn: f.fn,
+      forecastCache: cache,
+      cache: metarCache,
+      now: () => new Date(NOW.getTime() + CACHE_TTL_MS - 1000),
+    }),
+  );
+  assertEquals(f.urls.length, calls, "served from the kept answers");
+  f.tafs = null;
+  const stale = await ask(
+    "airports=AUS&forecast=1",
+    deps({
+      fetchFn: f.fn,
+      forecastCache: cache,
+      cache: metarCache,
+      now: () => new Date(NOW.getTime() + CACHE_TTL_MS + 1000),
+    }),
+  );
+  assertEquals(stale.body.airports[0].forecast?.stale, true);
+  const gone = await ask(
+    "airports=AUS&forecast=1",
+    deps({
+      fetchFn: f.fn,
+      forecastCache: cache,
+      cache: metarCache,
+      now: () => new Date(NOW.getTime() + STALE_MAX_MS + 1000),
+    }),
+  );
+  assertEquals(gone.body.airports[0].forecast, null);
+});

@@ -47,7 +47,7 @@ public final class AirportStore {
             l.available ? AirportLiveSummary(icao: l.icao, departures: l.departures?.brief, arrivals: l.arrivals?.brief,
                                              stale: l.stale) : nil
         }
-        return AirportStatus.of(overview, live: live)
+        return AirportStatus.of(overview, live: live, assessment: programs?.assessment)
     }
 
     /// True once the backend said it has no board provider: no boards, no delay numbers, a calm note instead.

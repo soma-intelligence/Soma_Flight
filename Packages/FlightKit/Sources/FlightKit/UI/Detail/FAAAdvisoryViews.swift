@@ -28,9 +28,44 @@ extension FAAFacts {
         }
     }
 
-    /// The FAA rows of one airport: its programs that matter at that end, then the NOTAM line.
+    /// When a reason applies, in the airport's time: "14:00 to 19:00", "until 19:00"; nil when it holds now with
+    /// no end or no times are known.
+    static func reasonWindow(_ r: AirportAssessment.Reason, timeZone: TimeZone, clock: TimeStyle, now: Date) -> String? {
+        let start = r.startsAt.flatMap { $0 > now ? Format.clock($0, timeZone, clock) : nil }
+        let end = r.endsAt.map { Format.clock($0, timeZone, clock) }
+        switch (start, end) {
+        case let (s?, e?): return "\(s) to \(e)"
+        case let (s?, nil): return "from \(s)"
+        case let (nil, e?): return "until \(e)"
+        case (nil, nil): return nil
+        }
+    }
+
+    /// One reason in a line: "Thunderstorms nearby in the forecast, 14:00 to 19:00".
+    static func reasonLine(_ r: AirportAssessment.Reason, timeZone: TimeZone, clock: TimeStyle, now: Date) -> String {
+        guard let w = reasonWindow(r, timeZone: timeZone, clock: clock, now: now) else { return r.text }
+        return "\(r.text), \(w)"
+    }
+
+    /// The one row the conditions add to an airport's FAA rows: the weather reasons (the forecast ahead, and
+    /// the report now when `includeNow`), outside the US as well as inside it. The notice reasons are not
+    /// repeated here: the NOTAM line and the report's NOTAMs already say them. nil when there is nothing to say.
+    static func assessmentRow(_ a: AirportAssessment?, code: String, includeNow: Bool, timeZone: TimeZone,
+                              clock: TimeStyle, now: Date) -> AdvisoryRowData? {
+        guard let a else { return nil }
+        let sources: Set<AirportAssessment.Source> = includeNow ? [.metar, .forecast] : [.forecast]
+        let reasons = a.reasons(from: sources)
+        guard let top = reasons.map(\.level).max() else { return nil }
+        let major = top == .major
+        let lines = reasons.prefix(3).map { reasonLine($0, timeZone: timeZone, clock: clock, now: now) }
+        return AdvisoryRowData(symbol: "cloud.bolt.rain", title: major ? "Disruption likely at \(code)" : "Possible slowdowns at \(code)",
+                               text: lines.joined(separator: " · "), severity: major ? .major : .moderate)
+    }
+
+    /// The FAA rows of one airport: its programs that matter at that end, then the NOTAM line, then what the
+    /// weather ahead says (`assessmentRow`).
     static func rows(programs: AirportPrograms?, notams: NotamReport?, end: End?, code: String,
-                     timeZone: TimeZone, clock: TimeStyle, now: Date) -> [AdvisoryRowData] {
+                     timeZone: TimeZone, clock: TimeStyle, now: Date, includeWeatherNow: Bool = false) -> [AdvisoryRowData] {
         var out = Self.programs(programs, at: end, now: now).map { p in
             let r = row(p, code: code, timeZone: timeZone, clock: clock, now: now)
             return AdvisoryRowData(symbol: symbol(p.kind), title: r.title, text: r.text, severity: p.severity)
@@ -40,13 +75,19 @@ extension FAAFacts {
             out.append(AdvisoryRowData(symbol: closed ? "xmark.octagon.fill" : "road.lanes", title: n.title,
                                        text: n.text, severity: closed ? .major : .moderate))
         }
+        if let r = assessmentRow(programs?.assessment, code: code, includeNow: includeWeatherNow, timeZone: timeZone,
+                                 clock: clock, now: now) {
+            out.append(r)
+        }
         return out
     }
 
-    /// The airport sheet's FAA rows: every program, then the NOTAM line.
+    /// The airport sheet's FAA rows: every program, then the NOTAM line and the weather ahead. `includeWeatherNow`
+    /// when the card has no weather line of its own (no boards).
     static func airportRows(programs: AirportPrograms?, notams: NotamReport?, code: String, timeZone: TimeZone,
-                            clock: TimeStyle, now: Date) -> [AdvisoryRowData] {
-        rows(programs: programs, notams: notams, end: nil, code: code, timeZone: timeZone, clock: clock, now: now)
+                            clock: TimeStyle, now: Date, includeWeatherNow: Bool = false) -> [AdvisoryRowData] {
+        rows(programs: programs, notams: notams, end: nil, code: code, timeZone: timeZone, clock: clock, now: now,
+             includeWeatherNow: includeWeatherNow)
     }
 
     /// How bad the airport's day is: the worse of its boards and its FAA rows.
@@ -113,7 +154,7 @@ struct FAAReportSections: View {
     var now: Date
 
     var body: some View {
-        if let programs {
+        if let programs, programs.hasFeed {
             BriefSection(symbol: "hand.raised", title: "FAA Programs") {
                 if programs.programs.isEmpty {
                     BriefItem(title: "No Programs", text: "The FAA has no ground stop, delay program or closure at \(code) right now.",
@@ -128,6 +169,17 @@ struct FAAReportSections: View {
                         }
                     }
                 }
+            }
+        }
+        if let a = programs?.assessment, !a.reasons.isEmpty {
+            BriefSection(symbol: "exclamationmark.triangle", title: "Likely Disruption") {
+                ForEach(a.reasons) { r in
+                    BriefItem(title: r.text, tint: r.level == .major ? Theme.veryLate : Theme.late,
+                              text: FAAFacts.reasonWindow(r, timeZone: timeZone, clock: clock, now: now)
+                                  .map { FAAFacts.capitalized($0) } ?? "Now",
+                              source: FAAFacts.reasonSource(r.source))
+                }
+                SourceLine(text: FAAFacts.assessmentSource(a))
             }
         }
         if let notams, !notams.notams.isEmpty {

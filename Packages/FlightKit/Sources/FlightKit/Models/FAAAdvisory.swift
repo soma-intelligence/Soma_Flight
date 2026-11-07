@@ -10,12 +10,61 @@ public struct AirportPrograms: Sendable, Hashable {
     /// When the feed was read.
     public var fetchedAt: Date
     public var programs: [AirportProgram]
+    /// What notices and weather say about the airport (rules, not an official program); nil when the backend
+    /// gave none. Present outside the US too, where `hasFeed` is false.
+    public var assessment: AirportAssessment?
+    /// False outside the US: the FAA has no program feed there, so an empty `programs` is not "no programs".
+    public var hasFeed: Bool
 
     public init(airportIcao: String, iata: String?, isStale: Bool = false, fetchedAt: Date,
-                programs: [AirportProgram]) {
+                programs: [AirportProgram], assessment: AirportAssessment? = nil, hasFeed: Bool = true) {
         self.airportIcao = airportIcao; self.iata = iata; self.isStale = isStale
-        self.fetchedAt = fetchedAt; self.programs = programs
+        self.fetchedAt = fetchedAt; self.programs = programs; self.assessment = assessment; self.hasFeed = hasFeed
     }
+}
+
+/// What rules over an airport's NOTAMs, METAR and TAF say, from `faa-status` (`conditions`): a level and short
+/// reasons in plain English. It is the disruption read outside the US, where no national program feed exists,
+/// and it adds the notice and weather reasons next to the FAA's programs inside it. Inferred, never an official
+/// program, and the app says so.
+public struct AirportAssessment: Sendable, Hashable {
+    public enum Source: String, Sendable, Hashable { case notam, metar, forecast }
+
+    public struct Reason: Sendable, Hashable, Identifiable {
+        public var source: Source
+        public var level: AirportStatusLevel
+        /// "Thunderstorms nearby in the forecast": no clock times, those are `startsAt` and `endsAt`.
+        public var text: String
+        public var startsAt: Date?
+        public var endsAt: Date?
+
+        public var id: String { "\(source.rawValue):\(text)" }
+
+        public init(source: Source, level: AirportStatusLevel, text: String, startsAt: Date? = nil,
+                    endsAt: Date? = nil) {
+            self.source = source; self.level = level; self.text = text; self.startsAt = startsAt; self.endsAt = endsAt
+        }
+    }
+
+    public var level: AirportStatusLevel
+    /// The most serious reason in a line; nil on a normal day.
+    public var summary: String?
+    /// Most serious first.
+    public var reasons: [Reason]
+    /// What the read was made from. A source that could not be read is false: the airport is then not known
+    /// to be fine, only not known to be bad.
+    public var readMetar: Bool
+    public var readTaf: Bool
+    public var readNotams: Bool
+
+    public init(level: AirportStatusLevel, summary: String? = nil, reasons: [Reason] = [], readMetar: Bool = true,
+                readTaf: Bool = true, readNotams: Bool = true) {
+        self.level = level; self.summary = summary; self.reasons = reasons
+        self.readMetar = readMetar; self.readTaf = readTaf; self.readNotams = readNotams
+    }
+
+    /// The reasons that came from the weather: the report now, or the forecast ahead.
+    public func reasons(from sources: Set<Source>) -> [Reason] { reasons.filter { sources.contains($0.source) } }
 }
 
 /// One FAA program at one airport.

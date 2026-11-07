@@ -87,7 +87,7 @@ export function decodeNotam(text: string): Decoded {
   const b = noticeBody(text);
 
   // The airport.
-  const ad = /^(?:AD AP|AD|AP) CLSD\b(.*)$/.exec(b);
+  const ad = /^(?:AD AP|AD|AP|AERODROME|AIRPORT) (?:CLSD|CLOSED)\b(.*)$/.exec(b);
   if (ad) {
     const rest = ad[1].trim();
     if (rest === "") {
@@ -115,7 +115,9 @@ export function decodeNotam(text: string): Decoded {
   }
 
   // A runway.
-  const rwy = /^RWY (\d{1,2}[LRC]?(?:\/\d{1,2}[LRC]?)?) CLSD\b(.*)$/.exec(b);
+  const rwy =
+    /^(?:RWY|RUNWAY) (\d{1,2}[LRC]?(?:\/\d{1,2}[LRC]?)?) (?:CLSD|CLOSED|NOT AVBL)\b(.*)$/
+      .exec(b);
   if (rwy) {
     const rest = rwy[2];
     const partial = /\bEXC\b|\bTO\b|\bBTN\b|\bFIRST\b|\bLAST\b/.test(rest);
@@ -157,7 +159,7 @@ export function decodeNotam(text: string): Decoded {
 
   // An instrument landing system.
   const ils =
-    /^(?:NAV )?ILS RWY (\d{1,2}[LRC]?)\b(.*?)\b(?:U\/S|OUT OF SERVICE|OTS)\b/
+    /^(?:NAV )?ILS(?:\/DME)? (?:RWY )?(\d{1,2}[LRC]?)\b(.*?)\b(?:U\/S|OUT OF SERVICE|OTS|UNSERVICEABLE|NOT AVBL|INOP)\b/
       .exec(b);
   if (ils) {
     const part = /\b(?:GP|GS)\b/.test(ils[2])

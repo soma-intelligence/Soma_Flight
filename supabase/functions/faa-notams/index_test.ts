@@ -112,6 +112,33 @@ test("with the key: decoded, ranked and cached for 15 minutes", async () => {
   assertEquals(faa.calls, 1);
 });
 
+test("an airport outside the US is asked by its ICAO code, decoded and cached like any other", async () => {
+  const urls: string[] = [];
+  const fn = ((input: string | URL | Request) => {
+    urls.push(String(input));
+    return Promise.resolve(new Response(API));
+  }) as typeof fetch;
+  const { status, body } = await ask("airport=CDG", { fetchFn: fn });
+  assertEquals(status, 200);
+  assertEquals([body.airport, body.iata, body.configured], [
+    "LFPG",
+    "CDG",
+    true,
+  ]);
+  assertEquals(new URL(urls[0]).searchParams.get("icaoLocation"), "LFPG");
+  // Without the key it is not configured, with no call, outside the US as inside.
+  await clear();
+  const off = await ask("airport=LFPG", {
+    fetchFn: fn,
+    credentials: () => undefined,
+  });
+  assertEquals([off.body.configured, off.body.notams, urls.length], [
+    false,
+    [],
+    1,
+  ]);
+});
+
 test("a failing API: the last answer, stale; none at all is 503", async () => {
   const faa = api(API);
   await ask("airport=SFO", { fetchFn: faa.fn });

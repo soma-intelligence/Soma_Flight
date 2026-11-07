@@ -9,6 +9,11 @@
 // airport_program alert. push-sender claims it in alert_log (key per flight, airport, kind and start),
 // so each program is announced once per flight however many sweeps see it.
 //
+// Every answer may also carry `conditions` (US or not): a level (normal, minor, major) and short reasons
+// that rules over the airport's NOTAMs, METAR and TAF produce (_shared/conditions.ts). Outside the US that
+// is the whole disruption read (available stays false: there is no national program feed); at US airports
+// it adds the weather and notice reasons next to the FAA's programs.
+//
 // The feed is cached whole in faa_status_cache for CACHE_TTL_MS, shared by every airport. When the FAA
 // does not answer, a cached feed up to STALE_MAX_MS old answers with stale: true; older than that, 503
 // provider_unavailable (an old "no programs" must not read as a calm day). Airports outside the US
@@ -31,6 +36,7 @@ import {
   type ProgramAlert,
   programKey,
 } from "../_shared/faa_nas.ts";
+import type { Conditions } from "../_shared/conditions.ts";
 import { checkRate } from "../_shared/limits.ts";
 
 export const CACHE_TTL_MS = 5 * 60_000;
@@ -54,6 +60,11 @@ export interface Deps {
   serviceKey?: () => string | undefined;
   /** Hands one program alert to push-sender. */
   push?: (flightId: string, program: ProgramAlert) => Promise<void>;
+  /**
+   * The conditions summary of an airport (NOTAMs, METAR, TAF; _shared/conditions.ts), null when nothing
+   * could be read. Without it the answer has no `conditions` key (tests, and the sweep never needs it).
+   */
+  conditions?: (icao: string, now: Date) => Promise<Conditions | null>;
 }
 
 /** Default push dep: invokes the push-sender edge function with the service client. */
@@ -77,6 +88,12 @@ export interface Answer {
   fetched_at: string;
   /** Most serious first. */
   programs: Program[];
+  /**
+   * What the notices and the weather say about the airport, at every airport (US and not): a level and
+   * short reasons, from rules only. Null when neither could be read. Absent when the function runs
+   * without the summary wired.
+   */
+  conditions?: Conditions | null;
 }
 
 interface Feed {
@@ -164,6 +181,19 @@ async function answer(deps: Deps, req: Request, now: Date): Promise<Answer> {
     .eq("icao", icao).single();
   if (row.error) throw new Error(`airport read failed: ${row.error.message}`);
   const a = row.data as AirportRow;
+  // The summary is an extra: its failure never fails the answer.
+  const summary = async (): Promise<{ conditions?: Conditions | null }> => {
+    if (!deps.conditions) return {};
+    try {
+      return { conditions: await deps.conditions(a.icao, now) };
+    } catch (e) {
+      console.error(
+        "faa-status: conditions failed",
+        e instanceof Error ? e.message : e,
+      );
+      return { conditions: null };
+    }
+  };
   if (!FAA_COUNTRIES.has(a.country ?? "")) {
     return {
       airport: a.icao,
@@ -173,9 +203,10 @@ async function answer(deps: Deps, req: Request, now: Date): Promise<Answer> {
       stale: false,
       fetched_at: now.toISOString(),
       programs: [],
+      ...await summary(),
     };
   }
-  const f = await feed(deps, now);
+  const [f, extra] = await Promise.all([feed(deps, now), summary()]);
   return {
     airport: a.icao,
     iata: a.iata,
@@ -184,6 +215,7 @@ async function answer(deps: Deps, req: Request, now: Date): Promise<Answer> {
     stale: f.stale,
     fetched_at: f.fetched_at,
     programs: f.programs.filter((p) => sameAirport(p.airport, a)),
+    ...extra,
   };
 }
 

@@ -237,6 +237,24 @@ export function toWeather(metars: Json[], tafs: Json[]): Weather | null {
   };
 }
 
+/** One TAF decoded: when it was issued, the raw text and its periods. Null without a TAF. */
+export interface Forecast {
+  issuedAt: string | null;
+  tafRaw: string | null;
+  periods: ForecastPeriod[];
+}
+
+/** The newest TAF of one station as periods; null when there is none. Works for any ICAO airport. */
+export function toForecast(tafs: Json[]): Forecast | null {
+  if (tafs.length === 0) return null;
+  const taf = newestTaf(tafs);
+  return {
+    issuedAt: isoOfString(taf.issueTime ?? taf.bulletinTime),
+    tafRaw: typeof taf.rawTAF === "string" ? taf.rawTAF : null,
+    periods: parsePeriods(taf),
+  };
+}
+
 /** TAF reports carry issueTime as an ISO string (bulletinTime too): newest first. */
 function newestTaf(tafs: Json[]): Json {
   const t = (x: Json) =>

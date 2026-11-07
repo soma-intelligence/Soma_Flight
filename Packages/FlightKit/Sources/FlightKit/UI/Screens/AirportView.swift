@@ -149,7 +149,7 @@ struct AirportSections: View {
                     .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
             }
             let faa = FAAFacts.airportRows(programs: store.programs, notams: store.notams, code: code, timeZone: tz,
-                                           clock: units.clock, now: now)
+                                           clock: units.clock, now: now, includeWeatherNow: store.stats == nil)
             let severity = FAAFacts.issuesSeverity(stats: store.stats, rows: faa)
             if severity != .normal {
                 IssuesCard(severity: severity, departures: store.stats?.departures, arrivals: store.stats?.arrivals,

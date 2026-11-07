@@ -237,3 +237,21 @@ offered for reuse.
   code change if the answer keeps the same GeoJSON items. The sample notices in
   `_shared/fixtures/notam_api_ksfo.json` use the FAA's published domestic format (FAA Order JO 7930.2 and
   its contractions); the SBY, LAX and SAN texts in the decoder tests are real notices from the NAS feed.
+
+## Weather forecasts and notices outside the US
+
+Checked on 2026-11-07. Free public sources only, no national air traffic feed.
+
+- TAF (terminal forecasts) and METAR: `https://aviationweather.gov/api/data/taf` and `/metar` (NOAA Aviation
+  Weather Center, a US government work). The data API carries reports for airports worldwide, not only the
+  US, from the ICAO exchange. No key. We send a polite User-Agent, batch up to 40 stations in one request and
+  keep answers 10 minutes per airport (`airport-weather`). TAF text is decoded into our own words
+  (`_shared/taf_words.ts`); nothing is copied from the report's prose.
+- ICAO NOTAMs: the same FAA NOTAM API as above (`faa-notams`), which also answers `icaoLocation` for airports
+  outside the US. Coverage of foreign NOTAMs there is the FAA's own and is not complete or guaranteed; the key
+  is still the owner's FAA developer account.
+- Airport conditions (`faa-status` `conditions`, `_shared/conditions.ts`): rules over the NOTAMs and the
+  METAR and TAF above, no language model. There is no free national feed of ground stops or delay programs
+  outside the US, so a non-US airport shows a level (normal, minor, major) and reasons inferred from notices
+  and weather, labelled as such in the app, never as an official program. At US airports the reasons sit next
+  to the FAA's real programs.
