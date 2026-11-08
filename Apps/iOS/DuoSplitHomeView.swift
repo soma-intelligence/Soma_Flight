@@ -21,6 +21,8 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
     var mapControls: MapControls
     /// The screen's height and safe areas, measured on a background that ignores them (as in `RootTabView`).
     @State private var metrics = Metrics()
+    /// The tab pill's height, where the list is masked off.
+    @State private var pillHeight = SheetGeometry.tabBarHeight
 
     /// The pane's share of the height between the safe areas.
     static var paneFraction: CGFloat { 0.55 }
@@ -83,19 +85,22 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
     }
 
     private var root: some View {
+        // The list ends above the pill and fades out there, as in the iPhone sheet: no row draws under the glass.
         tabScreen
             .frame(maxHeight: .infinity, alignment: .top)
+            .pillFade(pillHeight: pillHeight)
             .overlay(alignment: .topTrailing) {
                 ProfileButton(profile: home.profile, action: onSettings)
                     .padding(.top, 19)
                     .padding(.trailing, 16)
             }
-            // `$home` is not available outside `body`, so the pill gets an explicit binding.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            .overlay(alignment: .bottom) {
+                // `$home` is not available outside `body`, so the pill gets an explicit binding.
                 VStack(spacing: 12) {
                     ToastSlot(text: home.toast, isError: home.toastIsError)
                     HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
                                 onSearch: onSearch)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
                 }
             }
     }

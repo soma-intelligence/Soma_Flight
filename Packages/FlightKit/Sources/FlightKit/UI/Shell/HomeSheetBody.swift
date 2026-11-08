@@ -15,7 +15,7 @@ public struct HomeSheetBody<Content: View, Toast: View>: View {
     @State private var forward = true
 
     /// How far above the pill's top the list starts to fade; it is fully clear at the sheet's bottom.
-    static var fade: CGFloat { 44 }
+    static var fade: CGFloat { PillFadeMask.fade }
 
     /// - Parameters:
     ///   - content: the tab's screen, its header first.
@@ -37,22 +37,9 @@ public struct HomeSheetBody<Content: View, Toast: View>: View {
                         .transition(.push(from: forward ? .trailing : .leading))
                 }
                 .clipped()
-                .safeAreaPadding(.bottom, pillHeight)
-                .mask {
-                    // A long soft fade that starts above the pill and is gone by the pill's middle: the last rows
-                    // melt into the sheet, nothing reads through the glass, and no edge shows.
-                    GeometryReader { geo in
-                        VStack(spacing: 0) {
-                            Rectangle()
-                            LinearGradient(stops: [.init(color: .black, location: 0),
-                                                   .init(color: .black.opacity(0.35), location: 0.55),
-                                                   .init(color: .clear, location: 1)],
-                                           startPoint: .top, endPoint: .bottom)
-                                .frame(height: Self.fade + pillHeight * 0.5)
-                            Color.clear.frame(height: max(0, pillHeight * 0.5 + geo.safeAreaInsets.bottom - 14))
-                        }
-                    }
-                }
+                // A long soft fade that starts above the pill and is gone by the pill's middle: the last rows
+                // melt into the sheet, nothing reads through the glass, and no edge shows.
+                .pillFade(pillHeight: pillHeight, reachesIntoInset: true)
                 .ignoresSafeArea(.container, edges: .bottom)
             // The pill reaches 14 pt into the home indicator inset (34 pt on Face ID iPhones), so it sits
             // 20 pt above the sheet's bottom edge as in the reference.

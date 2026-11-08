@@ -33,6 +33,8 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     var mapControls: MapControls
     /// The tab page's width, which decides between one panel and two.
     @State private var width: CGFloat = 0
+    /// The tab pill's height (with `.pill`), where the list is masked off.
+    @State private var pillHeight = SheetGeometry.tabBarHeight
 
     /// The iPhone 17 Pro's width: every shared screen was laid out for it.
     static var panelWidth: CGFloat { 402 }
@@ -137,29 +139,44 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
         .padding(.top, 8)
     }
 
-    private var listRoot: some View {
-        tabScreen
-            .frame(maxHeight: .infinity, alignment: .top)
-            .overlay(alignment: .topTrailing) {
-                ProfileButton(profile: home.profile, action: onSettings)
-                    .pointerHighlight(Circle())
-                    .padding(.top, 19)
-                    .padding(.trailing, 16)
-            }
-            // With the system tab bar, search stays at the panel's foot, where the iPhone has it. With the
-            // pill, the pill carries both the tabs and the search button, as in the Mac's panel.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 12) {
-                    ToastSlot(text: home.toast, isError: home.toastIsError)
-                    switch tabs {
-                    case .system:
+    private var listScreen: some View {
+        tabScreen.frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var profileButton: some View {
+        ProfileButton(profile: home.profile, action: onSettings)
+            .pointerHighlight(Circle())
+            .padding(.top, 19)
+            .padding(.trailing, 16)
+    }
+
+    @ViewBuilder private var listRoot: some View {
+        switch tabs {
+        case .system:
+            // Search stays at the panel's foot, where the iPhone has it.
+            listScreen
+                .overlay(alignment: .topTrailing) { profileButton }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 12) {
+                        ToastSlot(text: home.toast, isError: home.toastIsError)
                         SearchFieldButton(action: onSearch)
-                    case .pill:
-                        HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
-                                    onSearch: onSearch)
                     }
                 }
-            }
+        case .pill:
+            // The pill carries both the tabs and the search button, as in the Mac's panel. The list ends
+            // above it and fades out there, as in the iPhone sheet: no row draws under the glass.
+            listScreen
+                .pillFade(pillHeight: pillHeight)
+                .overlay(alignment: .topTrailing) { profileButton }
+                .overlay(alignment: .bottom) {
+                    VStack(spacing: 12) {
+                        ToastSlot(text: home.toast, isError: home.toastIsError)
+                        HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
+                                    onSearch: onSearch)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
+                    }
+                }
+        }
     }
 }
 
