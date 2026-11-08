@@ -17,6 +17,9 @@ struct RootTabView: View {
     @State private var showSearch = false
     /// The query Search runs when it opens from Siri, Shortcuts or a search link.
     @State private var searchQuery: String?
+    /// The live Search while it is open. It outlives the sheet: a fold swaps the layout and with it the
+    /// branch's `.sheet`, and the same store is presented again with its text.
+    @State private var search = OpenSearch()
     /// Where a Passport card zooms into its full page.
     @Namespace private var pageZoom
     /// Ties the compass under the map buttons to the globe: the map's own safe area moves with the sheet,
@@ -89,7 +92,10 @@ struct RootTabView: View {
             if !path.isEmpty { showSearch = false; showSettings = false }
         }
         // The search sheet covers the tab pill: a follow's toast waits for it to close.
-        .onChange(of: showSearch) { _, open in home.searchOpen = open }
+        .onChange(of: showSearch) { _, open in
+            home.searchOpen = open
+            if !open { search.close(); searchQuery = nil }
+        }
         // A confirmation email shared to the app from Mail (the share extension's inbox).
         .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
         .environment(\.units, units)
@@ -197,14 +203,15 @@ struct RootTabView: View {
         @Bindable var home = home
         return content
         .sheet(isPresented: $showSearch) {
-            SearchSheet(env: env, alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
+            SearchSheet(store: search.store(make: env.makeSearchStore), lookup: env.lookup,
+                        alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
                         known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
                         onFollowed: { flight in Task { await home.didFollow(flight) } },
                         onImport: { showSearch = false; home.showImport = true },
                         onAirport: { code in showSearch = false; home.open(airport: code) },
                         onOpen: { flight in showSearch = false; home.open(flight: flight) },
                         onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)),
-                        query: searchQuery)
+                        query: search.pending(searchQuery), onQueryRun: { search.ran($0) })
                 .environment(\.units, units)
         }
         // A Passport card's page covers the whole screen, over the home sheet.
@@ -354,9 +361,29 @@ private struct HomeGlobe: View {
 
 // MARK: - Modal sheets
 
+/// The Search that is open, kept by `RootTabView` so a layout switch does not lose it.
+@MainActor private final class OpenSearch {
+    private var current: SearchStore?
+    private var ranQuery: String?
+
+    /// The open store, made on first use after Search opens.
+    func store(make: () -> SearchStore) -> SearchStore {
+        if let current { return current }
+        let made = make()
+        current = made
+        return made
+    }
+
+    /// The query still to run: not the one that already ran in this open Search.
+    func pending(_ query: String?) -> String? { query == ranQuery ? nil : query }
+    func ran(_ query: String) { ranQuery = query }
+
+    func close() { current = nil; ranQuery = nil }
+}
+
 /// Search in its own sheet over the home sheet.
 private struct SearchSheet: View {
-    @State private var store: SearchStore
+    var store: SearchStore
     var lookup: (String) -> Airport?
     var alreadyFollowed: FollowedFlights
     var frequent: [FrequentItem]
@@ -369,14 +396,17 @@ private struct SearchSheet: View {
     var planned: Set<UpcomingFlight.ID>
     /// Run once when given (Siri, Shortcuts, a search link).
     var query: String?
+    /// Told which query ran, so a fold that presents the sheet again does not run it over the typed text.
+    var onQueryRun: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(env: AppEnvironment, alreadyFollowed: FollowedFlights, frequent: [FrequentItem], known: [KnownFlight],
+    init(store: SearchStore, lookup: @escaping (String) -> Airport?, alreadyFollowed: FollowedFlights,
+         frequent: [FrequentItem], known: [KnownFlight],
          onFollowed: @escaping (Flight) -> Void, onImport: @escaping () -> Void, onAirport: @escaping (String) -> Void,
          onOpen: @escaping (Flight) -> Void, onPlan: @escaping (UpcomingFlight) -> Void, planned: Set<UpcomingFlight.ID>,
-         query: String? = nil) {
-        _store = State(initialValue: env.makeSearchStore())
-        self.lookup = env.lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.known = known
+         query: String? = nil, onQueryRun: @escaping (String) -> Void = { _ in }) {
+        self.store = store; self.onQueryRun = onQueryRun
+        self.lookup = lookup; self.alreadyFollowed = alreadyFollowed; self.frequent = frequent; self.known = known
         self.onFollowed = onFollowed; self.onImport = onImport; self.onAirport = onAirport; self.onOpen = onOpen
         self.onPlan = onPlan; self.planned = planned; self.query = query
     }
@@ -388,6 +418,7 @@ private struct SearchSheet: View {
                    onPlan: onPlan, planned: planned, onOpen: onOpen, onClose: { dismiss() })
             .task(id: query) {
                 guard let query, !query.isEmpty else { return }
+                onQueryRun(query)
                 store.text = query
                 await store.search()
             }
