@@ -472,6 +472,16 @@
         }
       }
     },
+    "A white contrail in milky glass.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une traînée blanche dans un verre laiteux."
+          }
+        }
+      }
+    },
     "AF 84 tomorrow, or Paris Rome": {
       "localizations": {
         "fr": {
@@ -1388,6 +1398,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Un code d'aéroport, le numéro de vol, l'avion ou la date n'est pas accepté"
+          }
+        }
+      }
+    },
+    "An icy contrail through midnight glass.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une traînée glacée dans un verre de minuit."
           }
         }
       }
@@ -2868,6 +2888,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Équipage"
+          }
+        }
+      }
+    },
+    "Crystal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cristal"
           }
         }
       }
@@ -4902,6 +4932,46 @@
         }
       }
     },
+    "Glass Crystal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verre cristal"
+          }
+        }
+      }
+    },
+    "Glass Mono": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verre mono"
+          }
+        }
+      }
+    },
+    "Glass Night": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verre de nuit"
+          }
+        }
+      }
+    },
+    "Glass Sunset": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verre coucher de soleil"
+          }
+        }
+      }
+    },
     "Good ceiling and visibility. Normal flows.": {
       "localizations": {
         "fr": {
@@ -6358,6 +6428,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "lun."
+          }
+        }
+      }
+    },
+    "Mono": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mono"
           }
         }
       }
@@ -9872,6 +9952,16 @@
         }
       }
     },
+    "Sunset": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coucher de soleil"
+          }
+        }
+      }
+    },
     "Supersonic": {
       "localizations": {
         "fr": {
@@ -10318,6 +10408,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le calendrier utilisé par Soma Flight n'existe plus. Choisis-en un autre."
+          }
+        }
+      }
+    },
+    "The contrail in clear crystal glass.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La traînée dans un verre cristal limpide."
+          }
+        }
+      }
+    },
+    "The contrail in sunset amber and magenta.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La traînée en ambre et magenta du couchant."
           }
         }
       }

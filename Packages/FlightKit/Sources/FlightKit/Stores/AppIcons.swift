@@ -77,11 +77,23 @@ public enum AppIcons {
         ("blueprint", "Blueprint", "drawn in fine lines on blueprint blue"),
     ]
 
+    /// The glass row's other looks, after Contrail: slug, caption and tagline.
+    static let glassLooks: [(slug: String, label: String, tagline: String)] = [
+        ("sunset", "Sunset", "The contrail in sunset amber and magenta."),
+        ("night", "Night", "An icy contrail through midnight glass."),
+        ("crystal", "Crystal", "The contrail in clear crystal glass."),
+        ("mono", "Mono", "A white contrail in milky glass."),
+    ]
+
     public static let all: [AppIconChoice] = AppIconPlane.allCases.flatMap { plane -> [AppIconChoice] in
         if plane == .glass {
             // Frosted glass with a jet and its contrail glowing inside; light and dark looks, no grounds.
             return [AppIconChoice("AppIcon-glass", name: "Glass Contrail",
                                   tagline: "A contrail glowing through frosted glass.", plane: .glass, label: "Contrail")]
+                + glassLooks.map { g in
+                    AppIconChoice("AppIcon-glass-\(g.slug)", name: "Glass \(g.label)", tagline: g.tagline,
+                                  plane: .glass, label: g.label)
+                }
         }
         let auto = plane == .jet
             ? AppIconChoice(nil, name: "Jet", tagline: "Black on white by day, white on charcoal at night.",
