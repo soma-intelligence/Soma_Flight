@@ -150,7 +150,7 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
             // pill, the pill carries both the tabs and the search button, as in the Mac's panel.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 12) {
-                    ToastSlot(text: home.toast)
+                    ToastSlot(text: home.toast, isError: home.toastIsError)
                     switch tabs {
                     case .system:
                         SearchFieldButton(action: onSearch)

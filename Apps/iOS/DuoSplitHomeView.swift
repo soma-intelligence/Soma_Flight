@@ -93,7 +93,7 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
             // `$home` is not available outside `body`, so the pill gets an explicit binding.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 12) {
-                    ToastSlot(text: home.toast)
+                    ToastSlot(text: home.toast, isError: home.toastIsError)
                     HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
                                 onSearch: onSearch)
                 }

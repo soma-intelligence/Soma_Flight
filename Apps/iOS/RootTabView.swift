@@ -7,7 +7,8 @@ import SwiftUI
 /// airports open as cards sliding up inside the sheet while the globe moves onto them; an open flight
 /// is drawn alone on the globe. The state is FlightKit's `HomeModel`, shared with the Mac sidebar.
 /// A regular width iPad window (and the iPad app on Apple Vision Pro) gets `RegularHomeView` instead: the
-/// same globe with floating panels, the modal sheets shared with the iPhone layout.
+/// same globe with floating panels, the modal sheets shared with the iPhone layout. An unfolded Duo gets
+/// panels with the tab pill held sideways and `DuoSplitHomeView` held upright (`HomeLayout`).
 struct RootTabView: View {
     @State private var home: HomeModel
     @State private var selection: GlobeSelection?
@@ -27,6 +28,9 @@ struct RootTabView: View {
     @StoredUnits private var units: Units
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window's size, measured behind the home. It is zero until the first frame, which resolves to the
+    /// sheet on an iPhone.
+    @State private var windowSize: CGSize = .zero
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -35,16 +39,28 @@ struct RootTabView: View {
     private var env: AppEnvironment { home.env }
     private var shell: ShellModel { home.shell }
 
-    /// An iPad window wide enough for panels. An iPhone stays on the sheet even where its landscape width
-    /// is regular (the Pro Max), so the phone layout never changes.
-    private var isRegular: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad && sizeClass == .regular
+    /// The layout the window's shape asks for (see `HomeLayout`).
+    private var layout: HomeLayout {
+        HomeLayout.resolve(isPad: UIDevice.current.userInterfaceIdiom == .pad, regularWidth: sizeClass == .regular,
+                           size: windowSize)
     }
 
     var body: some View {
         Group {
-            if isRegular { regularHome } else { compactHome }
+            switch layout {
+            case .sheet: compactHome
+            case .panels: regularHome(tabs: .system)
+            case .duoSideways: regularHome(tabs: .pill)
+            case .duoUpright: duoUprightHome
+            }
         }
+        // The full window, safe areas included: the shape that decides the layout.
+        .background {
+            Color.clear
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
+                .ignoresSafeArea()
+        }
+        .onChange(of: layout) { _, new in home.shell.didChangeLayout(to: new) }
         .onChange(of: selection) { _, picked in
             guard let picked else { return }
             selection = nil
@@ -80,25 +96,41 @@ struct RootTabView: View {
         .environment(\.connectivity, home.connectivity)
 }
 
-    /// The iPad in a regular width: tabs in the system tab bar (or sidebar), the globe across the window,
-    /// the tab and the open card in floating panels. The modal sheets hang from it directly, as no home
-    /// sheet is up.
-    private var regularHome: some View {
+    /// The panels home: the globe across the window, the tab and the open card in floating panels. The iPad
+    /// keeps the system tab bar (or sidebar); the Duo held sideways shows the tab pill instead. The modal
+    /// sheets hang from it directly, as no home sheet is up.
+    private func regularHome(tabs: HomeTabsStyle) -> some View {
         modals(RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                        onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
+                               tabs: tabs, onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
-            mapButtons(hidden: false)
-                .overlay(alignment: .topTrailing) {
-                    AirportsMapButton { home.openAirports() }
-                        .pointerHighlight(Circle())
-                        .padding(.trailing, 12).padding(.top, 8 + 89 + 10)
-                }
-                .overlay(alignment: .topTrailing) {
-                    RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10)
-                }
+            panelMapControls
         }
         .environment(\.fullPageZoom, pageZoom))
+    }
+
+    /// The unfolded Duo held upright: the globe over a fixed pane, the modal sheets hanging from it.
+    private var duoUprightHome: some View {
+        modals(DuoSplitHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
+                                onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
+            tabScreen
+        } mapControls: {
+            panelMapControls
+        }
+        .environment(\.fullPageZoom, pageZoom))
+    }
+
+    /// The map buttons with the Airports and Radar buttons under them, shared by both panel layouts.
+    private var panelMapControls: some View {
+        mapButtons(hidden: false)
+            .overlay(alignment: .topTrailing) {
+                AirportsMapButton { home.openAirports() }
+                    .pointerHighlight(Circle())
+                    .padding(.trailing, 12).padding(.top, 8 + 89 + 10)
+            }
+            .overlay(alignment: .topTrailing) {
+                RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10)
+            }
     }
 
     /// The iPhone home (and the iPad in a compact width): the globe under the resizable sheet.
