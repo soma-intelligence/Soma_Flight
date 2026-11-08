@@ -35,3 +35,38 @@ import Testing
         #expect(!HomeLayout.sheet.isDuo && !HomeLayout.panels.isDuo)
     }
 }
+
+/// What folding or unfolding the Duo does to the sheet's resting height.
+@Suite struct ShellLayoutChangeTests {
+    @Test @MainActor func foldingWithACardOpenRaisesACollapsedSheet() {
+        let shell = ShellModel()
+        shell.open(airport: "SFO")
+        shell.detent = .collapsed
+        shell.didChangeLayout(to: .sheet)
+        #expect(shell.detent == .medium)
+    }
+
+    @Test @MainActor func foldingWithNoCardKeepsTheDetent() {
+        let shell = ShellModel()
+        shell.detent = .collapsed
+        shell.didChangeLayout(to: .sheet)
+        #expect(shell.detent == .collapsed)
+    }
+
+    @Test @MainActor func expandedStaysExpanded() {
+        let shell = ShellModel()
+        shell.open(airport: "SFO")
+        shell.detent = .expanded
+        shell.didChangeLayout(to: .sheet)
+        #expect(shell.detent == .expanded)
+    }
+
+    @Test @MainActor func unfoldingLeavesTheDetentAlone() {
+        let shell = ShellModel()
+        shell.open(airport: "SFO")
+        shell.detent = .collapsed
+        shell.didChangeLayout(to: .duoUpright)
+        #expect(shell.detent == .collapsed)
+        #expect(!shell.path.isEmpty)
+    }
+}

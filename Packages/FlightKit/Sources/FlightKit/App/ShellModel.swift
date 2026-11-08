@@ -30,6 +30,14 @@ public final class ShellModel {
 
     public init() {}
 
+    /// Called when the home layout changes (a Duo folding or unfolding). Folding back to the sheet with a
+    /// card open raises a collapsed sheet to medium, since in the Duo layouts the card had its own pane and
+    /// a sheet reduced to its handle would hide it. Nothing else changes: the stack, the per-tab detents
+    /// and the globe's focus stay as they were.
+    public func didChangeLayout(to layout: HomeLayout) {
+        if layout == .sheet, !path.isEmpty, detent == .collapsed { detent = .medium }
+    }
+
     /// Opens a flight as the only screen. Opening the one already shown recentres the globe on it.
     public func open(flight id: Flight.ID, route: Route?) {
         if path == [.flight(id)] { recenter += 1 } else { path = [.flight(id)] }
