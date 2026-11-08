@@ -432,7 +432,7 @@ public actor FakeHistoryService: HistoryService {
 
     public func delete(_ id: PastFlight.ID) async throws(APIError) {
         try check()
-        guard let i = past.firstIndex(where: { $0.id == id }), past[i].isEditable else { throw .notFound }
+        guard let i = past.firstIndex(where: { $0.id == id }) else { throw .notFound }
         past.remove(at: i)
     }
 }

@@ -69,10 +69,11 @@ struct AirlineMarkFaceTests {
         #expect(AirlineLogo.pick([("AAA", wordmark, false), ("BBB", symbol, false)]) == ("BBB", .logo))
         #expect(AirlineLogo.pick([("AAA", wordmark, false), ("BBB", nil, false)]) == ("AAA", .logo))
         #expect(AirlineLogo.pick([("QQQ", nil, false)]).face == .neutral)
-        // Every airline in the reference list has a mark of its own or through its parent: no neutral glyph.
+        // Every hand-picked airline has a mark of its own or through its parent: no neutral glyph. The
+        // Wikidata bulk rows (neutral grey seed colour) show a monogram until they get art.
         let reference = ReferenceData.bundled()
         let marked = BundledLogos.wordmarks.union(BundledLogos.symbols)
-        let bare = reference.airlines.map(\.id).filter { code in
+        let bare = reference.airlines.filter { $0.colorPrimary != "#5E6673" }.map(\.id).filter { code in
             !AirlineParents.chain(code).contains { marked.contains($0) || AirlineTailMark.fin($0) != nil }
         }
         // Four still lack one: BHA, FJL and RPB, and Airlink (LNK), whose fin the image model refuses to redraw.

@@ -17,7 +17,7 @@ all come from public domain files.
 
 ## Airlines
 
-- File: `supabase/seed/airlines.csv` (138 rows), generated into `supabase/migrations/20261030000003_reference_seed.sql`
+- File: `supabase/seed/airlines.csv` (1,617 rows), generated into `supabase/migrations/20261030000003_reference_seed.sql`
   and `Packages/FlightKit/Sources/FlightKit/Resources/Reference/airlines.json` by
   `supabase/scripts/build_reference_seed.ts`.
 - Retrieved: 2026-10-29.
@@ -45,6 +45,12 @@ all come from public domain files.
   merger, so the row is `star_alliance` for now and must be emptied or moved after that date. ITA Airways
   (`ITY`): Star Alliance full member since 2026-04-01 (trade press: LoyaltyLobby, One Mile at a Time). The
   alliance sites themselves answered 403 to our fetch, so these two are not primary-source checks.
+- Bulk rows (2026-11-08, migration `20261108000001_all_airlines.sql`): 1,287 more airlines, every Wikidata item
+  that is an instance of airline (Q46970 or a subclass), has a three letter ICAO code (P230) and an English label,
+  and has no dissolved (P576) or end (P582) date. Licence CC0. Where several items share an ICAO code the one with
+  the most sitelinks wins. An IATA code (P229) is kept only when no airline already in the list holds it, and a
+  name already in the list (case and accents folded) skips the row. Websites are rewritten to https. These rows
+  carry the neutral seed colour `#5E6673` and no art, so the app shows a monogram for them.
 - Colours: `color_primary` is a seed colour typed from memory of the airline's brand. No airline site was
   read for colours. Rows start with `colors_source = 'seed'`; Task 8 replaces them from the provider's brand colours.
   `UAL`, `AFR` and `RYR` are written with `colors_source = 'locked'` (livery seed of Task 12).

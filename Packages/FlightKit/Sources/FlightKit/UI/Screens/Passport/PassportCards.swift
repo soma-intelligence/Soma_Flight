@@ -341,8 +341,8 @@ struct PastFlightsSection: View {
 
     private func city(_ icao: String) -> String { lookup(icao)?.city ?? icao }
 
-    /// A row: a tap calls `onOpen` (when set), and a flight the traveller added has Edit and Delete in its
-    /// context menu and its trailing swipe actions (the swipe shows once the rows sit in a `List`).
+    /// A row: a tap calls `onOpen` (when set). Every flight has Delete in its context menu and its trailing
+    /// swipe actions (the swipe shows once the rows sit in a `List`); a flight the traveller added also has Edit.
     @ViewBuilder private func row(_ f: PastFlight) -> some View {
         let plain = PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
         let tappable = Group {
@@ -355,15 +355,15 @@ struct PastFlightsSection: View {
                 plain
             }
         }
-        if let actions, f.isEditable {
+        if let actions {
             tappable
                 .contextMenu {
-                    Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") }
+                    if f.isEditable { Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") } }
                     Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
                 }
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
-                    Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") }
+                    if f.isEditable { Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") } }
                 }
         } else {
             tappable

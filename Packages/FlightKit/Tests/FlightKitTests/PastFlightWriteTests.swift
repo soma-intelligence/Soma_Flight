@@ -149,12 +149,16 @@ import Testing
         let edited = try await svc.update(edit)
         #expect(edited.destinationIcao == "KJFK" && edited.distanceKm < 6_000)
         await #expect(throws: APIError.notFound) { try await svc.update(seeded[0]) }
-        await #expect(throws: APIError.notFound) { try await svc.delete(seeded[0].id) }
         try await svc.delete(added.id)
         #expect(try await svc.pastFlights().count == seeded.count)
+        // An archived flight is read only but can be deleted; a second delete finds nothing.
+        #expect(seeded[0].isEditable == false)
+        try await svc.delete(seeded[0].id)
+        await #expect(throws: APIError.notFound) { try await svc.delete(seeded[0].id) }
+        #expect(try await svc.pastFlights().count == seeded.count - 1)
         let imported = try await svc.addAll([Self.manual(), Self.manual()].map { var f = $0; f.source = .import; return f })
         #expect(imported.map(\.source) == [.import, .import])
-        #expect(try await svc.pastFlights().count == seeded.count + 2)
+        #expect(try await svc.pastFlights().count == seeded.count + 1)
     }
 
     // MARK: Store

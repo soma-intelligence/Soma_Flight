@@ -5,7 +5,7 @@ public enum PastFlightStatus: String, Codable, Sendable, Hashable {
 }
 
 /// Where a past flight comes from: archived from a followed flight, added by hand, or imported from a file.
-/// Only manual and imported flights can be edited or deleted; archived ones are read only.
+/// Only manual and imported flights can be edited; every past flight, archived ones too, can be deleted.
 public enum PastFlightSource: String, Codable, Sendable, Hashable {
     case archive, manual
     case `import`
