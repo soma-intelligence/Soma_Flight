@@ -332,6 +332,16 @@
         }
       }
     },
+    "A contrail glowing through frosted glass.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une traînée qui brille dans le verre givré."
+          }
+        }
+      }
+    },
     "A copy you added to Apple Wallet stays in Wallet.": {
       "localizations": {
         "fr": {
@@ -2642,6 +2652,16 @@
         }
       }
     },
+    "Contrail": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traînée"
+          }
+        }
+      }
+    },
     "Copied": {
       "localizations": {
         "fr": {
@@ -4858,6 +4878,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Portes et terminaux"
+          }
+        }
+      }
+    },
+    "Glass": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verre"
+          }
+        }
+      }
+    },
+    "Glass Contrail": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traînée de verre"
           }
         }
       }

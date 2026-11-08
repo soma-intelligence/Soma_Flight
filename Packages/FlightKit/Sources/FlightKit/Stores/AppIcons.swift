@@ -31,11 +31,17 @@ public struct AppIconChoice: Identifiable, Hashable, Sendable {
     }
 }
 
-/// The two aircraft the icons carry.
+/// The picker's rows: the two aircraft the icons carry, then the glass icons.
 public enum AppIconPlane: String, CaseIterable, Sendable {
-    case jet, supersonic
+    case jet, supersonic, glass
 
-    public var title: String { self == .jet ? "Jet" : "Supersonic" }
+    public var title: String {
+        switch self {
+        case .jet: "Jet"
+        case .supersonic: "Supersonic"
+        case .glass: "Glass"
+        }
+    }
 }
 
 /// The iPhone app's icons: the climbing Jet and the Supersonic, each following the phone's appearance (Auto),
@@ -72,6 +78,11 @@ public enum AppIcons {
     ]
 
     public static let all: [AppIconChoice] = AppIconPlane.allCases.flatMap { plane -> [AppIconChoice] in
+        if plane == .glass {
+            // Frosted glass with a jet and its contrail glowing inside; light and dark looks, no grounds.
+            return [AppIconChoice("AppIcon-glass", name: "Glass Contrail",
+                                  tagline: "A contrail glowing through frosted glass.", plane: .glass, label: "Contrail")]
+        }
         let auto = plane == .jet
             ? AppIconChoice(nil, name: "Jet", tagline: "Black on white by day, white on charcoal at night.",
                             plane: .jet, label: "Auto")

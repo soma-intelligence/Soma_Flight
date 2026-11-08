@@ -44,7 +44,8 @@ import Testing
         #expect(AppIcons.all.first?.assetName == nil, "the primary comes first")
         #expect(AppIcons.all.first?.name == "Jet")
         #expect(AppIcons.choice(for: "AppIcon-supersonic").name == "Supersonic")
-        for plane in AppIconPlane.allCases {
+        #expect(AppIcons.icons(for: .glass).map(\.assetName) == ["AppIcon-glass"])
+        for plane in AppIconPlane.allCases where plane != .glass {
             let icons = AppIcons.icons(for: plane)
             #expect(icons.count == 11, "\(plane.title): auto, nine grounds and the blueprint")
             #expect(icons.first?.label == "Auto")
