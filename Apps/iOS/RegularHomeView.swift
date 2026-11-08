@@ -2,6 +2,15 @@ import FlightKit
 import MapKit
 import SwiftUI
 
+/// Which tab chrome the panel home carries.
+enum HomeTabsStyle {
+    /// The system's sidebar-adaptable tab bar, as on the iPad.
+    case system
+    /// The iPhone's floating tab pill at the panel's foot, for a window that is not an iPad's but is wide
+    /// enough for panels (the unfolded Duo held sideways). There is no `TabView`, so the globe is drawn once.
+    case pill
+}
+
 /// The iPad home in a regular width window (full screen, the larger side of Split View, Stage Manager, and
 /// the iPad app on Apple Vision Pro): the three tabs in the system's sidebar-adaptable tab bar, the globe
 /// across the whole window, the tab's screen in a floating panel on the left and, when the window is wide
@@ -17,6 +26,7 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     var labels: Bool
     var threeD: Bool
     var mapScope: Namespace.ID
+    var tabs: HomeTabsStyle
     var onSearch: () -> Void
     var onSettings: () -> Void
     var tabScreen: TabScreen
@@ -34,10 +44,11 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     static var twoPanelWidth: CGFloat { 1100 }
 
     init(home: HomeModel, selection: Binding<GlobeSelection?>, labels: Bool, threeD: Bool, mapScope: Namespace.ID,
+         tabs: HomeTabsStyle = .system,
          onSearch: @escaping () -> Void, onSettings: @escaping () -> Void,
          @ViewBuilder tabScreen: () -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
         self.home = home; _selection = selection; self.labels = labels; self.threeD = threeD
-        self.mapScope = mapScope; self.onSearch = onSearch; self.onSettings = onSettings
+        self.mapScope = mapScope; self.tabs = tabs; self.onSearch = onSearch; self.onSettings = onSettings
         self.tabScreen = tabScreen(); self.mapControls = mapControls()
     }
 
@@ -49,12 +60,18 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
 
     var body: some View {
         @Bindable var home = home
-        TabView(selection: $home.tab) {
-            Tab("My Flights", systemImage: "airplane.circle.fill", value: HomeTab.flights) { page(.flights) }
-            Tab("Friends", systemImage: "person.2.fill", value: HomeTab.friends) { page(.friends) }
-            Tab("Passport", systemImage: "person.text.rectangle.fill", value: HomeTab.passport) { page(.passport) }
+        switch tabs {
+        case .system:
+            TabView(selection: $home.tab) {
+                Tab("My Flights", systemImage: "airplane.circle.fill", value: HomeTab.flights) { page(.flights) }
+                Tab("Friends", systemImage: "person.2.fill", value: HomeTab.friends) { page(.friends) }
+                Tab("Passport", systemImage: "person.text.rectangle.fill", value: HomeTab.passport) { page(.passport) }
+            }
+            .tabViewStyle(.sidebarAdaptable)
+        case .pill:
+            // The pill is in the list panel, so the one tab on show is the whole page.
+            canvas
         }
-        .tabViewStyle(.sidebarAdaptable)
     }
 
     /// Only the tab on show draws the globe: one MapKit view at a time, the camera following `home.focus`.
@@ -129,11 +146,18 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
                     .padding(.top, 19)
                     .padding(.trailing, 16)
             }
-            // The tabs are in the tab bar; search stays at the panel's foot, where the iPhone has it.
+            // With the system tab bar, search stays at the panel's foot, where the iPhone has it. With the
+            // pill, the pill carries both the tabs and the search button, as in the Mac's panel.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 12) {
                     ToastSlot(text: home.toast)
-                    SearchFieldButton(action: onSearch)
+                    switch tabs {
+                    case .system:
+                        SearchFieldButton(action: onSearch)
+                    case .pill:
+                        HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
+                                    onSearch: onSearch)
+                    }
                 }
             }
     }
