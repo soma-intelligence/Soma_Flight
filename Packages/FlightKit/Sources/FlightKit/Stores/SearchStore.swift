@@ -142,10 +142,11 @@ public final class SearchStore {
     /// The text `textChanged()` last handled.
     @ObservationIgnored private var handledText: String?
 
-    /// Long enough to skip the keystrokes of a word, short enough to feel instant.
-    @ObservationIgnored var suggestDelay: Duration = .milliseconds(60)
+    /// Wait before suggesting; zero suggests on every keystroke (worked out off the main thread, the
+    /// answer dropped when the text has moved on).
+    @ObservationIgnored var suggestDelay: Duration = .zero
     /// The pause in typing before a complete flight number or route is looked up.
-    @ObservationIgnored var liveDelay: Duration = .milliseconds(400)
+    @ObservationIgnored var liveDelay: Duration = .milliseconds(250)
 
     /// - Parameters:
     ///   - defaults: where recent searches persist; nil keeps them in memory only.
@@ -188,9 +189,14 @@ public final class SearchStore {
         }
         let suggestDelay = suggestDelay, liveDelay = liveDelay
         suggestTask = Task { [weak self] in
-            try? await Task.sleep(for: suggestDelay)
+            if suggestDelay > .zero { try? await Task.sleep(for: suggestDelay) }
             guard !Task.isCancelled, let self, self.text == typed else { return }
-            self.suggestNow()
+            let suggester = self.suggester, known = self.known, recent = self.recent
+            let found = await Task.detached(priority: .userInitiated) {
+                suggester.suggest(typed, known: known, recent: recent)
+            }.value
+            guard !Task.isCancelled, self.text == typed else { return }
+            self.suggestions = found
         }
         liveTask = Task { [weak self] in
             try? await Task.sleep(for: liveDelay)

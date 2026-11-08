@@ -261,13 +261,15 @@ public struct MyFlightRow: View {
 /// A short confirmation in a glass capsule, shown over the tab pill ("Added UA 990").
 public struct AddedToast: View {
     var text: String
+    /// A failure: a red mark instead of the accent check.
+    var isError = false
 
-    public init(text: String) { self.text = text }
+    public init(text: String, isError: Bool = false) { self.text = text; self.isError = isError }
 
     public var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Theme.accent)
+            Image(systemName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(isError ? Theme.veryLate : Theme.accent)
                 .accessibilityHidden(true)
             Text(ui: text)
                 .foregroundStyle(Theme.primary)
@@ -286,17 +288,20 @@ public struct AddedToast: View {
 /// The toast's place above the tab pill: slides up and fades, or only fades under Reduce Motion.
 public struct ToastSlot: View {
     var text: String?
+    /// The toast reports a failure: red mark and an error haptic as it shows.
+    var isError = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(text: String?) { self.text = text }
+    public init(text: String?, isError: Bool = false) { self.text = text; self.isError = isError }
 
     public var body: some View {
         Group {
             if let text {
-                AddedToast(text: text)
+                AddedToast(text: text, isError: isError)
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth, value: text)
+        .sensoryFeedback(.error, trigger: text) { _, new in new != nil && isError }
     }
 }

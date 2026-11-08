@@ -87,6 +87,8 @@ public final class HomeModel {
     public var passImport: PassImport?
     /// The confirmation over the tab pill after a follow ("Added UA 990"); clears after `toastDuration`.
     public private(set) var toast: String?
+    /// The toast on show reports a failure: red mark and an error haptic.
+    public private(set) var toastIsError = false
     /// How long the toast stays.
     public static let toastDuration: Duration = .seconds(3)
     /// Waits out the toast; tests replace it to move the clock by hand.
@@ -97,6 +99,7 @@ public final class HomeModel {
     @ObservationIgnored private var toastTimer: Task<Void, Never>?
     /// A toast waiting for the search sheet to close (iOS covers the tab pill with it).
     public private(set) var pendingToast: String?
+    @ObservationIgnored private var pendingIsError = false
     /// A search Siri, Shortcuts or a link asked for (`FlightLink.searchURL`): the iOS home opens Search
     /// with it and sets it back to nil.
     public var searchRequest: String?
@@ -107,7 +110,9 @@ public final class HomeModel {
         didSet {
             guard oldValue, !searchOpen, let text = pendingToast else { return }
             pendingToast = nil
-            showToast(text)
+            let isError = pendingIsError
+            pendingIsError = false
+            showToast(text, isError: isError)
         }
     }
     /// The account the two stores were built for.
@@ -367,6 +372,9 @@ public final class HomeModel {
     /// The home may first appear after a sign-in it did not see (Sign In was on screen): the stores are
     /// rebuilt then for the account signed in now.
     public func start() async {
+        // Search's suggestion lists fold some 5,000 names once: build them now, off the main thread, so the
+        // first keystroke in Search does not wait for it.
+        Task.detached(priority: .utility) { _ = SearchSuggester.bundled() }
         session.startIfNeeded()
         started = true
         seenOwner = owner
@@ -618,11 +626,13 @@ public final class HomeModel {
 
     /// Shows `text` over the tab pill for `toastDuration` and has VoiceOver read it; a newer toast replaces
     /// it and restarts the wait. While `searchOpen`, it waits for the sheet to close instead.
-    public func showToast(_ text: String) {
+    public func showToast(_ text: String, isError: Bool = false) {
         if searchOpen {
             pendingToast = text
+            pendingIsError = isError
             return
         }
+        toastIsError = isError
         toastSerial += 1
         let serial = toastSerial, sleep = toastSleep
         toast = text

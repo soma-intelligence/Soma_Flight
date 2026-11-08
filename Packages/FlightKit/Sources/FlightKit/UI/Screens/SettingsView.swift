@@ -38,6 +38,7 @@ public struct SettingsView: View {
     @State private var showingNotifications = false
     @State private var showingCalendar = false
     @State private var showingDocuments = false
+    @State private var showingUnits = false
     #if os(iOS)
     /// The app icon in use on the phone.
     @State private var systemIcon = AppIconModel(setter: SystemAppIconSetting())
@@ -154,11 +155,12 @@ public struct SettingsView: View {
 
     #if os(iOS)
     /// A page of Settings opened over the list.
-    enum Page: Hashable { case notifications, calendar, documents, acknowledgements }
+    enum Page: Hashable { case units, notifications, calendar, documents, acknowledgements }
 
     /// The page on show, as a card stack's path (one page at most).
     var openPages: [Page] {
-        if showingNotifications { [.notifications] }
+        if showingUnits { [.units] }
+        else if showingNotifications { [.notifications] }
         else if showingCalendar { [.calendar] }
         else if showingDocuments { [.documents] }
         else if showingAcknowledgements { [.acknowledgements] }
@@ -166,12 +168,13 @@ public struct SettingsView: View {
     }
 
     private func closePage() {
-        showingNotifications = false; showingCalendar = false; showingDocuments = false
+        showingUnits = false; showingNotifications = false; showingCalendar = false; showingDocuments = false
         showingAcknowledgements = false
     }
 
     @ViewBuilder private func pageView(_ page: Page) -> some View {
         switch page {
+        case .units: UnitsSettingsView(units: $units)
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
         case .documents: if let documents { TravelDocumentsView(store: documents) }
@@ -198,12 +201,8 @@ public struct SettingsView: View {
                 SettingsSection("Profile") { ProfileRows(store: friends) }
             }
             SettingsSection("Units") {
-                SettingsRow(icon: "ruler.fill", title: "Distance", tint: SettingsStyle.teal) {
-                    PillPicker(options: [(DistanceUnit.km, "Kilometers"), (.mi, "Miles")], selection: $units.distance)
-                }
-                SettingsRow(icon: "clock.fill", title: "Time", tint: SettingsStyle.indigo, last: true) {
-                    PillPicker(options: [(TimeStyle.h24, "24-Hour"), (.h12, "12-Hour")], selection: $units.clock)
-                }
+                SettingsRow(icon: "ruler.fill", title: "Distance and Time", subtitle: unitsSummary,
+                            tint: SettingsStyle.teal, last: true, action: { showingUnits = true }) { RowChevron() }
             }
             SettingsSection("Alerts and Travel") {
                 SettingsRow(icon: "bell.badge.fill", title: "Notifications", tint: SettingsStyle.red,
@@ -289,6 +288,13 @@ public struct SettingsView: View {
         }
         #if !os(iOS)
         // The phone opens them as cards over the list instead (`body`).
+        .sheet(isPresented: $showingUnits) {
+            NavigationStack {
+                UnitsSettingsView(units: $units)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingUnits = false } } }
+            }
+            .frame(minWidth: 420, minHeight: 420)
+        }
         .sheet(isPresented: $showingAcknowledgements) {
             AcknowledgementsView(onDone: { showingAcknowledgements = false })
                 .frame(minWidth: 420, minHeight: 520)
@@ -345,6 +351,13 @@ public struct SettingsView: View {
             deleting = false
             if !deleted { deleteFailure = session.error ?? .providerUnavailable }
         }
+    }
+
+    /// "Kilometers · 24-Hour".
+    private var unitsSummary: String {
+        let d = units.distance == .km ? "Kilometers" : "Miles"
+        let c = units.clock == .h24 ? "24-Hour" : "12-Hour"
+        return UIText.localized(d) + " \u{00B7} " + UIText.localized(c)
     }
 
     private static var version: String {

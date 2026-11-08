@@ -223,7 +223,7 @@ struct RootTabView: View {
                         .padding(.trailing, 16)
                 }
         } toast: {
-            ToastSlot(text: home.toast)
+            ToastSlot(text: home.toast, isError: home.toastIsError)
         }
     }
 
@@ -237,7 +237,8 @@ struct RootTabView: View {
             FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
         case .passport:
             PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                             onOpenFlight: home.open(past:), onImport: { home.showImport = true })
+                             onOpenFlight: home.open(past:), onImport: { home.showImport = true },
+                             onError: { home.showToast($0, isError: true) })
         }
     }
 

@@ -281,6 +281,8 @@ struct PastFlightsSection: View {
     @Binding var sort: TravelFacts.Sort
     var actions: PastFlightActions? = nil
     var onOpen: ((PastFlight) -> Void)? = nil
+    /// The row whose Delete was picked: its confirmation opens from that row, not from the screen.
+    @State private var confirmingDelete: PastFlight.ID?
     @Environment(\.airportStaticControls) private var staticControls
 
     var body: some View {
@@ -343,6 +345,7 @@ struct PastFlightsSection: View {
 
     /// A row: a tap calls `onOpen` (when set). Every flight has Delete in its context menu and its trailing
     /// swipe actions (the swipe shows once the rows sit in a `List`); a flight the traveller added also has Edit.
+    /// Delete asks first, in a dialog anchored on the row itself.
     @ViewBuilder private func row(_ f: PastFlight) -> some View {
         let plain = PastFlightRow(flight: f, origin: lookup(f.originIcao), destination: lookup(f.destinationIcao))
         let tappable = Group {
@@ -359,11 +362,16 @@ struct PastFlightsSection: View {
             tappable
                 .contextMenu {
                     if f.isEditable { Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") } }
-                    Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
+                    Button(role: .destructive) { confirmingDelete = f.id } label: { Label("Delete", systemImage: "trash") }
                 }
                 .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) { actions.delete(f) } label: { Label("Delete", systemImage: "trash") }
+                    Button(role: .destructive) { confirmingDelete = f.id } label: { Label("Delete", systemImage: "trash") }
                     if f.isEditable { Button { actions.edit(f) } label: { Label("Edit", systemImage: "pencil") } }
+                }
+                .confirmationDialog("Delete this flight from your history?", isPresented: Binding(
+                    get: { confirmingDelete == f.id }, set: { if !$0, confirmingDelete == f.id { confirmingDelete = nil } }),
+                    titleVisibility: .visible) {
+                    Button("Delete Flight", role: .destructive) { actions.delete(f) }
                 }
         } else {
             tappable

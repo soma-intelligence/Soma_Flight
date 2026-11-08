@@ -14,12 +14,15 @@ public struct PassportView: View {
     var onOpen: (FullPage) -> Void
     var onOpenFlight: ((PastFlight) -> Void)?
     var onImport: (() -> Void)?
+    /// Reports a failure as a short toast over the tab pill (the iOS home); nil shows an alert instead.
+    var onError: ((String) -> Void)?
 
     @State private var sort: TravelFacts.Sort = .date
     @State private var editing: EditorTarget?
     @State private var choosingFile = false
     @State private var importState: PastFlightImportState?
-    @State private var deleting: PastFlight?
+    /// A delete the server refused: the alert says so, the flight stays.
+    @State private var deleteFailure: APIError?
     @Environment(\.units) private var units
 
     /// The flight the editor sheet opens on: a new one, or one the traveller added.
@@ -36,7 +39,12 @@ public struct PassportView: View {
 
     private var actions: PastFlightActions {
         PastFlightActions(add: { editing = .add }, importFile: { choosingFile = true }, importScreen: onImport,
-                          edit: { editing = .edit($0) }, delete: { deleting = $0 })
+                          edit: { editing = .edit($0) }, delete: { f in
+                              Task {
+                                  guard !(await store.delete(f.id)) else { return }
+                                  if let onError { onError(Self.deleteFailedToast) } else { deleteFailure = store.writeError ?? .notFound }
+                              }
+                          })
     }
 
     /// - Parameters:
@@ -47,9 +55,10 @@ public struct PassportView: View {
     ///   - onImport: opens the Import screen from the add menu and the empty state; nil offers the CSV import alone.
     public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
                 onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil,
-                onImport: (() -> Void)? = nil) {
+                onImport: (() -> Void)? = nil, onError: ((String) -> Void)? = nil) {
         self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onOpenFlight: onOpenFlight,
                   onImport: onImport)
+        self.onError = onError
     }
 
     init(store: PassportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
@@ -58,6 +67,9 @@ public struct PassportView: View {
         self.store = store; self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls; self.onOpen = onOpen
         self.onOpenFlight = onOpenFlight; self.onImport = onImport
     }
+
+    /// The toast when the server refuses a delete.
+    static let deleteFailedToast = "Couldn't delete this flight. Try again later."
 
     /// The offline copy turns amber after a day.
     static let ttl: Duration = .seconds(86_400)
@@ -91,17 +103,19 @@ public struct PassportView: View {
                              set: { if $0 == nil { importState = nil } })) { item in
             PastFlightImportSheet(preview: item.preview, store: store, lookup: lookup)
         }
+        .alert("Couldn't Delete This Flight", isPresented: Binding(get: { deleteFailure != nil },
+                                                                  set: { if !$0 { deleteFailure = nil } }),
+               presenting: deleteFailure) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text(ui: error == .notFound ? "The server kept this flight. Try again later." : error.message)
+        }
         .alert("Can't Import This File", isPresented: Binding(
             get: { if case .failed = importState { true } else { false } },
             set: { if !$0 { importState = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             if case .failed(let message) = importState { Text(ui: message) }
-        }
-        .confirmationDialog("Delete this flight from your history?", isPresented: Binding(
-            get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible,
-            presenting: deleting) { f in
-            Button("Delete Flight", role: .destructive) { Task { await store.delete(f.id) } }
         }
     }
 
