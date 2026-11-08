@@ -70,11 +70,16 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
             HomeDestination(home: home, route: route)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: paneHeight)
-        .background(Theme.background)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Theme.sheetRadius, topTrailingRadius: Theme.sheetRadius,
-                                          style: .continuous))
-        .ignoresSafeArea(edges: .bottom)
+        // The content stops at the bottom safe area, so the tab pill clears the home indicator exactly as
+        // it does in the sheet; the background below runs on to the screen's edge.
+        .frame(height: paneHeight - metrics.safeBottom)
+        .background { paneShape.fill(Theme.background).ignoresSafeArea(edges: .bottom) }
+        .mask { paneShape.ignoresSafeArea(edges: .bottom) }
+    }
+
+    private var paneShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: Theme.sheetRadius, topTrailingRadius: Theme.sheetRadius,
+                               style: .continuous)
     }
 
     private var root: some View {
