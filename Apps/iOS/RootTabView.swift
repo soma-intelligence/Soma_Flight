@@ -78,7 +78,7 @@ struct RootTabView: View {
             // Screenshot runs: `-sheet settings` or `-sheet search` opens that sheet over the home.
             switch UserDefaults.standard.string(forKey: "sheet") {
             case "settings": showSettings = true
-            case "search": showSearch = true
+            case "search": presentSearch()
             default: break
             }
             await home.applyPushLaunchArguments()
@@ -94,7 +94,7 @@ struct RootTabView: View {
         // The search sheet covers the tab pill: a follow's toast waits for it to close.
         .onChange(of: showSearch) { _, open in
             home.searchOpen = open
-            if !open { search.close(); searchQuery = nil }
+            if !open { search.finish(); searchQuery = nil }
         }
         // A confirmation email shared to the app from Mail (the share extension's inbox).
         .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
@@ -107,7 +107,7 @@ struct RootTabView: View {
     /// sheets hang from it directly, as no home sheet is up.
     private func regularHome(tabs: HomeTabsStyle) -> some View {
         modals(RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                               tabs: tabs, onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
+                               tabs: tabs, onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
             panelMapControls
@@ -118,7 +118,7 @@ struct RootTabView: View {
     /// The unfolded Duo held upright: the globe over a fixed pane, the modal sheets hanging from it.
     private var duoUprightHome: some View {
         modals(DuoSplitHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                                onSearch: { showSearch = true }, onSettings: { showSettings = true }) {
+                                onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
             panelMapControls
@@ -168,7 +168,14 @@ struct RootTabView: View {
         guard let query else { return }
         home.searchRequest = nil
         showSettings = false
-        searchQuery = query.isEmpty ? nil : query
+        presentSearch(query: query.isEmpty ? nil : query)
+    }
+
+    /// Opens Search on a fresh store. The store is made here, in the action, never in the sheet's closure: the
+    /// closure re-runs while the sheet slides away and after a fold, and must only read the current store.
+    private func presentSearch(query: String? = nil) {
+        search.begin(env.makeSearchStore())
+        searchQuery = query
         showSearch = true
     }
 
@@ -203,16 +210,19 @@ struct RootTabView: View {
         @Bindable var home = home
         return content
         .sheet(isPresented: $showSearch) {
-            SearchSheet(store: search.store(make: env.makeSearchStore), lookup: env.lookup,
-                        alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
-                        known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
-                        onFollowed: { flight in Task { await home.didFollow(flight) } },
-                        onImport: { showSearch = false; home.showImport = true },
-                        onAirport: { code in showSearch = false; home.open(airport: code) },
-                        onOpen: { flight in showSearch = false; home.open(flight: flight) },
-                        onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)),
-                        query: search.pending(searchQuery), onQueryRun: { search.ran($0) })
-                .environment(\.units, units)
+            // The store is made when Search opens (`presentSearch`); here it is only read.
+            if let store = search.current {
+                SearchSheet(store: store, lookup: env.lookup,
+                            alreadyFollowed: FollowedFlights(home.followed), frequent: home.frequent,
+                            known: KnownFlight.list(followed: home.followed, past: home.passport.flights),
+                            onFollowed: { flight in Task { await home.didFollow(flight) } },
+                            onImport: { showSearch = false; home.showImport = true },
+                            onAirport: { code in showSearch = false; home.open(airport: code) },
+                            onOpen: { flight in showSearch = false; home.open(flight: flight) },
+                            onPlan: { home.followLater.add([$0]) }, planned: Set(home.followLater.items.map(\.id)),
+                            query: search.pending(searchQuery), onQueryRun: { search.ran($0) })
+                    .environment(\.units, units)
+            }
         }
         // A Passport card's page covers the whole screen, over the home sheet.
         .fullScreenCover(item: $home.fullPage) { page in
@@ -252,7 +262,7 @@ struct RootTabView: View {
 
     private var tabRoot: some View {
         @Bindable var home = home
-        return HomeSheetBody(tab: $home.tab, onSearch: { showSearch = true }) {
+        return HomeSheetBody(tab: $home.tab, onSearch: { presentSearch() }) {
             tabScreen
                 // Only on the tab roots: the modal sheets (Settings, Search) have titles of their own.
                 .environment(\.sheetDetentActions, detentActions)
@@ -271,7 +281,7 @@ struct RootTabView: View {
     @ViewBuilder private var tabScreen: some View {
         switch home.tab {
         case .flights:
-            MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
+            MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { presentSearch() },
                           lookup: env.lookup, planned: home.followLater.items,
                           onRemovePlanned: { home.followLater.remove($0) })
         case .friends:
@@ -363,22 +373,19 @@ private struct HomeGlobe: View {
 
 /// The Search that is open, kept by `RootTabView` so a layout switch does not lose it.
 @MainActor private final class OpenSearch {
-    private var current: SearchStore?
+    /// The store of the Search that is open, or of the last one while it slides away.
+    private(set) var current: SearchStore?
     private var ranQuery: String?
 
-    /// The open store, made on first use after Search opens.
-    func store(make: () -> SearchStore) -> SearchStore {
-        if let current { return current }
-        let made = make()
-        current = made
-        return made
-    }
+    /// A new opening: a fresh store, and no query has run yet.
+    func begin(_ store: SearchStore) { current = store; ranQuery = nil }
 
     /// The query still to run: not the one that already ran in this open Search.
     func pending(_ query: String?) -> String? { query == ranQuery ? nil : query }
     func ran(_ query: String) { ranQuery = query }
 
-    func close() { current = nil; ranQuery = nil }
+    /// Search closed: only the marker goes. The store stays for the closing sheet; the next opening replaces it.
+    func finish() { ranQuery = nil }
 }
 
 /// Search in its own sheet over the home sheet.
