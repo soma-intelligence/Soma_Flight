@@ -5,6 +5,8 @@ import SwiftData
 
 public enum CacheKey: String, Sendable {
     case flights, past
+    /// The offline packs of flights about to leave or in the air (`OfflineFlightPack`).
+    case offline
     /// The user id the saved payloads belong to; absent while nobody has signed in.
     case owner
 }
@@ -23,7 +25,7 @@ final class CachedBlob {
 
 /// Last known state for offline launches: the followed list and the Passport history.
 @ModelActor
-public actor CacheStore: FlightListCache, PastFlightCache {
+public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache {
     /// Bumped by every successful wipe. A `CacheScope` taken before a wipe can no longer write, so a load
     /// still in flight for the previous account cannot put its data back after the wipe. A failed wipe
     /// leaves it alone, so the account that stays signed in keeps a working cache.
@@ -85,6 +87,14 @@ public actor CacheStore: FlightListCache, PastFlightCache {
     public func save(past: [PastFlight]) { put(past, as: .past) }
     public func past() -> [PastFlight] { get(.past) ?? [] }
     public func savedAt(_ key: CacheKey) -> Date? { blob(key)?.savedAt }
+
+    /// Keeps `pack` in place of any earlier one for the same flight, and drops stale packs.
+    public func save(pack: OfflineFlightPack) {
+        let others = packs().filter { $0.flight.id != pack.flight.id }
+        put(OfflineFlightPack.pruned([pack] + others, now: .now), as: .offline)
+    }
+    public func pack(for id: Flight.ID) -> OfflineFlightPack? { packs().first { $0.flight.id == id } }
+    func packs() -> [OfflineFlightPack] { get(.offline) ?? [] }
     public func flightsSavedAt() -> Date? { savedAt(.flights) }
     public func pastSavedAt() -> Date? { savedAt(.past) }
 
@@ -162,6 +172,10 @@ public actor CacheStore: FlightListCache, PastFlightCache {
     func flights(owner: UUID?) -> [Flight] { isOwned(by: owner) ? flights() : [] }
     func past(owner: UUID?) -> [PastFlight] { isOwned(by: owner) ? past() : [] }
     func savedAt(_ key: CacheKey, owner: UUID?) -> Date? { isOwned(by: owner) ? savedAt(key) : nil }
+    func pack(for id: Flight.ID, owner: UUID?) -> OfflineFlightPack? { isOwned(by: owner) ? pack(for: id) : nil }
+    func save(pack: OfflineFlightPack, owner: UUID?, generation g: Int) {
+        if g == generation.withLock({ $0 }), isOwned(by: owner) { save(pack: pack) }
+    }
     func save(flights: [Flight], owner: UUID?, generation g: Int) {
         if g == generation.withLock({ $0 }), isOwned(by: owner) { save(flights: flights) }
     }
@@ -195,7 +209,7 @@ public actor CacheStore: FlightListCache, PastFlightCache {
 
 /// The cache as one account's stores see it: empty and read-only while it belongs to someone else,
 /// and closed to writes once it is wiped.
-public struct CacheScope: FlightListCache, PastFlightCache {
+public struct CacheScope: FlightListCache, PastFlightCache, OfflinePackCache {
     let store: CacheStore
     let owner: UUID?
     let generation: Int
@@ -206,4 +220,6 @@ public struct CacheScope: FlightListCache, PastFlightCache {
     public func save(past: [PastFlight]) async { await store.save(past: past, owner: owner, generation: generation) }
     public func past() async -> [PastFlight] { await store.past(owner: owner) }
     public func pastSavedAt() async -> Date? { await store.savedAt(.past, owner: owner) }
+    public func save(pack: OfflineFlightPack) async { await store.save(pack: pack, owner: owner, generation: generation) }
+    public func pack(for id: Flight.ID) async -> OfflineFlightPack? { await store.pack(for: id, owner: owner) }
 }

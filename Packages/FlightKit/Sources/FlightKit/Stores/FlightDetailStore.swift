@@ -36,6 +36,9 @@ public final class FlightDetailStore {
     public private(set) var destinationWeather: Weather?
     /// The user's past flights between the two airports, both ways; nil when none or not loaded.
     private(set) var routeHistory: RouteHistory?
+    /// The flight's place among the traveller's flights on its tail ("your 3rd flight on F-GSQA"); nil when
+    /// the tail is unknown or new to them (`TailVisits`). Filled by `loadExtras()` from the history.
+    public private(set) var tailVisit: Int?
     /// How this flight number arrived lately (paid data; nil when insights are off or have none).
     public private(set) var forecast: ArrivalForecast?
     /// The aircraft's earlier flights, newest first (paid data; empty when insights are off or know none).
@@ -52,6 +55,9 @@ public final class FlightDetailStore {
     /// FAA programs and NOTAMs at both airports (free data; parts stay nil outside the US, without the
     /// NOTAM key, once the flight landed, or on failure).
     public private(set) var advisories = FlightAdvisories()
+
+    /// What the device kept for the flight before departure (`OfflineFlightPack`); nil when nothing was kept.
+    public private(set) var offlinePack: OfflineFlightPack?
 
     /// The boarding pass kept on this device for the flight; nil when there is none (or a Passport flight).
     public private(set) var boardingPass: BoardingPass?
@@ -75,6 +81,7 @@ public final class FlightDetailStore {
     private let faa: any FAAService
     private let cache: (any FlightListCache)?
     private let passes: (any BoardingPassVault)?
+    private let packs: (any OfflinePackCache)?
     private let lookup: @Sendable (String) -> Airport?
 
     /// - Parameters:
@@ -83,6 +90,7 @@ public final class FlightDetailStore {
     ///   - security: the security wait at the origin; the default asks nothing and shows nothing.
     ///   - gates: the flight number's recent gates, for the gate prediction; the default asks nothing.
     ///   - passes: the account's boarding passes on this device; nil offers none.
+    ///   - packs: where the offline pack is kept from a day before departure; nil keeps none.
     ///   - lookup: an airport by code, to match a boarding pass's airports and day to the flight.
     public init(id: Flight.ID, flights: any FlightService, airports: any AirportService,
                 history: (any HistoryService)? = nil, insights: any InsightsService = UnavailableInsightsService(),
@@ -90,10 +98,11 @@ public final class FlightDetailStore {
                 gates: any GateHistoryService = UnavailableGateHistoryService(),
                 faa: any FAAService = UnavailableFAAService(),
                 cache: (any FlightListCache)? = nil, passes: (any BoardingPassVault)? = nil,
+                packs: (any OfflinePackCache)? = nil,
                 lookup: @escaping @Sendable (String) -> Airport? = { _ in nil }, simulatesWallet: Bool = false) {
         self.id = id; self.flights = flights; self.airports = airports; self.history = history
         self.insights = insights; self.security = security; self.gates = gates; self.faa = faa
-        self.cache = cache; self.passes = passes; self.lookup = lookup
+        self.cache = cache; self.passes = passes; self.packs = packs; self.lookup = lookup
         self.simulatesWallet = simulatesWallet
         isArchived = false
     }
@@ -104,7 +113,7 @@ public final class FlightDetailStore {
         id = past.id; self.flights = flights; self.airports = airports; self.history = history
         insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
         gates = UnavailableGateHistoryService(); faa = UnavailableFAAService()
-        passes = nil; lookup = { _ in nil }
+        passes = nil; packs = nil; lookup = { _ in nil }
         simulatesWallet = false
         isArchived = true
         flight = past.asFlight
@@ -119,7 +128,7 @@ public final class FlightDetailStore {
         id = flight.id; self.flights = flights; self.airports = airports; history = nil
         insights = UnavailableInsightsService(); security = UnavailableSecurityWaitService(); cache = nil
         gates = UnavailableGateHistoryService(); faa = UnavailableFAAService()
-        passes = nil; lookup = { _ in nil }
+        passes = nil; packs = nil; lookup = { _ in nil }
         simulatesWallet = false
         isArchived = true
         self.flight = flight
@@ -142,12 +151,33 @@ public final class FlightDetailStore {
         // The boarding pass is on the device: it shows at the gate even with no network.
         if boardingPass == nil, let passes { boardingPass = await passes.pass(for: id) }
         // Last known state first, so the screen is not blank while the network answers or when it is down.
+        var cachedHere: Flight?
         if flight == nil, let cache {
             let cached = await cache.flights().first { $0.id == id }
-            if flight == nil { flight = cached }
+            if flight == nil { flight = cached; cachedHere = cached }
+        }
+        // The pack kept before departure: the flight and both airports, for the estimate with no network.
+        // Its flight wins over the list's copy when it was updated later; never over a live answer.
+        if offlinePack == nil, let packs, let pack = await packs.pack(for: id) {
+            offlinePack = pack
+            if flight == nil {
+                flight = pack.flight
+            } else if let cachedHere, flight == cachedHere, pack.flight.updatedAt > cachedHere.updatedAt {
+                flight = pack.flight
+            }
+            if origin == nil { origin = pack.origin }
+            if destination == nil { destination = pack.destination }
         }
         let f: Flight
-        do { f = try await flights.flight(id) } catch { self.error = error; return }
+        do { f = try await flights.flight(id) } catch {
+            self.error = error
+            // Offline: the bundled airports still place the plane and name the time zones.
+            if let cached = flight {
+                if origin == nil { origin = lookup(cached.originIcao) }
+                if destination == nil { destination = lookup(cached.destinationIcao) }
+            }
+            return
+        }
         flight = f
         // The switch only: a failure hides it rather than covering the flight with an error.
         if !isSavingNotify, let n = try? await flights.notifies(id), !isSavingNotify { notify = n }
@@ -175,6 +205,18 @@ public final class FlightDetailStore {
             destination = nil
         }
         error = firstError
+        await keepOfflinePack(f, now: .now)
+    }
+
+    /// From a day before departure until the flight is over, keeps what the sheet needs to show the flight
+    /// with no connection (`OfflineFlightPack`). Needs both airports.
+    func keepOfflinePack(_ f: Flight, now: Date) async {
+        guard let packs, OfflineFlightPack.isWorthSaving(f, now: now), let origin,
+              let destination = destination ?? lookup(f.destinationIcao) else { return }
+        let pack = OfflineFlightPack(flight: f, origin: origin, destination: destination,
+                                     aircraft: f.aircraftType.flatMap { ReferenceData.bundled().type($0) }, savedAt: now)
+        await packs.save(pack: pack)
+        offlinePack = pack
     }
 
     /// False for a canceled or diverted flight: an arrival forecast and the inbound plane mean nothing for
@@ -217,6 +259,7 @@ public final class FlightDetailStore {
         routeHistory = results.4.flatMap {
             RouteHistory.compute($0, origin: f.originIcao, destination: f.destinationIcao, excluding: f)
         }
+        tailVisit = results.4.flatMap { TailVisits.ordinal(flight ?? f, past: $0) }
         forecast = results.5
         inbound = results.6 ?? []
         securityWait = results.7

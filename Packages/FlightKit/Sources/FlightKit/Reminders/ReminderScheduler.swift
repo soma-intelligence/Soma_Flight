@@ -66,6 +66,13 @@ public final class ReminderScheduler {
     /// the fixed rule for every flight. The home sets it when it has an estimator.
     public var leaveTime: (@MainActor (Flight) -> LeaveTime?)?
 
+    /// The "Landmarks overflown" switch (`LandmarkAlertSettings`), read at each sync; off by default. Call
+    /// `resync()` when it changes. Independent of `enabled`.
+    public var landmarkAlerts: @MainActor () -> Bool = { LandmarkAlertSettings.isOn() }
+
+    /// The aircraft type of a flight, for the landmark alerts' speed profile; nil uses a typical airliner.
+    public var aircraft: (@MainActor (Flight) -> AircraftType?)?
+
     /// The passport's expiry day from the travel documents, read at each sync; nil plans no passport
     /// reminder. Call `resync()` when it changes.
     public var passportExpires: (@MainActor () -> String?)?
@@ -97,14 +104,31 @@ public final class ReminderScheduler {
         await tail?.value
     }
 
-    /// The reminders `flights` should have now.
+    /// iOS keeps at most 64 pending local notifications per app and silently drops the rest; the plan
+    /// stays under this, with room to spare.
+    public static let pendingLimit = 60
+
+    /// The reminders `flights` should have now, at most `pendingLimit`: the reminders first (the earliest
+    /// when there are too many), then the landmark alerts in whatever room is left, the earliest first.
     func plan(_ flights: [Flight]) -> [PlannedReminder] {
-        guard enabled else { return [] }
         let at = now(), style = clock(), expires = passportExpires?()
-        return flights.flatMap {
+        var base = !enabled ? [] : flights.flatMap {
             ReminderPlanner.plan(for: $0, origin: lookup($0.originIcao), destination: lookup($0.destinationIcao),
                                  now: at, clock: style, leave: leaveTime?($0), passportExpires: expires)
         }
+        if base.count > Self.pendingLimit { base = Array(Self.earliest(base).prefix(Self.pendingLimit)) }
+        let room = Self.pendingLimit - base.count
+        guard landmarkAlerts(), room > 0 else { return base }
+        let alerts = flights.flatMap {
+            LandmarkAlerts.plan(for: $0, origin: lookup($0.originIcao), destination: lookup($0.destinationIcao),
+                                now: at, aircraft: aircraft?($0))
+        }
+        return base + Self.earliest(alerts).prefix(room)
+    }
+
+    /// By fire date, then identifier, so the same list always keeps the same ones.
+    private static func earliest(_ list: [PlannedReminder]) -> [PlannedReminder] {
+        list.sorted { ($0.fireDate, $0.id) < ($1.fireDate, $1.id) }
     }
 
     private func apply(_ flights: [Flight]) async {

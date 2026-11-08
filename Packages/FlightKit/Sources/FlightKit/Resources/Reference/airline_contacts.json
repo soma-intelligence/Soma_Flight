@@ -1,0 +1,452 @@
+{
+  "about": "Customer service phone (E.164) and the manage booking page of the airlines the Cancellation kit covers. Every number and link was read on the airline's own website on the date in checked; source is the page that shows the number. A number is left out when the airline publishes none (SAS) or only one that cannot be dialled in E.164 (Qantas 13 13 13). Where the home line is domestic only, the line the same page gives for calls from abroad is used (Air New Zealand, LATAM, Iberia). Check again before each release.",
+  "version": 1,
+  "airlines": [
+    {
+      "icao": "AAL",
+      "iata": "AA",
+      "name": "American Airlines",
+      "phone": "+18004337300",
+      "phoneCountry": "US",
+      "rebook": "https://www.aa.com/reservation/view/find-your-reservation",
+      "source": "https://www.aa.com/web/i18n/customer-service/contact-american/reservations-and-ticket-changes.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ACA",
+      "iata": "AC",
+      "name": "Air Canada",
+      "phone": "+18882472262",
+      "phoneCountry": "CA",
+      "rebook": "https://www.aircanada.com/ca/en/aco/home/book/manage-bookings.html",
+      "source": "https://www.aircanada.com/ca/en/aco/home/fly/customer-support.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "AFR",
+      "iata": "AF",
+      "name": "Air France",
+      "phone": "+33969393654",
+      "phoneCountry": "FR",
+      "rebook": "https://wwws.airfrance.fr/trip",
+      "source": "https://wwws.airfrance.fr/contact/topic/trip-checkin/subtopic/change-booking-option",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "AIC",
+      "iata": "AI",
+      "name": "Air India",
+      "phone": "+911169329333",
+      "phoneCountry": "IN",
+      "rebook": "https://www.airindia.com/in/en/manage/booking.html",
+      "source": "https://www.airindia.com/in/en/contact-us.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "AMX",
+      "iata": "AM",
+      "name": "Aeroméxico",
+      "phone": "+525551334000",
+      "phoneCountry": "MX",
+      "rebook": "https://www.aeromexico.com/es-mx/administra-tu-viaje",
+      "source": "https://www.aeromexico.com/es-mx/contacto",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ANA",
+      "iata": "NH",
+      "name": "All Nippon Airways",
+      "phone": "+81367411120",
+      "phoneCountry": "JP",
+      "rebook": "https://aswbe.ana.co.jp/webapps/servicing/booking-search?CONNECTION_KIND=JPN&LANG=en",
+      "source": "https://www.ana.co.jp/en/jp/guide/contact/international/international_top/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ANZ",
+      "iata": "NZ",
+      "name": "Air New Zealand",
+      "phone": "+6493573000",
+      "phoneCountry": "NZ",
+      "rebook": "https://flightbookings.airnewzealand.co.nz/vmanage/actions/retrieve?manageBooking=true",
+      "source": "https://www.airnewzealand.com/en-nz/help-and-contact",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ASA",
+      "iata": "AS",
+      "name": "Alaska Airlines",
+      "phone": "+18002527522",
+      "phoneCountry": "US",
+      "rebook": "https://www.alaskaair.com/trips",
+      "source": "https://www.alaskaair.com/content/about-us/help-contact/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "AUA",
+      "iata": "OS",
+      "name": "Austrian Airlines",
+      "phone": "+43517661000",
+      "phoneCountry": "AT",
+      "rebook": "https://www.austrian.com/deeplink/cockpit?country=at&language=en",
+      "source": "https://www.austrian.com/at/en/contact",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "AVA",
+      "iata": "AV",
+      "name": "Avianca",
+      "phone": "+576017948488",
+      "phoneCountry": "CO",
+      "rebook": "https://www.avianca.com/en/my-booking/services/customize-your-trip",
+      "source": "https://www.avianca.com/es/sobre-nosotros/contactanos",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "BAW",
+      "iata": "BA",
+      "name": "British Airways",
+      "phone": "+443444930787",
+      "phoneCountry": "GB",
+      "rebook": "https://www.britishairways.com/travel/managebooking/public",
+      "source": "https://www.britishairways.com/content/information/help-and-contacts/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "CAL",
+      "iata": "CI",
+      "name": "China Airlines",
+      "phone": "+88624129000",
+      "phoneCountry": "TW",
+      "rebook": "https://booking.china-airlines.com/ManageBookingPortal/BookingInquiry?country=tw&locale=en",
+      "source": "https://www.china-airlines.com/tw/en/prepare-for-the-fly/support/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "CMP",
+      "iata": "CM",
+      "name": "Copa Airlines",
+      "phone": "+5072172672",
+      "phoneCountry": "PA",
+      "rebook": "https://mytrips.copaair.com/",
+      "source": "https://www.copaair.com/es-pa/atencion-al-cliente/centro-de-llamadas/centroamerica-panama/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "CPA",
+      "iata": "CX",
+      "name": "Cathay Pacific",
+      "phone": "+85227473333",
+      "phoneCountry": "HK",
+      "rebook": "https://www.cathaypacific.com/mb/#!/en_HK/login",
+      "source": "https://www.cathaypacific.com/cx/en_HK/contact-us.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "DAL",
+      "iata": "DL",
+      "name": "Delta Air Lines",
+      "phone": "+18002211212",
+      "phoneCountry": "US",
+      "rebook": "https://www.delta.com/us/en/change-cancel/overview",
+      "source": "https://www.delta.com/us/en/need-help/overview",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "DLH",
+      "iata": "LH",
+      "name": "Lufthansa",
+      "phone": "+496986799799",
+      "phoneCountry": "DE",
+      "rebook": "https://www.lufthansa.com/deeplink/cockpit?country=de&language=en",
+      "source": "https://www.lufthansa.com/de/en/help-and-contact",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "EIN",
+      "iata": "EI",
+      "name": "Aer Lingus",
+      "phone": "+35317617834",
+      "phoneCountry": "IE",
+      "rebook": "https://www.aerlingus.com/html/trip-mgmt.html",
+      "source": "https://www.aerlingus.com/support/customer-care/contact-us/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ETD",
+      "iata": "EY",
+      "name": "Etihad Airways",
+      "phone": "+971600555666",
+      "phoneCountry": "AE",
+      "rebook": "https://www.etihad.com/en-ae/manage",
+      "source": "https://www.etihad.com/en-ae/legal/terms-and-conditions",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "EVA",
+      "iata": "BR",
+      "name": "EVA Air",
+      "phone": "+886225011999",
+      "phoneCountry": "TW",
+      "rebook": "https://booking.evaair.com/flyeva/eva/b2c/manage-your-trip/log_in.aspx?lang=en-tw",
+      "source": "https://www.evaair.com/en-tw/customer-services/contact-us/contact/?countryCode=Taipei",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "EZY",
+      "iata": "U2",
+      "name": "easyJet",
+      "phone": "+443305515151",
+      "phoneCountry": "GB",
+      "rebook": "https://www.easyjet.com/en/manage/my-bookings",
+      "source": "https://www.easyjet.com/en/help-centre/contact/contact-numbers",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "FFT",
+      "iata": "F9",
+      "name": "Frontier Airlines",
+      "phone": "+16023335925",
+      "phoneCountry": "US",
+      "rebook": "https://www.flyfrontier.com/travel/my-trips/manage-trip/",
+      "source": "https://www.flyfrontier.com/customer-service/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "FIN",
+      "iata": "AY",
+      "name": "Finnair",
+      "phone": "+358300871160",
+      "phoneCountry": "FI",
+      "rebook": "https://www.finnair.com/fi-en/manage",
+      "source": "https://www.finnair.com/fi-en/customer-care-and-contact-information",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "HAL",
+      "iata": "HA",
+      "name": "Hawaiian Airlines",
+      "phone": "+18002527522",
+      "phoneCountry": "US",
+      "rebook": "https://www.hawaiianairlines.com/trips",
+      "source": "https://www.hawaiianairlines.com/content/about-us/help-contact/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "IBE",
+      "iata": "IB",
+      "name": "Iberia",
+      "phone": "+34913336701",
+      "phoneCountry": "ES",
+      "rebook": "https://www.iberia.com/es/gestion-de-reservas/",
+      "source": "https://www.iberia.com/es/contacto/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "ITY",
+      "iata": "AZ",
+      "name": "ITA Airways",
+      "phone": "+390685960020",
+      "phoneCountry": "IT",
+      "rebook": "https://www.ita-airways.com/it/it/manage-my-bookings/manage/change-and-refund",
+      "source": "https://www.ita-airways.com/it/it/support/utilities/contact",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "JAL",
+      "iata": "JL",
+      "name": "Japan Airlines",
+      "phone": "+81367333062",
+      "phoneCountry": "JP",
+      "rebook": "https://www.jal.co.jp/en/inter/change/",
+      "source": "https://www.jal.co.jp/jp/en/information/inter/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "JBU",
+      "iata": "B6",
+      "name": "JetBlue Airways",
+      "phone": "+18005382583",
+      "phoneCountry": "US",
+      "rebook": "https://www.jetblue.com/manage-trips",
+      "source": "https://www.jetblue.com/at-the-airport/accessibility-assistance/intellectual-developmental-cognitive-disabilities",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "KAL",
+      "iata": "KE",
+      "name": "Korean Air",
+      "phone": "+82226562001",
+      "phoneCountry": "KR",
+      "rebook": "https://www.koreanair.com/reservation/search",
+      "source": "https://www.koreanair.com/kr/en/footer/customer-support/service-center",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "KLM",
+      "iata": "KL",
+      "name": "KLM Royal Dutch Airlines",
+      "phone": "+31204747747",
+      "phoneCountry": "NL",
+      "rebook": "https://www.klm.nl/trip",
+      "source": "https://www.klm.nl/contact/topic/trip-checkin/subtopic/change-booking-option",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "LAN",
+      "iata": "LA",
+      "name": "LATAM Airlines Chile",
+      "phone": "+56225798990",
+      "phoneCountry": "CL",
+      "rebook": "https://www.latamairlines.com/cl/es/mis-viajes",
+      "source": "https://www.latamairlines.com/cl/es/sobre-latam/contact-center",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "NOZ",
+      "iata": "DY",
+      "name": "Norwegian Air Shuttle",
+      "phone": "+4721490015",
+      "phoneCountry": "NO",
+      "rebook": "https://www.norwegian.com/no/mine-reiser/",
+      "source": "https://www.norwegian.com/no/hjelp-og-kontakt/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "QFA",
+      "iata": "QF",
+      "name": "Qantas Airways",
+      "rebook": "https://www.qantas.com/en-au/manage-booking",
+      "source": "https://www.qantas.com/en-au/help/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "QTR",
+      "iata": "QR",
+      "name": "Qatar Airways",
+      "phone": "+97441445555",
+      "phoneCountry": "QA",
+      "rebook": "https://booking.qatarairways.com/nsp/views/manageBooking.action",
+      "source": "https://www.qatarairways.com/en-qa/help.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "RYR",
+      "iata": "FR",
+      "name": "Ryanair",
+      "phone": "+35316917177",
+      "phoneCountry": "IE",
+      "rebook": "https://www.ryanair.com/ie/en/trip/manage",
+      "source": "https://help.ryanair.com/hc/en-ie/articles/12893510195345-Call-Us-Ireland",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "SAS",
+      "iata": "SK",
+      "name": "Scandinavian Airlines",
+      "rebook": "https://www.flysas.com/se-en/managemybooking",
+      "source": "https://www.flysas.com/en/search?q=phone+number",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "SIA",
+      "iata": "SQ",
+      "name": "Singapore Airlines",
+      "phone": "+6562238888",
+      "phoneCountry": "SG",
+      "rebook": "https://www.singaporeair.com/en_UK/sg/plan-travel/your-booking/managebooking/",
+      "source": "https://www.singaporeair.com/en_UK/sg/contact-us/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "SWA",
+      "iata": "WN",
+      "name": "Southwest Airlines",
+      "phone": "+18004359792",
+      "phoneCountry": "US",
+      "rebook": "https://www.southwest.com/air/manage-reservation/",
+      "source": "https://www.southwest.com/swa-resources/pdfs/corporate-commitments/customer-service-plan.pdf",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "SWR",
+      "iata": "LX",
+      "name": "Swiss International Air Lines",
+      "phone": "+41848700700",
+      "phoneCountry": "CH",
+      "rebook": "https://www.swiss.com/deeplink/cockpit?country=ch&language=en",
+      "source": "https://www.swiss.com/ch/en/customer-support/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "TAP",
+      "iata": "TP",
+      "name": "TAP Air Portugal",
+      "phone": "+351211234400",
+      "phoneCountry": "PT",
+      "rebook": "https://www.flytap.com/en-pt/manage-booking",
+      "source": "https://www.flytap.com/en-pt/help",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "THY",
+      "iata": "TK",
+      "name": "Turkish Airlines",
+      "phone": "+908503330849",
+      "phoneCountry": "TR",
+      "rebook": "https://www.turkishairlines.com/en-tr/flights/manage-booking/index.html",
+      "source": "https://www.turkishairlines.com/en-tr/any-questions/get-in-touch/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "UAE",
+      "iata": "EK",
+      "name": "Emirates",
+      "phone": "+971600555555",
+      "phoneCountry": "AE",
+      "rebook": "https://www.emirates.com/ae/english/manage-booking/",
+      "source": "https://www.emirates.com/ae/english/help/offices/dxb/dubai/",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "UAL",
+      "iata": "UA",
+      "name": "United Airlines",
+      "phone": "+18008648331",
+      "phoneCountry": "US",
+      "rebook": "https://www.united.com/en/us/manageres/mytrips",
+      "source": "https://www.united.com/en/us/fly/help/contact-reservations.html",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "VIR",
+      "iata": "VS",
+      "name": "Virgin Atlantic",
+      "phone": "+443448747747",
+      "phoneCountry": "GB",
+      "rebook": "https://www.virginatlantic.com/manage-booking",
+      "source": "https://www.virginatlantic.com/contact-us",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "VLG",
+      "iata": "VY",
+      "name": "Vueling",
+      "phone": "+34931225400",
+      "phoneCountry": "ES",
+      "rebook": "https://tickets.vueling.com/manage?culture=es-ES",
+      "source": "https://help.vueling.com/hc/es/articles/19916107516177-Contacto-Nuestros-tel%C3%A9fonos",
+      "checked": "2026-11-08"
+    },
+    {
+      "icao": "WJA",
+      "iata": "WS",
+      "name": "WestJet",
+      "phone": "+18889378538",
+      "phoneCountry": "CA",
+      "rebook": "https://www.westjet.com/en-ca/manage/change-cancel",
+      "source": "https://www.westjet.com/en-ca/contact",
+      "checked": "2026-11-08"
+    }
+  ]
+}

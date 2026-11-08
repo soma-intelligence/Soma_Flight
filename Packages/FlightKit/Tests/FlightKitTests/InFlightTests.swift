@@ -28,9 +28,12 @@ import Testing
         #expect(abs(e.progress - 4.0 / 11.0) < 1e-6)
         #expect(e.lastUpdate == Self.now.addingTimeInterval(-3600))
         #expect(!e.probablyLanded)
-        // On the great circle: 4/11 of the way from CDG to SFO is over the North Atlantic, heading west.
+        // On the great circle, placed by `RouteEstimator` (taxi, climb, cruise): over the North Atlantic, heading west.
         let c = try #require(e.coordinate)
-        #expect(abs(distanceKm(cdg, c) - distanceKm(cdg, sfo) * 4 / 11) < 30)
+        let route = try #require(RouteEstimator(flight: flight(), origin: cdg, destination: sfo))
+        #expect(RouteEstimator.distanceKm(c, route.position(at: Self.now).coordinate) < 0.01)
+        #expect(e.phase == .cruise)
+        #expect(abs(distanceKm(cdg, c) - distanceKm(cdg, sfo) * 4 / 11) < 200)
         #expect(c.latitude > 50 && c.longitude < -20)
         #expect(try #require(e.heading) > 240 && e.heading! < 340)
     }

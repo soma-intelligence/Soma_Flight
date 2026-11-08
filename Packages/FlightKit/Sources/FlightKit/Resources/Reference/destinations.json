@@ -1,0 +1,601 @@
+{
+ "about": "Static facts for the flight sheet's destination card: plug types (IEC letters), mains voltage, currency (ISO 4217) and the usual tipping custom in restaurants, one word each. Plugs and voltage follow the IEC World Plugs list (iec.ch/world-plugs); currencies follow ISO 4217; tipping is a broad custom from common travel guidance, not a rule. A country is left out when a value is not certain. No travel advisory: that is outside data.",
+ "source": "https://www.iec.ch/world-plugs",
+ "checked": "2026-11-08",
+ "version": 1,
+ "countries": [
+  {
+   "iso2": "AE",
+   "plugs": [
+    "C",
+    "D",
+    "G"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "AED",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "AR",
+   "plugs": [
+    "C",
+    "I"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "ARS",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "AT",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "AU",
+   "plugs": [
+    "I"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "AUD",
+   "tipping": "none"
+  },
+  {
+   "iso2": "BE",
+   "plugs": [
+    "C",
+    "E"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "included"
+  },
+  {
+   "iso2": "BR",
+   "plugs": [
+    "C",
+    "N"
+   ],
+   "volts": [
+    127,
+    220
+   ],
+   "currency": "BRL",
+   "tipping": "included"
+  },
+  {
+   "iso2": "CA",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    120
+   ],
+   "currency": "CAD",
+   "tipping": "fifteen_to_twenty"
+  },
+  {
+   "iso2": "CH",
+   "plugs": [
+    "C",
+    "J"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "CHF",
+   "tipping": "included"
+  },
+  {
+   "iso2": "CL",
+   "plugs": [
+    "C",
+    "L"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "CLP",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "CN",
+   "plugs": [
+    "A",
+    "C",
+    "I"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "CNY",
+   "tipping": "none"
+  },
+  {
+   "iso2": "CO",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    110
+   ],
+   "currency": "COP",
+   "tipping": "included"
+  },
+  {
+   "iso2": "CR",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    120
+   ],
+   "currency": "CRC",
+   "tipping": "included"
+  },
+  {
+   "iso2": "CZ",
+   "plugs": [
+    "C",
+    "E"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "CZK",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "DE",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "DK",
+   "plugs": [
+    "C",
+    "E",
+    "F",
+    "K"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "DKK",
+   "tipping": "included"
+  },
+  {
+   "iso2": "DO",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    120
+   ],
+   "currency": "DOP",
+   "tipping": "included"
+  },
+  {
+   "iso2": "EG",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "EGP",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "ES",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "FI",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "none"
+  },
+  {
+   "iso2": "FR",
+   "plugs": [
+    "C",
+    "E"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "included"
+  },
+  {
+   "iso2": "GB",
+   "plugs": [
+    "G"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "GBP",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "GR",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "HK",
+   "plugs": [
+    "G"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "HKD",
+   "tipping": "included"
+  },
+  {
+   "iso2": "HR",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "HU",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "HUF",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "IE",
+   "plugs": [
+    "G"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "IL",
+   "plugs": [
+    "C",
+    "H",
+    "M"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "ILS",
+   "tipping": "ten_to_fifteen"
+  },
+  {
+   "iso2": "IN",
+   "plugs": [
+    "C",
+    "D",
+    "M"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "INR",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "IS",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "ISK",
+   "tipping": "none"
+  },
+  {
+   "iso2": "IT",
+   "plugs": [
+    "C",
+    "F",
+    "L"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "JP",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    100
+   ],
+   "currency": "JPY",
+   "tipping": "none"
+  },
+  {
+   "iso2": "KR",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "KRW",
+   "tipping": "none"
+  },
+  {
+   "iso2": "LU",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "MA",
+   "plugs": [
+    "C",
+    "E"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "MAD",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "MX",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    127
+   ],
+   "currency": "MXN",
+   "tipping": "ten_to_fifteen"
+  },
+  {
+   "iso2": "NL",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "NO",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "NOK",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "NZ",
+   "plugs": [
+    "I"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "NZD",
+   "tipping": "none"
+  },
+  {
+   "iso2": "PE",
+   "plugs": [
+    "A",
+    "B",
+    "C"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "PEN",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "PH",
+   "plugs": [
+    "A",
+    "B",
+    "C"
+   ],
+   "volts": [
+    220
+   ],
+   "currency": "PHP",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "PL",
+   "plugs": [
+    "C",
+    "E"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "PLN",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "PT",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "EUR",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "QA",
+   "plugs": [
+    "D",
+    "G"
+   ],
+   "volts": [
+    240
+   ],
+   "currency": "QAR"
+  },
+  {
+   "iso2": "SE",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "SEK",
+   "tipping": "round_up"
+  },
+  {
+   "iso2": "SG",
+   "plugs": [
+    "G"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "SGD",
+   "tipping": "included"
+  },
+  {
+   "iso2": "TR",
+   "plugs": [
+    "C",
+    "F"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "TRY",
+   "tipping": "ten"
+  },
+  {
+   "iso2": "TW",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    110
+   ],
+   "currency": "TWD",
+   "tipping": "none"
+  },
+  {
+   "iso2": "US",
+   "plugs": [
+    "A",
+    "B"
+   ],
+   "volts": [
+    120
+   ],
+   "currency": "USD",
+   "tipping": "fifteen_to_twenty"
+  },
+  {
+   "iso2": "ZA",
+   "plugs": [
+    "C",
+    "D",
+    "M",
+    "N"
+   ],
+   "volts": [
+    230
+   ],
+   "currency": "ZAR",
+   "tipping": "ten_to_fifteen"
+  }
+ ]
+}

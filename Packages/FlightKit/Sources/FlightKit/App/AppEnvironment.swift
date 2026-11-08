@@ -84,6 +84,9 @@ public struct AppEnvironment: Sendable {
     /// Boarding passes, one folder per account on this device; never sent to the server (they are
     /// personal data). The fakes keep them in memory with a pass on AF 84.
     public var passes: BoardingPassShelf
+    /// Travel journal photos, one folder per account on this device; never sent to the server. The fakes
+    /// and tests keep them in memory.
+    public var journal: TravelJournalShelf = .inMemory()
     /// True with the fakes: Add to Apple Wallet only pretends (the fake pass has no signed file).
     public var simulatesWallet: Bool
     /// True when nothing works without an account (the backend): the shells show Sign In until there
@@ -120,7 +123,7 @@ public struct AppEnvironment: Sendable {
                                  brand: BundledSideViews(over: BundledLogos(over: FakeBrandAssetService.bundled())), insights: FakeInsightsService(flights: flights),
                                  security: FakeSecurityWaitService(now: now),
                                  faa: FakeFAAService(now: now),
-                                 passes: .inMemory(seed: [FakeBoardingPass.af84(now: now)]), simulatesWallet: true)
+                                 passes: .inMemory(seed: [FakeBoardingPass.af84(now: now), FakeBoardingPass.ua1527(now: now)]), simulatesWallet: true)
             .with(gates: FakeGateHistoryService())
             .withAlternates(FakeAlternateFlightsService(flights: flights))
             .withSchedules(FakeScheduleService())
@@ -145,6 +148,7 @@ public struct AppEnvironment: Sendable {
                                schedules: SupabaseScheduleService.isEnabled(),
                                radar: SupabaseNearbyFlightsService.isEnabled())
         env.passes = .onDisk()
+        env.journal = .onDisk()
         env.googleSignIn = (Bundle.main.object(forInfoDictionaryKey: "GoogleSignInEnabled") as? String)?.uppercased() == "YES"
         return env
     }
@@ -261,9 +265,13 @@ public struct AppEnvironment: Sendable {
     public func adopt(user: UUID?) async throws {
         guard await !cache.isOwned(by: user) else { return }
         recentsDefaults?.removeObject(forKey: SearchStore.recentKey)
+        // The status goals the previous account typed in go too.
+        recentsDefaults?.removeObject(forKey: StatusPrograms.key)
         HistoryExport.removeTemporaryFiles()
         // The previous account's boarding passes leave the device with its cache.
         passes.keepOnly(user)
+        // So do the travel journal's photos.
+        journal.keepOnly(user)
         try await cache.claim(for: user)
     }
 
@@ -277,7 +285,7 @@ public struct AppEnvironment: Sendable {
     }
     @MainActor public func makePassportStore(owner: UUID?) -> PassportStore {
         PassportStore(history: history, cache: cache.scoped(for: owner), reference: reference, facts: aircraftFacts,
-                      airports: directory.lookup)
+                      airports: directory.lookup, journal: journal.journal(for: owner), owner: owner)
     }
     @MainActor public func makeFriendsStore() -> FriendsStore { FriendsStore(service: friends) }
     @MainActor public func makeProfileStore() -> ProfileStore {
@@ -291,6 +299,7 @@ public struct AppEnvironment: Sendable {
     @MainActor public func makeFlightDetailStore(id: Flight.ID, owner: UUID?) -> FlightDetailStore {
         let store = FlightDetailStore(id: id, flights: flights, airports: airports, history: detailHistory, insights: insights,
                           security: security, gates: gates, faa: faa, cache: cache.scoped(for: owner), passes: passes.vault(for: owner),
+                          packs: cache.scoped(for: owner),
                           lookup: directory.lookup, simulatesWallet: simulatesWallet)
         store.connections = ConnectionStore(id: id, flights: flights, airports: airports, alternates: alternates,
                                             lookup: directory.lookup)

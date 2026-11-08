@@ -155,7 +155,8 @@ struct RootSidebarView: View {
                     FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
                 case .passport:
                     PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
-                                 onOpenFlight: home.open(past:), onImport: { home.showImport = true })
+                                 onOpenFlight: home.open(past:), onImport: { home.showImport = true },
+                                 travellerName: home.profile.displayName)
                 }
             }
         }

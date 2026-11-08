@@ -185,7 +185,9 @@ struct RootTabView: View {
             SettingsSheet(session: home.session, units: $units, history: home.env.history,
                           onDeleteAccount: { await home.session.deleteAccount(appleAuthorizationCode: $0) },
                           notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends,
-                          profile: home.profile)
+                          profile: home.profile,
+                          travelTools: TravelToolsSource(store: home.passport, lookup: env.lookup,
+                                                         travellerName: home.profile.displayName))
                 .environment(\.units, units)
         }
         // An invitation link the app was opened with: accept or decline.
@@ -238,6 +240,7 @@ struct RootTabView: View {
         case .passport:
             PassportView(store: home.passport, lookup: env.lookup, onOpen: { home.fullPage = $0 },
                              onOpenFlight: home.open(past:), onImport: { home.showImport = true },
+                             travellerName: home.profile.displayName,
                              onError: { home.showToast($0, isError: true) })
         }
     }
@@ -379,6 +382,7 @@ private struct SettingsSheet: View {
     var calendar: CalendarSync?
     var friends: FriendsStore?
     var profile: ProfileStore?
+    var travelTools: TravelToolsSource?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -387,7 +391,7 @@ private struct SettingsSheet: View {
         // its own X over this one.
         SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
                      notifications: notifications, calendar: calendar, friends: friends, profile: profile,
-                     onClose: { dismiss() })
+                     travelTools: travelTools, onClose: { dismiss() })
         .presentationDetents([.large])
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)

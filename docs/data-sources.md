@@ -261,3 +261,21 @@ Checked on 2026-11-07. Free public sources only, no national air traffic feed.
   outside the US, so a non-US airport shows a level (normal, minor, major) and reasons inferred from notices
   and weather, labelled as such in the app, never as an official program. At US airports the reasons sit next
   to the FAA's real programs.
+
+## Landmarks (flight sheet "Along the way" and "Window seat")
+
+- File: `Packages/FlightKit/Sources/FlightKit/Resources/Reference/landmarks.json` (454 places), built by
+  `Scripts/world/landmarks.py` (`fetch` then `build`). Retrieved: 2026-11-08.
+- Source: Wikidata, https://query.wikidata.org/sparql, one query at build time (the app never calls it).
+  Licence CC0. Items that are directly an instance of mountain, volcano (and strato and shield volcano), big
+  city (city with millions of inhabitants, megacity, metropolis), lake, glacier, island, atoll, desert, canyon,
+  waterfall, river delta, estuary or fjord, on Earth, with at least 25 sitelinks; per kind the best known by
+  sitelinks, with name (English label), coordinates (P625), height (P2044), population (P1082) and area (P2046).
+  A first, heavier version of the query timed out at the endpoint and returned nothing; the lighter one
+  in the script is the one that ran.
+- Curated by hand in the script: a short exclude list (hills famous for something else, small gorges, a
+  metro area doubling its city), shorter names, and 56 famous places Wikidata files under other classes
+  (Los Angeles, Singapore, Kilimanjaro, Aconcagua, Denali, Lake Geneva...) entered from their well known
+  coordinates, rounded to about 1 km; those rows have a null `id`.
+- `radius_km` (how far a passenger at cruise height still picks the place out) is our own rule of thumb by
+  kind and size, not a Wikidata fact.

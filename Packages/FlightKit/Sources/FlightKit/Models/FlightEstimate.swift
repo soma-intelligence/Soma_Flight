@@ -4,9 +4,9 @@ import Foundation
 /// Where a flight probably is when the app cannot hear about it: the device is offline, or the flight is
 /// in the air and its last update is older than `staleAfter` (airline Wi-Fi that lets only messages
 /// through). Worked out on the device from the last times it knows: the share of the best gate-to-gate
-/// time elapsed (`Flight.progress(at:)`, the Live Activity's rule), placed on the great circle between
-/// the two airports (the Rust core's `greatCircle`). Always shown as an estimate, with the time of the
-/// last real update.
+/// time elapsed (`Flight.progress(at:)`, the Live Activity's rule) for the bar, and the place on the great
+/// circle from `RouteEstimator` (runway times, climb, cruise and descent), with its phase. Always shown as
+/// an estimate, with the time of the last real update.
 public struct FlightEstimate: Sendable, Equatable {
     public enum Reason: Sendable, Equatable {
         /// The device has no connection.
@@ -26,6 +26,8 @@ public struct FlightEstimate: Sendable, Equatable {
     public var lastUpdate: Date
     /// The best arrival time has passed with no landing heard: probably down.
     public var probablyLanded: Bool
+    /// Where in the trip `RouteEstimator` puts the plane; nil without both airports.
+    public var phase: FlightPhase? = nil
 
     /// An update older than this, in the air, is no longer live.
     public static let staleAfter: TimeInterval = 5 * 60
@@ -34,7 +36,7 @@ public struct FlightEstimate: Sendable, Equatable {
 
     public static func == (a: Self, b: Self) -> Bool {
         a.reason == b.reason && a.progress == b.progress && a.heading == b.heading && a.lastUpdate == b.lastUpdate
-            && a.probablyLanded == b.probablyLanded
+            && a.probablyLanded == b.probablyLanded && a.phase == b.phase
             && a.coordinate?.latitude == b.coordinate?.latitude && a.coordinate?.longitude == b.coordinate?.longitude
     }
 
@@ -44,8 +46,9 @@ public struct FlightEstimate: Sendable, Equatable {
     /// - Parameters:
     ///   - origin, destination: the two airports, for the position; nil leaves `coordinate` nil.
     ///   - online: the device's connection (`Connectivity`).
+    ///   - aircraft: the type, for its cruise speed when no landing time is known.
     public static func make(for flight: Flight, origin: CLLocationCoordinate2D?, destination: CLLocationCoordinate2D?,
-                            online: Bool, now: Date) -> FlightEstimate? {
+                            online: Bool, now: Date, aircraft: AircraftType? = nil) -> FlightEstimate? {
         let airborne: Bool
         switch flight.status {
         case .departed, .enRoute:
@@ -70,8 +73,13 @@ public struct FlightEstimate: Sendable, Equatable {
         var estimate = FlightEstimate(reason: online ? .stale : .offline, progress: p, coordinate: nil, heading: nil,
                                       lastUpdate: lastUpdate, probablyLanded: due.map { now >= $0 } ?? false)
         if let origin, let destination {
-            let (c, h) = point(from: origin, to: destination, at: p)
-            estimate.coordinate = c; estimate.heading = h
+            if let route = RouteEstimator(flight: flight, origin: origin, destination: destination, aircraft: aircraft) {
+                let fix = route.position(at: now)
+                estimate.coordinate = fix.coordinate; estimate.heading = fix.heading; estimate.phase = fix.phase
+            } else {
+                let (c, h) = point(from: origin, to: destination, at: p)
+                estimate.coordinate = c; estimate.heading = h
+            }
         }
         return estimate
     }
@@ -106,6 +114,23 @@ public struct FlightEstimate: Sendable, Equatable {
         return (deg + 360).truncatingRemainder(dividingBy: 360)
     }
 
+    /// "Last update 14:02" (the device's zone and clock setting), beside the badge.
+    public func lastUpdateLine(style: TimeStyle = .h24, timeZone: TimeZone = .current) -> String {
+        "Last update \(Format.clock(lastUpdate, timeZone, style))"
+    }
+
+    /// The region line under the bar: "Over the North Atlantic", "Climbing over France", "Descending over
+    /// Ireland"; nil before take-off, once probably landed, or when no table names the place.
+    public func regionLine(regions: RegionNamer = .bundled) -> String? {
+        guard !probablyLanded, let coordinate, let region = regions.region(at: coordinate) else { return nil }
+        switch phase {
+        case .climbing: return "Climbing \(region.phrase)"
+        case .descending: return "Descending \(region.phrase)"
+        case .cruise, nil: return region.line
+        case .beforeTakeoff, .landed: return nil
+        }
+    }
+
     /// "Estimated, last update 14:02" (the device's zone and clock setting).
     public func label(style: TimeStyle = .h24, timeZone: TimeZone = .current) -> String {
         "Estimated, last update \(Format.clock(lastUpdate, timeZone, style))"
@@ -125,6 +150,7 @@ public extension Flight {
     /// The estimate for this flight now, with the airports from `lookup`.
     func estimate(online: Bool, now: Date = .now, lookup: (String) -> Airport?) -> FlightEstimate? {
         FlightEstimate.make(for: self, origin: lookup(originIcao)?.coordinate,
-                            destination: lookup(destinationIcao)?.coordinate, online: online, now: now)
+                            destination: lookup(destinationIcao)?.coordinate, online: online, now: now,
+                            aircraft: aircraftType.flatMap { ReferenceData.bundled().type($0) })
     }
 }

@@ -55,16 +55,25 @@ public final class PassportStore {
     private let asOf: Date
     private let countries: [FlightCore.CountryInfo]
     private let types: [FlightCore.TypeInfo]
+    /// The account's travel journal: a deleted flight's photos go with it. Nil keeps no photos.
+    private let journal: (any TravelJournal)?
+    /// The account this history belongs to (nil: nobody, or the fakes). What else is kept per account on
+    /// the device, like the status goals, follows it.
+    public let owner: UUID?
 
     /// - Parameters:
     ///   - reference: airlines (names mapped to ICAO), aircraft types and countries.
     ///   - facts: airframe delivery dates for ages; nil means none, and the ages hide.
     ///   - asOf: the day ages are counted to.
     ///   - airports: where a flight's country comes from when the flight does not carry it.
+    ///   - journal: the account's travel journal, whose photos of a flight are deleted with the flight.
+    ///   - owner: the account the history belongs to.
     public init(history: any HistoryService, cache: (any PastFlightCache)? = nil, reference: ReferenceData = .bundled(),
                 facts: (any AircraftFactsService)? = nil, asOf: Date = Date.now,
-                airports: (@Sendable (String) -> Airport?)? = nil) {
-        self.history = history; self.cache = cache; self.reference = reference
+                airports: (@Sendable (String) -> Airport?)? = nil, journal: (any TravelJournal)? = nil,
+                owner: UUID? = nil) {
+        self.history = history; self.cache = cache; self.reference = reference; self.journal = journal
+        self.owner = owner
         self.factsService = facts; self.asOf = asOf
         self.airport = airports ?? Self.bundledAirports
         countries = reference.countries.map(\.coreInfo)
@@ -95,6 +104,16 @@ public final class PassportStore {
     public var allFlights: [PastFlight] { mapped }
     /// Years with at least one flight, newest first.
     public var years: [Int] { Array(Set(rows.map(\.localYear))).sorted(by: >) }
+
+    /// CO2 for one passenger over the selected year's flights (`FlightEmissions`, economy when the class is
+    /// not noted), and how many flights it counts (canceled and private ones add nothing).
+    public var emissions: (kilograms: Double, flights: Int) { FlightEmissions.total(flights) }
+
+    /// The Schengen 90/180 count on `now`'s date (in `zone`) over the whole history, whatever the year; nil
+    /// when the history never shows the traveller in the area.
+    public func schengen(on now: Date, in zone: TimeZone = .current) -> Schengen.Summary? {
+        Schengen.summary(mapped, on: Schengen.Day(now, in: zone), airport: airport)
+    }
 
     /// The selected year's flights that arrived latest, most late first, ten at most (the delay page's list).
     public var mostDelayed: [PastFlight] { PassportPicks.mostDelayed(flights) }
@@ -180,10 +199,11 @@ public final class PassportStore {
         }
     }
 
-    /// Deletes a manual or imported flight; true once gone.
+    /// Deletes a flight from the history; true once gone. Its travel journal photos go with it.
     public func delete(_ id: PastFlight.ID) async -> Bool {
         do {
             try await history.delete(id)
+            await journal?.removeAll(for: id)
             await applied { all in all.removeAll { $0.id == id } }
             return true
         } catch {

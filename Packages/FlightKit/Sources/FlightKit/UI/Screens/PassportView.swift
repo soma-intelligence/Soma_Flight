@@ -14,6 +14,7 @@ public struct PassportView: View {
     var onOpen: (FullPage) -> Void
     var onOpenFlight: ((PastFlight) -> Void)?
     var onImport: (() -> Void)?
+    var travellerName: String?
     /// Reports a failure as a short toast over the tab pill (the iOS home); nil shows an alert instead.
     var onError: ((String) -> Void)?
 
@@ -53,11 +54,13 @@ public struct PassportView: View {
     ///   - onOpen: a card was tapped; the shell presents that page over the home (`HomeModel.fullPage`).
     ///   - onOpenFlight: a past flight's row was tapped: the shell opens it in the flight sheet; nil leaves rows inert.
     ///   - onImport: opens the Import screen from the add menu and the empty state; nil offers the CSV import alone.
+    ///   - travellerName: the name the expense reports print; nil or empty leaves it out.
     public init(store: PassportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
                 onOpen: @escaping (FullPage) -> Void = { _ in }, onOpenFlight: ((PastFlight) -> Void)? = nil,
-                onImport: (() -> Void)? = nil, onError: ((String) -> Void)? = nil) {
+                onImport: (() -> Void)? = nil, travellerName: String? = nil, onError: ((String) -> Void)? = nil) {
         self.init(store: store, lookup: lookup, now: now, scrolls: true, onOpen: onOpen, onOpenFlight: onOpenFlight,
                   onImport: onImport)
+        self.travellerName = travellerName
         self.onError = onError
     }
 

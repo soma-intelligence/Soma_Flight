@@ -18,6 +18,8 @@ public struct SettingsView: View {
     var friends: FriendsStore?
     /// The name and photo (Profile); it replaces the plain name field when set.
     var profile: ProfileStore?
+    /// The history behind the Travel Tools rows; nil hides the section.
+    var travelTools: TravelToolsSource?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -70,14 +72,18 @@ public struct SettingsView: View {
     ///   - calendar: the calendar sync (`HomeModel.calendar`); the Calendar row opens its screen. Nil hides the row.
     ///   - friends: the Friends store (`HomeModel.friends`); Account then holds the name and emoji friends see.
     ///   - profile: the user's name and photo (`HomeModel.profile`); Profile then shows them and opens the editor.
+    ///   - travelTools: the Passport history; Travel Tools then lists the year in review, the route poster, the
+    ///     Schengen count, status goals and expense reports. Nil hides the section.
     ///   - onClose: closes Settings from the round X at the top right (the phone's sheet); nil leaves it out.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: ((String?) async -> Bool)? = nil,
                 notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
-                friends: FriendsStore? = nil, profile: ProfileStore? = nil, onClose: (() -> Void)? = nil) {
+                friends: FriendsStore? = nil, profile: ProfileStore? = nil, travelTools: TravelToolsSource? = nil,
+                onClose: (() -> Void)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
                   onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, friends: friends,
                   profile: profile, scrolls: true, onClose: onClose)
+        self.travelTools = travelTools
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
@@ -222,6 +228,8 @@ public struct SettingsView: View {
                 }
                 .accessibilityElement(children: .combine)
             }
+            // Keyed by the history: a new account's store starts the section over, with that account's goals.
+            if let travelTools { TravelToolsSection(source: travelTools).id(ObjectIdentifier(travelTools.store)) }
             if let history {
                 SettingsSection("Your Data") {
                     ExportRow(icon: "curlybraces", title: "Export History as JSON", tint: SettingsStyle.slate, format: .json,

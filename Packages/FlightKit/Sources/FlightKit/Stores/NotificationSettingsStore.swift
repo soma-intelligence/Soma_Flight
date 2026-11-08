@@ -15,6 +15,12 @@ public final class NotificationSettingsStore {
 
     @ObservationIgnored public var onChange: (@MainActor (NotificationPreferences) -> Void)?
 
+    /// The "Landmarks overflown" alerts, kept on this device (`LandmarkAlertSettings`), off by default.
+    public private(set) var landmarkAlerts: Bool
+    /// Hears the landmark switch (the home re-plans the reminders with it).
+    @ObservationIgnored public var onLandmarksChange: (@MainActor (Bool) -> Void)?
+    @ObservationIgnored private let defaults: UserDefaults
+
     /// Text Me Too (the number, the code and the text switches); nil shows no text section.
     public let texts: TextAlertsStore?
 
@@ -22,8 +28,11 @@ public final class NotificationSettingsStore {
     /// Bumped by every load and toggle, so a slow answer never overwrites a newer choice.
     @ObservationIgnored private var generation = 0
 
-    public init(service: any NotificationPreferencesService, texts: (any TextAlertsService)? = nil) {
+    public init(service: any NotificationPreferencesService, texts: (any TextAlertsService)? = nil,
+                defaults: UserDefaults = .standard) {
         self.service = service
+        self.defaults = defaults
+        landmarkAlerts = LandmarkAlertSettings.isOn(defaults)
         self.texts = texts.map { TextAlertsStore(service: $0) }
     }
 
@@ -63,6 +72,14 @@ public final class NotificationSettingsStore {
             self.error = error
             onChange?(preferences)
         }
+    }
+
+    /// Turns the landmark alerts on or off on this device.
+    public func setLandmarkAlerts(_ on: Bool) {
+        guard landmarkAlerts != on else { return }
+        landmarkAlerts = on
+        defaults.set(on, forKey: LandmarkAlertSettings.key)
+        onLandmarksChange?(on)
     }
 
     #if DEBUG

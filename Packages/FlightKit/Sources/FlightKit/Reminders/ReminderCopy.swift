@@ -9,6 +9,19 @@ public enum ReminderCopy {
         public var body: String
     }
 
+    /// "Mont Blanc on the left": a landmark passing the plane in about five minutes (`LandmarkAlerts.lead`).
+    public static func landmark(_ p: LandmarkPass) -> Text {
+        let side: String
+        switch p.side {
+        case .left: side = "on the left"
+        case .right: side = "on the right"
+        case .below: side = "below"
+        }
+        let place = p.side == .below ? "right below the plane" : "out the \(p.side.rawValue) windows"
+        return Text(title: "\(p.landmark.name) \(side)",
+                    body: "In about 5 minutes, \(p.landmark.name) should be \(place). Estimated from the schedule.")
+    }
+
     /// "Check-in is open for AF 84".
     public static func checkIn(_ f: Flight, departure: Date, tz: TimeZone, clock: TimeStyle) -> Text {
         let id = Format.ident(f.ident)

@@ -15,6 +15,9 @@ public enum ReminderKind: String, Sendable, CaseIterable {
     /// departure day or expires within six months of it: 30 days ahead, else 7, else the next 9:00 at the
     /// departure airport when the flight is more than a day away.
     case passport
+    /// A landmark passing the plane in flight (`LandmarkAlerts`), when the user turned them on. Several a
+    /// flight, each with its own identifier.
+    case landmark
 }
 
 /// A reminder to schedule: where it fires and what it says.

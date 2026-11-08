@@ -121,7 +121,10 @@ struct SomaFlightMacApp: App {
                                  notifications: home.needsSignIn ? nil : home.notificationSettings,
                                  calendar: home.needsSignIn ? nil : home.calendar,
                                  friends: home.needsSignIn ? nil : home.friends,
-                                 profile: home.needsSignIn ? nil : home.profile)
+                                 profile: home.needsSignIn ? nil : home.profile,
+                                 travelTools: home.needsSignIn ? nil
+                                     : TravelToolsSource(store: home.passport, lookup: home.env.lookup,
+                                                         travellerName: home.profile.displayName))
                         .environment(\.friendPhotos, home.profile.friendPhotos)
                 } else {
                     // Settings opened before the window has built its environment.

@@ -23,6 +23,7 @@ public struct FlightDetailView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.flightSharing) private var sharingService
     @Environment(\.flightTexts) private var flightTexts
+    @Environment(\.travelJournal) private var travelJournal
     /// The flight's live link (made on Share, stopped from the menu); nil for Passport flights.
     @State private var sharing: FlightShareModel?
 
@@ -149,6 +150,45 @@ public struct FlightDetailView: View {
         #endif
     }
 
+    /// "Your 3rd flight on F-GSQA", nil when the tail is unknown or new to the traveller.
+    private func tailLine(_ f: Flight) -> String? {
+        guard let n = store.tailVisit, let reg = f.registration else { return nil }
+        return TailVisitFacts.badge(n, registration: reg)
+    }
+
+    /// kg CO2e for one passenger in the seat class noted (economy when none), from the great circle distance
+    /// between the airports; nil until both are known, and for a canceled or private flight.
+    private func emissions(_ f: Flight) -> Double? {
+        guard f.status != .canceled, let km = DetailFacts.distanceKm(origin: store.origin, destination: plannedDestination(f)),
+              km > 0 else { return nil }
+        return FlightEmissions.kilograms(km: km, seatClass: store.details?.seatClass, origin: store.origin?.country,
+                                         destination: plannedDestination(f)?.country)
+    }
+
+    /// The sun card's lines, from the planned route; empty without both airports or for a canceled flight.
+    private func sunLines(_ f: Flight) -> [SunFacts.Line] {
+        guard let origin = store.origin, let destination = plannedDestination(f) else { return [] }
+        let events = SunFacts.events(f, origin: origin, destination: destination,
+                                     aircraft: f.aircraftType.flatMap { reference.type($0) })
+        return SunFacts.lines(events, origin: origin, destination: destination, clock: units.clock)
+    }
+
+    /// The "Along the way" lines, from the planned route; empty without both airports or for a canceled flight.
+    private func landmarkLines(_ f: Flight) -> [LandmarkFacts.Line] {
+        guard let origin = store.origin, let destination = plannedDestination(f) else { return [] }
+        let passes = Landmarks.passes(f, origin: origin, destination: destination,
+                                      aircraft: f.aircraftType.flatMap { reference.type($0) })
+        return LandmarkFacts.lines(passes, origin: origin, destination: destination, clock: units.clock)
+    }
+
+    /// The window side card, with the traveller's seat from the booking details or the boarding pass.
+    private func windowCard(_ f: Flight) -> WindowFacts.Card? {
+        let type = f.aircraftType.flatMap { reference.type($0) }
+        guard let advice = WindowFacts.advice(f, origin: store.origin, destination: plannedDestination(f),
+                                              aircraft: type) else { return nil }
+        return WindowFacts.card(advice, seat: store.details?.seat ?? store.boardingPass?.seat, family: type?.family)
+    }
+
     private func airline(_ f: Flight) -> Airline? {
         f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
     }
@@ -172,6 +212,11 @@ public struct FlightDetailView: View {
                     EstimatedProgressCard(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
                 }
                 if let notice = notice(flight) { notice }
+                // Canceled, or 3 hours late at the gate: the airline's line, its rebooking page, what to ask.
+                if !store.isArchived, CancellationKit.isShown(flight) {
+                    CancellationKitCard(flight: flight,
+                                        contact: AirlineContacts.bundled.contact(airline(flight)?.id ?? flight.operator))
+                }
                 CountdownCard(title: DetailFacts.landedTitle(flight)
                                 ?? DetailFacts.countdown(flight, destination: store.destination, now: now),
                               caption: DetailFacts.landedTitle(flight) == nil ? DetailFacts.countdownCaption(flight, airline: airline(flight))
@@ -197,6 +242,13 @@ public struct FlightDetailView: View {
                 if store.boardingPass != nil || store.takesBoardingPass {
                     BoardingPassSection(store: store)
                         .id("boardingPass")
+                }
+                // About when the traveller's group is called, from the group on the pass.
+                if !store.isArchived,
+                   let group = BoardingGroupTiming.estimate(flight, pass: store.boardingPass,
+                                                            aircraft: flight.aircraftType.flatMap { reference.type($0) },
+                                                            originTimeZone: store.origin?.timeZone, now: now) {
+                    BoardingGroupRow(estimate: group, timeZone: store.origin?.timeZone ?? .current)
                 }
                 // Connections with other followed flights; other flights when canceled or a connection is at risk.
                 if let connections = store.connections, ConnectionSections.isShown(connections, flight: flight, now: now) {
@@ -227,14 +279,36 @@ public struct FlightDetailView: View {
                 }
                 let type = flight.aircraftType.flatMap { reference.type($0) }
                 if insights, PlaneSection.isShown(type: type, inbound: store.inbound) {
-                    PlaneSection(flight: flight, type: type, airline: airline(flight), inbound: store.inbound)
+                    PlaneSection(flight: flight, type: type, airline: airline(flight), inbound: store.inbound,
+                                 tailLine: tailLine(flight))
                         .id("plane")
                 } else {
                     DetailCard {
                         CardTitle("Aircraft")
                             .scaledPadding(.bottom, 12)
-                        AircraftRow(type: flight.aircraftType, registration: flight.registration)
+                        AircraftRow(type: flight.aircraftType, registration: flight.registration,
+                                    tailLine: tailLine(flight))
                     }
+                }
+                // Sunrises and sunsets seen from the plane, estimated from the schedule.
+                let sun = sunLines(flight)
+                if !sun.isEmpty {
+                    SunInFlightCard(lines: sun)
+                        .id("sun")
+                }
+                // Which window side to pick, and the landmarks the route passes, estimated from the schedule.
+                if !store.isArchived, let window = windowCard(flight) {
+                    WindowSeatCard(card: window)
+                        .id("window")
+                }
+                let landmarks = landmarkLines(flight)
+                if !landmarks.isEmpty {
+                    LandmarksCard(lines: landmarks)
+                        .id("landmarks")
+                }
+                if let kg = emissions(flight) {
+                    EmissionsCard(kilograms: kg, seatClass: store.details?.seatClass)
+                        .id("emissions")
                 }
                 TimetableCard(rows: Timetable.rows(flight, originTz: store.origin?.timeZone ?? .gmt,
                                                    destinationTz: plannedDestination(flight)?.timeZone ?? .gmt,
@@ -246,6 +320,12 @@ public struct FlightDetailView: View {
                     TravelDocumentsCard(airline: airline(flight), departure: flight.scheduledOut,
                                         international: ReminderPlanner.isInternational(
                                             origin: store.origin, destination: plannedDestination(flight)))
+                    // International only: plugs, voltage, currency and tipping where the flight lands.
+                    if let destination = plannedDestination(flight),
+                       let facts = DestinationTable.bundled.card(origin: store.origin, destination: destination) {
+                        DestinationCard(country: reference.country(facts.id)?.name ?? destination.city, facts: facts,
+                                        showsESIM: !GlanceFacts.hasLeft(flight) && flight.status != .canceled)
+                    }
                 }
                 if let history = store.routeHistory {
                     RouteHistoryCard(history: history, from: flight.originCode, to: flight.destinationCode)
@@ -257,6 +337,10 @@ public struct FlightDetailView: View {
                             onAirport(diverted.id)
                         }
                     }
+                }
+                // A Passport flight's photos, kept on the device.
+                if let travelJournal, store.isArchived {
+                    TravelJournalCard(journal: travelJournal, flight: flight.id)
                 }
                 if let details = store.details, !store.isArchived || details.notes != nil {
                     NotesCard(notes: details.notes) { if !store.isArchived { editing = .notes } }
@@ -448,6 +532,8 @@ struct StatusNotice: View {
 struct AircraftRow: View {
     var type: String?
     var registration: String?
+    /// "Your 3rd flight on F-GSQA" when the traveller has flown this tail before.
+    var tailLine: String? = nil
     @ScaledMetric(relativeTo: .body) private var icon = 40
 
     var body: some View {
@@ -467,6 +553,9 @@ struct AircraftRow: View {
                     Text(parts.joined(separator: "  ·  "))
                         .scaledFont(14)
                         .foregroundStyle(Theme.secondary)
+                }
+                if let tailLine {
+                    TailBadge(text: tailLine).scaledPadding(.top, 4)
                 }
             }
             Spacer(minLength: 0)

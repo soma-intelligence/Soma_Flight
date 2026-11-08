@@ -64,8 +64,14 @@ public struct NotificationSettingsView: View {
             group("Flight Alerts", Self.alertCategories)
             group("Airports", [.favoriteAirports])
             if let texts = store.texts { TextMeTooSection(store: texts) }
-            group("On This Device", [.reminders])
+            deviceSection
             Text("Reminders are set on this device: check-in opens a day before, a summary at 7:00 on the morning of the flight, and a nudge to leave, timed from where you are when you allow your location, else 3 hours before an international flight or 2 before a domestic one.")
+                .scaledFont(13)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .scaledPadding(.horizontal, 32)
+                .scaledPadding(.top, 7)
+            Text(NotificationSettingsView.landmarksNote)
                 .scaledFont(13)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -80,19 +86,40 @@ public struct NotificationSettingsView: View {
         .scaledPadding(.bottom, 32)
     }
 
+    static let landmarksTitle = "Landmarks Overflown"
+    static let landmarksDetail = "Mountains, cities and lakes passing the plane"
+    static let landmarksNote: LocalizedStringKey = "Landmark alerts are planned before take-off from the schedule, so they come even in airplane mode. They stay off until you turn them on."
+
+    /// Reminders (saved to the account like the alerts) and the landmark alerts' switch, kept on this
+    /// device and off by default.
+    private var deviceSection: some View {
+        SettingsSection("On This Device") {
+            reminderRow(.reminders, last: false)
+            SettingsRow(icon: "mountain.2.fill", title: Self.landmarksTitle, subtitle: Self.landmarksDetail, last: true) {
+                Toggle(Self.landmarksTitle, isOn: Binding(get: { store.landmarkAlerts },
+                                                         set: { store.setLandmarkAlerts($0) }))
+                    .labelsHidden()
+                    .tint(Theme.accent)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
     private func group(_ title: String, _ categories: [NotificationPreferences.Category]) -> some View {
         SettingsSection(title) {
-            ForEach(categories) { c in
-                SettingsRow(icon: c.icon, title: c.title, subtitle: c.detail, last: c == categories.last) {
-                    Toggle(c.title, isOn: Binding(get: { store.preferences[c] },
-                                                  set: { on in Task { await store.set(c, on) } }))
-                        .labelsHidden()
-                        .tint(Theme.accent)
-                        .disabled(!store.hasLoaded)
-                }
-                .accessibilityElement(children: .combine)
-            }
+            ForEach(categories) { c in reminderRow(c, last: c == categories.last) }
         }
+    }
+
+    private func reminderRow(_ c: NotificationPreferences.Category, last: Bool) -> some View {
+        SettingsRow(icon: c.icon, title: c.title, subtitle: c.detail, last: last) {
+            Toggle(c.title, isOn: Binding(get: { store.preferences[c] },
+                                          set: { on in Task { await store.set(c, on) } }))
+                .labelsHidden()
+                .tint(Theme.accent)
+                .disabled(!store.hasLoaded)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func openSystemSettings() {

@@ -545,6 +545,9 @@ public final class HomeModel {
         let activities = activities, widgets = widgets, reminders = reminders, watch = watch, calendar = calendar
         if let reminders {
             notificationSettings.onChange = { prefs in reminders.enabled = prefs.reminders }
+            notificationSettings.onLandmarksChange = { _ in reminders.resync() }
+            let reference = env.reference
+            reminders.aircraft = { f in f.aircraftType.flatMap { reference.type($0) } }
             if let leaveTimes {
                 reminders.leaveTime = { leaveTimes.leaveTime(for: $0) }
                 leaveTimes.onChange = { reminders.resync() }

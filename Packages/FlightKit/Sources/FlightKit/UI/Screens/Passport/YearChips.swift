@@ -11,6 +11,8 @@ struct YearChips: View {
     /// The chosen chip's fill and the other chips' text.
     var fill: Color = Theme.pill
     var ink: Color = Theme.secondary
+    /// False leaves out the All-Time chip (the Year in Review is about one year).
+    var allTime = true
     @Environment(\.airportStaticControls) private var staticControls
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -20,7 +22,7 @@ struct YearChips: View {
     @State private var scrubbing = false
 
     private static let space = "yearChips"
-    private var options: [Int?] { YearScrub.options(years) }
+    private var options: [Int?] { allTime ? YearScrub.options(years) : years.map(Optional.some) }
     private var selected: Int? { YearScrub.index(of: selection, in: options) }
     /// Snapshots (no scroll view, nothing measured before the render) and Reduce Motion draw the capsule
     /// on the chip itself, so it fades rather than slides.

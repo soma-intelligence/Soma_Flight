@@ -38,21 +38,26 @@ public struct FlightScreen: View {
     }
 }
 
-/// A Passport flight in the flight sheet: no network call for the flight itself, read only.
+/// A Passport flight in the flight sheet: no network call for the flight itself, read only, with the
+/// account's travel journal for its photos.
 public struct PastFlightScreen: View {
     @State private var store: FlightDetailStore
     var onAirport: (String) -> Void
     var onClose: () -> Void
+    var journal: any TravelJournal
 
-    public init(env: AppEnvironment, flight: PastFlight, onAirport: @escaping (String) -> Void,
+    /// - Parameter owner: the account signed in now, whose travel journal the sheet shows.
+    public init(env: AppEnvironment, flight: PastFlight, owner: UUID? = nil, onAirport: @escaping (String) -> Void,
                 onClose: @escaping () -> Void) {
         _store = State(initialValue: FlightDetailStore(past: flight, flights: env.flights, airports: env.airports,
                                                        history: env.history))
         self.onAirport = onAirport; self.onClose = onClose
+        journal = env.journal.journal(for: owner)
     }
 
     public var body: some View {
         FlightDetailView(store: store, onAirport: onAirport, onClose: onClose)
+            .environment(\.travelJournal, journal)
             .task { await store.load() }
     }
 }
@@ -132,7 +137,8 @@ public struct HomeDestination: View {
                 home.open(flight: flight)
             }
         case .pastFlight(let flight):
-            PastFlightScreen(env: home.env, flight: flight, onAirport: home.open(airport:), onClose: home.shell.close)
+            PastFlightScreen(env: home.env, flight: flight, owner: home.owner, onAirport: home.open(airport:),
+                             onClose: home.shell.close)
         case .airport(let code):
             AirportScreen(env: home.env, code: code, favorites: home.airportsList.favorites,
                           pastFlights: home.passport.allFlights, onClose: home.shell.close)

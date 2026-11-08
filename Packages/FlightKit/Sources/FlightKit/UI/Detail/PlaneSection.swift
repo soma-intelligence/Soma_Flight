@@ -9,6 +9,8 @@ struct PlaneSection: View {
     var type: AircraftType?
     var airline: Airline?
     var inbound: [InboundLeg]
+    /// "Your 3rd flight on F-GSQA" when the traveller has flown this tail before (`TailVisitFacts`).
+    var tailLine: String? = nil
 
     static let title = "Where is my plane?"
 
@@ -46,6 +48,9 @@ struct PlaneSection: View {
                 let line = [type?.name ?? flight.aircraftType, flight.registration].compactMap { $0 }
                 if !line.isEmpty {
                     Text(line.joined(separator: " · ")).scaledFont(17, weight: .medium).foregroundStyle(.white.opacity(0.7))
+                }
+                if let tailLine {
+                    TailBadge(text: tailLine).scaledPadding(.top, 6)
                 }
             }
             .scaledPadding(.horizontal, 16)
@@ -119,5 +124,20 @@ struct PlaneSection: View {
         .scaledPadding(.horizontal, 10)
         .scaledPadding(.vertical, 8)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// "Your 3rd flight on F-GSQA": a small capsule under the aircraft's name.
+struct TailBadge: View {
+    var text: String
+
+    var body: some View {
+        Label { Text(verbatim: text) } icon: { Image(systemName: "airplane.circle.fill") }
+            .scaledFont(14, weight: .semibold)
+            .foregroundStyle(Theme.primary)
+            .scaledPadding(.horizontal, 10)
+            .scaledPadding(.vertical, 5)
+            .background(Capsule().fill(Theme.pill))
+            .accessibilityElement(children: .combine)
     }
 }

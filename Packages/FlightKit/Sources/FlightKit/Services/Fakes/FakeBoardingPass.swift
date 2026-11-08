@@ -30,4 +30,27 @@ public enum FakeBoardingPass {
             wallet: WalletPassID(passTypeIdentifier: "pass.me.somalabs.flight.sample", serialNumber: "AF84-K7PQ2X-6A"),
             addedAt: departs.addingTimeInterval(-86_400))
     }
+
+    /// UA 1527 in the followed seed (San Francisco to Austin, still to board).
+    public static let ua1527FlightId = UUID(uuidString: "4f624a5b-647d-5388-a06b-f9bc75bde81b")!
+
+    /// A scanned United pass for UA 1527 in Group 3, so the demo shows when the group is called. It has no
+    /// boarding time: the time comes from the departure, like most scanned passes.
+    public static func ua1527(now: Date = .now) -> BoardingPass {
+        let shift = FakeSeed.shift(now: now)
+        let departs = Date(timeIntervalSince1970: 1_792_783_320).addingTimeInterval(shift) // 2026-10-23T19:22Z
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
+        let doy = cal.ordinality(of: .day, in: .year, for: departs) ?? 296
+        let year = cal.component(.year, from: departs)
+        let message = BCBP.encode(passengerName: "LAURENT/CAMILLE", pnr: "M4RT8Q", from: "SFO", to: "AUS", carrier: "UA",
+                                  flightNumber: "1527", dayOfYear: doy, compartment: "Y", seat: "21C", sequence: 112,
+                                  issueYearDigit: year % 10, issueDayOfYear: doy, baggageAllowance: "1PC")
+        return BoardingPass(
+            id: UUID(uuidString: "0b0a5500-84af-4c0d-9e11-000000001527")!, flightId: ua1527FlightId, source: .scan,
+            passenger: "Camille Laurent", carrier: "UA", flightNumber: "1527", origin: "SFO", destination: "AUS",
+            departureDay: cal.dateComponents([.year, .month, .day], from: departs), seat: "21C", compartment: "Y",
+            group: "3", bookingReference: "M4RT8Q", sequence: "112",
+            barcode: PassBarcode(message: message, format: .pdf417), addedAt: departs.addingTimeInterval(-6 * 3600))
+    }
 }
