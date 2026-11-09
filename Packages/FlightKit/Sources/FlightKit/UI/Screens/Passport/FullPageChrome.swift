@@ -49,6 +49,9 @@ struct FullPageChrome<Hero: View, Content: View>: View {
     /// Painted behind the top bar and the year chips as one piece, under the status bar; when nil each
     /// takes its own colour (`bar`, then `page`).
     var header: AnyView? = nil
+    /// A slim bar (smaller buttons and title, tighter chips) of frosted glass tinted with `page`, over
+    /// the content, which scrolls under it.
+    var frosted = false
     @ViewBuilder var hero: Hero
     @ViewBuilder var content: Content
 
@@ -59,46 +62,24 @@ struct FullPageChrome<Hero: View, Content: View>: View {
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                topBar
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 8)
-                    .scaledPadding(.bottom, 10)
-                    .background { if header == nil { (bar ?? page).ignoresSafeArea(edges: .top) } }
-                if !years.isEmpty {
-                    YearChips(years: years, selection: $year, fill: chipFill, ink: chipInk)
-                        .scaledPadding(.top, bar == nil ? 0 : 10)
-                        .scaledPadding(.bottom, 10)
-                        .frame(maxWidth: .infinity)
-                        .background { if header == nil { page } }
-                }
-            }
-            .background { if let header { header.ignoresSafeArea(edges: .top) } }
-            ScrollView {
-                if let sectionBackground {
-                    VStack(alignment: .leading, spacing: 0) {
-                        hero.scaledPadding(.horizontal, heroInset)
-                        VStack(alignment: .leading, spacing: 0) { content }
-                            .scaledPadding(.bottom, 40)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(sectionBackground)
+        Group {
+            if frosted {
+                scroll
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        bars
+                            .background {
+                                ZStack(alignment: .bottom) {
+                                    Rectangle().fill(.ultraThinMaterial)
+                                    (bar ?? page).opacity(0.55)
+                                    Rectangle().fill(.white.opacity(0.08)).frame(height: 0.5)
+                                }
+                                .ignoresSafeArea(edges: .top)
+                            }
                     }
-                } else {
-                    VStack(alignment: .leading, spacing: 16) {
-                        hero
-                        content
-                    }
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 4)
-                    .scaledPadding(.bottom, 40)
-                }
-            }
-            .scrollPosition($position)
-            // Pulled past either end, the scroll view shows the colour of the end it is pulled from.
-            .background {
-                if let sectionBackground {
-                    VStack(spacing: 0) { page; sectionBackground }.ignoresSafeArea(edges: .bottom)
+            } else {
+                VStack(spacing: 0) {
+                    bars
+                    scroll
                 }
             }
         }
@@ -116,22 +97,72 @@ struct FullPageChrome<Hero: View, Content: View>: View {
         #endif
     }
 
+    /// The top bar and the year chips.
+    private var bars: some View {
+        VStack(spacing: 0) {
+            topBar
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, frosted ? 2 : 8)
+                .scaledPadding(.bottom, frosted ? 6 : 10)
+                .background { if header == nil && !frosted { (bar ?? page).ignoresSafeArea(edges: .top) } }
+            if !years.isEmpty {
+                YearChips(years: years, selection: $year, fill: chipFill, ink: chipInk, compact: frosted)
+                    .scaledPadding(.top, frosted ? 0 : (bar == nil ? 0 : 10))
+                    .scaledPadding(.bottom, frosted ? 8 : 10)
+                    .frame(maxWidth: .infinity)
+                    .background { if header == nil && !frosted { page } }
+            }
+        }
+        .background { if let header { header.ignoresSafeArea(edges: .top) } }
+    }
+
+    private var scroll: some View {
+        ScrollView {
+            if let sectionBackground {
+                VStack(alignment: .leading, spacing: 0) {
+                    hero.scaledPadding(.horizontal, heroInset)
+                    VStack(alignment: .leading, spacing: 0) { content }
+                        .scaledPadding(.bottom, 40)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(sectionBackground)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    hero
+                    content
+                }
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.top, 4)
+                .scaledPadding(.bottom, 40)
+            }
+        }
+        .scrollPosition($position)
+        // Pulled past either end, the scroll view shows the colour of the end it is pulled from.
+        .background {
+            if let sectionBackground {
+                VStack(spacing: 0) { page; sectionBackground }.ignoresSafeArea(edges: .bottom)
+            }
+        }
+    }
+
+    private var buttonSide: CGFloat { frosted ? 36 : 44 }
+
     private var topBar: some View {
         ZStack {
             Text(ui: title)
-                .scaledFont(17, weight: .semibold)
+                .scaledFont(frosted ? 16 : 17, weight: .semibold)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
             HStack {
-                RoundButton(systemImage: "xmark", label: "Close", fill: buttonFill, action: onClose)
+                RoundButton(systemImage: "xmark", label: "Close", fill: buttonFill, side: buttonSide, action: onClose)
                 Spacer()
                 if let shareImage {
                     ShareLink(item: shareImage, preview: SharePreview(title, image: shareImage)) {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: Theme.metric(18, scale), weight: .medium))
+                            .font(.system(size: Theme.metric(buttonSide * 0.41, scale), weight: .medium))
                             .foregroundStyle(Theme.primary)
-                            .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
+                            .frame(width: Theme.metric(buttonSide, scale), height: Theme.metric(buttonSide, scale))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)

@@ -15,9 +15,13 @@ public struct FlightScreen: View {
 
     /// - Parameter onStopTracking: unfollows the flight (the menu's "Stop Tracking") and returns the error, nil
     ///   on success; nil lets the store ask the service. The sheet closes once it worked.
-    public init(env: AppEnvironment, id: Flight.ID, owner: UUID?, onAirport: @escaping (String) -> Void,
+    ///   - seed: the flight as My Flights has it, shown at once while the detail loads.
+    public init(env: AppEnvironment, id: Flight.ID, owner: UUID?, seed: Flight? = nil,
+                onAirport: @escaping (String) -> Void,
                 onClose: @escaping () -> Void, onStopTracking: ((Flight.ID) async -> APIError?)? = nil) {
-        _store = State(initialValue: env.makeFlightDetailStore(id: id, owner: owner))
+        let store = env.makeFlightDetailStore(id: id, owner: owner)
+        store.seed(seed)
+        _store = State(initialValue: store)
         self.onAirport = onAirport; self.onClose = onClose; self.onStopTracking = onStopTracking
         sharing = env.sharing; brief = env.flightBrief
         _texts = State(initialValue: FlightTextsModel(flight: id, service: env.textAlerts))
@@ -122,7 +126,8 @@ public struct HomeDestination: View {
     public var body: some View {
         switch route {
         case .flight(let id):
-            FlightScreen(env: home.env, id: id, owner: home.owner, onAirport: home.open(airport:),
+            FlightScreen(env: home.env, id: id, owner: home.owner, seed: home.followed.first { $0.id == id },
+                         onAirport: home.open(airport:),
                          onClose: home.shell.close) { id in
                 // Through My Flights so its list drops the flight at once.
                 guard let flight = home.followed.first(where: { $0.id == id }) else {
@@ -236,19 +241,22 @@ public struct RoundButton: View {
     var label: String
     var action: () -> Void
     var tint: Color?
+    var side: CGFloat
     @Environment(\.metricsScale) private var scale
 
-    /// - Parameter fill: tints the glass (a page in its own colour); plain glass when nil.
-    public init(systemImage: String, label: String, fill: Color? = nil, action: @escaping () -> Void) {
-        self.systemImage = systemImage; self.label = label; self.action = action; self.tint = fill
+    /// - Parameters:
+    ///   - fill: tints the glass (a page in its own colour); plain glass when nil.
+    ///   - side: the circle's diameter before Dynamic Type scaling (44, or 36 in a slim bar).
+    public init(systemImage: String, label: String, fill: Color? = nil, side: CGFloat = 44, action: @escaping () -> Void) {
+        self.systemImage = systemImage; self.label = label; self.action = action; self.tint = fill; self.side = side
     }
 
     public var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: Theme.metric(18, scale), weight: .medium))
+                .font(.system(size: Theme.metric(side * 0.41, scale), weight: .medium))
                 .foregroundStyle(Theme.primary)
-                .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
+                .frame(width: Theme.metric(side, scale), height: Theme.metric(side, scale))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

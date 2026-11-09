@@ -28,7 +28,7 @@ extension ComponentSnapshotTests {
                         VStack(spacing: 0) {
                             if let tail = s.tails.first {
                                 Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                                FrequentedTailPanel(tail: tail, ageMonths: nil)
+                                FrequentedTailPanel(tail: tail, ageMonths: nil, tails: s.tails)
                             }
                             Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
                             CabinPanel(stats: s, type: store.mostFlownType)

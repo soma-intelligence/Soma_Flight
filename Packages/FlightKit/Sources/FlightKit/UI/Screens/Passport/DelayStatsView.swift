@@ -14,7 +14,7 @@ struct DelayStatsView: View {
         FullPageChrome(title: FullPage.delays.title, year: $store.year, years: store.years, scheme: .dark,
                        page: DelayInk.page, shareKey: store.revision, onClose: onClose,
                        sectionBackground: DelayInk.sections, heroInset: 0,
-                       chipFill: .white.opacity(0.14), buttonFill: .white.opacity(0.10)) {
+                       chipFill: .white.opacity(0.14), buttonFill: .white.opacity(0.10), frosted: true) {
             DelayReportHero(report: store.delayReport, year: store.year, lookup: lookup)
         } content: {
             DelayReportSections(report: store.delayReport, year: store.year, key: store.revision, lookup: lookup)

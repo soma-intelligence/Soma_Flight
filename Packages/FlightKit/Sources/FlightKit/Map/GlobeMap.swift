@@ -179,6 +179,7 @@ public struct GlobeMap: View {
     /// The isolation being drawn; it stays while the rest fades back in.
     @State private var shown: GlobeIsolation?
     @State private var fadeTask: Task<Void, Never>?
+    @State private var focusTask: Task<Void, Never>?
     /// A refit waiting for the visible area to stop moving.
     @State private var refitTask: Task<Void, Never>?
     /// The visible area the camera already aims at while the safe area glides to a new `bottomInset`;
@@ -385,7 +386,11 @@ public struct GlobeMap: View {
     /// How long the other flights take to fade out or back in.
     static let fadeDuration = 0.35
 
-    /// Steps `fade` to `target` along an ease in and out, about 30 times a second.
+    /// How long a flight's card takes to rise or drop: the globe waits for it before fading or moving,
+    /// so the map's redraws never share frames with the card's spring.
+    static let cardSettle: Duration = .milliseconds(430)
+
+    /// Steps `fade` to `target` along an ease in and out, about 15 times a second, once the card settled.
     private func fade(to target: Double) {
         fadeTask?.cancel()
         let start = fade
@@ -393,8 +398,10 @@ public struct GlobeMap: View {
             if target == 1 { shown = nil }
             return
         }
-        let steps = max(1, Int(Self.fadeDuration * 30))
+        let steps = max(1, Int(Self.fadeDuration * 15))
         fadeTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.cardSettle)
+            if Task.isCancelled { return }
             for i in 1...steps {
                 try? await Task.sleep(for: .seconds(Self.fadeDuration / Double(steps)))
                 if Task.isCancelled { return }
@@ -425,10 +432,15 @@ public struct GlobeMap: View {
         }
     }
 
-    private func moveToFocus() {
-        withAnimation(.smooth(duration: 0.9)) {
-            position = .camera(focus.map { Self.camera(for: $0, in: viewport) }
-                ?? Self.camera(routes: routes, planes: planes, airports: airports))
+    /// Flies the camera onto the focus (or back over everything) once the card has settled.
+    private func moveToFocus(after delay: Duration = cardSettle) {
+        focusTask?.cancel()
+        focusTask = Task { @MainActor in
+            try? await Task.sleep(for: delay)
+            if Task.isCancelled { return }
+            let target = focus.map { Self.camera(for: $0, in: viewport) }
+                ?? Self.camera(routes: routes, planes: planes, airports: airports)
+            withAnimation(.smooth(duration: 0.9)) { position = .camera(target) }
         }
     }
 
@@ -482,7 +494,7 @@ public struct GlobeMap: View {
             }
         }
         .onChange(of: focus) { moveToFocus() }
-        .onChange(of: recenter) { moveToFocus() }
+        .onChange(of: recenter) { moveToFocus(after: .zero) }
         .onChange(of: isolation) { _, new in isolate(new) }
         .onAppear {
             if let focus { position = .camera(Self.camera(for: focus, in: viewport)) }

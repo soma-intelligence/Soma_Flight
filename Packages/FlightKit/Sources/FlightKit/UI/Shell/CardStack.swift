@@ -76,7 +76,9 @@ public struct CardStack<Route: Hashable, Root: View, Card: View>: View {
                     .accessibilityAction(.escape) { onPop() }
                     // A leaving card stays above the one it uncovers until it is gone.
                     .zIndex(Double(entry.depth))
-                    .transition(transition(for: entry.route))
+                    // A leaving card takes no taps: they reach the screen it uncovers.
+                    .transition(transition(for: entry.route)
+                        .combined(with: .modifier(active: HitTesting(on: false), identity: HitTesting(on: true))))
             }
         }
         .coordinateSpace(.named(CardZoomGeometry.space))
@@ -163,4 +165,10 @@ private extension View {
         allowsHitTesting(!covered)
             .accessibilityHidden(covered)
     }
+}
+
+/// Turns hit testing off on a card while a transition removes it.
+private struct HitTesting: ViewModifier {
+    var on: Bool
+    func body(content: Content) -> some View { content.allowsHitTesting(on) }
 }

@@ -134,6 +134,12 @@ public final class FlightDetailStore {
         self.flight = flight
     }
 
+    /// Shows `flight` (My Flights' copy) before anything loads, so the page opens filled instead of on a
+    /// spinner that turns into the whole page halfway through the card's rise. A loaded flight wins.
+    public func seed(_ flight: Flight?) {
+        if self.flight == nil, let flight, flight.id == id { self.flight = flight }
+    }
+
     /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
     /// failed shows no destination rather than the planned one.
     public func load() async {

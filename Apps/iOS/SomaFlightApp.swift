@@ -25,6 +25,7 @@ struct SomaFlightApp: App {
     }
 
     init() {
+        BundledTables.warm()
         // The one-time hints (TipKit); hidden on screenshot runs.
         FlightTips.configure()
     }

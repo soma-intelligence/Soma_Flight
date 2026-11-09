@@ -50,7 +50,7 @@ struct AircraftStatsView: View {
                         VStack(spacing: 0) {
                             if let tail = s.tails.first {
                                 Rectangle().fill(.white.opacity(0.25)).frame(height: 1)
-                                FrequentedTailPanel(tail: tail, ageMonths: leadAge)
+                                FrequentedTailPanel(tail: tail, ageMonths: leadAge, tails: s.tails)
                             }
                             if CabinPanel.hasClasses(s) || CabinPanel.hasSeats(s) {
                                 Rectangle().fill(.white.opacity(0.25)).frame(height: 1)

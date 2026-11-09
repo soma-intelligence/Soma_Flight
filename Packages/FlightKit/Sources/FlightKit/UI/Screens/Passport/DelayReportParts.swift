@@ -169,29 +169,52 @@ struct LEDStrip: View {
 struct AirlineLossBar: View {
     var losses: [DelayReport.AirlineLoss]
     @Environment(\.reference) private var reference
-    @ScaledMetric(relativeTo: .title) private var block: CGFloat = 64
 
     /// The three that lost the most, largest first.
     var segments: [(key: String, label: String, minutes: Int)] {
         losses.prefix(3).map { (key: $0.key, label: code($0.key), minutes: $0.minutes) }
     }
 
+    /// Up to three rows, worst first: the airline's mark and name, the minutes, and a thin bar against the
+    /// worst one's minutes.
     var body: some View {
         let parts = segments
-        let total = max(1, parts.reduce(0) { $0 + $1.minutes })
-        GeometryReader { geo in
-            let gap: CGFloat = 3
-            let usable = geo.size.width - gap * CGFloat(max(0, parts.count - 1))
-            let widths = Self.widths(parts.map(\.minutes), total: total, width: usable, minimum: 74)
-            HStack(alignment: .bottom, spacing: gap) {
-                ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
-                    segment(i, part, width: widths[i])
-                }
+        let most = max(1, parts.first?.minutes ?? 1)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                row(i, part, share: CGFloat(part.minutes) / CGFloat(most))
             }
         }
-        .frame(height: block + 44)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(parts.map { "\(name($0.key)), \(DelayFacts.hours($0.minutes)) late" }.joined(separator: "; "))
+    }
+
+    private func row(_ i: Int, _ part: (key: String, label: String, minutes: Int), share: CGFloat) -> some View {
+        HStack(spacing: 12) {
+            AirlineMark(airline: part.key, size: 30, decorative: true)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(ui: name(part.key))
+                        .scaledFont(15, weight: i == 0 ? .semibold : .regular)
+                        .foregroundStyle(.white.opacity(i == 0 ? 1 : 0.8))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(DelayFacts.hoursShort(part.minutes))
+                        .scaledFont(15, weight: .semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(i == 0 ? DelayInk.soft : .white.opacity(0.7))
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(DelayInk.track)
+                        Capsule()
+                            .fill(DelayInk.late.opacity(i == 0 ? 1 : 0.55))
+                            .frame(width: max(6, geo.size.width * share))
+                    }
+                }
+                .frame(height: 5)
+            }
+        }
     }
 
     /// Widths in proportion, none under `minimum` so its label fits.
@@ -205,38 +228,6 @@ struct AirlineLossBar: View {
         for i in short { w[i] = minimum }
         for i in rest where restSum > 0 { w[i] = w[i] / restSum * max(0, width - taken) }
         return w
-    }
-
-    private func segment(_ i: Int, _ part: (key: String, label: String, minutes: Int), width: CGFloat) -> some View {
-        let fill = DelayInk.late.mix(with: .black, by: Double(i) * 0.14)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Rectangle().fill(fill).frame(width: 2, height: 30)
-                Text(DelayFacts.hoursShort(part.minutes))
-                    .scaledFont(18, weight: .semibold)
-                    .monospacedDigit()
-                    .foregroundStyle(i == 0 ? DelayInk.soft : fill.mix(with: .white, by: 0.25))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-            ZStack(alignment: .bottom) {
-                Rectangle().fill(fill)
-                if i == 0, let airline = reference.airline(part.key) {
-                    AircraftTail(type: losses.first { $0.key == part.key }?.type.flatMap { reference.type($0) },
-                                 airline: airline, rise: Self.rise)
-                } else {
-                    Text(ui: part.label)
-                        .scaledFont(22, weight: .bold)
-                        .foregroundStyle(.white.opacity(0.75))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .padding(.horizontal, 4)
-                        .frame(maxHeight: .infinity)
-                }
-            }
-            .frame(width: width, height: block)
-        }
-        .frame(width: width, alignment: .leading)
     }
 
     /// How far the worst airline's fin may stand above its block, into the room beside the figure.

@@ -391,32 +391,85 @@ struct AircraftRankRow: View {
 struct FrequentedTailPanel: View {
     var tail: TailTally
     var ageMonths: UInt32?
+    /// Every tail flown, for the repeat facts under the drawing.
+    var tails: [TailTally] = []
     @Environment(\.reference) private var reference
 
+    /// Distinct airframes, airframes boarded more than once, and boardings of an airframe already flown.
+    static func repeats(_ tails: [TailTally]) -> (airframes: Int, again: Int, returns: Int) {
+        let again = tails.filter { $0.flights > 1 }
+        return (tails.count, again.count, again.reduce(0) { $0 + Int($1.flights) - 1 })
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            BlueprintTail(type: tail.icaoType.flatMap(reference.type), registration: tail.registration)
-                .aspectRatio(1.8, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Frequented tail").scaledFont(15, weight: .semibold)
-                Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30).monospacedDigit()
-                    .rollingDigits(Double(tail.flights))
-                HStack(spacing: 10) {
-                    CountryFlag(code: AircraftStatsCopy.tailCountry(tail, reference: reference), size: 22)
-                    if let airline = tail.airline { AirlineTailMark(airline: airline, size: 30) }
-                }
-                .scaledPadding(.top, 8)
-                Text(ui: tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)
-                if let name = tail.name { Text(ui: name).scaledFont(15).opacity(0.85) }
-                Text(ui: detailLine).scaledFont(13).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Detail B · Tail").scaledFont(11, weight: .semibold, design: .monospaced)
+                    .textCase(.uppercase).tracking(0.8)
+                Spacer(minLength: 8)
+                Text(ui: tail.registration).scaledFont(11, design: .monospaced).opacity(0.7)
             }
             .foregroundStyle(Blueprint.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .scaledPadding(.trailing, 16)
-            .accessibilityElement(children: .combine)
+            .scaledPadding(.horizontal, 20)
+            .accessibilityHidden(true)
+            HStack(alignment: .center, spacing: 0) {
+                BlueprintTail(type: tail.icaoType.flatMap(reference.type), registration: tail.registration,
+                              showsRegistration: false)
+                    .aspectRatio(1.8, contentMode: .fit)
+                    // The barrel fades in from the panel edge instead of stopping on a hard cut.
+                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.35)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tail.flights > 1 ? "Frequented tail" : "No airframe twice yet").scaledFont(15, weight: .semibold)
+                    Text(AircraftStatsCopy.flights(tail.flights)).scaledFont(30).monospacedDigit()
+                        .rollingDigits(Double(tail.flights))
+                    HStack(spacing: 10) {
+                        CountryFlag(code: AircraftStatsCopy.tailCountry(tail, reference: reference), size: 22)
+                        if let airline = tail.airline { AirlineTailMark(airline: airline, size: 30) }
+                    }
+                    .scaledPadding(.top, 8)
+                    Text(ui: tail.registration).scaledFont(19, weight: .bold).scaledPadding(.top, 6)
+                    if let name = tail.name { Text(ui: name).scaledFont(15).opacity(0.85) }
+                    Text(ui: detailLine).scaledFont(13).opacity(0.85).fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Blueprint.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scaledPadding(.trailing, 16)
+                .accessibilityElement(children: .combine)
+            }
+            .scaledPadding(.top, 10)
+            if tails.count > 1 { repeatTable }
         }
         .scaledPadding(.vertical, 22)
+    }
+
+    private var repeatTable: some View {
+        let r = Self.repeats(tails)
+        let cells: [(String, Int)] = [("Airframes", r.airframes), ("Flown again", r.again), ("Return trips", r.returns)]
+        return HStack(spacing: 0) {
+            ForEach(Array(cells.enumerated()), id: \.offset) { i, cell in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(ui: cell.0).scaledFont(11, weight: .semibold, design: .monospaced)
+                        .textCase(.uppercase).tracking(0.6).lineLimit(1).minimumScaleFactor(0.7).opacity(0.8)
+                    Text(PassportFacts.count(cell.1)).scaledFont(24).monospacedDigit().lineLimit(1)
+                        .rollingDigits(Double(cell.1))
+                        .opacity(cell.1 == 0 ? 0.45 : 1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scaledPadding(.horizontal, 8)
+                .scaledPadding(.vertical, 8)
+                .overlay(alignment: .leading) {
+                    if i > 0 { Rectangle().fill(Theme.blueprintInk.opacity(0.45)).frame(width: 0.75) }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(cell.0), \(cell.1)")
+            }
+        }
+        .foregroundStyle(Blueprint.ink)
+        .overlay(Rectangle().stroke(Theme.blueprintInk.opacity(0.7), lineWidth: 0.75))
+        .scaledPadding(.horizontal, 20)
+        .scaledPadding(.top, 16)
     }
 
     private var detailLine: String {

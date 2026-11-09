@@ -51,7 +51,8 @@ public struct AirportView: View {
 
     private func page(now: Date) -> some View {
         VStack(spacing: 0) {
-            AirportHeader(airport: store.airport, code: store.airport?.id ?? "", now: now)
+            AirportHeader(airport: store.airport, code: store.airport?.id ?? "", now: now,
+                          loading: !store.hasLoaded && store.error == nil)
                 .scaledPadding(.horizontal, Theme.gutter)
                 .scaledPadding(.top, 18)
                 .scaledPadding(.bottom, 12)
@@ -206,7 +207,7 @@ struct AirportSections: View {
                 .scaledPadding(.bottom, 40)
             }
             if !store.hasLoaded && store.airport == nil && store.error == nil {
-                ProgressView().frame(maxWidth: .infinity).scaledPadding(.vertical, 60)
+                AsciiSkeleton().transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

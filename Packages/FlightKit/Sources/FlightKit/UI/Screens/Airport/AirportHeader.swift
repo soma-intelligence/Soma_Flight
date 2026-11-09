@@ -7,6 +7,8 @@ struct AirportHeader: View {
     var airport: Airport?
     var code: String
     var now: Date
+    /// True while the first load runs: the name and city search for their letters.
+    var loading = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -16,12 +18,18 @@ struct AirportHeader: View {
                 if let airport { chip(localTime(airport.timeZone)) }
             }
             .scaledPadding(.bottom, 6)
-            Text(airport?.name ?? code)
+            DecodeText(text: airport?.name ?? (loading ? nil : code), placeholderLength: 18)
                 .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-            if let airport {
+            if loading && airport == nil {
+                DecodeText(text: nil, placeholderLength: 22)
+                    .scaledFont(13, weight: .medium, design: .monospaced)
+                    .foregroundStyle(Theme.secondary.opacity(0.6))
+                    .lineLimit(1)
+                    .scaledPadding(.top, 3)
+            } else if let airport {
                 HStack(spacing: 5) {
                     Text(AirportFacts.flag(airport.country)).scaledFont(13)
                     Text("\(airport.city), \(AirportFacts.countryName(airport.country))".uppercased())

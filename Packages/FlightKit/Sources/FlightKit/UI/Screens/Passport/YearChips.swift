@@ -13,6 +13,8 @@ struct YearChips: View {
     var ink: Color = Theme.secondary
     /// False leaves out the All-Time chip (the Year in Review is about one year).
     var allTime = true
+    /// Smaller chips for a slim bar.
+    var compact = false
     @Environment(\.airportStaticControls) private var staticControls
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -62,11 +64,11 @@ struct YearChips: View {
         let on = index == selected
         return Button { choose(year) } label: {
             Text(year.map(String.init) ?? "All-Time")
-                .scaledFont(17, weight: .medium)
+                .scaledFont(compact ? 15 : 17, weight: .medium)
                 .monospacedDigit()
                 .foregroundStyle(on ? Theme.primary : ink)
-                .scaledPadding(.horizontal, 15)
-                .frame(minHeight: 38)
+                .scaledPadding(.horizontal, compact ? 12 : 15)
+                .frame(minHeight: compact ? 32 : 38)
                 .background {
                     if !slides {
                         Capsule().fill(fill).overlay(Capsule().strokeBorder(Theme.primary.opacity(0.08), lineWidth: 1))

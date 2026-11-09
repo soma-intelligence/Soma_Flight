@@ -84,15 +84,16 @@ public struct FlightDetailView: View {
         }
         .background(Theme.background)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let flight = store.flight, !Self.barInHeader, Self.showsBar(height: height) {
+            if let flight = store.flight, !Self.barInHeader, barShown {
                 bottomBar(flight)
                     .scaledPadding(.horizontal, Theme.gutter)
                     .scaledPadding(.bottom, 6)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { new in
-            withAnimation(.snappy) { height = new }
+        // Only the flip is state: a height written every frame of a drag re-ran the whole page.
+        .onGeometryChange(for: Bool.self) { Self.showsBar(height: $0.size.height) } action: { shown in
+            withAnimation(.snappy) { barShown = shown }
         }
         // The Mac shows the editors as popovers on their tile (`detailEditor`); iOS as sheets.
         .sheet(item: Self.barInHeader ? .constant(nil) : $editing) { field in
@@ -127,8 +128,8 @@ public struct FlightDetailView: View {
 
     private func reload() { Task { await store.load() } }
 
-    /// The sheet's height, so the floating bar leaves when the sheet is pulled down to its header.
-    @State private var height: CGFloat = .infinity
+    /// False once the sheet is pulled down to its header, so the floating bar leaves.
+    @State private var barShown = true
 
     /// Below this the sheet shows little more than its header: the bar would sit on the first card.
     static let barMinimumHeight: CGFloat = 300
@@ -202,7 +203,8 @@ public struct FlightDetailView: View {
 
     private func sections(_ flight: Flight, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
+            // Lazy: the cards below the fold are built as they scroll in, not while the card rises.
+            LazyVStack(alignment: .leading, spacing: 16) {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
                 }
