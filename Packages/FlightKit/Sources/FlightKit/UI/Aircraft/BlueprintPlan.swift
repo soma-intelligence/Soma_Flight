@@ -556,10 +556,107 @@ struct PlanDrawing: View {
 
 // MARK: - Section A-A
 
-/// The cabin cut across at A-A, looking forward, left half only (a half section, broken at the centreline):
-/// the fuselage skin and its lining, the floor and the hold under it, the overhead bin, the window in the
-/// wall and the left seat group of the family's layout, large enough to letter each seat's count over it.
-/// The seats of the next group, cut by the centreline, are ghosted.
+/// The cabin's cross-section in metres, for the half section drawn to scale: the fuselage's outer radius,
+/// the lining inside it, the floor below the centre, and the seat row across it (economy seats, their
+/// armrests and the aisles). Figures are the type families' published cabin dimensions, rounded.
+struct CabinSection: Sendable {
+    /// Outer radius of the fuselage.
+    var radius: Double
+    /// Skin, frames and lining between the outside and the cabin wall.
+    var wall: Double
+    /// Cabin floor below the fuselage's centre.
+    var floorDrop: Double
+    /// Seat cushion between the armrests.
+    var seat: Double
+    var armrest: Double
+    var aisle: Double
+    /// Window height in the wall.
+    var window: Double
+    /// Overhead bin: the bottom's height above the floor, and its reach in from the wall.
+    var binBottom: Double, binDepth: Double
+    /// Seats abreast per group, left to right.
+    var layout: [Int]
+
+    // Seat heights above the floor (economy, front view).
+    static let cushionTop = 0.46
+    static let armrestTop = 0.66, armrestHeight = 0.05
+    static let backTop = 1.10, backBottom = 0.40, headrestBottom = 0.97
+    static let trayTop = 0.80, trayBottom = 0.56, pocket = 0.50
+    static let beamTop = 0.36, beamHeight = 0.05
+
+    init(_ family: PlanFamily) {
+        let layout = family.plan.layout
+        let r = family.plan.width / 2
+        switch family {
+        case .narrow:
+            // A320 / 737: 3.95 m outside, 18 in seats, 19 in aisle.
+            self.init(radius: r, wall: 0.10, floorDrop: 0.70, seat: 0.457, armrest: 0.05, aisle: 0.48,
+                      window: 0.33, binBottom: 1.62, binDepth: 0.55, layout: layout)
+        case .wideTwin:
+            // 787 / A350: 17 in seats nine abreast, 18 in aisles.
+            self.init(radius: r, wall: 0.12, floorDrop: 0.95, seat: 0.432, armrest: 0.045, aisle: 0.46,
+                      window: 0.47, binBottom: 1.70, binDepth: 0.62, layout: layout)
+        case .wideQuad:
+            // A380 main deck / 747: 18 in seats ten abreast.
+            self.init(radius: r, wall: 0.13, floorDrop: 1.20, seat: 0.46, armrest: 0.05, aisle: 0.50,
+                      window: 0.40, binBottom: 1.72, binDepth: 0.65, layout: layout)
+        case .regional:
+            // E-Jet / A220 four abreast.
+            self.init(radius: r, wall: 0.07, floorDrop: 0.62, seat: 0.46, armrest: 0.05, aisle: 0.50,
+                      window: 0.33, binBottom: 1.55, binDepth: 0.42, layout: layout)
+        case .rearJet:
+            // CRJ: a 2.69 m tube, 17 in seats, 16 in aisle.
+            self.init(radius: r, wall: 0.06, floorDrop: 0.55, seat: 0.44, armrest: 0.045, aisle: 0.41,
+                      window: 0.28, binBottom: 1.45, binDepth: 0.36, layout: layout)
+        case .turboprop:
+            // ATR 72: 2.87 m outside, four abreast.
+            self.init(radius: r, wall: 0.06, floorDrop: 0.58, seat: 0.45, armrest: 0.05, aisle: 0.45,
+                      window: 0.38, binBottom: 1.50, binDepth: 0.38, layout: layout)
+        }
+    }
+
+    init(radius: Double, wall: Double, floorDrop: Double, seat: Double, armrest: Double, aisle: Double,
+         window: Double, binBottom: Double, binDepth: Double, layout: [Int]) {
+        self.radius = radius; self.wall = wall; self.floorDrop = floorDrop; self.seat = seat
+        self.armrest = armrest; self.aisle = aisle; self.window = window; self.binBottom = binBottom
+        self.binDepth = binDepth; self.layout = layout
+    }
+
+    var lining: Double { radius - wall }
+
+    /// The row's width, armrests and aisles included.
+    var rowWidth: Double {
+        layout.reduce(0) { $0 + Double($1) * seat + Double($1 + 1) * armrest } + Double(layout.count - 1) * aisle
+    }
+
+    /// Each seat cushion's left and right edge across the cabin, in metres from the centreline (negative
+    /// left), grouped as the layout, the row centred.
+    var seats: [[ClosedRange<Double>]] {
+        var x = -rowWidth / 2
+        return layout.map { n in
+            x += armrest
+            let group = (0..<n).map { i -> ClosedRange<Double> in
+                let a = x + Double(i) * (seat + armrest)
+                return a...(a + seat)
+            }
+            x += Double(n) * (seat + armrest) + aisle
+            return group
+        }
+    }
+
+    /// The lining's half width at a height above the floor (0 above the top).
+    func liningHalfWidth(at height: Double) -> Double {
+        let y = height - floorDrop
+        return sqrt(max(0, lining * lining - y * y))
+    }
+}
+
+/// The cabin cut across at A-A, looking forward, left half only (a half section, broken at the centreline),
+/// drawn to scale from `CabinSection`: the fuselage skin and its lining, the floor beam and the hold under
+/// it, the overhead bin, the window in the wall, and the economy seats of the family's layout seen from
+/// behind: backrests with their headrest covers, tray tables and pockets, the end armrests, and the frame and
+/// legs on the seat tracks. The seat group
+/// next to the aisle, cut by the centreline, is ghosted. Each seat of the left group carries its count.
 struct HalfSection: View {
     var family: PlanFamily
     /// Count over each seat of the left group, window first ("5", "6", "24"); a 2-abreast group takes the
@@ -570,121 +667,43 @@ struct HalfSection: View {
     var ink: Color = Theme.blueprintInk
     @ScaledMetric(relativeTo: .body) private var countSize: CGFloat = 17
 
-    /// The frame for a width: the circle's radius is 96% of the width, the view shows from over the bin to
-    /// the seat names under the floor.
+    /// The frame for a width: the view shows from over the bin to the seat names under the floor.
     static func aspect() -> CGFloat { 1 / 1.2 }
-
-    /// Circle centre and radius for a frame.
-    static func circle(_ size: CGSize) -> (centre: CGPoint, radius: CGFloat) {
-        let r = size.width * 0.96
-        return (CGPoint(x: size.width * 0.985, y: r * 0.74), r)
-    }
-
-    /// Seat cushions across the cabin, left to right, as x ranges in radii from the centre (negative left).
-    static func seatSpans(_ layout: [Int]) -> [[ClosedRange<CGFloat>]] {
-        let count = CGFloat(layout.reduce(0, +))
-        let aisle: CGFloat = layout.count > 2 ? 0.13 : 0.2
-        let usable: CGFloat = 1.72 - aisle * CGFloat(layout.count - 1)
-        let w = usable / count
-        var x: CGFloat = -0.86
-        return layout.map { n in
-            let group = (0..<n).map { i -> ClosedRange<CGFloat> in
-                let a = x + w * CGFloat(i)
-                return (a + w * 0.05)...(a + w * 0.95)
-            }
-            x += w * CGFloat(n) + aisle
-            return group
-        }
-    }
 
     /// "Win", "Mid", "Aisle".
     static func short(_ name: String) -> String { name.count > 5 ? String(name.prefix(3)) : name }
 
-    /// Floor and seat heights, in radii below the centre (positive down).
-    static let floorY: CGFloat = 0.36, cushionY: CGFloat = 0.12
+    /// Points per metre, and the fuselage centre, for a frame: the skin's left edge 4% in from the left, the
+    /// centreline near the right edge, the top cropped above the bins.
+    static func scale(_ size: CGSize, _ section: CabinSection) -> (s: CGFloat, centre: CGPoint) {
+        let s = size.width / CGFloat(section.radius * 1.06)
+        let r = CGFloat(section.radius) * s
+        let floorY = r * 0.74 + CGFloat(section.floorDrop) * s
+        // Keep the floor and the names under it in the frame on the smaller tubes.
+        let lift = max(0, floorY + 30 - size.height)
+        return (s, CGPoint(x: size.width * 0.985, y: r * 0.74 - lift))
+    }
+
+    /// A point across the cabin (metres from the centreline) at a height above the floor, on screen.
+    static func point(_ x: Double, _ h: Double, _ section: CabinSection, _ s: CGFloat, _ c: CGPoint) -> CGPoint {
+        CGPoint(x: c.x + CGFloat(x) * s, y: c.y + CGFloat(section.floorDrop - h) * s)
+    }
 
     var body: some View {
-        let layout = family.plan.layout
+        let section = CabinSection(family)
         GeometryReader { geo in
-            let (c, r) = Self.circle(geo.size)
-            let spans = Self.seatSpans(layout)
+            let (s, c) = Self.scale(geo.size, section)
+            let seats = section.seats
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
-                    let (c, r) = Self.circle(size)
-                    func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: c.x + x * r, y: c.y + y * r) }
-                    // Skin and lining: arcs from the floor's level up and over to the centreline.
-                    for (radius, alpha, width) in [(1.0, 1.0, 1.1), (0.94, 0.45, 0.5)] as [(CGFloat, Double, CGFloat)] {
-                        var arc = Path()
-                        arc.addArc(center: c, radius: r * radius, startAngle: .degrees(90 - 0), endAngle: .degrees(270), clockwise: false)
-                        ctx.stroke(arc, with: .color(ink.opacity(alpha)), lineWidth: width)
-                    }
-                    var fill = Path()
-                    fill.addArc(center: c, radius: r, startAngle: .degrees(90), endAngle: .degrees(270), clockwise: false)
-                    fill.closeSubpath()
-                    ctx.fill(fill, with: .color(ink.opacity(0.05)))
-                    // Floor beam and the hold.
-                    let fx = -sqrt(max(0, 0.94 * 0.94 - Self.floorY * Self.floorY))
-                    var floor = Path(); floor.move(to: pt(fx, Self.floorY)); floor.addLine(to: pt(0, Self.floorY))
-                    ctx.stroke(floor, with: .color(ink), lineWidth: 1.1)
-                    var beam = Path(); beam.addRect(CGRect(origin: pt(fx * 0.92, Self.floorY), size: CGSize(width: -fx * 0.92 * r, height: r * 0.05)))
-                    ctx.stroke(beam, with: .color(ink.opacity(0.4)), lineWidth: 0.5)
-                    var hold = Path()
-                    hold.move(to: pt(-0.62, 0.48)); hold.addLine(to: pt(-0.62, 0.78)); hold.addLine(to: pt(0, 0.78))
-                    hold.move(to: pt(-0.62, 0.48)); hold.addLine(to: pt(0, 0.48))
-                    ctx.stroke(hold, with: .color(ink.opacity(0.4)), style: StrokeStyle(lineWidth: 0.5, dash: [3, 2]))
-                    // Overhead bin and the passenger service unit under it.
-                    var bin = Path()
-                    bin.move(to: pt(-0.86, -0.42)); bin.addLine(to: pt(-0.42, -0.42)); bin.addLine(to: pt(-0.42, -0.6))
-                    bin.addQuadCurve(to: pt(-0.72, -0.66), control: pt(-0.5, -0.7))
-                    ctx.fill(bin, with: .color(ink.opacity(0.08)))
-                    ctx.stroke(bin, with: .color(ink.opacity(0.75)), lineWidth: 0.7)
-                    // Window in the wall.
-                    let wy: CGFloat = -0.18
-                    var window = Path()
-                    window.addRoundedRect(in: CGRect(origin: pt(-0.985, wy - 0.13), size: CGSize(width: r * 0.055, height: r * 0.26)),
-                                          cornerSize: CGSize(width: r * 0.025, height: r * 0.025))
-                    ctx.fill(window, with: .color(Theme.blueprint))
-                    ctx.stroke(window, with: .color(ink), lineWidth: 0.8)
-                    // Seats: backrest, cushion, armrests, the leg to the floor.
-                    for (g, group) in spans.enumerated() {
-                        for span in group {
-                            let solid = g == 0
-                            let w = span.upperBound - span.lowerBound
-                            guard span.lowerBound < 0 else { continue }
-                            var seat = Path()
-                            seat.addRoundedRect(in: CGRect(origin: pt(span.lowerBound + w * 0.1, Self.cushionY - 0.42),
-                                                           size: CGSize(width: w * 0.8 * r, height: 0.44 * r)),
-                                                cornerSize: CGSize(width: w * 0.22 * r, height: w * 0.22 * r))
-                            seat.addRoundedRect(in: CGRect(origin: pt(span.lowerBound, Self.cushionY - 0.02),
-                                                           size: CGSize(width: w * r, height: 0.1 * r)),
-                                                cornerSize: CGSize(width: 0.03 * r, height: 0.03 * r))
-                            seat.move(to: pt(span.lowerBound + w * 0.5, Self.cushionY + 0.08))
-                            seat.addLine(to: pt(span.lowerBound + w * 0.5, Self.floorY))
-                            seat.move(to: pt(span.lowerBound + w * 0.15, Self.cushionY + 0.08))
-                            seat.addLine(to: pt(span.lowerBound + w * 0.3, Self.floorY))
-                            seat.move(to: pt(span.lowerBound + w * 0.85, Self.cushionY + 0.08))
-                            seat.addLine(to: pt(span.lowerBound + w * 0.7, Self.floorY))
-                            ctx.drawLayer { l in
-                                if !solid { l.clip(to: Path(CGRect(x: 0, y: 0, width: c.x, height: size.height))) }
-                                l.fill(seat, with: .color(ink.opacity(solid ? 0.2 : 0.04)))
-                                l.stroke(seat, with: .color(ink.opacity(solid ? 0.95 : 0.35)), lineWidth: solid ? 0.8 : 0.5)
-                            }
-                        }
-                    }
-                    // The break at the centreline, a zigzag, and the section's centreline.
-                    var brk = Path()
-                    let top = c.y - r * 1.02, bottom = min(size.height, c.y + r * 0.95)
-                    brk.move(to: CGPoint(x: c.x, y: top)); brk.addLine(to: CGPoint(x: c.x, y: c.y - 0.05 * r))
-                    brk.addLine(to: CGPoint(x: c.x - 4, y: c.y - 0.02 * r)); brk.addLine(to: CGPoint(x: c.x + 4, y: c.y + 0.02 * r))
-                    brk.addLine(to: CGPoint(x: c.x, y: c.y + 0.05 * r)); brk.addLine(to: CGPoint(x: c.x, y: bottom))
-                    ctx.stroke(brk, with: .color(ink.opacity(0.45)), style: StrokeStyle(lineWidth: 0.5, dash: [9, 2, 2, 2]))
+                    draw(&ctx, size: size, section: section, s: s, c: c)
                 }
                 .accessibilityHidden(true)
-                // Counts over the solid seats, their names under the floor line.
-                ForEach(Array(spans[0].enumerated()), id: \.offset) { i, span in
+                // Counts on the solid seats' backrests, their names under the floor.
+                ForEach(Array((seats.first ?? []).enumerated()), id: \.offset) { i, span in
                     if i < counts.count {
-                        let mid = c.x + (span.lowerBound + span.upperBound) / 2 * r
-                        let w = (span.upperBound - span.lowerBound) * r
+                        let mid = (span.lowerBound + span.upperBound) / 2
+                        let w = CGFloat(span.upperBound - span.lowerBound) * s
                         Text(counts[i])
                             .font(.system(size: countSize, weight: .semibold))
                             .monospacedDigit()
@@ -692,8 +711,7 @@ struct HalfSection: View {
                             .minimumScaleFactor(0.5)
                             .rollingDigits(Double(counts[i]))
                             .frame(width: w + 6)
-                            .position(x: mid, y: c.y + (Self.cushionY - 0.2) * r)
-                        // A narrow seat (three groups abreast) takes the short name.
+                            .position(Self.point(mid, 0.895, section, s, c))
                         Text(w < 40 ? Self.short(names[i]) : names[i])
                             .font(.system(size: w < 40 ? 9 : 10, weight: .medium, design: .monospaced))
                             .textCase(.uppercase)
@@ -701,12 +719,169 @@ struct HalfSection: View {
                             .minimumScaleFactor(0.6)
                             .opacity(0.85)
                             .frame(width: w + 8)
-                            .position(x: mid, y: c.y + (Self.floorY + 0.11) * r)
+                            .position(x: Self.point(mid, 0, section, s, c).x, y: Self.point(mid, 0, section, s, c).y + 14)
                     }
                 }
             }
         }
         .aspectRatio(Self.aspect(), contentMode: .fit)
         .foregroundStyle(ink)
+    }
+
+    private func draw(_ ctx: inout GraphicsContext, size: CGSize, section: CabinSection, s: CGFloat, c: CGPoint) {
+        typealias C = CabinSection
+        func pt(_ x: Double, _ h: Double) -> CGPoint {
+            CGPoint(x: c.x + CGFloat(x) * s, y: c.y + CGFloat(section.floorDrop - h) * s)
+        }
+        func m(_ v: Double) -> CGFloat { CGFloat(v) * s }
+        let r = m(section.radius), lining = m(section.lining)
+        let line = ink, faint = ink.opacity(0.45)
+
+        // Skin, its fill, the lining.
+        var fill = Path()
+        fill.addArc(center: c, radius: r, startAngle: .degrees(90), endAngle: .degrees(270), clockwise: false)
+        fill.closeSubpath()
+        ctx.fill(fill, with: .color(ink.opacity(0.05)))
+        var skin = Path()
+        skin.addArc(center: c, radius: r, startAngle: .degrees(90), endAngle: .degrees(270), clockwise: false)
+        ctx.stroke(skin, with: .color(line), lineWidth: 1.1)
+        // The lining runs from the floor up to the bin, then the ceiling panel from the bin to the centre.
+        let floorHalf = section.liningHalfWidth(at: 0)
+        let binHalf = section.liningHalfWidth(at: section.binBottom + 0.38)
+        var wall = Path()
+        wall.move(to: pt(-floorHalf, 0))
+        for i in 0...24 {
+            let h = Double(i) / 24 * (section.binBottom + 0.38)
+            wall.addLine(to: pt(-section.liningHalfWidth(at: h), h))
+        }
+        ctx.stroke(wall, with: .color(faint), lineWidth: 0.6)
+        let ceiling = section.binBottom + 0.62
+        var panel = Path()
+        panel.move(to: pt(-binHalf + section.binDepth, section.binBottom + 0.30))
+        panel.addQuadCurve(to: pt(0, ceiling), control: pt(-binHalf * 0.35, ceiling))
+        ctx.stroke(panel, with: .color(faint), lineWidth: 0.6)
+        // Frames between skin and lining: short ticks.
+        for deg in stride(from: 100.0, through: 260.0, by: 16.0) {
+            let a = Angle.degrees(deg).radians
+            var tick = Path()
+            tick.move(to: CGPoint(x: c.x + cos(a) * lining, y: c.y + sin(a) * lining))
+            tick.addLine(to: CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r))
+            ctx.stroke(tick, with: .color(ink.opacity(0.25)), lineWidth: 0.5)
+        }
+
+        // Floor panel and beam, the hold under it.
+        var floor = Path(); floor.move(to: pt(-floorHalf, 0)); floor.addLine(to: pt(0, 0))
+        ctx.stroke(floor, with: .color(line), lineWidth: 1.1)
+        var beam = Path()
+        beam.addRect(CGRect(origin: pt(-floorHalf * 0.96, 0), size: CGSize(width: m(floorHalf * 0.96), height: m(0.18))))
+        ctx.stroke(beam, with: .color(ink.opacity(0.35)), lineWidth: 0.5)
+        let holdTop = -0.30, holdBottom = -min(section.radius + section.floorDrop - 0.25, 1.75)
+        var hold = Path()
+        let holdHalf = min(section.liningHalfWidth(at: holdBottom) , floorHalf) * 0.8
+        hold.addRect(CGRect(x: pt(-holdHalf, holdTop).x, y: pt(0, holdTop).y, width: m(holdHalf), height: m(holdTop - holdBottom)))
+        ctx.stroke(hold, with: .color(ink.opacity(0.35)), style: StrokeStyle(lineWidth: 0.5, dash: [3, 2]))
+
+        // Window, centred at shoulder height.
+        let wy = 0.95
+        let wx = -section.liningHalfWidth(at: wy)
+        var window = Path()
+        window.addRoundedRect(in: CGRect(x: pt(wx, 0).x - m(section.wall) - 1, y: pt(0, wy + section.window / 2).y,
+                                         width: m(section.wall) + 2, height: m(section.window)),
+                              cornerSize: CGSize(width: m(0.04), height: m(0.04)))
+        ctx.fill(window, with: .color(Theme.blueprint))
+        ctx.stroke(window, with: .color(line), lineWidth: 0.8)
+
+        // Overhead bin: against the lining, a flat floor, the door's rounded face.
+        let b0 = section.binBottom, b1 = section.binBottom + 0.38
+        let bx = -section.liningHalfWidth(at: b0) + 0.02
+        var bin = Path()
+        bin.move(to: pt(bx, b0))
+        bin.addLine(to: pt(bx + section.binDepth, b0))
+        bin.addQuadCurve(to: pt(bx + section.binDepth - 0.05, b1 - 0.08), control: pt(bx + section.binDepth + 0.06, b0 + 0.2))
+        bin.addLine(to: pt(-section.liningHalfWidth(at: b1) + 0.02, b1))
+        for i in 0...8 {
+            let h = b1 - Double(i) / 8 * (b1 - b0)
+            bin.addLine(to: pt(-section.liningHalfWidth(at: h) + 0.02, h))
+        }
+        bin.closeSubpath()
+        ctx.fill(bin, with: .color(ink.opacity(0.08)))
+        ctx.stroke(bin, with: .color(ink.opacity(0.8)), lineWidth: 0.7)
+        // Passenger service unit under the bin: reading lights and the air outlet.
+        var psu = Path()
+        psu.addRoundedRect(in: CGRect(origin: pt(bx + 0.04, b0 - 0.0), size: CGSize(width: m(section.binDepth - 0.1), height: m(0.06))),
+                           cornerSize: CGSize(width: 1.5, height: 1.5))
+        ctx.stroke(psu, with: .color(ink.opacity(0.5)), lineWidth: 0.5)
+
+        // Seats, group by group: the left group solid, the others ghosted and cut at the centreline.
+        for (g, group) in section.seats.enumerated() {
+            let solid = g == 0
+            ctx.drawLayer { l in
+                l.clip(to: Path(CGRect(x: 0, y: 0, width: c.x, height: size.height)))
+                let stroke = ink.opacity(solid ? 0.95 : 0.3)
+                let tint = ink.opacity(solid ? 0.16 : 0.03)
+                let lw: CGFloat = solid ? 0.8 : 0.5
+                guard let first = group.first, let last = group.last, first.lowerBound < 0 else { return }
+                let left = first.lowerBound - section.armrest, right = last.upperBound + section.armrest
+                // Frame: the beam under the cushions, two legs to the seat tracks, their braces.
+                var frame = Path()
+                frame.addRect(CGRect(origin: pt(left + 0.04, C.beamTop), size: CGSize(width: m(right - left - 0.08), height: m(C.beamHeight))))
+                for f in [0.22, 0.78] {
+                    let x = left + (right - left) * f
+                    frame.move(to: pt(x - 0.03, C.beamTop - C.beamHeight)); frame.addLine(to: pt(x - 0.05, 0.02))
+                    frame.move(to: pt(x + 0.03, C.beamTop - C.beamHeight)); frame.addLine(to: pt(x + 0.05, 0.02))
+                    frame.move(to: pt(x - 0.05, 0.10)); frame.addLine(to: pt(x + 0.05, 0.10))
+                    frame.addRect(CGRect(origin: pt(x - 0.08, 0.02), size: CGSize(width: m(0.16), height: m(0.02))))
+                }
+                l.stroke(frame, with: .color(stroke.opacity(0.8)), lineWidth: lw * 0.8)
+                for span in group {
+                    // Seen from behind, looking forward: the backrest's shell, a little narrower at the
+                    // headrest, its rounded shoulders, the headrest cover, the tray table and its latch,
+                    // the literature pocket under it.
+                    let a = span.lowerBound - 0.01, b = span.upperBound + 0.01, mid = (a + b) / 2
+                    var back = Path()
+                    back.move(to: pt(a + 0.02, C.backBottom))
+                    back.addLine(to: pt(a + 0.004, 0.86))
+                    back.addQuadCurve(to: pt(a + 0.07, C.backTop), control: pt(a + 0.012, C.backTop))
+                    back.addLine(to: pt(b - 0.07, C.backTop))
+                    back.addQuadCurve(to: pt(b - 0.004, 0.86), control: pt(b - 0.012, C.backTop))
+                    back.addLine(to: pt(b - 0.02, C.backBottom))
+                    back.addQuadCurve(to: pt(a + 0.02, C.backBottom), control: pt(mid, C.backBottom - 0.04))
+                    l.fill(back, with: .color(tint))
+                    l.stroke(back, with: .color(stroke), lineWidth: lw)
+                    var detail = Path()
+                    // Headrest cover.
+                    detail.move(to: pt(a + 0.02, C.headrestBottom))
+                    detail.addQuadCurve(to: pt(b - 0.02, C.headrestBottom), control: pt(mid, C.headrestBottom - 0.025))
+                    // Tray table, latch.
+                    detail.addRoundedRect(in: CGRect(origin: pt(a + 0.045, C.trayTop), size: CGSize(width: m(b - a - 0.09), height: m(C.trayTop - C.trayBottom))),
+                                          cornerSize: CGSize(width: m(0.02), height: m(0.02)))
+                    detail.addRoundedRect(in: CGRect(origin: pt(mid - 0.025, C.trayTop + 0.02), size: CGSize(width: m(0.05), height: m(0.016))),
+                                          cornerSize: CGSize(width: m(0.008), height: m(0.008)))
+                    // Literature pocket.
+                    detail.move(to: pt(a + 0.05, C.pocket))
+                    detail.addQuadCurve(to: pt(b - 0.05, C.pocket), control: pt(mid, C.pocket - 0.035))
+                    l.stroke(detail, with: .color(stroke.opacity(0.7)), lineWidth: lw * 0.75)
+                }
+                // Armrests: the inner ones hide behind the backrests, the two at the group's ends show.
+                var arms = Path()
+                for i in [0, group.count] {
+                    let x = i < group.count ? group[i].lowerBound - section.armrest : last.upperBound
+                    arms.addRoundedRect(in: CGRect(origin: pt(x, C.armrestTop), size: CGSize(width: m(section.armrest), height: m(C.armrestHeight))),
+                                        cornerSize: CGSize(width: m(0.015), height: m(0.015)))
+                    arms.move(to: pt(x + section.armrest / 2, C.armrestTop - C.armrestHeight))
+                    arms.addLine(to: pt(x + section.armrest / 2, C.cushionTop - 0.02))
+                }
+                l.fill(arms, with: .color(tint))
+                l.stroke(arms, with: .color(stroke), lineWidth: lw * 0.9)
+            }
+        }
+
+        // The break at the centreline, a zigzag, and the section's centreline.
+        var brk = Path()
+        let top = c.y - r * 1.02, bottom = min(size.height, c.y + r * 0.95)
+        brk.move(to: CGPoint(x: c.x, y: top)); brk.addLine(to: CGPoint(x: c.x, y: c.y - 0.05 * r))
+        brk.addLine(to: CGPoint(x: c.x - 4, y: c.y - 0.02 * r)); brk.addLine(to: CGPoint(x: c.x + 4, y: c.y + 0.02 * r))
+        brk.addLine(to: CGPoint(x: c.x, y: c.y + 0.05 * r)); brk.addLine(to: CGPoint(x: c.x, y: bottom))
+        ctx.stroke(brk, with: .color(ink.opacity(0.45)), style: StrokeStyle(lineWidth: 0.5, dash: [9, 2, 2, 2]))
     }
 }
