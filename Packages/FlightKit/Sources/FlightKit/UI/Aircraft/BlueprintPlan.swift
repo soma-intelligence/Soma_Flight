@@ -176,12 +176,13 @@ struct PlanGeometry: Sendable {
 
     /// Half the fuselage's width at a station: an elliptic nose, a straight barrel, a tail cone that leaves
     /// the barrel tangentially.
-    func halfWidth(_ x: Double) -> Double {
+    /// `nose` is the nose curve's exponent: 2.2 a full ellipse, lower a finer point (the cutaway's 1.6).
+    func halfWidth(_ x: Double, nose: Double = 2.2) -> Double {
         let r = width / 2
         if x <= 0 { return 0 }
         if x < noseLength {
             let t = 1 - x / noseLength
-            return r * pow(1 - pow(t, 2.2), 1 / 2.2)
+            return r * pow(1 - pow(t, nose), 1 / nose)
         }
         let taperStart = length - tailLength
         if x > taperStart {
@@ -192,15 +193,15 @@ struct PlanGeometry: Sendable {
     }
 
     /// The fuselage outline as a closed polygon (top side then bottom side), 160 stations.
-    func fuselage() -> [CGPoint] {
+    func fuselage(nose: Double = 2.2) -> [CGPoint] {
         let n = 160
         let xs = (0...n).map { i -> Double in
             // Denser near the nose, where the curve turns fastest.
             let t = Double(i) / Double(n)
             return length * (t < 0.2 ? pow(t / 0.2, 1.6) * 0.2 : t)
         }
-        let top = xs.map { CGPoint(x: $0, y: halfWidth($0)) }
-        let bottom = xs.reversed().map { CGPoint(x: $0, y: -halfWidth($0)) }
+        let top = xs.map { CGPoint(x: $0, y: halfWidth($0, nose: nose)) }
+        let bottom = xs.reversed().map { CGPoint(x: $0, y: -halfWidth($0, nose: nose)) }
         return top + bottom
     }
 
@@ -267,7 +268,7 @@ struct PlanDrawing: View {
             }
             func mirrored(_ pts: [CGPoint]) -> [CGPoint] { pts.map { CGPoint(x: $0.x, y: -$0.y) } }
 
-            let fuselage = poly(g.fuselage())
+            let fuselage = poly(g.fuselage(nose: minimal ? Self.cutawayNose : 2.2))
 
             // Construction: the centreline past both ends, the wing's quarter-chord and root stations.
             if !minimal {
@@ -387,8 +388,8 @@ struct PlanDrawing: View {
 
             // The fuselage over the low surfaces.
             ctx.fill(fuselage, with: .color(Theme.blueprint))
-            ctx.fill(fuselage, with: .color(ink.opacity(0.08)))
-            ctx.stroke(fuselage, with: .color(ink), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
+            ctx.fill(fuselage, with: .color(ink.opacity(minimal ? 0.04 : 0.08)))
+            ctx.stroke(fuselage, with: .color(ink), style: StrokeStyle(lineWidth: minimal ? 1.4 : 1, lineJoin: .round))
 
             // Wing box carry-through, hidden: dashed inside the barrel.
             if !g.highWing && !minimal {
@@ -433,45 +434,49 @@ struct PlanDrawing: View {
                 x += len + 0.25
             }
 
-            // Doors and overwing exits: a break in the wall; then the window rows.
-            var openings = Path()
-            for (stations, len) in [(g.doors, 1.0), (g.exits, 0.6)] {
-                for d in stations {
-                    for side in [1.0, -1.0] {
-                        let hw = g.halfWidth(d + len / 2)
-                        openings.addRect(CGRect(x: d, y: side > 0 ? hw - g.width * 0.07 : -hw, width: len, height: g.width * 0.07))
+            if minimal {
+                drawCabinDetail(&ctx, g, t)
+            } else {
+                // Doors and overwing exits: a break in the wall; then the window rows.
+                var openings = Path()
+                for (stations, len) in [(g.doors, 1.0), (g.exits, 0.6)] {
+                    for d in stations {
+                        for side in [1.0, -1.0] {
+                            let hw = g.halfWidth(d + len / 2)
+                            openings.addRect(CGRect(x: d, y: side > 0 ? hw - g.width * 0.07 : -hw, width: len, height: g.width * 0.07))
+                        }
                     }
                 }
-            }
-            ctx.fill(openings.applying(t), with: .color(ink.opacity(0.35)))
-            ctx.stroke(openings.applying(t), with: .color(ink), style: fine)
-            var windows = Path()
-            var wx = g.windows.from
-            let blocked = g.doors.map { ($0 - 0.3)...($0 + 1.3) } + g.exits.map { ($0 - 0.1)...($0 + 0.7) }
-            while wx <= g.windows.to {
-                if !blocked.contains(where: { $0.contains(wx) }) {
-                    for side in [1.0, -1.0] {
-                        let y = side * (g.halfWidth(wx) - g.width * 0.035)
-                        windows.move(to: CGPoint(x: wx, y: y)); windows.addLine(to: CGPoint(x: wx + min(0.26, g.windows.pitch * 0.45), y: y))
+                ctx.fill(openings.applying(t), with: .color(ink.opacity(0.35)))
+                ctx.stroke(openings.applying(t), with: .color(ink), style: fine)
+                var windows = Path()
+                var wx = g.windows.from
+                let blocked = g.doors.map { ($0 - 0.3)...($0 + 1.3) } + g.exits.map { ($0 - 0.1)...($0 + 0.7) }
+                while wx <= g.windows.to {
+                    if !blocked.contains(where: { $0.contains(wx) }) {
+                        for side in [1.0, -1.0] {
+                            let y = side * (g.halfWidth(wx) - g.width * 0.035)
+                            windows.move(to: CGPoint(x: wx, y: y)); windows.addLine(to: CGPoint(x: wx + min(0.26, g.windows.pitch * 0.45), y: y))
+                        }
                     }
+                    wx += g.windows.pitch
                 }
-                wx += g.windows.pitch
-            }
-            ctx.stroke(windows.applying(t), with: .color(ink.opacity(0.8)), style: StrokeStyle(lineWidth: 0.9, lineCap: .round))
+                ctx.stroke(windows.applying(t), with: .color(ink.opacity(0.8)), style: StrokeStyle(lineWidth: 0.9, lineCap: .round))
 
-            // Cockpit windscreen and side windows.
-            var screen = Path()
-            let n = g.noseLength, w = g.width
-            let x1 = n * 0.42, x2 = n * 0.66
-            for side in [1.0, -1.0] {
-                screen.addLines([CGPoint(x: x1, y: side * w * 0.03), CGPoint(x: x1 + n * 0.05, y: side * g.halfWidth(x1 + n * 0.05) * 0.78),
-                                 CGPoint(x: x2, y: side * g.halfWidth(x2) * 0.84), CGPoint(x: x2 - n * 0.02, y: side * w * 0.03)])
-                screen.closeSubpath()
-                screen.addLines([CGPoint(x: x2 + n * 0.04, y: side * g.halfWidth(x2 + n * 0.04) * 0.9),
-                                 CGPoint(x: x2 + n * 0.22, y: side * g.halfWidth(x2 + n * 0.22) * 0.93)])
+                // Cockpit windscreen and side windows.
+                var screen = Path()
+                let n = g.noseLength, w = g.width
+                let x1 = n * 0.42, x2 = n * 0.66
+                for side in [1.0, -1.0] {
+                    screen.addLines([CGPoint(x: x1, y: side * w * 0.03), CGPoint(x: x1 + n * 0.05, y: side * g.halfWidth(x1 + n * 0.05) * 0.78),
+                                     CGPoint(x: x2, y: side * g.halfWidth(x2) * 0.84), CGPoint(x: x2 - n * 0.02, y: side * w * 0.03)])
+                    screen.closeSubpath()
+                    screen.addLines([CGPoint(x: x2 + n * 0.04, y: side * g.halfWidth(x2 + n * 0.04) * 0.9),
+                                     CGPoint(x: x2 + n * 0.22, y: side * g.halfWidth(x2 + n * 0.22) * 0.93)])
+                }
+                ctx.fill(screen.applying(t), with: .color(ink.opacity(0.18)))
+                ctx.stroke(screen.applying(t), with: .color(ink.opacity(0.85)), style: fine)
             }
-            ctx.fill(screen.applying(t), with: .color(ink.opacity(0.18)))
-            ctx.stroke(screen.applying(t), with: .color(ink.opacity(0.85)), style: fine)
 
             // High wing and T-tail over the fuselage.
             if g.highWing {
@@ -560,6 +565,76 @@ struct PlanDrawing: View {
                       label: String(format: "%.2f m", g.wing.span), vertical: true)
         }
         .accessibilityHidden(true)
+    }
+}
+
+extension PlanDrawing {
+    static let cutawayNose = 1.6
+
+    /// The cutaway's cabin, drawn big: rounded windows set in from the wall, doors as panels hung on the
+    /// wall, and the cockpit's windscreen as a crescent following the nose.
+    func drawCabinDetail(_ ctx: inout GraphicsContext, _ g: PlanGeometry, _ t: CGAffineTransform) {
+        let s = t.a.magnitude
+        let line = StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round)
+        let r = g.width / 2
+
+        // Windows: small stadiums, a fixed gap in from the wall.
+        let p = Self.cutawayNose
+        let winLength = min(max(g.windows.pitch * 0.6, 6.5 / s), g.windows.pitch * 0.8)
+        let winDepth = 2.6 / s
+        let inset = 6.5 / s
+        var windows = Path()
+        let blocked = g.doors.map { ($0 - 0.35)...($0 + 1.25) } + g.exits.map { ($0 - 0.15)...($0 + 0.65) }
+        var wx = g.windows.from
+        while wx <= g.windows.to {
+            if !blocked.contains(where: { $0.contains(wx) }) {
+                for side in [1.0, -1.0] {
+                    let cy = side * (g.halfWidth(wx + winLength / 2, nose: p) - inset)
+                    let rect = CGRect(x: wx, y: cy - winDepth / 2, width: winLength, height: winDepth).applying(t)
+                    windows.addRoundedRect(in: rect.standardized, cornerSize: CGSize(width: rect.height.magnitude / 2,
+                                                                                    height: rect.height.magnitude / 2))
+                }
+            }
+            wx += g.windows.pitch
+        }
+        ctx.stroke(windows, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: 0.9))
+
+        // Doors and overwing exits: a panel hung on the wall, reaching a little past the window row.
+        var doors = Path()
+        for (stations, len) in [(g.doors, 1.0), (g.exits, 0.6)] {
+            for d in stations {
+                for side in [1.0, -1.0] {
+                    let hw = g.halfWidth(d + len / 2, nose: p)
+                    let depth = inset + winDepth * 1.2
+                    let rect = CGRect(x: d, y: side > 0 ? hw - depth : -hw, width: len, height: depth).applying(t).standardized
+                    let corner = min(rect.height, rect.width) * 0.18
+                    doors.addRoundedRect(in: rect, cornerSize: CGSize(width: corner, height: corner))
+                }
+            }
+        }
+        ctx.fill(doors, with: .color(Theme.blueprint))
+        ctx.stroke(doors, with: .color(ink.opacity(0.9)), style: line)
+        // The wall runs over the door panels.
+        var wall = Path(); wall.addLines(g.fuselage(nose: p)); wall.closeSubpath()
+        ctx.stroke(wall.applying(t), with: .color(ink), style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+
+        // Cockpit: a round crescent behind the nose's point, split into panes.
+        let n = g.noseLength
+        let reach = r * 0.78, x0 = n * 0.3, bow = n * 0.34, thick = n * 0.15
+        func k(_ y: Double) -> Double { sqrt(max(1 - pow(y / reach, 2), 0)) }
+        func outerX(_ y: Double) -> Double { x0 + bow * (1 - k(y)) }
+        let ys = stride(from: -reach, through: reach, by: reach / 40).map { $0 }
+        let outer = ys.map { CGPoint(x: outerX($0), y: $0) }
+        let inner = ys.reversed().map { CGPoint(x: outerX($0) + thick * k($0), y: $0) }
+        var crescent = Path(); crescent.addLines(outer + inner); crescent.closeSubpath()
+        ctx.fill(crescent.applying(t), with: .color(ink.opacity(0.16)))
+        ctx.stroke(crescent.applying(t), with: .color(ink.opacity(0.95)), style: line)
+        var panes = Path()
+        for y in [-reach * 0.6, 0, reach * 0.6] {
+            panes.move(to: CGPoint(x: outerX(y), y: y))
+            panes.addLine(to: CGPoint(x: outerX(y) + thick * k(y), y: y))
+        }
+        ctx.stroke(panes.applying(t), with: .color(ink.opacity(0.8)), style: StrokeStyle(lineWidth: 0.8))
     }
 }
 

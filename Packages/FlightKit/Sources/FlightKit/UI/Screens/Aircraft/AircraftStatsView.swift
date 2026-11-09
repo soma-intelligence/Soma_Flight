@@ -23,7 +23,8 @@ struct AircraftStatsView: View {
                        page: Self.page, shareKey: store.revision, onClose: onClose, bar: Self.bar,
                        sectionBackground: Self.sections, heroInset: 0,
                        chipInk: Color(red: 0x5E / 255, green: 0x68 / 255, blue: 0x8C / 255),
-                       chipFill: .white.opacity(0.7), buttonFill: Color(red: 0xA9 / 255, green: 0xB9 / 255, blue: 0xDA / 255)) {
+                       chipFill: .white.opacity(0.7), buttonFill: Color(red: 0xA9 / 255, green: 0xB9 / 255, blue: 0xDA / 255),
+                       header: AnyView(AircraftSky())) {
             hero
         } content: {
             sections.environment(\.colorScheme, .dark)
@@ -70,6 +71,30 @@ struct AircraftStatsView: View {
             FrequentTailsSection(tails: s.tails, year: store.year)
             if AircraftStatsCopy.showsAges(s) { AircraftAgeSection(stats: s) }
         }
+    }
+}
+
+// MARK: - Sky
+
+/// Behind the top bar and the year chips: white light washed with soft violet, settling at the bottom
+/// into the page's lavender so the hero carries on without a seam.
+struct AircraftSky: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0xF7 / 255, green: 0xF6 / 255, blue: 0xFE / 255),
+                                    Color(red: 0xE4 / 255, green: 0xDF / 255, blue: 0xFA / 255),
+                                    Theme.aircraftPage.stops[0].color],
+                           startPoint: .top, endPoint: .bottom)
+            // A violet bloom at the top right, white light at the left.
+            RadialGradient(colors: [Color(red: 0xC8 / 255, green: 0xB6 / 255, blue: 0xF4 / 255).opacity(0.75), .clear],
+                           center: UnitPoint(x: 0.9, y: 0.15), startRadius: 0, endRadius: 240)
+            RadialGradient(colors: [.white.opacity(0.85), .clear],
+                           center: UnitPoint(x: 0.12, y: 0.05), startRadius: 0, endRadius: 200)
+            // Back to the page colour along the bottom edge.
+            LinearGradient(colors: [.clear, Theme.aircraftPage.stops[0].color],
+                           startPoint: UnitPoint(x: 0.5, y: 0.7), endPoint: .bottom)
+        }
+        .accessibilityHidden(true)
     }
 }
 

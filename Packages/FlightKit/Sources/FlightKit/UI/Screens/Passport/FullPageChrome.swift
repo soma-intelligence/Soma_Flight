@@ -46,6 +46,9 @@ struct FullPageChrome<Hero: View, Content: View>: View {
     var chipFill: Color = Theme.pill
     /// The close and share circles' fill; the grey round button fill when nil.
     var buttonFill: Color? = nil
+    /// Painted behind the top bar and the year chips as one piece, under the status bar; when nil each
+    /// takes its own colour (`bar`, then `page`).
+    var header: AnyView? = nil
     @ViewBuilder var hero: Hero
     @ViewBuilder var content: Content
 
@@ -57,18 +60,21 @@ struct FullPageChrome<Hero: View, Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar
-                .scaledPadding(.horizontal, 16)
-                .scaledPadding(.top, 8)
-                .scaledPadding(.bottom, 10)
-                .background((bar ?? page).ignoresSafeArea(edges: .top))
-            if !years.isEmpty {
-                YearChips(years: years, selection: $year, fill: chipFill, ink: chipInk)
-                    .scaledPadding(.top, bar == nil ? 0 : 10)
+            VStack(spacing: 0) {
+                topBar
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.top, 8)
                     .scaledPadding(.bottom, 10)
-                    .frame(maxWidth: .infinity)
-                    .background(page)
+                    .background { if header == nil { (bar ?? page).ignoresSafeArea(edges: .top) } }
+                if !years.isEmpty {
+                    YearChips(years: years, selection: $year, fill: chipFill, ink: chipInk)
+                        .scaledPadding(.top, bar == nil ? 0 : 10)
+                        .scaledPadding(.bottom, 10)
+                        .frame(maxWidth: .infinity)
+                        .background { if header == nil { page } }
+                }
             }
+            .background { if let header { header.ignoresSafeArea(edges: .top) } }
             ScrollView {
                 if let sectionBackground {
                     VStack(alignment: .leading, spacing: 0) {
