@@ -70,6 +70,7 @@ public struct AircraftGeometry: Sendable {
         case .ejet: return EJet.geometry(nil)
         case .crj: return CRJ.geometry(nil)
         case .atr: return ATR.geometry(nil)
+        case .bizjet: return BizJet.geometry(nil)
         case .other:
             var g = family.isWidebody ? Generic.widebody : Generic.narrowbody
             g.family = family
@@ -111,6 +112,7 @@ public struct AircraftGeometry: Sendable {
         case .ejet: return EJet.geometry(type.id)
         case .crj: return CRJ.geometry(type.id)
         case .atr: return ATR.geometry(type.id)
+        case .bizjet: return BizJet.geometry(type.id)
         case .other: return geometry(type.family)
         }
     }

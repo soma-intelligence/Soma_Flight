@@ -1,7 +1,7 @@
 import Foundation
 
 public enum AircraftFamily: String, Codable, Sendable, CaseIterable {
-    case a220, a320, a330, a350, a380, b737, b737max, b747, b757, b767, b777, b787, ejet, crj, atr, other
+    case a220, a320, a330, a350, a380, b737, b737max, b747, b757, b767, b777, b787, ejet, crj, atr, bizjet, other
 
     public var isWidebody: Bool {
         switch self {

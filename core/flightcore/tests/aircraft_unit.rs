@@ -61,6 +61,8 @@ fn seat_layouts_from_the_brief() {
     assert_eq!(p("12B", "atr"), None);
     assert_eq!(p("12D", "crj"), Some(Window));
     assert_eq!(p("12B", "crj"), Some(Aisle));
+    assert_eq!(p("3A", "bizjet"), Some(Window));
+    assert_eq!(p("3C", "bizjet"), Some(Window));
     assert_eq!(p("40J", "b787"), Some(Middle));
     assert_eq!(p("40H", "a350"), Some(Aisle));
     assert_eq!(p("40F", "b777"), Some(Middle));

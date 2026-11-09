@@ -162,6 +162,8 @@ pub fn seat_position(seat: &str, family: &str) -> Option<SeatPosition> {
         "a220" => (b"AF", b"E", b"CD"),
         "ejet" | "atr" => (b"AF", b"", b"CD"),
         "crj" => (b"AD", b"", b"BC"),
+        // Business jets: one club seat each side of the aisle, every seat at a window.
+        "bizjet" => (b"ABCD", b"", b""),
         "a350" | "b787" => (b"AK", b"BEJ", b"CDFH"),
         "b777" | "b747" | "a380" => (b"AK", b"BEFJ", b"CDGH"),
         "a330" => (b"AK", b"EF", b"CDGH"),

@@ -555,3 +555,37 @@ struct AirlineMark: View {
         AirlineLogo(airline: airline, code: airline?.iata ?? code, size: size ?? scaled, decorative: decorative)
     }
 }
+
+/// A past flight's mark: its airline's, or for a private flight a plain plane in a circle.
+struct PastFlightMark: View {
+    var flight: PastFlight
+    var size: CGFloat?
+    var decorative: Bool = false
+    @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = 44
+
+    var body: some View {
+        if flight.isPrivate {
+            let side = size ?? scaled
+            Circle()
+                .fill(Theme.pill)
+                .overlay {
+                    Image(systemName: "airplane")
+                        .font(.system(size: side * 0.42, weight: .semibold))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .frame(width: side, height: side)
+                .accessibilityHidden(decorative)
+                .accessibilityLabel("Private flight")
+        } else {
+            AirlineMark(code: TravelFacts.airlineCode(ident: flight.ident), key: flight.airline ?? flight.ident,
+                        size: size, decorative: decorative)
+        }
+    }
+}
+
+extension Format {
+    /// A past flight's number as shown, "Private" for a private flight.
+    static func ident(_ flight: PastFlight) -> String {
+        flight.isPrivate ? "Private" : ident(flight.ident)
+    }
+}

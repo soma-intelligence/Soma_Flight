@@ -133,10 +133,10 @@ struct DelayReportHero: View {
             Text("Longest wait")
                 .scaledFont(24, weight: .bold)
                 .foregroundStyle(.white)
-            LEDStrip(parts: [DelayFacts.led(worst.minutes), f.ident.uppercased(), route])
+            LEDStrip(parts: [DelayFacts.led(worst.minutes), f.isPrivate ? "PRIVATE" : f.ident.uppercased(), route])
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Longest wait: \(DelayFacts.spoken(worst.minutes)) late, \(Format.ident(f.ident)), "
+        .accessibilityLabel("Longest wait: \(DelayFacts.spoken(worst.minutes)) late, \(Format.ident(f)), "
                             + "\(lookup(f.originIcao)?.city ?? f.originIcao) to \(lookup(f.destinationIcao)?.city ?? f.destinationIcao)")
     }
 
@@ -348,18 +348,17 @@ struct LateArrivalRow: View {
         }
         .scaledPadding(.vertical, 8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Format.ident(f.ident)), \(DelayFacts.spoken(late.minutes)) late, "
+        .accessibilityLabel("\(Format.ident(f)), \(DelayFacts.spoken(late.minutes)) late, "
                             + "\(origin?.city ?? f.originIcao) to \(destination?.city ?? f.destinationIcao), \(day)")
     }
 
     private var mark: some View {
-        AirlineMark(code: TravelFacts.airlineCode(ident: late.flight.ident), key: late.flight.airline ?? late.flight.ident,
-                    size: 24, decorative: true)
+        PastFlightMark(flight: late.flight, size: 24, decorative: true)
             .environment(\.logoSurface, .fixed(0x161314))
     }
 
     private var ident: some View {
-        Text(Format.ident(late.flight.ident)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)
+        Text(Format.ident(late.flight)).scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)
             .lineLimit(1).fixedSize()
     }
 

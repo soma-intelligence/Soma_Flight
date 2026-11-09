@@ -48,6 +48,10 @@ public struct PastFlight: Codable, Sendable, Hashable, Identifiable {
     /// else runway times. nil when the actual departure is not known.
     public var departureDelayMinutes: Int?
 
+    /// A private flight: logged with neither a flight number nor an airline (a business jet, a charter,
+    /// a friend's plane).
+    public var isPrivate: Bool { ident.isEmpty && (airline ?? "").isEmpty }
+
     /// True for the flights the traveller added or imported: those they may edit and delete.
     public var isEditable: Bool { source == .manual || source == .import }
 

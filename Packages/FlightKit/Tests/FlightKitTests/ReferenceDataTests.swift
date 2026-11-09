@@ -19,7 +19,7 @@ import Testing
 
     @Test func typeFamily() {
         #expect(ref.type("B38M")?.family == .b737max)
-        #expect(ref.type("C25B") == nil)
+        #expect(ref.type("ZZZZ") == nil)
         #expect(AircraftFamily.b777.isWidebody && !AircraftFamily.a320.isWidebody)
     }
 

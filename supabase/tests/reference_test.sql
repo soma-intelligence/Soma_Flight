@@ -17,7 +17,7 @@ select is((select count(*) from airlines where icao in
 select cmp_ok((select count(*) from aircraft_types), '>=', 70::bigint, 'aircraft_types has at least 70 rows');
 select is((select count(*) from aircraft_types where family not in
   ('a220', 'a320', 'a330', 'a350', 'a380', 'b737', 'b737max', 'b747', 'b757', 'b767', 'b777', 'b787',
-   'ejet', 'crj', 'atr', 'other')), 0::bigint, 'every aircraft family is in the allowed set');
+   'ejet', 'crj', 'atr', 'bizjet', 'other')), 0::bigint, 'every aircraft family is in the allowed set');
 select results_eq(
   $$select family, manufacturer from aircraft_types where icao_type = 'B38M'$$,
   $$values ('b737max'::text, 'Boeing'::text)$$, 'B38M is a 737 MAX');

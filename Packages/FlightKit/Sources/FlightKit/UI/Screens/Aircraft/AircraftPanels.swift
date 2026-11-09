@@ -533,12 +533,21 @@ struct CabinBlueprint: View {
         }
     }
 
+    /// One seat a side (a business jet's club seats) is window and aisle at once: it takes every count.
     private var seatNames: [String] {
-        family.plan.layout[0] >= 3 ? ["Window", "Middle", "Aisle"] : ["Window", "Aisle"]
+        switch family.plan.layout[0] {
+        case 1: ["Window"]
+        case 2: ["Window", "Aisle"]
+        default: ["Window", "Middle", "Aisle"]
+        }
     }
 
     private func seatCounts(_ p: PositionCounts) -> [String] {
-        (family.plan.layout[0] >= 3 ? [p.window, p.middle, p.aisle] : [p.window, p.aisle]).map { PassportFacts.count($0) }
+        switch family.plan.layout[0] {
+        case 1: [PassportFacts.count(p.window + p.middle + p.aisle)]
+        case 2: [p.window, p.aisle].map { PassportFacts.count($0) }
+        default: [p.window, p.middle, p.aisle].map { PassportFacts.count($0) }
+        }
     }
 
     private func caption(_ title: String, _ sub: String) -> some View {

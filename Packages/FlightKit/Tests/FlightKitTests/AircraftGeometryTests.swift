@@ -24,6 +24,7 @@ struct AircraftGeometryTests {
         (.ejet, 36.24, 10.57),     // E190
         (.crj, 36.40, 7.51),       // CRJ900
         (.atr, 27.17, 7.65),       // ATR 72-600
+        (.bizjet, 30.4, 7.8),      // Gulfstream G650
     ]
 
     static func type(_ id: String, _ family: AircraftFamily) -> AircraftType {

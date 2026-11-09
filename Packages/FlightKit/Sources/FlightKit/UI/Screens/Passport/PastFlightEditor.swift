@@ -21,6 +21,8 @@ final class PastFlightEditorModel {
     var reason: TripReason?
     var seatPosition: SeatPosition?
     var notes: String
+    /// A private flight: no flight number and no airline are kept.
+    var isPrivate: Bool
     var errors: [PastFlightRules.Problem: String] = [:]
     /// Why the store refused the last save or delete; shown over the fields.
     var saveError: String?
@@ -55,6 +57,7 @@ final class PastFlightEditorModel {
         reason = flight?.reason
         seatPosition = flight?.seatPosition
         notes = flight?.notes ?? ""
+        isPrivate = flight?.isPrivate ?? false
     }
 
     var isEditing: Bool { original != nil }
@@ -84,10 +87,15 @@ final class PastFlightEditorModel {
         f.originIcao = from
         f.destinationIcao = to
         if moved { f.distanceKm = 0; f.originTz = nil; f.originCountry = nil; f.destinationCountry = nil }
-        f.ident = field(ident, .ident, PastFlightRules.ident) ?? ""
-        // Without an airline picked, a new or changed flight number names it; an untouched one is left be.
-        let identChanged = original.map { $0.ident != f.ident } ?? true
-        f.airline = airline ?? (f.ident.isEmpty || !identChanged ? nil : reference.airline(ident: f.ident)?.id)
+        if isPrivate {
+            f.ident = ""
+            f.airline = nil
+        } else {
+            f.ident = field(ident, .ident, PastFlightRules.ident) ?? ""
+            // Without an airline picked, a new or changed flight number names it; an untouched one is left be.
+            let identChanged = original.map { $0.ident != f.ident } ?? true
+            f.airline = airline ?? (f.ident.isEmpty || !identChanged ? nil : reference.airline(ident: f.ident)?.id)
+        }
         f.aircraftType = field(aircraftType, .aircraftType, PastFlightRules.aircraftType)
         f.registration = field(registration, .registration, PastFlightRules.registration)
         f.seat = field(seat, .seat, FollowDetails.normalizedSeat)
@@ -278,9 +286,26 @@ struct PastFlightEditorSheet: View {
             errorLine(.sameAirports)
 
             heading("Flight").scaledPadding(.top, 24)
-            field(icon: "number", placeholder: "Flight number (optional)", text: $model.ident, problem: .ident)
-            pill(icon: "building.2", text: airlineName, placeholder: "Airline (optional)") { picking = .airline }
-                .scaledPadding(.top, 10)
+            ChipFlow {
+                Chip(title: "Airline flight", symbol: "building.2", selected: !model.isPrivate) {
+                    model.isPrivate = false
+                }
+                Chip(title: "Private flight", symbol: "airplane", selected: model.isPrivate) {
+                    model.isPrivate = true
+                    model.errors[.ident] = nil
+                }
+            }
+            .scaledPadding(.bottom, 12)
+            if model.isPrivate {
+                Text("No flight number or airline. Add the jet's type and registration below.")
+                    .scaledFont(14)
+                    .foregroundStyle(Theme.secondary)
+                    .scaledPadding(.leading, 4)
+            } else {
+                field(icon: "number", placeholder: "Flight number (optional)", text: $model.ident, problem: .ident)
+                pill(icon: "building.2", text: airlineName, placeholder: "Airline (optional)") { picking = .airline }
+                    .scaledPadding(.top, 10)
+            }
 
             heading("Aircraft").scaledPadding(.top, 24)
             field(icon: "airplane", placeholder: "Type, like B738 (optional)", text: $model.aircraftType, problem: .aircraftType)

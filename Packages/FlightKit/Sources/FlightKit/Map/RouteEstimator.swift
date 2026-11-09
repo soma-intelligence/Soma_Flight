@@ -141,6 +141,7 @@ public struct RouteEstimator: Sendable {
         switch family {
         case .atr: 510
         case .crj, .ejet: 800
+        case .bizjet: 850
         case .a220, .a320, .b737, .b737max, .b757: 830
         case .a330, .a350, .a380, .b747, .b767, .b777, .b787: 900
         case .other, nil: 830

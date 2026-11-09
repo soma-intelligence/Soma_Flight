@@ -60,9 +60,9 @@ struct Nacelle: Sendable, Equatable {
 /// The families the plan draws, each from one representative type's published airport-planning
 /// dimensions: A320neo and 737 MAX 8 for the narrowbody twin, 787-9 / A350-900 for the widebody twin,
 /// A380-800 for the four-engine widebody, E190 for the regional jet, CRJ900 for the rear-engine jet and
-/// ATR 72-600 for the turboprop.
+/// ATR 72-600 for the turboprop and the Gulfstream G650 for the business jet.
 enum PlanFamily: String, CaseIterable, Sendable {
-    case narrow, wideTwin, wideQuad, regional, rearJet, turboprop
+    case narrow, wideTwin, wideQuad, regional, rearJet, turboprop, bizJet
 
     init(_ family: AircraftFamily?) {
         switch family {
@@ -71,6 +71,7 @@ enum PlanFamily: String, CaseIterable, Sendable {
         case .ejet, .a220: self = .regional
         case .crj: self = .rearJet
         case .atr: self = .turboprop
+        case .bizjet: self = .bizJet
         default: self = .narrow
         }
     }
@@ -84,6 +85,7 @@ enum PlanFamily: String, CaseIterable, Sendable {
         case .regional: "Regional jet"
         case .rearJet: "Regional jet, rear engines"
         case .turboprop: "Turboprop"
+        case .bizJet: "Business jet"
         }
     }
 
@@ -143,6 +145,16 @@ enum PlanFamily: String, CaseIterable, Sendable {
                 engines: [Nacelle(y: 4.1, x: 9.1, length: 6.6, width: 1.25, prop: 3.93)],
                 fin: (22.0, 4.6, 0.32), doors: [2.6, 22.6], exits: [],
                 windows: (4.2, 22.0, 0.76), highWing: true, tTail: true, layout: [2, 2])
+        case .bizJet:
+            // Gulfstream G650: 30.4 m long, 2.6 m wide, 30.4 m span, engines on the rear fuselage, T-tail,
+            // big oval windows a metre apart, one club seat each side of the aisle.
+            PlanGeometry(
+                length: 30.4, width: 2.6, noseLength: 3.4, tailLength: 8.2, tailWidth: 0.35,
+                wing: Planform(apex: 12.4, rootChord: 5.6, span: 30.36, tipChord: 1.2, sweep: 36, kink: (3.4, 3.4)),
+                stab: Planform(apex: 26.4, rootChord: 2.5, span: 10.6, tipChord: 1.1, sweep: 35),
+                engines: [Nacelle(y: 2.35, x: 20.4, length: 4.6, width: 1.5, rear: true)],
+                fin: (25.2, 5.0, 0.3), doors: [2.2], exits: [14.2],
+                windows: (4.4, 20.2, 1.05), highWing: false, tTail: true, layout: [1, 1])
         }
     }
 }
@@ -205,8 +217,13 @@ struct PlanGeometry: Sendable {
         return top + bottom
     }
 
-    /// The cabin floor's stretch inside the barrel, first door to last door: where the class zones go.
-    var cabin: ClosedRange<Double> { (doors.first ?? noseLength) + 1.4...(doors.last ?? length - tailLength) - 0.4 }
+    /// The cabin floor's stretch inside the barrel, first door to last door (to the tail cone with a single
+    /// door): where the class zones go.
+    var cabin: ClosedRange<Double> {
+        let front = (doors.first ?? noseLength) + 1.4
+        let back = doors.count > 1 ? doors[doors.count - 1] - 0.4 : length - tailLength
+        return front...max(back, front + 1)
+    }
 
     /// The tightest box around the whole plan.
     var bounds: CGRect {
@@ -738,6 +755,10 @@ struct CabinSection: Sendable {
             // ATR 72: 2.87 m outside, four abreast.
             self.init(radius: r, wall: 0.06, floorDrop: 0.58, seat: 0.45, armrest: 0.05, aisle: 0.45,
                       window: 0.38, binBottom: 1.50, binDepth: 0.38, layout: layout)
+        case .bizJet:
+            // G650: a 2.49 m cabin, wide club seats either side of the aisle, big oval windows.
+            self.init(radius: r, wall: 0.06, floorDrop: 0.62, seat: 0.56, armrest: 0.10, aisle: 0.62,
+                      window: 0.52, binBottom: 1.62, binDepth: 0.30, layout: layout)
         }
     }
 
