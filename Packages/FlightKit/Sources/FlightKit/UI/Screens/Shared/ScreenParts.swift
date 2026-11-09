@@ -132,7 +132,11 @@ struct ScreenScroll<Content: View>: View {
         if scrolls {
             Group {
                 if let refresh {
+                    #if os(iOS)
+                    PullRefreshScroll(refresh: refresh) { content }
+                    #else
                     ScrollView { content }.refreshable { await refresh() }
+                    #endif
                 } else {
                     ScrollView { content }
                 }

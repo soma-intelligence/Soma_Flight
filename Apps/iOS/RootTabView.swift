@@ -299,6 +299,7 @@ struct RootTabView: View {
                 .environment(\.sheetDetentActions, detentActions)
                 .environment(\.sheetDetent, shell.detent)
                 .environment(\.sheetContentRoom, geometry.contentRoom(in: shell.detent))
+                .environment(\.refreshAirports, home.refreshAirports)
                 .overlay(alignment: .topTrailing) {
                     ProfileButton(profile: home.profile) { showSettings = true }
                         .padding(.top, 19)
