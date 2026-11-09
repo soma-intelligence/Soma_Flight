@@ -26,6 +26,10 @@ public struct FlightDetailView: View {
     @Environment(\.travelJournal) private var travelJournal
     /// The flight's live link (made on Share, stopped from the menu); nil for Passport flights.
     @State private var sharing: FlightShareModel?
+    /// The route-derived cards (sun, landmarks, window side), worked out once per route and seat rather than on
+    /// every render: a long-haul route costs tens of milliseconds, and the sheet renders on every frame while
+    /// it moves.
+    @State private var routeCache = RouteFactsCache()
 
     /// - Parameters:
     ///   - onAirport: opens the airport sheet for an ICAO code.
@@ -165,28 +169,26 @@ public struct FlightDetailView: View {
                                          destination: plannedDestination(f)?.country)
     }
 
-    /// The sun card's lines, from the planned route; empty without both airports or for a canceled flight.
-    private func sunLines(_ f: Flight) -> [SunFacts.Line] {
-        guard let origin = store.origin, let destination = plannedDestination(f) else { return [] }
-        let events = SunFacts.events(f, origin: origin, destination: destination,
-                                     aircraft: f.aircraftType.flatMap { reference.type($0) })
-        return SunFacts.lines(events, origin: origin, destination: destination, clock: units.clock)
-    }
-
-    /// The "Along the way" lines, from the planned route; empty without both airports or for a canceled flight.
-    private func landmarkLines(_ f: Flight) -> [LandmarkFacts.Line] {
-        guard let origin = store.origin, let destination = plannedDestination(f) else { return [] }
-        let passes = Landmarks.passes(f, origin: origin, destination: destination,
-                                      aircraft: f.aircraftType.flatMap { reference.type($0) })
-        return LandmarkFacts.lines(passes, origin: origin, destination: destination, clock: units.clock)
-    }
-
-    /// The window side card, with the traveller's seat from the booking details or the boarding pass.
-    private func windowCard(_ f: Flight) -> WindowFacts.Card? {
+    /// The sun, landmark and window side facts for the planned route, from the cache when the route, the
+    /// aircraft, the seat and the clock are unchanged.
+    private func routeFacts(_ f: Flight) -> RouteFacts {
         let type = f.aircraftType.flatMap { reference.type($0) }
-        guard let advice = WindowFacts.advice(f, origin: store.origin, destination: plannedDestination(f),
-                                              aircraft: type) else { return nil }
-        return WindowFacts.card(advice, seat: store.details?.seat ?? store.boardingPass?.seat, family: type?.family)
+        let destination = plannedDestination(f)
+        let seat = store.details?.seat ?? store.boardingPass?.seat
+        let key = RouteFactsCache.Key(flight: f.id, status: f.status, out: f.scheduledOut, in: f.scheduledIn,
+                                      origin: store.origin?.id, destination: destination?.id,
+                                      aircraft: f.aircraftType, seat: seat, clock: units.clock)
+        return routeCache.facts(for: key) {
+            guard let origin = store.origin, let destination else { return RouteFacts() }
+            let events = SunFacts.events(f, origin: origin, destination: destination, aircraft: type)
+            let passes = Landmarks.passes(f, origin: origin, destination: destination, aircraft: type)
+            let window = WindowFacts.advice(f, origin: origin, destination: destination, aircraft: type)
+                .map { WindowFacts.card($0, seat: seat, family: type?.family) }
+            return RouteFacts(sun: SunFacts.lines(events, origin: origin, destination: destination, clock: units.clock),
+                              landmarks: LandmarkFacts.lines(passes, origin: origin, destination: destination,
+                                                             clock: units.clock),
+                              window: window)
+        }
     }
 
     private func airline(_ f: Flight) -> Airline? {
@@ -291,24 +293,21 @@ public struct FlightDetailView: View {
                     }
                 }
                 // Sunrises and sunsets seen from the plane, estimated from the schedule.
-                let sun = sunLines(flight)
+                let route = routeFacts(flight)
+                let sun = route.sun
                 if !sun.isEmpty {
                     SunInFlightCard(lines: sun)
                         .id("sun")
                 }
                 // Which window side to pick, and the landmarks the route passes, estimated from the schedule.
-                if !store.isArchived, let window = windowCard(flight) {
+                if !store.isArchived, let window = route.window {
                     WindowSeatCard(card: window)
                         .id("window")
                 }
-                let landmarks = landmarkLines(flight)
+                let landmarks = route.landmarks
                 if !landmarks.isEmpty {
                     LandmarksCard(lines: landmarks)
                         .id("landmarks")
-                }
-                if let kg = emissions(flight) {
-                    EmissionsCard(kilograms: kg, seatClass: store.details?.seatClass)
-                        .id("emissions")
                 }
                 TimetableCard(rows: Timetable.rows(flight, originTz: store.origin?.timeZone ?? .gmt,
                                                    destinationTz: plannedDestination(flight)?.timeZone ?? .gmt,
@@ -345,6 +344,11 @@ public struct FlightDetailView: View {
                 if let details = store.details, !store.isArchived || details.notes != nil {
                     NotesCard(notes: details.notes) { if !store.isArchived { editing = .notes } }
                         .detailEditor(.notes, editing: $editing, store: store)
+                }
+                // The flight's CO2, last of the cards (owner's call, 2026-11-08).
+                if let kg = emissions(flight) {
+                    EmissionsCard(kilograms: kg, seatClass: store.details?.seatClass)
+                        .id("emissions")
                 }
                 ReportLink(url: DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
                     .scaledPadding(.top, 24)
@@ -873,3 +877,39 @@ struct FlightDetailPreview: View {
 #Preview("Noted") { FlightDetailPreview(mode: .noted).preferredColorScheme(.dark) }
 #Preview("Failed, nothing to show") { FlightDetailPreview(mode: .failed).preferredColorScheme(.light) }
 #endif
+
+/// The route-derived facts of the flight sheet.
+struct RouteFacts {
+    var sun: [SunFacts.Line] = []
+    var landmarks: [LandmarkFacts.Line] = []
+    var window: WindowFacts.Card?
+}
+
+/// Keeps the last `RouteFacts` and the inputs they came from. A plain class held in `@State`: reading and
+/// refilling it during a render does not invalidate the view.
+@MainActor final class RouteFactsCache {
+    struct Key: Hashable {
+        var flight: UUID
+        var status: FlightStatus
+        var out: Date?
+        var `in`: Date?
+        var origin: String?
+        var destination: String?
+        var aircraft: String?
+        var seat: String?
+        var clock: TimeStyle
+    }
+
+    private var key: Key?
+    private var value = RouteFacts()
+    private(set) var computations = 0
+
+    func facts(for key: Key, make: () -> RouteFacts) -> RouteFacts {
+        if key != self.key {
+            value = make()
+            self.key = key
+            computations += 1
+        }
+        return value
+    }
+}

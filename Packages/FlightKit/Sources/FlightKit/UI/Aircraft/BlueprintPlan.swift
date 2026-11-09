@@ -228,6 +228,11 @@ struct PlanDrawing: View {
     /// Class zone shares, front to back (First, Business, Premium, Economy): 0 hides a zone.
     var zones: [(code: String, share: Double)]
     var ink: Color = Theme.blueprintInk
+    /// Only the outline: fuselage, doors, windows, windscreen, wings and engines, without construction lines,
+    /// hinge lines, zones, the cut or dimensions. For the cabin cutaway.
+    var minimal = false
+    /// A metres-to-view transform to use instead of fitting the whole plan in the frame.
+    var fixed: CGAffineTransform?
 
     /// Points per metre and the metres-to-view transform for a frame of `size`.
     static func transform(_ g: PlanGeometry, size: CGSize) -> CGAffineTransform {
@@ -251,7 +256,7 @@ struct PlanDrawing: View {
     var body: some View {
         let g = family.plan
         Canvas { ctx, size in
-            let t = Self.transform(g, size: size)
+            let t = fixed ?? Self.transform(g, size: size)
             let s = t.a.magnitude
             let hair: CGFloat = 0.75
             let fine = StrokeStyle(lineWidth: 0.5, lineCap: .round, lineJoin: .round)
@@ -265,6 +270,7 @@ struct PlanDrawing: View {
             let fuselage = poly(g.fuselage())
 
             // Construction: the centreline past both ends, the wing's quarter-chord and root stations.
+            if !minimal {
             var centre = Path()
             centre.move(to: CGPoint(x: -1.5, y: 0)); centre.addLine(to: CGPoint(x: g.length + 1.5, y: 0))
             ctx.stroke(centre.applying(t), with: .color(ink.opacity(0.4)), style: construction)
@@ -275,6 +281,7 @@ struct PlanDrawing: View {
                 quarter.addLine(to: CGPoint(x: g.wing.leadingEdge(tip) + g.wing.tipChord / 4, y: side * tip))
             }
             ctx.stroke(quarter.applying(t), with: .color(ink.opacity(0.32)), style: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+            }
 
             // Surfaces: under the fuselage for a low wing, over it for a high wing or a T-tail.
             func surface(_ p: Planform, over: Bool) {
@@ -284,12 +291,13 @@ struct PlanDrawing: View {
                     let pts = side > 0 ? half : mirrored(half)
                     let path = poly(pts + (over ? mirrored(Array(half.reversed())).dropFirst().map { $0 } : []), close: true)
                     ctx.fill(path, with: .color(Theme.blueprint.opacity(0.82)))
-                    ctx.fill(path, with: .color(ink.opacity(0.07)))
-                    ctx.stroke(path, with: .color(ink), style: main)
+                    ctx.fill(path, with: .color(ink.opacity(minimal ? 0.1 : 0.07)))
+                    ctx.stroke(path, with: .color(ink.opacity(minimal ? 0.75 : 1)), style: main)
                     if over { break }
                 }
             }
             func hinges(_ p: Planform, inboard: Double, fairings: [Double]) {
+                if minimal { return }
                 // Flap and aileron hinge line at 72% chord, then the flap track fairings behind it.
                 var hinge = Path()
                 let tip = p.span / 2 - 0.4
@@ -383,7 +391,7 @@ struct PlanDrawing: View {
             ctx.stroke(fuselage, with: .color(ink), style: StrokeStyle(lineWidth: 1, lineJoin: .round))
 
             // Wing box carry-through, hidden: dashed inside the barrel.
-            if !g.highWing {
+            if !g.highWing && !minimal {
                 var box = Path()
                 let r = g.width / 2
                 box.move(to: CGPoint(x: g.wing.leadingEdge(r), y: r)); box.addLine(to: CGPoint(x: g.wing.apex + 0.6, y: 0))
@@ -394,7 +402,7 @@ struct PlanDrawing: View {
 
             // Class zones along the cabin, front to back, and their letters.
             let cabin = g.cabin
-            let shown = zones.filter { $0.share > 0 }
+            let shown = minimal ? [] : zones.filter { $0.share > 0 }
             let total = max(shown.reduce(0) { $0 + $1.share }, 1e-9)
             let inset = g.width * 0.2
             let minimum = (cabin.upperBound - cabin.lowerBound) * 0.07
@@ -481,6 +489,7 @@ struct PlanDrawing: View {
             ctx.stroke(fin.applying(t), with: .color(ink), style: main)
             if g.tTail { surface(g.stab, over: true) }
 
+            if minimal { return }
             // Section A-A through the cabin's middle: thick ends, arrows looking forward.
             let ax = cabin.lowerBound + (cabin.upperBound - cabin.lowerBound) * 0.62
             let reach = g.width / 2 + max(g.width * 0.35, 9 / s)
@@ -551,6 +560,48 @@ struct PlanDrawing: View {
                       label: String(format: "%.2f m", g.wing.span), vertical: true)
         }
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Cabin cutaway
+
+/// The front of the aircraft in plan, nose at the right, drawn as an outline only: the fuselage big enough
+/// to hold `content` in its cabin, cut at the band's edges so the wing root and engine show at the left
+/// without the whole span taking the screen.
+struct CabinCutaway<Content: View>: View {
+    var family: PlanFamily
+    var band: CGFloat = 200
+    @ViewBuilder var content: Content
+
+    /// Points per metre and the transform: the fuselage takes about half the band, and the view reaches
+    /// back past the wing root's trailing edge.
+    static func layout(_ g: PlanGeometry, width: CGFloat, band: CGFloat) -> (t: CGAffineTransform, cabin: ClosedRange<CGFloat>) {
+        let r = g.width / 2
+        let reach = g.wing.trailingEdge(r) + 0.5
+        let s = min(band * 0.46 / CGFloat(g.width), (width - 12) / CGFloat(reach))
+        let noseX = width - 12
+        let t = CGAffineTransform(a: -s, b: 0, c: 0, d: -s, tx: noseX, ty: band / 2)
+        // The free cabin between the wing's leading edge at the wall and the cockpit.
+        let back = noseX - CGFloat(g.wing.leadingEdge(r)) * s
+        let front = noseX - CGFloat(g.noseLength) * 0.7 * s
+        return (t, max(back, 0)...max(front, back + 1))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let g = family.plan
+            let l = Self.layout(g, width: geo.size.width, band: band)
+            ZStack(alignment: .topLeading) {
+                PlanDrawing(family: family, zones: [], minimal: true, fixed: l.t)
+                    .frame(width: geo.size.width, height: band)
+                content
+                    .frame(width: l.cabin.upperBound - l.cabin.lowerBound - 24, alignment: .center)
+                    .frame(height: band)
+                    .offset(x: l.cabin.lowerBound + 12)
+            }
+        }
+        .frame(height: band)
+        .clipped()
     }
 }
 
@@ -668,20 +719,21 @@ struct HalfSection: View {
     @ScaledMetric(relativeTo: .body) private var countSize: CGFloat = 17
 
     /// The frame for a width: the view shows from over the bin to the seat names under the floor.
-    static func aspect() -> CGFloat { 1 / 1.2 }
+    static func aspect() -> CGFloat { 1 / 1.05 }
 
     /// "Win", "Mid", "Aisle".
     static func short(_ name: String) -> String { name.count > 5 ? String(name.prefix(3)) : name }
 
-    /// Points per metre, and the fuselage centre, for a frame: the skin's left edge 4% in from the left, the
-    /// centreline near the right edge, the top cropped above the bins.
+    /// Points per metre, and the fuselage centre, for a frame: zoomed on the window seat group, from just
+    /// outside the skin at the window to a little past the group's aisle armrest, and from the floor (with
+    /// the seat names under it) up to the bin. The rest of the tube runs out of the frame.
     static func scale(_ size: CGSize, _ section: CabinSection) -> (s: CGFloat, centre: CGPoint) {
-        let s = size.width / CGFloat(section.radius * 1.06)
-        let r = CGFloat(section.radius) * s
-        let floorY = r * 0.74 + CGFloat(section.floorDrop) * s
-        // Keep the floor and the names under it in the frame on the smaller tubes.
-        let lift = max(0, floorY + 30 - size.height)
-        return (s, CGPoint(x: size.width * 0.985, y: r * 0.74 - lift))
+        let left = -(section.liningHalfWidth(at: 0.9) + section.wall + 0.06)
+        let right = (section.seats.first?.last?.upperBound ?? 0) + section.armrest + 0.25
+        let names: CGFloat = 30, shown = 1.85
+        let s = min(size.width / CGFloat(right - left), (size.height - names) / CGFloat(shown))
+        let floorY = size.height - names
+        return (s, CGPoint(x: CGFloat(-left) * s, y: floorY - CGFloat(section.floorDrop) * s))
     }
 
     /// A point across the cabin (metres from the centreline) at a height above the floor, on screen.

@@ -478,12 +478,8 @@ struct CabinBlueprint: View {
         VStack(alignment: .leading, spacing: 0) {
             titleBlock
             if CabinPanel.hasClasses(stats) || CabinPanel.hasSeats(stats) {
-                GeometryReader { geo in
-                    PlanDrawing(family: family, zones: Self.zones(classes))
-                        .frame(width: geo.size.width, height: geo.size.height)
-                }
-                .frame(height: PlanDrawing.height(for: 361, family: family))
-                .scaledPadding(.horizontal, 8)
+                CabinCutaway(family: family) { favouriteSeat }
+                    .scaledPadding(.top, 6)
             }
             if CabinPanel.hasClasses(stats) { classTable(classes) }
             if CabinPanel.hasSeats(stats) {
@@ -493,17 +489,6 @@ struct CabinBlueprint: View {
                         .clipped()
                     VStack(alignment: .leading, spacing: 14) {
                         caption("Section A-A", "Looking forward")
-                        if let fav = AircraftStatsCopy.favoriteSeat(stats) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(ui: fav.title).scaledFont(13, weight: .semibold)
-                                Text(stats.favouriteSeat?.seat ?? "")
-                                    .scaledFont(30, weight: .regular, design: .monospaced)
-                                Text(fav.value.drop { $0 != "(" }.trimmingCharacters(in: CharacterSet(charactersIn: "()")))
-                                    .scaledFont(13).monospacedDigit().opacity(0.8)
-                                    .rollingDigits(stats.favouriteSeat.map { Double($0.flights) })
-                            }
-                            .accessibilityElement(children: .combine)
-                        }
                         if family.plan.layout[0] < 3, p.middle > 0 {
                             Text("Middle \(PassportFacts.count(p.middle))").scaledFont(13).monospacedDigit()
                                 .rollingDigits(Double(p.middle))
@@ -527,6 +512,25 @@ struct CabinBlueprint: View {
             }
         }
         .foregroundStyle(Theme.blueprintInk)
+    }
+
+    /// The favourite seat, written inside the cutaway's cabin.
+    @ViewBuilder private var favouriteSeat: some View {
+        if let fav = AircraftStatsCopy.favoriteSeat(stats) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(ui: fav.title).scaledFont(12, weight: .semibold)
+                    Text(fav.value.drop { $0 != "(" }.trimmingCharacters(in: CharacterSet(charactersIn: "()")))
+                        .scaledFont(12).monospacedDigit().opacity(0.8)
+                        .rollingDigits(stats.favouriteSeat.map { Double($0.flights) })
+                }
+                Text(stats.favouriteSeat?.seat ?? "")
+                    .scaledFont(28, weight: .regular, design: .monospaced)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private var seatNames: [String] {

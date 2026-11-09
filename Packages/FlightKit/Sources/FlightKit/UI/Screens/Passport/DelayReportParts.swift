@@ -240,7 +240,7 @@ struct AirlineLossBar: View {
     }
 
     /// How far the worst airline's fin may stand above its block, into the room beside the figure.
-    static let rise: CGFloat = 46
+    static let rise: CGFloat = 18
 
     private func code(_ key: String) -> String { reference.airline(key)?.iata ?? key }
     private func name(_ key: String) -> String {
