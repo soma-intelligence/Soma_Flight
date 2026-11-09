@@ -34,6 +34,8 @@ struct RootTabView: View {
     /// The window's size, measured behind the home. It is zero until the first frame, which resolves to the
     /// sheet on an iPhone.
     @State private var windowSize: CGSize = .zero
+    /// Search is being presented again (`presentSearch` while it is open): the close in between is not a close.
+    @State private var reopeningSearch = false
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -50,11 +52,16 @@ struct RootTabView: View {
 
     var body: some View {
         Group {
-            switch layout {
-            case .sheet: compactHome
-            case .panels: regularHome(tabs: .system)
-            case .duoSideways: regularHome(tabs: .pill)
-            case .duoUpright: duoUprightHome
+            if windowSize == .zero && UIDevice.current.userInterfaceIdiom == .phone {
+                // Not measured yet: black, so an unfolded cold launch does not build the sheet home first.
+                Color.black.ignoresSafeArea()
+            } else {
+                switch layout {
+                case .sheet: compactHome
+                case .panels: regularHome(tabs: .system)
+                case .duoSideways: regularHome(tabs: .pill)
+                case .duoUpright: duoUprightHome
+                }
             }
         }
         // The full window, safe areas included: the shape that decides the layout.
@@ -63,7 +70,9 @@ struct RootTabView: View {
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
                 .ignoresSafeArea()
         }
-        .onChange(of: layout) { _, new in home.shell.didChangeLayout(to: new) }
+        .onChange(of: layout) { _, new in
+            home.shell.didChangeLayout(to: new)
+        }
         .onChange(of: selection) { _, picked in
             guard let picked else { return }
             selection = nil
@@ -93,6 +102,12 @@ struct RootTabView: View {
         }
         // The search sheet covers the tab pill: a follow's toast waits for it to close.
         .onChange(of: showSearch) { _, open in
+            if !open && reopeningSearch {
+                // presentSearch's toggle: bring the sheet back on the next turn, without the close path.
+                reopeningSearch = false
+                Task { @MainActor in showSearch = true }
+                return
+            }
             home.searchOpen = open
             if !open { search.finish(); searchQuery = nil }
         }
@@ -106,7 +121,7 @@ struct RootTabView: View {
     /// keeps the system tab bar (or sidebar); the Duo held sideways shows the tab pill instead. The modal
     /// sheets hang from it directly, as no home sheet is up.
     private func regularHome(tabs: HomeTabsStyle) -> some View {
-        modals(RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
+        modals(branch: tabs == .pill ? .duoSideways : .panels, RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
                                tabs: tabs, onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
@@ -117,7 +132,7 @@ struct RootTabView: View {
 
     /// The unfolded Duo held upright: the globe over a fixed pane, the modal sheets hanging from it.
     private var duoUprightHome: some View {
-        modals(DuoSplitHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
+        modals(branch: .duoUpright, DuoSplitHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
                                 onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
@@ -173,7 +188,16 @@ struct RootTabView: View {
 
     /// Opens Search on a fresh store. The store is made here, in the action, never in the sheet's closure: the
     /// closure re-runs while the sheet slides away and after a fold, and must only read the current store.
+    /// When Search is already open its store stays and the sheet is presented again: after a fold SwiftUI can
+    /// drop the presentation while `showSearch` stays true, and the button must always bring it back.
     private func presentSearch(query: String? = nil) {
+        if showSearch {
+            // A Siri, Shortcuts or link query while Search is up: the open sheet runs it, no toggle.
+            if let query { searchQuery = query; return }
+            reopeningSearch = true
+            showSearch = false
+            return
+        }
         search.begin(env.makeSearchStore())
         searchQuery = query
         showSearch = true
@@ -185,7 +209,7 @@ struct RootTabView: View {
         @Bindable var shell = home.shell
         // Each screen slides up over the one below as a card, and its X drops it back down.
         // A Passport past flight zooms out of its row and back into it; the other cards crossfade.
-        return modals(CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
+        return modals(branch: .sheet, CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
             tabRoot
         } card: { route in
             HomeDestination(home: home, route: route)
@@ -206,10 +230,17 @@ struct RootTabView: View {
     }
 
     /// Search, Settings, the Passport pages, an invitation and the imports, over whichever home is up.
-    private func modals(_ content: some View) -> some View {
+    /// `branch` is the layout this home belongs to. When a fold or a turn tears that home down, its Search
+    /// sheet goes with it and writes false: that write is dropped, so `showSearch` stays true and the new
+    /// home presents Search again on the same store. A close from the current home goes through.
+    private func modals(branch: HomeLayout, _ content: some View) -> some View {
         @Bindable var home = home
+        let searchShown = Binding(get: { showSearch }, set: { open in
+            if !open && branch != layout { return }
+            showSearch = open
+        })
         return content
-        .sheet(isPresented: $showSearch) {
+        .sheet(isPresented: searchShown) {
             // The store is made when Search opens (`presentSearch`); here it is only read.
             if let store = search.current {
                 SearchSheet(store: store, lookup: env.lookup,

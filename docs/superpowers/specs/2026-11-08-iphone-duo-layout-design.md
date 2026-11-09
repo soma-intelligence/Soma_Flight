@@ -10,12 +10,14 @@ The iPhone Duo (iPhone19,4, announced 2026-09-09) is Apple's first foldable iPho
 | Screen | Size | Pixels | Points (assumed @3x) |
 |---|---|---|---|
 | Cover (folded) | 5.4 in | 1398 x 2034 | about 466 x 678 |
-| Inner (unfolded) | 7.6 in | 1878 x 2670 | about 626 x 890, near square (1:1.42) |
+| Inner (unfolded) | 7.6 in | 2007 x 2853 | about 669 x 951, near square (1:1.42) |
+
+Inner screen measured on the iPhone Duo simulator, 2026-11-08.
 
 Soma Flight picks its home layout in `RootTabView.isRegular`
 (`Apps/iOS/RootTabView.swift`): the panel layout (`RegularHomeView`) only when
 `userInterfaceIdiom == .pad`. The Duo is an iPhone, so the unfolded inner screen gets the iPhone
-sheet stretched across a near square screen. The globe hides under a 626 pt wide sheet, and the shared
+sheet stretched across a near square screen. The globe hides under a 669 pt wide sheet, and the shared
 screens, drawn for 402 pt (`RegularHomeView.panelWidth`), stretch with it.
 
 The Duo is never wide enough for two panels (`RegularHomeView.twoPanelWidth` is 1100 pt), so it gets one
@@ -29,11 +31,11 @@ Store Connect asks for Duo screenshots. It needs no paid call, deploy or cloud c
 
 1. **Folded (cover screen).** The iPhone home as it is today: the globe under the resizable sheet,
    the tab pill and search at the bottom.
-2. **Unfolded, held sideways (890 x 626 pt).** The globe across the screen, the tab's screen in one
-   floating panel on the left (402 pt), about 456 pt of globe beside it. An open flight, airport or friend
+2. **Unfolded, held sideways (951 x 669 pt).** The globe across the screen, the tab's screen in one
+   floating panel on the left (402 pt), about 517 pt of globe beside it. An open flight, airport or friend
    slides up as a card inside the panel, as in the iPad's one-panel window. The tab pill and the search
    button sit at the panel's foot, where the iPhone has them.
-3. **Unfolded, held upright (626 x 890 pt).** The globe fills the top 45% of the screen. A fixed pane
+3. **Unfolded, held upright (669 x 951 pt).** The globe fills the top 45% of the screen. A fixed pane
    fills the rest, full width: the tab's screen, cards sliding up over it, the tab pill and search at its
    foot. The pane does not drag and has no detents.
 4. **Folding or unfolding** keeps everything: the tab, the open card, the globe's focus, an open
@@ -84,7 +86,7 @@ panelSide)`. The Duo reuses it with one change:
   panel's foot shows `HomeTabPill` beside the round search button, as `RootSidebarView` does on the Mac.
   `.duoSideways` passes `.pill`; `.panels` keeps `.system`.
 
-At 626 pt tall the panel is short. The tab screens already handle a short panel on the iPad in Split
+At 669 pt tall the panel is short. The tab screens already handle a short panel on the iPad in Split
 View; the screenshot check below confirms it on the Duo.
 
 ### 3. Upright: `DuoSplitHomeView`
@@ -95,15 +97,17 @@ A new view in `Apps/iOS/DuoSplitHomeView.swift`:
   frames arcs and airports in the visible top part.
 - The pane: `CardStack(path: home.shell.path, ...)` over the tab root, the same card stack
   `RegularHomeView.listPanel` uses, with `Theme.background`, `Theme.sheetRadius` top corners, and
-  `HomeTabPill` plus the search button in a bottom `safeAreaInset`.
+  `HomeTabPill` plus the search button as an overlay at the pane's foot, under the shared `pillFade`
+  mask (`PillFadeMask.swift`), not a `safeAreaInset`.
 - `paneHeight` is 55% of the height between the safe areas. Fixed: no drag, no detents.
 - Map controls (3D, place names, Airports, Radar) at the globe's top trailing corner, as on the
   sheet layout's medium detent.
 - The `ProfileButton` at the pane's top trailing corner, as on the iPhone sheet.
 
-Content width: the shared screens were drawn for 402 pt. The pane is 626 pt wide. If the screenshots
+Content width: the shared screens were drawn for 402 pt. The pane is 669 pt wide. If the screenshots
 show stretched rows (a flight row with its times flung to the edges), the pane's content gets
-`frame(maxWidth: 560)`, centered. Decided from the screenshots, not in advance.
+`frame(maxWidth: 560)`, centered. Still open: it waits for real Duo screenshots (only a 744 pt iPad mini
+stand-in was shot).
 
 The modal sheets (Search, Settings, Passport pages, invitations, imports) hang from it through
 `RootTabView.modals`, as for the other two layouts.
@@ -117,6 +121,13 @@ The modal sheets (Search, Settings, Passport pages, invitations, imports) hang f
 - `showSearch` and `showSettings` are `RootTabView` state, so the sheets present again over the new
   layout. A switch tears down the old view tree; the device check below confirms the sheets come back
   without a flash or a lost search query.
+- Settings presents again at its root after a fold: its sub-cards and unsaved profile edits are lost
+  (accepted). Search keeps its store and typed text through a fold (`OpenSearch` in `RootTabView`). Each
+  home hands its Search sheet a binding tagged with its own layout: when a fold tears that home down, its
+  write of false is dropped, so Search stays open and the new home presents it. If SwiftUI still drops the
+  presentation, the search button presents it again.
+- `didChangeLayout` also runs on iPad size-class changes, so a collapsed sheet with a card open moves to
+  medium when an iPad window narrows (accepted, small).
 - `GlobeMap` is rebuilt on a switch. It starts from `home.focus`, so the camera lands where it was.
 
 ### 5. Folded
@@ -135,7 +146,7 @@ and the collapsed sheet must show its header, one peek row and the pill.
 ## Testing
 
 - **Unit tests** (`FlightKitTests/HomeLayoutTests.swift`) for `HomeLayout.resolve`:
-  Duo inner upright (626 x 890) and sideways (890 x 626), Duo cover (466 x 678),
+  Duo inner upright (669 x 951) and sideways (951 x 669), Duo cover (466 x 678),
   iPhone 17 Pro (402 x 874) both ways, iPhone 17 Pro Max sideways (956 x 440), iPad regular and
   compact. Edge: a shorter side of exactly 600 pt is a Duo layout.
 - **Simulator screenshots**, Duo simulator, each tab plus an open flight: folded, sideways, upright.

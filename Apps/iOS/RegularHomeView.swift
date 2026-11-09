@@ -11,12 +11,14 @@ enum HomeTabsStyle {
     case pill
 }
 
-/// The iPad home in a regular width window (full screen, the larger side of Split View, Stage Manager, and
-/// the iPad app on Apple Vision Pro): the three tabs in the system's sidebar-adaptable tab bar, the globe
+/// The panels home: the iPad in a regular width window (full screen, the larger side of Split View, Stage
+/// Manager, and the iPad app on Apple Vision Pro), and the unfolded iPhone Duo held sideways. On the iPad
+/// (`HomeTabsStyle.system`) the three tabs are in the system's sidebar-adaptable tab bar; on the Duo
+/// (`.pill`) there is no `TabView`, and the tab pill and the search button sit at the panel's foot. The globe
 /// across the whole window, the tab's screen in a floating panel on the left and, when the window is wide
 /// enough, the open flight, airport or friend in a second panel on the right, the globe framed between the
 /// two. In a narrower window the card opens over the tab in the left panel, as in the Mac's panel.
-/// Compact widths keep `RootTabView`'s sheet, exactly as on the iPhone.
+/// Compact iPad widths and narrow iPhone windows keep `RootTabView`'s sheet.
 ///
 /// The panels are the Mac's (`RootSidebarView`) at the iPhone's metrics: the shared screens get the
 /// width they were drawn for.

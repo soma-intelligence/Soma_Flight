@@ -14,9 +14,6 @@ public struct HomeSheetBody<Content: View, Toast: View>: View {
     /// The last tab change went right (to a later tab in the pill): the new screen comes in from the trailing edge.
     @State private var forward = true
 
-    /// How far above the pill's top the list starts to fade; it is fully clear at the sheet's bottom.
-    static var fade: CGFloat { PillFadeMask.fade }
-
     /// - Parameters:
     ///   - content: the tab's screen, its header first.
     ///   - toast: floats 12 pt over the pill.

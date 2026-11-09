@@ -5,8 +5,8 @@ import Testing
 /// Which home layout each window shape gets, on the Duo's screens, other iPhones and the iPad.
 @Suite struct HomeLayoutTests {
     @Test func duoInnerScreen() {
-        #expect(HomeLayout.resolve(isPad: false, regularWidth: true, size: .init(width: 626, height: 890)) == .duoUpright)
-        #expect(HomeLayout.resolve(isPad: false, regularWidth: true, size: .init(width: 890, height: 626)) == .duoSideways)
+        #expect(HomeLayout.resolve(isPad: false, regularWidth: true, size: .init(width: 669, height: 951)) == .duoUpright)
+        #expect(HomeLayout.resolve(isPad: false, regularWidth: true, size: .init(width: 951, height: 669)) == .duoSideways)
     }
 
     @Test func phonesKeepTheSheet() {

@@ -2,18 +2,19 @@ import SwiftUI
 
 /// How the home screen lays out its map and cards, chosen from the window's shape rather than the device.
 ///
-/// The Surface Duo-style foldable iPhone reports a compact size class on its inner screen (626 x 890 pt),
-/// so the size class cannot be trusted there: the shorter side of the window decides instead. A Pro Max
+/// The iPhone Duo's inner screen is about 669 x 951 pt, so on an iPhone the shorter side of the window
+/// decides, not the size class. A Pro Max
 /// turned sideways reports a regular width but is only 440 pt tall, so it keeps the sheet. The Duo's cover
 /// screen (466 x 678 pt) is narrower than `duoMinimumSide` and keeps the sheet too.
 public enum HomeLayout: Equatable, Sendable {
-    /// The map with a bottom sheet over it: every iPhone, and an iPad in a narrow window.
+    /// The map with a bottom sheet over it: an iPhone window whose shorter side is under `duoMinimumSide`,
+    /// or an iPad in a compact width.
     case sheet
     /// The iPad's side panels over the map.
     case panels
-    /// An iPhone window wide enough for two panes, held sideways.
+    /// An iPhone window with a shorter side of at least 600 pt, held sideways.
     case duoSideways
-    /// An iPhone window wide enough for two panes, held upright (or square).
+    /// An iPhone window with a shorter side of at least 600 pt, held upright (or square).
     case duoUpright
 
     /// The shorter window side from which an iPhone screen gets the Duo layouts.
