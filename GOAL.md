@@ -23,7 +23,7 @@ The goal is reached when all of these are true at the same time:
 - **Our own product.** Inspired by the reference screenshots, never their name, copy, marks or artwork. We never draw an airline trademark ourselves.
 - **Ask before money or deploys.** No paid key, licence, purchase, Supabase cloud change or deploy without the owner's explicit yes.
 - **Fail closed.** Release builds refuse to run without real config; a missing licence shows a monogram, not a borrowed mark.
-- **One codebase.** Rust `flightcore` for logic, `FlightKit` for the shared Swift layer; iOS, macOS, Watch and widgets are shells over it.
+- **One codebase.** Rust `flightcore` for logic, `FlightKit` for the shared Swift layer; iOS, macOS, Watch and widgets are shells over it. The web version runs the same `flightcore` through `flightcore-wasm`.
 
 ## Priority order
 
@@ -35,7 +35,8 @@ Work in this order. A lower line waits until the line above is done or blocked o
 4. **Store presence**: real screenshots at the required sizes, metadata, age rating, review notes.
 5. **Owner additions (2026-10-31)**: a Friends tab between My Flights and Passport; import from Flighty (its CSV export), from the calendar and from shared confirmation emails; ideas from the Soar comparison.
 6. **Owner additions (2026-11-08)**: the 40 features listed in [Feature ideas (2026-11-08)](#feature-ideas-2026-11-08) below.
-7. **After launch**: P2 and P3 items from [docs/audits/2026-10-30-flighty-pro-audit.md](docs/audits/2026-10-30-flighty-pro-audit.md) and [docs/audits/2026-10-30-soar-diff.md](docs/audits/2026-10-30-soar-diff.md).
+7. **Web version (owner addition, 2026-11-08)**: a public web app that matches the iPad and Mac layout (globe across the window, the tab's screen in a panel on the left, a flight opening in that panel), on the same Supabase backend and accounts. Built with Vite, React and shadcn/ui. Same principles as the apps: no analytics, no tracking, no fakes in production, and no deploy without the owner's yes.
+8. **After launch**: P2 and P3 items from [docs/audits/2026-10-30-flighty-pro-audit.md](docs/audits/2026-10-30-flighty-pro-audit.md) and [docs/audits/2026-10-30-soar-diff.md](docs/audits/2026-10-30-soar-diff.md).
 
 ## Feature ideas (2026-11-08)
 
