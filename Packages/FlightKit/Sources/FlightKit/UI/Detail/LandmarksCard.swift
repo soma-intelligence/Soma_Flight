@@ -1,34 +1,30 @@
 import SwiftUI
 
 /// The flight sheet's "Along the way": up to eight landmarks the route passes (`Landmarks`, `LandmarkFacts`),
-/// each with its side and time, "Mont Blanc on the left at 14:32 Geneva time". Hidden when there are none.
+/// each with its side and time, "Mont Blanc on the left at 14:32 Geneva time": a title and one grey line per
+/// landmark, nothing else. Hidden when there are none.
 struct LandmarksCard: View {
     var lines: [LandmarkFacts.Line]
 
     var body: some View {
         DetailCard {
-            CardTitle(LandmarkFacts.title, subtitle: LandmarkFacts.subtitle)
-                .scaledPadding(.bottom, 12)
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(ui: LandmarkFacts.title).scaledFont(19, weight: .medium).foregroundStyle(Theme.primary)
                 ForEach(lines) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Image(systemName: LandmarkFacts.symbol(line.kind))
-                            .scaledFont(17, weight: .medium)
+                            .scaledFont(15, weight: .medium)
                             .foregroundStyle(Theme.secondary)
-                            .frame(width: 24)
+                            .frame(width: 22)
                             .accessibilityHidden(true)
                         Text(verbatim: line.text)
-                            .scaledFont(17, weight: .medium)
-                            .foregroundStyle(Theme.primary)
+                            .scaledFont(16)
+                            .foregroundStyle(Theme.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
-            Text(ui: LandmarkFacts.caption)
-                .scaledFont(13)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.top, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }

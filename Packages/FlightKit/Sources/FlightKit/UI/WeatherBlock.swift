@@ -54,9 +54,10 @@ public struct WeatherBlock: View {
                     .foregroundStyle(Theme.primary)
             }
             Spacer()
-            Image(systemName: Sky(metar: weather.metarRaw).symbol(night: isNight))
+            let symbol = Sky(metar: weather.metarRaw).symbol(night: isNight)
+            Image(systemName: symbol)
                 .accessibilityHidden(true)
-                .symbolRenderingMode(.multicolor)
+                .weatherPalette(symbol)
                 .scaledFont(62)
                 .scaledPadding(.top, 4)
                 .scaledPadding(.trailing, 8)
@@ -349,6 +350,22 @@ struct Sky {
         }
     }
 
+    /// The symbol's layers coloured so it reads on light and dark cards: a grey cloud, a yellow sun or moon, blue
+    /// rain, pale blue snow. Multicolor draws the cloud white, which vanishes on a light card.
+    static func palette(_ symbol: String) -> [Color] {
+        let cloud = Theme.secondary.opacity(0.75), sun = Color(light: 0xF5B800, dark: 0xFFD60A)
+        let rain = Color(light: 0x2F86E0, dark: 0x5AAEF0), snow = Color(light: 0x7FB8E6, dark: 0xA8D4F5)
+        switch symbol {
+        case "sun.max.fill": return [sun]
+        case "moon.stars.fill": return [sun, sun]
+        case "cloud.sun.fill", "cloud.moon.fill": return [cloud, sun]
+        case "cloud.rain.fill", "cloud.drizzle.fill": return [cloud, rain]
+        case "cloud.snow.fill": return [cloud, snow]
+        case "cloud.bolt.rain.fill": return [cloud, sun, rain]
+        default: return [cloud, cloud]
+        }
+    }
+
     func symbol(night: Bool) -> String {
         switch kind {
         case .clear: night ? "moon.stars.fill" : "sun.max.fill"
@@ -407,3 +424,12 @@ extension FlightCategory {
     .preferredColorScheme(.dark)
 }
 #endif
+
+extension View {
+    /// Draws a weather symbol in `Sky.palette`'s layers.
+    func weatherPalette(_ symbol: String) -> some View {
+        let p = Sky.palette(symbol)
+        return symbolRenderingMode(.palette)
+            .foregroundStyle(p[0], p.count > 1 ? p[1] : p[0], p.count > 2 ? p[2] : p[p.count - 1])
+    }
+}

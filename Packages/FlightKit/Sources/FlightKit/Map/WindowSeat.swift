@@ -149,6 +149,9 @@ enum WindowFacts {
         var side: WindowSide
         var headline: String
         var lines: [String]
+        /// The one line the minimal card shows under the headline: the traveller's seat when known, else the
+        /// window letter on that side.
+        var short: String = ""
     }
 
     /// The advice for a flight between two known airports, nil when nothing stands out or for a canceled
@@ -200,7 +203,11 @@ enum WindowFacts {
         if !a.otherSide.isEmpty {
             lines.append("On the \(other): \(list(a.otherSide)).")
         }
+        var short = a.side == .left ? "Window seats are A" : "Window seats are F or K"
         if let seat, let s = WindowAdvisor.seatSide(seat, family: family) {
+            short = s == .center ? "Your seat \(seat) is in the middle block"
+                : s.rawValue == a.side.rawValue ? "Your seat \(seat) is on the good side"
+                : "Your seat \(seat) is on the \(other)"
             switch s {
             case .center:
                 lines.append("Your seat \(seat) is in the middle block, away from the windows.")
@@ -210,6 +217,6 @@ enum WindowFacts {
                              : "Your seat \(seat) is on the \(other). A seat on the \(side) gets the better view.")
             }
         }
-        return Card(side: a.side, headline: headline, lines: lines)
+        return Card(side: a.side, headline: headline, lines: lines, short: short)
     }
 }

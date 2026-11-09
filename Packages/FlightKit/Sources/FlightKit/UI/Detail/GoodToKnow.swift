@@ -109,6 +109,8 @@ struct GoodToKnow: View {
     /// The followed flight, for the "Leave by" row under the security wait; nil hides the row.
     var leave: Flight? = nil
     var now: Date = .now
+    /// The airport whose weather sheet is open (its code), nil when none.
+    @State private var weatherSheet: String?
     /// The likely delay and gate before the airline says (`PredictionCard`); nil hides each row.
     var predictedDelay: DelayPrediction? = nil
     var predictedGate: GatePrediction? = nil
@@ -177,9 +179,17 @@ struct GoodToKnow: View {
         }
         if let w = side.weather {
             DetailCard {
-                InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), multicolor: true,
-                        title: side.departures ? "Departure weather" : "Arrival weather",
-                        text: DetailFacts.weatherText(w))
+                Button { weatherSheet = side.code } label: {
+                    InfoRow(symbol: Sky(metar: w.metarRaw).symbol(night: false), weather: true,
+                            title: side.departures ? "Departure weather" : "Arrival weather",
+                            text: DetailFacts.weatherText(w), chevron: true)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Shows the METAR: flight category, ceiling, visibility and wind")
+                .sheet(isPresented: Binding(get: { weatherSheet == side.code }, set: { if !$0 { weatherSheet = nil } })) {
+                    AirportWeatherSheet(code: side.code, weather: w, timeZone: side.timeZone)
+                }
                 if let ahead {
                     Hairline().scaledPadding(.vertical, 14)
                     InfoRow(symbol: "exclamationmark.triangle.fill", tint: Theme.late, title: ahead.title,
@@ -192,11 +202,70 @@ struct GoodToKnow: View {
     private func tint(_ s: Severity?) -> Color { s == .major ? Theme.veryLate : Theme.late }
 }
 
+/// The aeronautical weather behind a weather row: the airport's METAR read out (`WeatherBlock`: flight
+/// category, ceiling, visibility, wind) and the raw METAR and TAF as issued.
+struct AirportWeatherSheet: View {
+    var code: String
+    var weather: Weather
+    var timeZone: TimeZone
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    WeatherBlock(weather: weather, timeZone: timeZone)
+                    raw("METAR", weather.metarRaw)
+                    if let taf = weather.tafRaw, !taf.isEmpty { raw("TAF", taf) }
+                }
+                .scaledPadding(.horizontal, 20)
+                .scaledPadding(.vertical, 16)
+            }
+            .background(Theme.background)
+            .navigationTitle(Text(verbatim: code))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func raw(_ label: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: label).scaledFont(12, weight: .semibold, design: .monospaced).foregroundStyle(Theme.secondary)
+            Text(verbatim: text)
+                .scaledFont(14, design: .monospaced)
+                .foregroundStyle(Theme.primary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// A row's icon colours: a weather symbol in `Sky.palette`'s layers, else multicolor or one tint.
+private struct WeatherSymbolStyle: ViewModifier {
+    var symbol: String?
+    var multicolor: Bool
+    var tint: Color
+    func body(content: Content) -> some View {
+        if let symbol {
+            content.weatherPalette(symbol)
+        } else {
+            content.symbolRenderingMode(multicolor ? .multicolor : .monochrome).foregroundStyle(tint)
+        }
+    }
+}
+
 /// Icon, title and one grey line: the rows of Good to Know.
 struct InfoRow: View {
     var symbol: String
     var tint: Color = Theme.primary
     var multicolor = false
+    /// A weather symbol drawn in `Sky.palette`'s colours.
+    var weather = false
     var title: String
     var titleTint: Color = Theme.primary
     var text: String
@@ -206,9 +275,8 @@ struct InfoRow: View {
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: symbol)
-                .symbolRenderingMode(multicolor ? .multicolor : .monochrome)
+                .modifier(WeatherSymbolStyle(symbol: weather ? symbol : nil, multicolor: multicolor, tint: tint))
                 .scaledFont(24, weight: .medium)
-                .foregroundStyle(tint)
                 .frame(width: iconWidth)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {

@@ -83,6 +83,9 @@ import Testing
         #expect(bad.lines.contains("Your seat 23F is on the right. A seat on the left gets the better view."))
         let middle = WindowFacts.card(a, seat: "41E", family: .b777)
         #expect(middle.lines.contains("Your seat 41E is in the middle block, away from the windows."))
+        #expect(good.short == "Your seat 23A is on the good side")
+        #expect(bad.short == "Your seat 23F is on the right")
+        #expect(middle.short == "Your seat 41E is in the middle block")
         // A middle letter on an unknown type says nothing about the seat.
         #expect(!WindowFacts.card(a, seat: "41E", family: nil).lines.contains { $0.hasPrefix("Your seat") })
     }
