@@ -56,7 +56,6 @@ struct BoardSection: View {
         let perHour = chartCache?.key == key ? chartCache!.perHour : DelayStats.compute(filtered, kind: kind).perHour
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                SectionFreshness(fetchedAt: fetchedAt[kind], ttl: AirportFacts.boardTTL, now: now, bottom: 10)
                 PillPicker(options: [(BoardKind.departures, "Departures"), (.arrivals, "Arrivals")], selection: $kind)
                     .scaledPadding(.bottom, 12)
                 filters

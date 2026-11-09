@@ -107,10 +107,6 @@ public struct MyFlightsView: View {
             if store.isOffline || connectivity?.isOnline == false {
                 OfflineBanner(retry: reload)
                     .scaledPadding(.bottom, 10)
-                if let updated = store.fetchedAt ?? store.lastUpdated, !groups.isEmpty {
-                    StaleBadge(fetchedAt: updated, ttl: Self.ttl, now: now)
-                        .scaledPadding(.bottom, 14)
-                }
             } else {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
@@ -118,7 +114,7 @@ public struct MyFlightsView: View {
                 }
                 // A live subscription that is healthy keeps the list current even when nothing changes.
                 if !groups.isEmpty, !store.isLiveSynced {
-                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now, bottom: 14)
+                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
                 }
             }
             if groups.isEmpty {

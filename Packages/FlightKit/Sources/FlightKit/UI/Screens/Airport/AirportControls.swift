@@ -76,22 +76,27 @@ struct MaybeLazyVStack<Content: View>: View {
     }
 }
 
-/// Stale badge for one section, shown only once its data is older than `ttl`.
+/// Keeps one section current without saying so: once its data is older than `ttl` it reloads, then again at
+/// each tick of `now` while the data stays old (a failed reload tries again a minute later). Nothing shows
+/// (owner's call, 2026-11-08: no "Updated 7 min ago" line, the app reloads by itself).
 struct SectionFreshness: View {
     var fetchedAt: Date?
     var ttl: Duration
     var now: Date
-    /// Space around the badge, only taken while it shows.
-    var top: CGFloat = 0
-    var bottom: CGFloat = 0
+    var reload: (() async -> Void)?
+
+    private var stale: Bool {
+        guard let fetchedAt else { return false }
+        return now.timeIntervalSince(fetchedAt) > Double(ttl.components.seconds)
+    }
 
     var body: some View {
-        if let fetchedAt, now.timeIntervalSince(fetchedAt) > Double(ttl.components.seconds) {
-            StaleBadge(fetchedAt: fetchedAt, ttl: ttl, now: now)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, top)
-                .padding(.bottom, bottom)
-        }
+        Color.clear.frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .task(id: stale ? now : .distantPast) {
+                guard stale, let reload else { return }
+                await reload()
+            }
     }
 }
 

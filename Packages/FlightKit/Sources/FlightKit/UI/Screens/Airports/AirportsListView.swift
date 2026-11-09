@@ -26,35 +26,6 @@ struct AirportStatusDot: View {
     }
 }
 
-/// The calm note where live numbers would be, while the backend has no board provider.
-struct DataPlanNote: View {
-    var compact = false
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "chart.bar.xaxis")
-                .scaledFont(17, weight: .medium)
-                .foregroundStyle(Theme.secondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Live airport stats need a data plan")
-                    .scaledFont(15, weight: .semibold)
-                    .foregroundStyle(Theme.primary)
-                if !compact {
-                    Text("On-time rates, delays and traffic come from a flight data provider we have not switched on yet. Weather and FAA programs below are live.")
-                        .scaledFont(13.5)
-                        .foregroundStyle(Theme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .scaledPadding(.all, 14)
-        .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// The Airports list over the globe: the user's airports, then large hubs grouped by how they are doing,
 /// filtered by region. A row opens the airport card. Each airport's dot on the globe is its status.
 public struct AirportsListView: View {
@@ -179,11 +150,6 @@ public struct AirportsListView: View {
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
                     .scaledPadding(.horizontal, 16).scaledPadding(.vertical, 8)
-            }
-            if !store.liveAvailable {
-                DataPlanNote(compact: true)
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 8)
             }
             if sections.isEmpty {
                 if store.isLoading || store.loadedAt == nil {

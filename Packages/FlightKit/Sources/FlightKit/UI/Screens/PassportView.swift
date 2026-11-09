@@ -134,15 +134,12 @@ public struct PassportView: View {
         return VStack(alignment: .leading, spacing: 12) {
             if store.isOffline {
                 ErrorBanner(error: .offline, retry: reload)
-                if let saved = store.fetchedAt ?? store.lastUpdated {
-                    StaleBadge(fetchedAt: saved, ttl: Self.ttl, now: now)
-                }
             } else {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
                 }
                 if !flights.isEmpty {
-                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now)
+                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
                 }
             }
             if flights.isEmpty {

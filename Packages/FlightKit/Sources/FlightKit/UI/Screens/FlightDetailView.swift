@@ -208,7 +208,7 @@ public struct FlightDetailView: View {
                     ErrorBanner(error: error)
                 }
                 if !store.isArchived {
-                    SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now)
+                    SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now) { await store.load() }
                     EstimatedProgressCard(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
                 }
                 if let notice = notice(flight) { notice }

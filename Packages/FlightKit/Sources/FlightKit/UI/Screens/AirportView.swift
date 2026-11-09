@@ -159,10 +159,6 @@ struct AirportSections: View {
                 AirportStatusCard(status: store.status, live: store.liveStats, weather: store.overview?.weather)
                     .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
             }
-            if store.needsDataPlan {
-                DataPlanNote()
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 12)
-            }
             if store.stats != nil || store.weather != nil {
                 OperationsReportRow(impact: store.weather.map(WeatherImpact.of)) { showingReport = true }
                     .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
@@ -209,7 +205,7 @@ struct AirportSections: View {
                 .scaledPadding(.top, 24)
                 .scaledPadding(.bottom, 40)
             }
-            if store.airport == nil && store.stats == nil && store.departures == nil && store.error == nil {
+            if !store.hasLoaded && store.airport == nil && store.error == nil {
                 ProgressView().frame(maxWidth: .infinity).scaledPadding(.vertical, 60)
             }
         }
@@ -298,7 +294,7 @@ struct AirportSections: View {
     // MARK: Pieces
 
     private func freshness(_ part: BoardKind, _ ttl: Duration, top: CGFloat = 0, bottom: CGFloat = 0) -> some View {
-        SectionFreshness(fetchedAt: store.fetchedAt[part], ttl: ttl, now: now, top: top, bottom: bottom)
+        SectionFreshness(fetchedAt: store.fetchedAt[part], ttl: ttl, now: now) { await store.load() }
     }
 
     private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {
