@@ -58,8 +58,8 @@ struct RootTabView: View {
             } else {
                 switch layout {
                 case .sheet: compactHome
-                case .panels: regularHome(tabs: .system)
-                case .duoSideways: regularHome(tabs: .pill)
+                case .panels: regularHome(branch: .panels)
+                case .duoSideways: regularHome(branch: .duoSideways)
                 case .duoUpright: duoUprightHome
                 }
             }
@@ -117,12 +117,13 @@ struct RootTabView: View {
         .environment(\.connectivity, home.connectivity)
 }
 
-    /// The panels home: the globe across the window, the tab and the open card in floating panels. The iPad
-    /// keeps the system tab bar (or sidebar); the Duo held sideways shows the tab pill instead. The modal
-    /// sheets hang from it directly, as no home sheet is up.
-    private func regularHome(tabs: HomeTabsStyle) -> some View {
-        modals(branch: tabs == .pill ? .duoSideways : .panels, RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                               tabs: tabs, onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
+    /// The panels home: the globe across the window, the tab and the open card in one floating panel. The
+    /// iPad and the Duo held sideways both show the iPhone's tab pill at the panel's foot (owner's call,
+    /// 2026-11-08: no system sidebar on the iPad). The modal sheets hang from it directly, as no home sheet
+    /// is up.
+    private func regularHome(branch: HomeLayout) -> some View {
+        modals(branch: branch, RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
+                               onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
             tabScreen
         } mapControls: {
             panelMapControls
@@ -255,8 +256,9 @@ struct RootTabView: View {
                     .environment(\.units, units)
             }
         }
-        // A Passport card's page covers the whole screen, over the home sheet.
-        .fullScreenCover(item: $home.fullPage) { page in
+        // A Passport card's page covers the whole screen over the home sheet. In the panels homes (iPad, Duo
+        // sideways) it opens in the left panel instead (`RegularHomeView`), never full screen.
+        .fullScreenCover(item: branch == .panels || branch == .duoSideways ? .constant(nil) : $home.fullPage) { page in
             FullPageView(page: page, store: home.passport, lookup: env.lookup) { home.fullPage = nil }
                 .environment(\.units, units)
                 .fullPageZoom(page, in: pageZoom)

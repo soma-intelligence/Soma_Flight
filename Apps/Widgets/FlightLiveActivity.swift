@@ -12,6 +12,8 @@ struct FlightLiveActivity: Widget {
                                                                twelveHour: SharedSettings.twelveHour(), now: .now))
                 .activityBackgroundTint(ActivityPalette.background)
                 .activitySystemActionForegroundColor(ActivityPalette.primary)
+                // A tap on the lock screen opens this flight, not just the app.
+                .widgetURL(FlightLink.url(for: context.attributes.flightId))
         } dynamicIsland: { context in
             let display = FlightActivityDisplay(context.attributes, context.state, twelveHour: SharedSettings.twelveHour(), now: .now)
             return DynamicIsland {
@@ -38,6 +40,8 @@ struct FlightLiveActivity: Widget {
             } minimal: {
                 FlightActivityMinimal(display)
             }
+            // A tap on the island (compact, minimal or expanded) opens this flight too.
+            .widgetURL(FlightLink.url(for: context.attributes.flightId))
             .keylineTint(ActivityPalette.color(display.level))
         }
     }

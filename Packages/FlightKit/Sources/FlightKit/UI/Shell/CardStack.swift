@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// How a card replaces the screen below it in a sheet: a quick crossfade, the new screen settling from a
-/// touch smaller and a few points lower, the old one fading out in place. Nothing slides across the sheet:
-/// the sheet stays still and only its content changes, while the globe above does the travelling.
+/// How a card opens over the screen below it (owner's call, 2026-11-08): it rises from the bottom like a
+/// sheet on a critically damped spring, and the screen under it dims; closing, it drops back down. Only a
+/// move and an opacity animate: no shadow, mask or scale, which would redraw the whole card every frame.
 public enum CardMotion {
-    public static let animation = Animation.smooth(duration: 0.28)
+    public static let animation = Animation.spring(duration: 0.42, bounce: 0)
     @MainActor public static var transition: AnyTransition {
-        .asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top))
-                        .combined(with: .offset(y: 10)),
-                    removal: .opacity)
+        .move(edge: .bottom)
     }
 }
 
@@ -43,10 +41,9 @@ public struct CardStack<Route: Hashable, Root: View, Card: View>: View {
         self.path = path; self.onPop = onPop; self.zoomID = zoomID; self.root = root(); self.card = card
     }
 
-    /// The transition of a card: the zoom from its row when the row has been laid out, else the crossfade.
+    /// The transition of a card: it rises from the bottom (the zoom out of its row is no longer used).
     @MainActor func transition(for route: Route) -> AnyTransition {
-        guard size.width > 0, let id = zoomID(route), let row = sources.frame(id) else { return CardMotion.transition }
-        return .cardZoom(from: row, in: size)
+        CardMotion.transition
     }
 
     /// A card's place in the stack: the same route at another depth is another card.
@@ -63,7 +60,7 @@ public struct CardStack<Route: Hashable, Root: View, Card: View>: View {
         ZStack {
             root
                 .covered(!path.isEmpty)
-                .opacity(path.isEmpty ? 1 : 0)
+                .modifier(EasedBack(on: !path.isEmpty))
             ForEach(Self.entries(path), id: \.self) { entry in
                 let top = entry.depth == path.count
                 let zooms = zoomID(entry.route) != nil
@@ -75,7 +72,7 @@ public struct CardStack<Route: Hashable, Root: View, Card: View>: View {
                         if top && zooms { edgeSwipe }
                     }
                     .covered(entry.depth < path.count)
-                    .opacity(entry.depth < path.count ? 0 : 1)
+                    .modifier(EasedBack(on: entry.depth < path.count))
                     .accessibilityAction(.escape) { onPop() }
                     // A leaving card stays above the one it uncovers until it is gone.
                     .zIndex(Double(entry.depth))
@@ -147,6 +144,16 @@ struct PullMask: Shape {
     func path(in rect: CGRect) -> Path {
         radius < 0.5 ? Path(rect.insetBy(dx: -10_000, dy: -10_000))
             : Path(roundedRect: rect, cornerRadius: radius, style: .continuous)
+    }
+}
+
+/// A screen with a card over it: dimmed, as under an iOS sheet. Only a flat overlay's opacity animates.
+private struct EasedBack: ViewModifier {
+    var on: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay { Color.black.opacity(on ? 0.3 : 0).allowsHitTesting(false) }
     }
 }
 

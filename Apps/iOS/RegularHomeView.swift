@@ -2,22 +2,12 @@ import FlightKit
 import MapKit
 import SwiftUI
 
-/// Which tab chrome the panel home carries.
-enum HomeTabsStyle {
-    /// The system's sidebar-adaptable tab bar, as on the iPad.
-    case system
-    /// The iPhone's floating tab pill at the panel's foot, for a window that is not an iPad's but is wide
-    /// enough for panels (the unfolded Duo held sideways). There is no `TabView`, so the globe is drawn once.
-    case pill
-}
-
 /// The panels home: the iPad in a regular width window (full screen, the larger side of Split View, Stage
-/// Manager, and the iPad app on Apple Vision Pro), and the unfolded iPhone Duo held sideways. On the iPad
-/// (`HomeTabsStyle.system`) the three tabs are in the system's sidebar-adaptable tab bar; on the Duo
-/// (`.pill`) there is no `TabView`, and the tab pill and the search button sit at the panel's foot. The globe
-/// across the whole window, the tab's screen in a floating panel on the left and, when the window is wide
-/// enough, the open flight, airport or friend in a second panel on the right, the globe framed between the
-/// two. In a narrower window the card opens over the tab in the left panel, as in the Mac's panel.
+/// Manager, and the iPad app on Apple Vision Pro), and the unfolded iPhone Duo held sideways. There is no
+/// `TabView`: the iPhone's tab pill and search button sit at the panel's foot, centred on the panel (owner's
+/// call, 2026-11-08, no system sidebar on the iPad), so the globe is drawn once. The globe
+/// across the whole window and the tab's screen in a floating panel on the left; an open flight, airport or
+/// friend opens over the tab in that same panel, as in the Mac's panel, so the globe keeps the rest.
 /// Compact iPad widths and narrow iPhone windows keep `RootTabView`'s sheet.
 ///
 /// The panels are the Mac's (`RootSidebarView`) at the iPhone's metrics: the shared screens get the
@@ -28,63 +18,36 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     var labels: Bool
     var threeD: Bool
     var mapScope: Namespace.ID
-    var tabs: HomeTabsStyle
     var onSearch: () -> Void
     var onSettings: () -> Void
     var tabScreen: TabScreen
     var mapControls: MapControls
-    /// The tab page's width, which decides between one panel and two.
-    @State private var width: CGFloat = 0
-    /// The tab pill's height (with `.pill`), where the list is masked off.
+    /// The tab pill's height, where the list is masked off.
     @State private var pillHeight = SheetGeometry.tabBarHeight
+    /// The window and its safe areas, which place the panel's three heights, as the iPhone sheet's.
+    @State private var geometry = SheetGeometry.standard
+    /// How far the grabber is being dragged, in points (positive downward).
+    @State private var drag: CGFloat = 0
 
     /// The iPhone 17 Pro's width: every shared screen was laid out for it.
     static var panelWidth: CGFloat { 402 }
     /// Space between a panel and the window's edges.
     static var panelInset: CGFloat { 16 }
     static var panelRadius: CGFloat { 30 }
-    /// Wide enough for both panels with a useful stretch of globe between them (a 13 inch iPad in
-    /// landscape, not in portrait).
-    static var twoPanelWidth: CGFloat { 1100 }
 
     init(home: HomeModel, selection: Binding<GlobeSelection?>, labels: Bool, threeD: Bool, mapScope: Namespace.ID,
-         tabs: HomeTabsStyle = .system,
          onSearch: @escaping () -> Void, onSettings: @escaping () -> Void,
          @ViewBuilder tabScreen: () -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
         self.home = home; _selection = selection; self.labels = labels; self.threeD = threeD
-        self.mapScope = mapScope; self.tabs = tabs; self.onSearch = onSearch; self.onSettings = onSettings
+        self.mapScope = mapScope; self.onSearch = onSearch; self.onSettings = onSettings
         self.tabScreen = tabScreen(); self.mapControls = mapControls()
     }
 
-    private var twoPanels: Bool { width >= Self.twoPanelWidth }
-    /// The card panel on the right is up.
-    private var detailOpen: Bool { twoPanels && !home.shell.path.isEmpty }
     /// A panel and its margin: the part of the globe it covers.
     private var panelSide: CGFloat { Self.panelWidth + Self.panelInset }
 
     var body: some View {
-        @Bindable var home = home
-        switch tabs {
-        case .system:
-            TabView(selection: $home.tab) {
-                Tab("My Flights", systemImage: "airplane.circle.fill", value: HomeTab.flights) { page(.flights) }
-                Tab("Friends", systemImage: "person.2.fill", value: HomeTab.friends) { page(.friends) }
-                Tab("Passport", systemImage: "person.text.rectangle.fill", value: HomeTab.passport) { page(.passport) }
-            }
-            .tabViewStyle(.sidebarAdaptable)
-        case .pill:
-            // The pill is in the list panel, so the one tab on show is the whole page.
-            canvas
-        }
-    }
-
-    /// Only the tab on show draws the globe: one MapKit view at a time, the camera following `home.focus`.
-    @ViewBuilder private func page(_ tab: HomeTab) -> some View {
-        if home.tab == tab {
-            canvas
-        } else {
-            Color.black.ignoresSafeArea()
-        }
+        canvas
     }
 
     private var canvas: some View {
@@ -96,49 +59,100 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
             // The panels' sides count as covered, so the camera frames arcs and airports in the globe
             // left in view between them, as on the Mac.
             .safeAreaPadding(.leading, panelSide)
-            .safeAreaPadding(.trailing, detailOpen ? panelSide : 0)
             .ignoresSafeArea()
             .background(Color.black)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            // The whole window, with the safe areas it ignores still reported: the panel heights' frame.
+            .background {
+                Color.clear
+                    .onGeometryChange(for: SheetGeometry.self) { proxy in
+                        SheetGeometry(screenHeight: proxy.size.height, safeTop: proxy.safeAreaInsets.top,
+                                      safeBottom: proxy.safeAreaInsets.bottom)
+                    } action: { geometry = $0 }
+                    .ignoresSafeArea()
+            }
             .overlay(alignment: .topLeading) { listPanel }
             .overlay(alignment: .topTrailing) {
-                mapControls.padding(.trailing, detailOpen ? panelSide : 0)
+                mapControls
             }
-            .overlay(alignment: .topTrailing) {
-                if detailOpen {
-                    detailPanel.transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-            .animation(CardMotion.animation, value: detailOpen)
             .mapScope(mapScope)
     }
 
     // MARK: Panels
 
-    /// The tab's screen; in one-panel windows the open cards stack over it, as in the iPhone sheet.
+    /// The tab's screen; the open cards stack over it, as in the iPhone sheet.
     private var listPanel: some View {
         let shell = home.shell
-        return CardStack(path: twoPanels ? [] : shell.path, onPop: shell.close, zoomID: \.zoomID) {
+        return CardStack(path: shell.path, onPop: shell.close, zoomID: \.zoomID) {
             listRoot
         } card: { route in
             HomeDestination(home: home, route: route)
         }
+        .environment(\.sheetDetent, shell.detent)
+        .overlay(alignment: .top) { grabber }
+        // A Passport page rises over the list in the same panel, never full screen (owner's call, 2026-11-08).
+        .overlay {
+            if let page = home.fullPage {
+                FullPageView(page: page, store: home.passport, lookup: home.env.lookup) { home.fullPage = nil }
+                    .transition(CardMotion.transition)
+            }
+        }
+        .animation(CardMotion.animation, value: home.fullPage)
         .modifier(PanelChrome())
-        .padding([.leading, .bottom], Self.panelInset)
-        .padding(.top, 8)
+        .padding(.leading, Self.panelInset)
+        .padding(.top, panelTop - geometry.safeTop + 8)
     }
 
-    /// The open flight, airport or friend beside the list; its X closes it.
-    private var detailPanel: some View {
+    /// The panel's top edge: its detent's, as on the iPhone (collapsed, medium, expanded; owner's call,
+    /// 2026-11-08), followed by the finger while the grabber is dragged.
+    private var panelTop: CGFloat {
+        let detent = geometry.top(of: home.shell.detent)
+        let highest = geometry.top(of: .expanded)
+        let lowest = geometry.top(of: .collapsed)
+        let top = detent + drag
+        // Past either end the panel follows at a third of the finger, like a rubber band.
+        if top < highest { return highest - (highest - top) / 3 }
+        if top > lowest { return lowest + (top - lowest) / 3 }
+        return top
+    }
+
+    /// The handle at the panel's top: dragging it moves the panel between its three heights, a tap steps
+    /// it up (or back to collapsed from the top).
+    private var grabber: some View {
         let shell = home.shell
-        return CardStack(path: shell.path, onPop: shell.close) {
-            Color.clear
-        } card: { route in
-            HomeDestination(home: home, route: route)
-        }
-        .modifier(PanelChrome())
-        .padding([.trailing, .bottom], Self.panelInset)
-        .padding(.top, 8)
+        return Capsule()
+            .fill(Theme.secondary.opacity(0.45))
+            .frame(width: 36, height: 5)
+            .padding(.top, 6)
+            .frame(maxWidth: .infinity)
+            .frame(height: 22, alignment: .top)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                    .onChanged { drag = $0.translation.height }
+                    .onEnded { value in
+                        let top = geometry.top(of: shell.detent) + value.translation.height
+                        let to = geometry.snap(top: top, velocity: value.velocity.height)
+                        withAnimation(.spring(duration: 0.38, bounce: 0)) {
+                            shell.detent = to
+                            drag = 0
+                        }
+                    })
+            .onTapGesture {
+                withAnimation(.spring(duration: 0.38, bounce: 0)) {
+                    shell.detent = shell.detent.raised ?? .collapsed
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Panel height")
+            .accessibilityAdjustableAction { direction in
+                withAnimation(.spring(duration: 0.38, bounce: 0)) {
+                    switch direction {
+                    case .increment: if let up = shell.detent.raised { shell.detent = up }
+                    case .decrement: if let down = shell.detent.lowered { shell.detent = down }
+                    @unknown default: break
+                    }
+                }
+            }
     }
 
     private var listScreen: some View {
@@ -152,76 +166,42 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
             .padding(.trailing, 16)
     }
 
-    @ViewBuilder private var listRoot: some View {
-        switch tabs {
-        case .system:
-            // Search stays at the panel's foot, where the iPhone has it.
-            listScreen
-                .overlay(alignment: .topTrailing) { profileButton }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: 12) {
-                        ToastSlot(text: home.toast, isError: home.toastIsError)
-                        SearchFieldButton(action: onSearch)
-                    }
+    /// The pill carries both the tabs and the search button. The list ends above it and fades out there, as
+    /// in the iPhone sheet: no row draws under the glass.
+    private var listRoot: some View {
+        listScreen
+            .pillFade(pillHeight: pillHeight)
+            .overlay(alignment: .topTrailing) { profileButton }
+            .overlay(alignment: .bottom) {
+                VStack(spacing: 12) {
+                    ToastSlot(text: home.toast, isError: home.toastIsError)
+                    HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
+                                onSearch: onSearch)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
                 }
-        case .pill:
-            // The pill carries both the tabs and the search button, as in the Mac's panel. The list ends
-            // above it and fades out there, as in the iPhone sheet: no row draws under the glass.
-            listScreen
-                .pillFade(pillHeight: pillHeight)
-                .overlay(alignment: .topTrailing) { profileButton }
-                .overlay(alignment: .bottom) {
-                    VStack(spacing: 12) {
-                        ToastSlot(text: home.toast, isError: home.toastIsError)
-                        HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
-                                    onSearch: onSearch)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
-                    }
-                }
-        }
+            }
     }
 }
 
-/// A panel floating over the globe: the sheet's colour and the Mac panel's corners, rim and shadow.
+/// The panel over the globe, a sheet that rises from the window's bottom edge as on the iPhone (owner's call,
+/// 2026-11-08): the sheet's colour, rounded at the top only, running down under the home indicator. The
+/// content keeps the bottom safe area; only the sheet's surface reaches the edge.
 private struct PanelChrome: ViewModifier {
+    private static var shape: UnevenRoundedRectangle {
+        let r = RegularHomeView<EmptyView, EmptyView>.panelRadius
+        return UnevenRoundedRectangle(topLeadingRadius: r, topTrailingRadius: r, style: .continuous)
+    }
+
     func body(content: Content) -> some View {
         content
             .frame(width: RegularHomeView<EmptyView, EmptyView>.panelWidth)
             .frame(maxHeight: .infinity)
-            .background(Theme.background)
-            .clipShape(.rect(cornerRadius: RegularHomeView<EmptyView, EmptyView>.panelRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: RegularHomeView<EmptyView, EmptyView>.panelRadius, style: .continuous)
-                    .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+            .clipShape(Self.shape)
+            .background {
+                Self.shape.fill(Theme.background)
+                    .overlay { Self.shape.strokeBorder(.white.opacity(0.08), lineWidth: 1) }
+                    .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
+                    .ignoresSafeArea(.container, edges: .bottom)
             }
-            .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
-    }
-}
-
-/// The search field at the foot of the iPad panel: a glass capsule that opens Search (Command F too).
-private struct SearchFieldButton: View {
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 17, weight: .semibold))
-                Text("Flight, route, or airport")
-                    .font(.system(size: 17))
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(Theme.secondary)
-            .padding(.horizontal, 18)
-            .frame(height: 52)
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .capsule)
-        .pointerHighlight(Capsule())
-        .accessibilityLabel("Search")
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
     }
 }
