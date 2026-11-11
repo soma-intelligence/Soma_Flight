@@ -1,0 +1,15 @@
+{
+  "name": "flightcore-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "flightcore_wasm_bg.wasm",
+    "flightcore_wasm.js",
+    "flightcore_wasm.d.ts"
+  ],
+  "main": "flightcore_wasm.js",
+  "types": "flightcore_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
