@@ -123,6 +123,7 @@ No row means every category is on, so the app writes the row the first time some
 | Endpoint | Method | Body or query | Answer |
 | --- | --- | --- | --- |
 | `flight-lookup` | POST | `{ ident }` or `{ origin, destination }`, plus `date` | `{ flights: [Flight] }` (below) |
+| `mapkit-token` | GET | none (user JWT) | `{ token, expiresAt }` (below) |
 | `flight-position` | POST | `{ flightId }` | `{ flight: Flight }` (below) |
 | `follow-flight` | POST, DELETE | `{ flightId, notify? }` (DELETE: `{ flightId }`) | `{ ok: true }` |
 | `register-push-token` | POST | `{ token, kind, flightId?, platform }` | `{ ok: true }` |
@@ -165,6 +166,22 @@ Flights whose origin or destination has no ICAO code are left out. A flight alre
 with the rules of the webhook (`merge_flight`): actual times are set once, estimates are ignored once
 the actual exists, and the status only rises (canceled, diverted and arrived never change), so a
 lookup never moves a followed flight backwards.
+
+## mapkit-token
+
+`GET /mapkit-token` with the user JWT answers `{ "token": string, "expiresAt": string }`: an ES256 JWT for
+MapKit JS (header `kid` = the MapKit key id, claims `iss` = team id, `iat`, `exp` = `iat` + 1800 s, and
+`origin` when the request has an `Origin`). Used by the web globe; the apps do not call it.
+
+- `401 unauthorized` without a valid JWT; `429 rate_limited` after 30 calls per hour per user.
+- `400 invalid_request` when the `Origin` is not in `WEB_ORIGINS`, so no token is minted for another site.
+- `503 provider_unavailable` while `MAPKIT_KEY_ID`, `MAPKIT_TEAM_ID` or `MAPKIT_PRIVATE_KEY` is unset.
+
+## CORS
+
+`flight-lookup`, `follow-flight`, `flight-position` and `mapkit-token` answer browser preflights and add
+`Access-Control-Allow-Origin` for the origins in `WEB_ORIGINS` (comma list, default
+`https://flight.somalabs.me,http://localhost:5173`). Requests without an `Origin` (the apps) are untouched.
 
 ## flight-position
 

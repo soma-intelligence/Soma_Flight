@@ -398,6 +398,11 @@ verify_jwt = true
 [functions.flight-position]
 verify_jwt = true
 
+# Short-lived MapKit JS token for the web globe (signed-in users, 30 per hour). Needs MAPKIT_KEY_ID,
+# MAPKIT_TEAM_ID and MAPKIT_PRIVATE_KEY; answers 503 without them.
+[functions.mapkit-token]
+verify_jwt = true
+
 # Boards, delay stats and weather. The flightcore WASM is read at runtime, so it ships as a static file.
 [functions.airport-board]
 verify_jwt = true
