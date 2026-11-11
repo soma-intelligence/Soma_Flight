@@ -1,0 +1,145 @@
+/* Colour tokens mirrored from Packages/FlightKit/Sources/FlightKit/UI/Theme.swift. theme.test.ts keeps them in step. */
+:root {
+  --sf-background: #F2F2F7;
+  --sf-card: #FFFFFF;
+  --sf-row-alt: #EBEBF0;
+  --sf-issues: #FBE4E6;
+  --sf-issues-rim: #F0B9BE;
+  --sf-grid: #D8D8DD;
+  --sf-separator: #C6C6C8;
+  --sf-pill: #E3E3E8;
+  --sf-tick-off: #D1D1D6;
+  --sf-primary: #000000;
+  --sf-secondary: #6C6C72;
+  --sf-accent: #007AFF;
+  --sf-on-time: #0E9F5B;
+  --sf-late: #E59A00;
+  --sf-very-late: #E5372C;
+  --sf-canceled: #8E8E93;
+  --sf-diverted: #9C3DD6;
+  --sf-friend: #0F9BAE;
+  --sf-split-green: #34A15A;
+  --sf-split-red: #D8412F;
+  --sf-trend-amber: #E0A030;
+  --sf-trend-calm: #B8B8BE;
+  --sf-trend-future: #F2C5BF;
+  --sf-lifr: #B82E7C;
+  --sf-ifr: #C9432F;
+  --sf-mvfr: #2F74E0;
+  --sf-vfr: #34A15A;
+  --sf-wind: #2F86E0;
+  --background: var(--sf-background);
+  --foreground: var(--sf-primary);
+  --card: var(--sf-card);
+  --card-foreground: var(--sf-primary);
+  --popover: var(--sf-card);
+  --popover-foreground: var(--sf-primary);
+  --primary: var(--sf-primary);
+  --primary-foreground: var(--sf-background);
+  --secondary: var(--sf-pill);
+  --secondary-foreground: var(--sf-primary);
+  --muted: var(--sf-row-alt);
+  --muted-foreground: var(--sf-secondary);
+  --accent: var(--sf-pill);
+  --accent-foreground: var(--sf-primary);
+  --destructive: var(--sf-very-late);
+  --border: var(--sf-separator);
+  --input: var(--sf-separator);
+  --ring: var(--sf-accent);
+  --radius: 0.75rem;
+}
+
+:root[data-theme="light"] {
+  --sf-background: #F2F2F7;
+  --sf-card: #FFFFFF;
+  --sf-row-alt: #EBEBF0;
+  --sf-issues: #FBE4E6;
+  --sf-issues-rim: #F0B9BE;
+  --sf-grid: #D8D8DD;
+  --sf-separator: #C6C6C8;
+  --sf-pill: #E3E3E8;
+  --sf-tick-off: #D1D1D6;
+  --sf-primary: #000000;
+  --sf-secondary: #6C6C72;
+  --sf-accent: #007AFF;
+  --sf-on-time: #0E9F5B;
+  --sf-late: #E59A00;
+  --sf-very-late: #E5372C;
+  --sf-canceled: #8E8E93;
+  --sf-diverted: #9C3DD6;
+  --sf-friend: #0F9BAE;
+  --sf-split-green: #34A15A;
+  --sf-split-red: #D8412F;
+  --sf-trend-amber: #E0A030;
+  --sf-trend-calm: #B8B8BE;
+  --sf-trend-future: #F2C5BF;
+  --sf-lifr: #B82E7C;
+  --sf-ifr: #C9432F;
+  --sf-mvfr: #2F74E0;
+  --sf-vfr: #34A15A;
+  --sf-wind: #2F86E0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sf-background: #18181A;
+    --sf-card: #202023;
+    --sf-row-alt: #202024;
+    --sf-issues: #3E1620;
+    --sf-issues-rim: #5A3841;
+    --sf-grid: #373738;
+    --sf-separator: #2E2E31;
+    --sf-pill: #2C2C2F;
+    --sf-tick-off: #37373B;
+    --sf-primary: #FFFFFF;
+    --sf-secondary: #96969D;
+    --sf-accent: #0A84FF;
+    --sf-on-time: #12B76A;
+    --sf-late: #FDB022;
+    --sf-very-late: #FF453A;
+    --sf-canceled: #FFFFFF;
+    --sf-diverted: #BF5AF2;
+    --sf-friend: #3CD3E6;
+    --sf-split-green: #54B471;
+    --sf-split-red: #EB5545;
+    --sf-trend-amber: #F2B347;
+    --sf-trend-calm: #5C5C62;
+    --sf-trend-future: #562826;
+    --sf-lifr: #CB398D;
+    --sf-ifr: #DD5242;
+    --sf-mvfr: #4C8EF2;
+    --sf-vfr: #54B471;
+    --sf-wind: #5AAEF0;
+  }
+}
+
+:root[data-theme="dark"] {
+  --sf-background: #18181A;
+  --sf-card: #202023;
+  --sf-row-alt: #202024;
+  --sf-issues: #3E1620;
+  --sf-issues-rim: #5A3841;
+  --sf-grid: #373738;
+  --sf-separator: #2E2E31;
+  --sf-pill: #2C2C2F;
+  --sf-tick-off: #37373B;
+  --sf-primary: #FFFFFF;
+  --sf-secondary: #96969D;
+  --sf-accent: #0A84FF;
+  --sf-on-time: #12B76A;
+  --sf-late: #FDB022;
+  --sf-very-late: #FF453A;
+  --sf-canceled: #FFFFFF;
+  --sf-diverted: #BF5AF2;
+  --sf-friend: #3CD3E6;
+  --sf-split-green: #54B471;
+  --sf-split-red: #EB5545;
+  --sf-trend-amber: #F2B347;
+  --sf-trend-calm: #5C5C62;
+  --sf-trend-future: #562826;
+  --sf-lifr: #CB398D;
+  --sf-ifr: #DD5242;
+  --sf-mvfr: #4C8EF2;
+  --sf-vfr: #54B471;
+  --sf-wind: #5AAEF0;
+}

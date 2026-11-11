@@ -11,3 +11,8 @@ Config.local.xcconfig
 aircraft-art/
 # Agent worktrees.
 .claude/worktrees/
+
+# Web app
+Apps/Web/node_modules
+Apps/Web/dist
+Apps/Web/.env*.local
