@@ -12172,6 +12172,16 @@
         }
       }
     },
+    "This link has expired. Send a new one.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce lien a expiré. Envoies-en un nouveau."
+          }
+        }
+      }
+    },
     "This pass has no barcode. Show the airline's own pass at the gate.": {
       "localizations": {
         "fr": {
@@ -12988,6 +12998,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nous utilisons ton e-mail uniquement pour te connecter."
+          }
+        }
+      }
+    },
+    "We sent a sign-in link to %@. Open it on this device.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nous avons envoyé un lien de connexion à %@. Ouvre-le sur cet appareil."
           }
         }
       }
