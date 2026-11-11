@@ -23,8 +23,10 @@ struct TravelToolsSection: View {
     @State private var statusPrograms: StatusPrograms
     @State private var statusTarget: StatusTarget?
     @State private var schengen: Schengen.Summary?
-    @State private var reviewYear: Int?
-    @State private var showingReview = false
+    /// The year the review sheet opens on. One piece of state for "open" and "which year": a flag and a
+    /// year set in the same tap gave the sheet the year as it was before the tap (none), so the review
+    /// opened on "No flights this year yet" with no chip chosen.
+    @State private var review: ReviewYear?
     @State private var showingPoster = false
     @State private var showingExpenses = false
     @Environment(\.units) private var units
@@ -56,7 +58,7 @@ struct TravelToolsSection: View {
         SettingsSection("Travel Tools", footer: "Worked out on this device from your flight history.") {
             if let review {
                 SettingsRow(icon: "sparkles.rectangle.stack.fill", title: "Year in Review", subtitle: review.title,
-                            tint: SettingsStyle.purple, action: { reviewYear = review.year; showingReview = true }) {
+                            tint: SettingsStyle.purple, action: { self.review = ReviewYear(year: review.year) }) {
                     RowChevron()
                 }
             }
@@ -90,8 +92,8 @@ struct TravelToolsSection: View {
             case .edit(let p): StatusProgramEditor(store: statusPrograms, program: p, unit: units.distance)
             }
         }
-        .sheet(isPresented: $showingReview) {
-            YearInReviewSheet(flights: store.allFlights, unit: units.distance, year: reviewYear)
+        .sheet(item: $review) {
+            YearInReviewSheet(flights: store.allFlights, unit: units.distance, year: $0.year)
         }
         .sheet(isPresented: $showingPoster) {
             RoutePosterSheet(flights: store.allFlights, name: source.travellerName, unit: units.distance,
@@ -101,6 +103,12 @@ struct TravelToolsSection: View {
             ExpenseReportsSheet(flights: store.allFlights, lookup: source.lookup, traveller: source.travellerName,
                                 units: units)
         }
+    }
+
+    /// The review's year as a sheet item.
+    private struct ReviewYear: Identifiable {
+        var year: Int
+        var id: Int { year }
     }
 
     /// The Schengen count as a sheet item.

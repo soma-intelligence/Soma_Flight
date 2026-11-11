@@ -36,6 +36,12 @@ struct RoutePosterSheet: View {
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+                        } else if poster == nil {
+                            // Nothing to draw (a year of canceled flights, airports we cannot place): say so
+                            // instead of turning forever.
+                            Text("No routes to draw for this period")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, minHeight: 160)
                         } else {
                             ProgressView().frame(maxWidth: .infinity, minHeight: 160)
                         }

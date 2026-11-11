@@ -17,7 +17,7 @@ struct FullPassportView: View {
 
     var body: some View {
         FullPageChrome(title: "Soma Flight Passport", year: $store.year, years: store.years, scheme: .dark,
-                       page: Self.page, shareKey: store.revision, onClose: onClose, bar: Theme.passportBar,
+                       page: Self.page, onClose: onClose, bar: Theme.passportBar,
                        sectionBackground: Theme.background, heroInset: 0,
                        chipInk: Color(red: 0.64, green: 0.55, blue: 0.87), chipFill: Theme.passportChip,
                        buttonFill: Color(red: 0x49 / 255, green: 0x21 / 255, blue: 0xB0 / 255), frosted: true) {

@@ -20,7 +20,7 @@ struct AircraftStatsView: View {
 
     var body: some View {
         FullPageChrome(title: FullPage.aircraftStats.title, year: $store.year, years: store.years, scheme: .light,
-                       page: Self.page, shareKey: store.revision, onClose: onClose, bar: Self.bar,
+                       page: Self.page, onClose: onClose, bar: Self.bar,
                        sectionBackground: Self.sections, heroInset: 0,
                        chipInk: Color(red: 0x5E / 255, green: 0x68 / 255, blue: 0x8C / 255),
                        chipFill: .white.opacity(0.7), buttonFill: Color(red: 0xA9 / 255, green: 0xB9 / 255, blue: 0xDA / 255),
@@ -133,7 +133,7 @@ struct ClassSeatSection: View {
     var stats: AircraftStats
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .title) private var bigSide: CGFloat = 290
-    @ScaledMetric(relativeTo: .title) private var smallSide: CGFloat = 160
+    @ScaledMetric(relativeTo: .title) private var smallSide: CGFloat = 140
 
     var body: some View {
         let donuts = [AircraftStatsCopy.classDonut(stats), AircraftStatsCopy.seatDonut(stats),
@@ -167,15 +167,22 @@ struct ClassSeatSection: View {
         .scaledPadding(.vertical, 14)
     }
 
-    /// A smaller donut at the left, its legend at the right; the legend goes under it at accessibility sizes.
+    /// A smaller donut at the left, its legend at the right. The legend goes under it at accessibility sizes,
+    /// and whenever the two do not fit side by side (a long label in another language, a narrow panel): a
+    /// row that asks for more than the page's width would push the whole page past the screen's edges.
     private func sideDonut(_ d: AircraftStatsCopy.Donut) -> some View {
         let side = min(smallSide, 240)
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 22))
-        return layout {
-            DonutChart(donut: d, valueSize: 24, inner: 0.7)
-                .frame(width: side, height: side)
-            DonutLegend(slices: d.slices)
+        let chart = DonutChart(donut: d, valueSize: 24, inner: 0.7).frame(width: side, height: side)
+        let stacked = VStack(alignment: .leading, spacing: 16) { chart; DonutLegend(slices: d.slices) }
+        return Group {
+            if typeSize.isAccessibilitySize {
+                stacked
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 18) { chart; DonutLegend(slices: d.slices, columnSpacing: 10) }
+                    stacked
+                }
+            }
         }
         .scaledPadding(.vertical, 22)
     }
@@ -211,15 +218,19 @@ private struct DonutChart: View {
 
 private struct DonutLegend: View {
     var slices: [AircraftStatsCopy.Slice]
+    var columnSpacing: CGFloat = 12
     @ScaledMetric(relativeTo: .body) private var swatch: CGFloat = 22
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+        Grid(alignment: .leading, horizontalSpacing: columnSpacing, verticalSpacing: 10) {
             ForEach(slices) { s in
                 GridRow {
                     RoundedRectangle(cornerRadius: swatch * 0.23, style: .continuous).fill(s.color)
                         .frame(width: swatch, height: swatch)
+                    // A one-word label ("Business") shrinks before it breaks in the middle of the word.
                     Text(ui: s.label).scaledFont(18).foregroundStyle(Theme.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Text(PassportFacts.count(s.count)).scaledFont(18).monospacedDigit().foregroundStyle(Theme.primary)
@@ -291,11 +302,11 @@ struct FrequentTailsSection: View {
         // title or its Share button.
         .background(alignment: .bottomTrailing) {
             BlueprintTail(type: t.icaoType.flatMap(reference.type), registration: t.registration, ink: Theme.secondary,
-                          showsRegistration: false)
+                          showsRegistration: false, fitsFin: true)
                 .aspectRatio(2.4, contentMode: .fit)
-                .frame(height: 96)
+                .frame(height: 76)
                 .opacity(0.3)
-                .scaledPadding(.bottom, 52)
+                .scaledPadding(.bottom, 50)
         }
         .clipped()
         .accessibilityElement(children: .combine)

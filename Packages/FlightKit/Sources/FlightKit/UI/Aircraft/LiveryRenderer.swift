@@ -358,7 +358,47 @@ enum ProviderSideView {
     static func prepare(_ asset: BrandAsset, maxPixel: Int = 1200) -> BrandArt? {
         guard var art = BrandArt.make(asset, maxPixel: maxPixel) else { return nil }
         if let cropped = cropTransparent(art.image) { art.image = cropped }
-        return aspect.contains(art.aspect) ? art : nil
+        guard aspect.contains(art.aspect) else { return nil }
+        art.barrel = barrel(art.image)
+        return art
+    }
+
+    /// The fuselage's top and bottom in the forward cabin (12% to 18% of the length from the nose, behind
+    /// the cockpit and ahead of any wing or engine), as fractions of the image's height from its top: the
+    /// longest solid run down each of seven columns, the median of their ends (an antenna stands on one
+    /// column, not on four). nil when no column crosses a body.
+    static func barrel(_ image: CGImage) -> ClosedRange<CGFloat>? {
+        guard image.width > 8, image.height > 8, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
+        // A small copy is enough to find two edges.
+        let w = min(image.width, 240)
+        let h = max(8, Int((CGFloat(image.height) * CGFloat(w) / CGFloat(image.width)).rounded()))
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            ctx.interpolationQuality = .medium
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drawn else { return nil }
+        var tops: [Int] = [], bottoms: [Int] = []
+        for i in 0..<7 {
+            let x = min(w - 1, Int((CGFloat(w) * (0.12 + 0.01 * CGFloat(i))).rounded()))
+            var best = (start: 0, end: -1), run = -1
+            for y in 0..<h {
+                if pixels[(y * w + x) * 4 + 3] > 128 {
+                    if run < 0 { run = y }
+                    if y - run > best.end - best.start { best = (run, y) }
+                } else {
+                    run = -1
+                }
+            }
+            if best.end >= best.start { tops.append(best.start); bottoms.append(best.end + 1) }
+        }
+        guard tops.count >= 4 else { return nil }
+        let top = CGFloat(tops.sorted()[tops.count / 2]) / CGFloat(h)
+        let bottom = CGFloat(bottoms.sorted()[bottoms.count / 2]) / CGFloat(h)
+        return bottom > top ? top...bottom : nil
     }
 
     @concurrent static func prepareOff(_ asset: BrandAsset) async -> BrandArt? { prepare(asset) }

@@ -24,15 +24,15 @@ public struct FullPageView: View {
 
 /// What every full page shares: a top bar (close at the left, the title centred, share at the right),
 /// the year chips, then the hero and the sections, scrolling, on the page's own colour. Share hands
-/// over the hero rendered as an image (the whole page is not rendered yet).
+/// over the hero rendered as an image (the whole page is not rendered yet), made only when the share
+/// sheet asks for it: rendering it as the page opened cost a frame or two of the opening zoom, and again
+/// on every year the chips passed over.
 struct FullPageChrome<Hero: View, Content: View>: View {
     var title: String
     @Binding var year: Int?
     var years: [Int]
     var scheme: ColorScheme
     var page: Color
-    /// Changes whenever what the hero shows changes (`PassportStore.revision`), so the share image follows.
-    var shareKey: Int
     var onClose: () -> Void
     /// The top bar's own colour (the Passport's violet bar); the page colour when nil.
     var bar: Color? = nil
@@ -55,7 +55,6 @@ struct FullPageChrome<Hero: View, Content: View>: View {
     @ViewBuilder var hero: Hero
     @ViewBuilder var content: Content
 
-    @State private var shareImage: Image?
     @State private var position = ScrollPosition(edge: .top)
     @Environment(\.units) private var units
     @Environment(\.displayScale) private var displayScale
@@ -85,7 +84,6 @@ struct FullPageChrome<Hero: View, Content: View>: View {
         }
         .background(page.ignoresSafeArea())
         .environment(\.colorScheme, scheme)
-        .task(id: shareKey) { renderShareImage() }
         #if DEBUG
         // Screenshot runs: `-scrollY <points>` opens the page scrolled that far.
         .task {
@@ -157,33 +155,30 @@ struct FullPageChrome<Hero: View, Content: View>: View {
             HStack {
                 RoundButton(systemImage: "xmark", label: "Close", fill: buttonFill, side: buttonSide, action: onClose)
                 Spacer()
-                if let shareImage {
-                    ShareLink(item: shareImage, preview: SharePreview(title, image: shareImage)) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: Theme.metric(buttonSide * 0.41, scale), weight: .medium))
-                            .foregroundStyle(Theme.primary)
-                            .frame(width: Theme.metric(buttonSide, scale), height: Theme.metric(buttonSide, scale))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .roundGlass(tint: buttonFill)
-                    .accessibilityLabel("Share")
+                ShareLink(item: SectionSnapshot(source: SectionRenderer(page: { AnyView(shareCard) },
+                                                                        scale: max(displayScale, 2))),
+                          preview: SharePreview(title, image: Image(systemName: "square.and.arrow.up"))) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: Theme.metric(buttonSide * 0.41, scale), weight: .medium))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: Theme.metric(buttonSide, scale), height: Theme.metric(buttonSide, scale))
+                        .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .roundGlass(tint: buttonFill)
+                .accessibilityLabel("Share")
             }
         }
     }
 
-    /// The hero at phone width, rendered again whenever its figures change.
-    @MainActor private func renderShareImage() {
-        let card = hero
+    /// The hero at phone width on the page's colour: what Share hands over, as it is when asked for.
+    private var shareCard: some View {
+        hero
             .frame(width: 361)
             .padding(16)
             .background(page)
             .environment(\.units, units)
             .environment(\.colorScheme, scheme)
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = max(displayScale, 2)
-        shareImage = renderer.cgImage.map { Image(decorative: $0, scale: renderer.scale) }
     }
 }
 

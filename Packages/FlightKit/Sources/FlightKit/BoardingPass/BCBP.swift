@@ -168,7 +168,8 @@ public struct BCBP: Sendable, Hashable {
         }
         guard let flight = flightNumber(number) else { throw .badField("flight number") }
         guard let doy = Int(date), (1...366).contains(doy) else { throw .badField("date of flight") }
-        let cabin = compartment.first.flatMap { $0 == " " ? nil : Character($0.uppercased()) }
+        // `uppercased()` can give two characters (a forged "ß" gives "SS"), which `Character(_:)` traps on.
+        let cabin = compartment.first.flatMap { $0 == " " ? nil : $0.uppercased().first }
         return Leg(pnr: pnr, from: from.uppercased(), to: to.uppercased(), carrier: carrier.uppercased(),
                    flightNumber: flight, dayOfYear: doy, compartment: cabin,
                    seat: dropLeadingZeros(trim(seat)), sequence: dropLeadingZeros(trim(sequence)),

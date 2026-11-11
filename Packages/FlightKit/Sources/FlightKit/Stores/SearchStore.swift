@@ -463,7 +463,11 @@ public final class SearchStore {
         let gen = searchGeneration
         isSearching = true
         let a = await fetch(r)
-        guard gen == searchGeneration, !Task.isCancelled else { return }
+        guard gen == searchGeneration, !Task.isCancelled else {
+            // Dropped because the text moved on, with no newer lookup to end the spinner in its place.
+            if gen == searchGeneration { isSearching = false }
+            return
+        }
         if let e = a.error {
             if e == .rateLimited || e == .planLimit { gate.didHitLimit(now: now()) }
             if e == .notFound { answer(r.key, a) }

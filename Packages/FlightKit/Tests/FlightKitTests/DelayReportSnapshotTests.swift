@@ -36,7 +36,7 @@ extension ComponentSnapshotTests {
             .environment(\.brandAssets, service)
         }
         try render("delay-report-sections", to: Self.screensDir) {
-            DelayReportSections(report: report, year: nil, key: 0, lookup: PreviewData.airport)
+            DelayReportSections(report: report, year: nil, lookup: PreviewData.airport)
                 .background(DelayInk.sections)
                 .environment(\.brandAssets, service)
         }

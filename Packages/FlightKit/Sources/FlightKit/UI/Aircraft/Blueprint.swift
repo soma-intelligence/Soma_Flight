@@ -60,6 +60,8 @@ public struct BlueprintTail: View {
     var registration: String
     var ink: Color
     var showsRegistration: Bool
+    /// Draws the whole fin: the scale drops below `zoom` as far as the fin top needs to stay in the frame.
+    var fitsFin: Bool
     /// The lettering's smallest size, following Dynamic Type.
     @ScaledMetric(relativeTo: .caption2) private var letterFloor: CGFloat = 11
 
@@ -69,20 +71,22 @@ public struct BlueprintTail: View {
     /// What the tail drawing strokes.
     static let drawnLayers: Set<AircraftLayer> = [.fuselage, .windows, .doors, .tail]
 
-    public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk, showsRegistration: Bool = true) {
+    public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk, showsRegistration: Bool = true,
+                fitsFin: Bool = false) {
         self.type = type; self.registration = registration; self.ink = ink; self.showsRegistration = showsRegistration
+        self.fitsFin = fitsFin
     }
 
     /// Lettering size and placard box, in view points, for a frame of `size`: a fifth of the barrel's drawn
     /// height, never under `floor` (itself held to 8% of the frame width so it fits the drawing) nor over 5.5%
     /// of the width. The box is sized for a monospaced face (0.6 em advance) with half a letter of margin.
-    static func placard(_ g: AircraftGeometry, size: CGSize, registration: String, floor: CGFloat)
+    static func placard(_ g: AircraftGeometry, size: CGSize, registration: String, floor: CGFloat, fitsFin: Bool = false)
         -> (letter: CGFloat, box: CGRect) {
-        let t = transform(g, size: size)
+        let t = transform(g, size: size, fitsFin: fitsFin)
         let diameter = (g.fuselageTopM - g.fuselageBottomM) * t.a
         let least = min(floor, size.width * 0.08)
         let letter = max(least, min(diameter * 0.2, size.width * 0.055))
-        let centre = registrationCentre(g, size: size).applying(t)
+        let centre = registrationCentre(g, size: size, fitsFin: fitsFin).applying(t)
         let textWidth = CGFloat(registration.count) * letter * 0.6
         // Held inside the frame: on a short barrel the centre can sit so far left the box would be cut.
         let width = textWidth + letter
@@ -93,9 +97,13 @@ public struct BlueprintTail: View {
 
     /// Metres (x from the nose, y up from the ground) to points in a frame of `size`: `zoom` times the side
     /// view's scale, the tail end 3% in from the right edge, the barrel bottom 6% above the bottom edge (the
-    /// fin top may run off the top, as on the references).
-    public static func transform(_ g: AircraftGeometry, size: CGSize) -> CGAffineTransform {
-        let s = zoom * size.width / g.lengthM
+    /// fin top may run off the top, as on the references). With `fitsFin` the scale is held to what keeps
+    /// the aircraft's highest point 4% under the top edge, so the fin is drawn whole.
+    public static func transform(_ g: AircraftGeometry, size: CGSize, fitsFin: Bool = false) -> CGAffineTransform {
+        var s = zoom * size.width / g.lengthM
+        if fitsFin, g.heightM > g.fuselageBottomM {
+            s = min(s, size.height * 0.90 / (g.heightM - g.fuselageBottomM))
+        }
         let tx = size.width * 0.97 - g.lengthM * s
         let ty = size.height * 0.94 + g.fuselageBottomM * s
         return CGAffineTransform(a: s, b: 0, c: 0, d: -s, tx: tx, ty: ty)
@@ -103,8 +111,8 @@ public struct BlueprintTail: View {
 
     /// Where the registration is lettered, in metres: halfway between the frame's left edge and the fin's
     /// leading edge, on the window line.
-    static func registrationCentre(_ g: AircraftGeometry, size: CGSize) -> CGPoint {
-        let t = transform(g, size: size)
+    static func registrationCentre(_ g: AircraftGeometry, size: CGSize, fitsFin: Bool = false) -> CGPoint {
+        let t = transform(g, size: size, fitsFin: fitsFin)
         let leftM = -t.tx / t.a
         let finLE = g.parts[.fin]?.boundingRect.minX ?? g.finBox.minX
         let x = (max(leftM, 0) + finLE) / 2
@@ -116,10 +124,10 @@ public struct BlueprintTail: View {
         let g = AircraftGeometry.geometry(type: type)
         let floor = letterFloor
         Canvas { ctx, size in
-            let toView = Self.transform(g, size: size)
+            let toView = Self.transform(g, size: size, fitsFin: fitsFin)
             if showsRegistration {
                 // Lettering painted on the skin; the panel beside the drawing carries the registration as text.
-                let (letter, box) = Self.placard(g, size: size, registration: registration, floor: floor)
+                let (letter, box) = Self.placard(g, size: size, registration: registration, floor: floor, fitsFin: fitsFin)
                 let placard = Path(roundedRect: box, cornerRadius: 2)
                 ctx.stroke(placard, with: .color(ink), lineWidth: 1)
                 ctx.draw(Text(ui: registration).font(.system(size: letter, weight: .medium, design: .monospaced))

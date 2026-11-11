@@ -8,13 +8,43 @@ import SwiftUI
 public struct AircraftImage: View {
     var type: AircraftType?
     var airline: Airline?
-    var height: CGFloat
+    var fit: Fit
     @Environment(\.brandAssets) private var service
     /// Bumped when the task stores a side view, so the body reads the memo again.
     @State private var revision = 0
 
+    /// How the picture is sized. Every picture runs from the nose tip to the tail tip, so its width is the
+    /// aircraft's length and its height depends on the fin: sizing by height alone draws a low regional jet
+    /// far larger than a widebody.
+    public enum Fit: Sendable, Equatable {
+        /// This tall, as wide as the picture's proportions make it. For one aircraft on its own.
+        case height(CGFloat)
+        /// As wide as its place allows up to `width`, no taller than `maxHeight`.
+        case width(CGFloat, maxHeight: CGFloat)
+        /// To scale: this many points per metre of the type's real length, so aircraft shown together keep
+        /// their real sizes. The view's vertical centre guide is then the fuselage's centreline
+        /// (`BrandArt.barrel`), so a container that centres it lines every fuselage up.
+        case scale(pointsPerMetre: CGFloat)
+    }
+
     public init(type: AircraftType?, airline: Airline?, height: CGFloat = 72) {
-        self.type = type; self.airline = airline; self.height = height
+        self.type = type; self.airline = airline; fit = .height(height)
+    }
+
+    public init(type: AircraftType?, airline: Airline?, fit: Fit) {
+        self.type = type; self.airline = airline; self.fit = fit
+    }
+
+    /// The frame a fit fixes: `.height` its height alone (the width follows the picture, and gives way when
+    /// its place is narrower), `.scale` both, `.width` neither (it follows its place, see `maxSize`).
+    static func frame(_ fit: Fit, aspect: CGFloat, type: AircraftType?) -> (width: CGFloat?, height: CGFloat?) {
+        switch fit {
+        case .height(let h): return (nil, h)
+        case .width: return (nil, nil)
+        case .scale(let pointsPerMetre):
+            let width = AircraftGeometry.geometry(type: type).lengthM * pointsPerMetre
+            return (width, width / max(aspect, 0.1))
+        }
     }
 
     /// Where the picture comes from.
@@ -90,18 +120,24 @@ public struct AircraftImage: View {
     public var body: some View {
         let _ = revision
         let provided = AircraftArtMemo.shared.art(sideKey)
+        // Until the picture is decoded: the space it will take, empty.
+        let aspect = provided?.aspect ?? AircraftSideView.aspect(type: type)
+        let size = Self.frame(fit, aspect: aspect, type: type)
         Group {
             if let provided {
                 Image(decorative: provided.image, scale: 1)
                     .resizable()
                     .interpolation(.high)
-                    .aspectRatio(provided.aspect, contentMode: .fit)
-                    .frame(height: height)
+                    .aspectRatio(aspect, contentMode: .fit)
             } else {
-                // Until the picture is decoded: the space it will take, empty.
-                Color.clear
-                    .frame(width: height * AircraftSideView.aspect(type: type), height: height)
+                Color.clear.aspectRatio(aspect, contentMode: .fit)
             }
+        }
+        .frame(width: size.width, height: size.height)
+        .frame(maxWidth: maxSize?.width, maxHeight: maxSize?.height)
+        .alignmentGuide(VerticalAlignment.center) { d in
+            guard case .scale = fit, let barrel = provided?.barrel else { return d[VerticalAlignment.center] }
+            return d.height * (barrel.lowerBound + barrel.upperBound) / 2
         }
         .accessibilityElement()
         .accessibilityLabel(Self.label(airline: airline, type: type))
@@ -111,6 +147,12 @@ public struct AircraftImage: View {
             let after = await Self.load(airline: airline, type: type, service: service)
             if after?.version != before || before == nil { revision += 1 }
         }
+    }
+
+    /// The bounds of a `.width` fit.
+    private var maxSize: CGSize? {
+        if case .width(let width, let maxHeight) = fit { return CGSize(width: width, height: maxHeight) }
+        return nil
     }
 
     /// "Airbus A321 in Delta colours"; the type alone without an airline.

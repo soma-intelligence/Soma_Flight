@@ -319,9 +319,9 @@ struct AircraftTotalsPanel: View {
                 .monospacedDigit()
                 .rollingDigits(Double(most.flights))
                 .foregroundStyle(Blueprint.deep)
-            // As wide as the panel, like the reference's hero plane: up to 96 pt tall, no wider than 353 pt.
-            AircraftImage(type: mostFlownType, airline: mostFlownAirline,
-                          height: min(96, 353 / AircraftSideView.aspect(type: mostFlownType)))
+            // As wide as the panel, like the reference's hero plane: up to 96 pt tall, no wider than 353 pt
+            // (sized on the picture itself, so it never runs past a narrow panel's edges).
+            AircraftImage(type: mostFlownType, airline: mostFlownAirline, fit: .width(353, maxHeight: 96))
                 .frame(maxWidth: .infinity)
                 .scaledPadding(.top, 12)
         }
@@ -335,15 +335,26 @@ struct AircraftTotalsPanel: View {
 // MARK: - Ranking
 
 /// One of the next most flown types: its place, name and "3 flights · 7 hours" at the left, its side view
-/// in the livery it was flown most in at the right, large and cut by the panel's right edge (nose in view).
+/// in the livery it was flown most in at the right, cut by the panel's right edge (nose in view). Every row
+/// draws its aircraft at the same scale (`pointsPerMetre`), so a widebody is larger than a regional jet as
+/// it is on the ramp, and on the same line: the fuselages share one centreline down the list.
 struct AircraftRankRow: View {
     var place: Int
     var rank: AircraftRank
-    @ScaledMetric(relativeTo: .title) private var planeHeight: CGFloat = 62
-    /// What shows of the aircraft before the edge cuts it: the front two thirds or so.
-    @ScaledMetric(relativeTo: .title) private var planeWidth: CGFloat = 190
+    /// Dynamic Type's factor for the aircraft, held to 1.2 so the text keeps its column at large sizes.
+    @ScaledMetric(relativeTo: .title) private var typeScale: CGFloat = 1
+
+    /// Points per metre at the default text size: a narrowbody shows about four fifths of its length.
+    static let pointsPerMetre: CGFloat = 6
+    /// The window the aircraft shows through, at the default text size.
+    static let planeWidth: CGFloat = 190
+    static let planeHeight: CGFloat = 72
+    /// Where the fuselage's centreline sits down the row: under the middle, since a fin rises further above
+    /// it than an engine hangs below.
+    static let centreline: CGFloat = 0.61
 
     var body: some View {
+        let f = min(typeScale, 1.2)
         HStack(alignment: .center, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(place)")
@@ -363,18 +374,24 @@ struct AircraftRankRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // The aircraft starts near the panel's middle and runs past its right edge.
-            Color.clear
-                .frame(minWidth: planeWidth, maxWidth: planeWidth)
-                .frame(height: planeHeight)
-                .overlay(alignment: .leading) {
-                    AircraftImage(type: rank.type, airline: rank.airline, height: planeHeight)
-                        .fixedSize()
-                }
-                .clipped()
+            Color.clear.frame(width: Self.planeWidth * f, height: Self.planeHeight * f)
         }
         .scaledPadding(.leading, 20)
         .scaledPadding(.vertical, 8)
+        // The aircraft starts near the panel's middle and runs past its right edge. It has the row's whole
+        // height, padding included, and is cut at the row's edges only.
+        .overlay(alignment: .trailing) {
+            GeometryReader { geo in
+                Color.clear
+                    .overlay(alignment: .leading) {
+                        AircraftImage(type: rank.type, airline: rank.airline, fit: .scale(pointsPerMetre: Self.pointsPerMetre * f))
+                            .fixedSize()
+                            .offset(y: geo.size.height * (Self.centreline - 0.5))
+                    }
+            }
+            .frame(width: Self.planeWidth * f)
+            .clipped()
+        }
         .overlay(alignment: .top) {
             Rectangle().fill(Blueprint.navy.opacity(0.12)).frame(height: 1).scaledPadding(.leading, 20)
         }
@@ -414,7 +431,7 @@ struct FrequentedTailPanel: View {
             .accessibilityHidden(true)
             HStack(alignment: .center, spacing: 0) {
                 BlueprintTail(type: tail.icaoType.flatMap(reference.type), registration: tail.registration,
-                              showsRegistration: false)
+                              showsRegistration: false, fitsFin: true)
                     .aspectRatio(1.8, contentMode: .fit)
                     // The barrel fades in from the panel edge instead of stopping on a hard cut.
                     .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.35)],

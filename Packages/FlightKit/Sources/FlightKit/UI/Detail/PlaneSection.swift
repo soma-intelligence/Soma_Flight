@@ -56,9 +56,10 @@ struct PlaneSection: View {
             .scaledPadding(.horizontal, 16)
             .scaledPadding(.top, 20)
             if let type {
-                // The drawing is as wide as its height allows; fit it to the card's width.
+                // The box is the type's drawn proportions, kept before the picture is decoded; the picture
+                // fits inside it both ways, so one that is longer for its height never runs past the card.
                 GeometryReader { geo in
-                    AircraftImage(type: type, airline: airline, height: geo.size.height)
+                    AircraftImage(type: type, airline: airline, fit: .width(geo.size.width, maxHeight: geo.size.height))
                         .frame(width: geo.size.width, height: geo.size.height)
                 }
                 .aspectRatio(AircraftSideView.aspect(type: type), contentMode: .fit)

@@ -46,7 +46,7 @@ public struct NotificationSettingsView: View {
             ScreenScroll(scrolls: scrolls) { content }
         }
         .background(Theme.background)
-        .task { if !store.hasLoaded { await store.load() } }
+        .task { if !store.hasPreferences { await store.load() } }
     }
 
     private var content: some View {

@@ -239,20 +239,25 @@ public final class FlightDetailStore {
     public func loadExtras(now: Date = .now) async {
         guard let f = flight else { return }
         let airports = airports, history = history, id = id
-        let insights: (any InsightsService)? = Self.showsInsights(f.status) ? self.insights : nil
+        // A Passport flight is over: today's delays, weather, forecast, inbound plane, security wait and
+        // gates say nothing about it (the sheet showed this morning's drizzle on a flight of last spring),
+        // and several of those calls are paid. It keeps what comes from the history alone.
+        let live = !isArchived
+        let insights: (any InsightsService)? = live && Self.showsInsights(f.status) ? self.insights : nil
         let originCode = f.originIcao
         let destinationCode = destination?.id ?? f.destinationIcao
-        async let oStats = try? airports.stats(originCode)
-        async let dStats = try? airports.stats(destinationCode)
-        async let oWeather = try? airports.weather(originCode)
-        async let dWeather = try? airports.weather(destinationCode)
+        async let oStats = live ? try? airports.stats(originCode) : nil
+        async let dStats = live ? try? airports.stats(destinationCode) : nil
+        async let oWeather = live ? try? airports.weather(originCode) : nil
+        async let dWeather = live ? try? airports.weather(destinationCode) : nil
         async let past = Self.pastFlights(history)
         async let forecastValue = Self.forecast(insights, ident: f.ident)
         async let inboundValue = Self.inbound(insights, id: id)
-        let security: (any SecurityWaitService)? = SecurityWaitFacts.worthLoading(f, now: now) ? self.security : nil
+        let security: (any SecurityWaitService)? = live && SecurityWaitFacts.worthLoading(f, now: now) ? self.security : nil
         async let securityValue = Self.securityWait(security, airport: originCode)
-        async let gatesValue = Self.gateHistory(gates, flight: f, originTimeZone: origin?.timeZone)
-        let faa: (any FAAService)? = FAAFacts.worthLoading(f.status) ? self.faa : nil
+        let gates = gates, originZone = origin?.timeZone
+        async let gatesValue = live ? Self.gateHistory(gates, flight: f, originTimeZone: originZone) : nil
+        let faa: (any FAAService)? = live && FAAFacts.worthLoading(f.status) ? self.faa : nil
         async let faaValue = Self.advisories(faa, origin: originCode, destination: destinationCode)
         let results = await (oStats, dStats, oWeather, dWeather, past, forecastValue, inboundValue, securityValue, faaValue)
         let gateValue = await gatesValue

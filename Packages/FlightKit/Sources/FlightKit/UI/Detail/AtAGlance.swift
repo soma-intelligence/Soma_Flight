@@ -120,11 +120,19 @@ enum GlanceFacts {
                     caption: terminal(f.terminalDestination), kind: .placeholder)
     }
 
-    /// The baggage belt: the airline's, else "After landing" while in the air or before, "Belt soon" once down.
-    static func belt(_ f: Flight) -> Cell {
+    /// How long after the arrival a belt can still be posted.
+    static let beltWindow: TimeInterval = 2 * 3600
+
+    /// The baggage belt: the airline's, else "After landing" while in the air or before, "Belt soon" once
+    /// down, and "Not posted" once the arrival is more than `beltWindow` old (a Passport flight of last
+    /// spring has no belt coming).
+    static func belt(_ f: Flight, now: Date = .now) -> Cell {
         let label = "Baggage belt"
         if let belt = f.baggageBelt { return Cell(label: label, value: belt, caption: nil, kind: .known) }
-        return Cell(label: label, value: hasLanded(f) ? beltSoon : afterLanding, caption: nil, kind: .placeholder)
+        guard hasLanded(f) else { return Cell(label: label, value: afterLanding, caption: nil, kind: .placeholder) }
+        let arrived = f.actualIn ?? f.actualOn ?? f.estimatedIn ?? f.scheduledIn
+        let stale = arrived.map { now.timeIntervalSince($0) > beltWindow } ?? false
+        return Cell(label: label, value: stale ? notPosted : beltSoon, caption: nil, kind: .placeholder)
     }
 
     // MARK: Outlook

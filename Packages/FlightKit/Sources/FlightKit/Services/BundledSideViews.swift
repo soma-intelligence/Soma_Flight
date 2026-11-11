@@ -14,13 +14,15 @@ public struct BundledSideViews: BrandAssetService {
     struct Catalog: Sendable {
         var version: String
         var pairs: Set<String>
+        /// `pairs` in order, for the fallbacks that take an airline's first picture.
+        var sorted: [String] = []
 
         static let bundled: Catalog = {
             struct Index: Decodable { var version: String; var pairs: [String] }
             guard let url = url("index", "json"), let data = try? Data(contentsOf: url),
                   let index = try? JSONDecoder().decode(Index.self, from: data)
             else { return Catalog(version: "", pairs: []) }
-            return Catalog(version: index.version, pairs: Set(index.pairs))
+            return Catalog(version: index.version, pairs: Set(index.pairs), sorted: index.pairs.sorted())
         }()
 
         static func url(_ name: String, _ ext: String) -> URL? {
@@ -111,9 +113,9 @@ public struct BundledSideViews: BrandAssetService {
             for n in near { if let hit = first(n) { return hit } }
         }
         for code in codes.dropLast() {
-            if let hit = pairs.sorted().first(where: { $0.hasPrefix(code + "-") }) { return hit }
+            if let hit = Catalog.bundled.sorted.first(where: { $0.hasPrefix(code + "-") }) { return hit }
         }
-        return first("A320") ?? pairs.sorted().first
+        return first("A320") ?? Catalog.bundled.sorted.first
     }
 
     /// The same, by family, for a type the reference list does not know ("" or a code of our own).

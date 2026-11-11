@@ -96,14 +96,16 @@ public final class PassportStore {
         }
     }
 
-    /// Flights in the selected year (by local departure date), newest first.
-    public var flights: [PastFlight] {
-        rows.filter { year == nil || $0.localYear == year }.sorted { $0.date > $1.date }
-    }
+    /// Flights in the selected year (by local departure date), newest first. Kept by `recompute`, like
+    /// `years`: the Passport tab reads both on every render, and filtering and sorting the whole history
+    /// each time grew with it.
+    public private(set) var flights: [PastFlight] = []
     /// Every flight of the history, whatever the year (airlines as the core reads them, ICAO when known).
     public var allFlights: [PastFlight] { mapped }
     /// Years with at least one flight, newest first.
-    public var years: [Int] { Array(Set(rows.map(\.localYear))).sorted(by: >) }
+    public private(set) var years: [Int] = []
+    /// `mapped` cut to the selected year, for the liveries (`topAirline`).
+    private var mappedInYear: [PastFlight] = []
 
     /// CO2 for one passenger over the selected year's flights (`FlightEmissions`, economy when the class is
     /// not noted), and how many flights it counts (canceled and private ones add nothing).
@@ -129,8 +131,7 @@ public final class PassportStore {
 
     /// The airline this user flew a type with most often in the selected year: whose livery its side view wears.
     public func topAirline(forType type: String) -> Airline? {
-        let inYear = mapped.filter { year == nil || $0.localYear == year }
-        return PassportPicks.topAirline(for: type, in: inYear).flatMap { reference.airline($0) }
+        PassportPicks.topAirline(for: type, in: mappedInYear).flatMap { reference.airline($0) }
     }
 
     /// The types after the most flown one, by flights (the core's order), with their reference entry and the
@@ -269,8 +270,16 @@ public final class PassportStore {
     }
 
     private func remap() {
+        let had = years
         mapped = Self.mapped(rows, reference: reference, airport: airport)
         core = mapped.map(\.coreFlight)
+        // The chosen year lost its last flight (deleted, or edited to another year): its chip is gone, so
+        // the page goes back to All-Time instead of staying on an empty year nothing leads out of. Only a
+        // year the history held before this change: a year chosen ahead of its flights is left alone.
+        if let chosen = year, had.contains(chosen), !mapped.isEmpty, !mapped.contains(where: { $0.localYear == chosen }) {
+            year = nil // its didSet recomputes
+            return
+        }
         recompute()
     }
 
@@ -300,6 +309,11 @@ public final class PassportStore {
 
     private func recompute() {
         let y = year.map(Int32.init)
+        let history = rows
+        let historyYears = history.map(\.localYear)
+        years = Array(Set(historyYears)).sorted(by: >)
+        flights = zip(history, historyYears).filter { year == nil || $0.1 == year }.map(\.0).sorted { $0.date > $1.date }
+        mappedInYear = mapped.filter { year == nil || $0.localYear == year }
         stats = PassportStats.compute(core: core, year: year)
         delayReport = DelayReport.compute(mapped, year: year)
         detail = FlightCore.computePassportDetail(flights: core, year: y, countries: countries)

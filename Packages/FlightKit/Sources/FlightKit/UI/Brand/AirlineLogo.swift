@@ -70,6 +70,10 @@ struct BrandArt: @unchecked Sendable {
     /// Alpha near each corner (8% in from both edges), 0 to 1: a filled tile is opaque there, a roundel
     /// or a bare mark is not.
     var cornerAlpha: [Double] = []
+    /// Side views only: the fuselage's top and bottom in the forward cabin, as fractions of the image's
+    /// height from its top (`ProviderSideView.barrel`). Lets a row line aircraft up on their fuselage
+    /// whatever the fin above it or the engines under it. nil for a logo, and when it cannot be read.
+    var barrel: ClosedRange<CGFloat>? = nil
 
     static let bins = 32
     var aspect: CGFloat { CGFloat(image.width) / CGFloat(max(image.height, 1)) }

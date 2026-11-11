@@ -28,7 +28,9 @@ public struct DelayChart: View {
         let day = calendar.startOfDay(for: anchor)
         return (0..<24).map { h in
             let start = calendar.date(byAdding: .hour, value: h, to: day)!
-            return (start, perHour.first { abs($0.hour.timeIntervalSince(start)) < 1 })
+            // The buckets sit on UTC hours: in a zone offset by 30 or 45 minutes they start inside the local
+            // hour, not on it.
+            return (start, perHour.first { $0.hour >= start.addingTimeInterval(-1) && $0.hour < start.addingTimeInterval(3599) })
         }
     }
 

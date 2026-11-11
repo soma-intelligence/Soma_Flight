@@ -17,6 +17,9 @@ struct PassportCard: View {
             .accessibilityValue("\(stats.flights) flights, \(TravelFacts.distance(stats.distanceKm, units.distance))")
     }
 
+    /// The gap between two figures side by side.
+    static let columnGap: CGFloat = 14
+
     /// The card without its button, also what the full Passport page shows and shares. `framed: false`
     /// leaves out the card's own fill and rim, for the Passport page's header panel that draws its own.
     func face(row: Bool = true, framed: Bool = true) -> some View {
@@ -34,20 +37,23 @@ struct PassportCard: View {
             .foregroundStyle(Self.soft)
             .scaledPadding(.top, 3)
 
+            // A real gap between the columns (their minimum widths are less by as much, so the default
+            // layout is unchanged): with none, labels that outgrow their minimum at large text sizes ran
+            // into each other ("AIRPORTSAIRLINES") instead of dropping to the stacked layout.
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 0) {
-                    flightsStat.frame(minWidth: 112, alignment: .leading)
+                HStack(alignment: .top, spacing: Self.columnGap) {
+                    flightsStat.frame(minWidth: 112 - Self.columnGap, alignment: .leading)
                     distanceStat
                 }
                 VStack(alignment: .leading, spacing: 12) { flightsStat; distanceStat }
             }
             .scaledPadding(.top, 20)
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 0) {
+                HStack(alignment: .top, spacing: Self.columnGap) {
                     stat("Flight time", TravelFacts.flightTime(stats.flightTime))
-                        .frame(minWidth: 112, alignment: .leading)
+                        .frame(minWidth: 112 - Self.columnGap, alignment: .leading)
                     stat("Airports", "\(stats.airports)")
-                        .frame(minWidth: 84, alignment: .leading)
+                        .frame(minWidth: 84 - Self.columnGap, alignment: .leading)
                     stat("Airlines", "\(stats.airlines)")
                     Spacer(minLength: 0)
                 }
@@ -352,8 +358,6 @@ struct PastFlightsSection: View {
             if let onOpen {
                 Button { onOpen(f) } label: { plain.contentShape(Rectangle()) }
                     .buttonStyle(.plain)
-                    // The flight's page zooms out of this row and back into it (iOS home sheet).
-                    .cardZoomSource(f.id)
             } else {
                 plain
             }

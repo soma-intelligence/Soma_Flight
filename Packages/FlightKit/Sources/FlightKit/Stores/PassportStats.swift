@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import FlightCore
 
 /// Lifetime flight totals. The numbers come from the Rust core so iOS and the backend agree.
@@ -105,11 +106,18 @@ extension PastFlight {
             seatClass: seatClass, seat: seat, reason: reason, seatPosition: position)
     }
 
-    /// Local departure year in the origin's zone, matching the core's bucketing.
+    /// Local departure year in the origin's zone, matching the core's bucketing. The calendar of each zone
+    /// is made once: every figure asks this of every flight.
     var localYear: Int {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: originTz ?? "UTC") ?? .gmt
-        return cal.component(.year, from: date)
+        let zone = originTz ?? "UTC"
+        let calendar = yearCalendars.withLock { held in
+            if let calendar = held[zone] { return calendar }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: zone) ?? .gmt
+            held[zone] = calendar
+            return calendar
+        }
+        return calendar.component(.year, from: date)
     }
 }
 
@@ -127,3 +135,6 @@ extension AircraftFamily {
         FlightCore.seatPosition(seat: seat, family: rawValue)
     }
 }
+
+/// Gregorian calendars by time zone identifier, for `PastFlight.localYear`.
+private let yearCalendars = Mutex<[String: Calendar]>([:])

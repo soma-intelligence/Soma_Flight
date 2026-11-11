@@ -29,7 +29,10 @@ public struct SystemLocalNotificationCenter: LocalNotificationCenter {
         content.userInfo = ["flightId": reminder.flightId.uuidString.lowercased(), "reminder": reminder.kind.rawValue]
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .gmt
-        let when = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
+        var when = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
+        // Without a zone the trigger reads these GMT figures as the phone's local time, and every reminder
+        // fires off by the phone's UTC offset.
+        when.timeZone = .gmt
         let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: false)
         try await UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: reminder.id, content: content, trigger: trigger))

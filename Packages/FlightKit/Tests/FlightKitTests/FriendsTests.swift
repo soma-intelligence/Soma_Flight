@@ -107,7 +107,9 @@ import Testing
     // MARK: Store
 
     private func loaded(_ service: FakeFriendsService = FakeFriendsService(now: now)) async -> FriendsStore {
-        let store = FriendsStore(service: service)
+        // The store reads the fake service's clock: on the wall clock the fake invitation (seven days from
+        // `now`) is expired from 2026-11-10 on, and a later share then makes a new one.
+        let store = FriendsStore(service: service, clock: { Self.now })
         await store.load()
         return store
     }

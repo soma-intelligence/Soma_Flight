@@ -9,6 +9,8 @@ import Observation
 public final class NotificationSettingsStore {
     public private(set) var preferences: NotificationPreferences = .allOn
     public private(set) var hasLoaded = false
+    /// True once the account's row has been read: only then do the switches show the account's own choices.
+    public private(set) var hasPreferences = false
     public private(set) var error: APIError?
     /// Categories whose save is running.
     public private(set) var saving: Set<NotificationPreferences.Category> = []
@@ -45,6 +47,7 @@ public final class NotificationSettingsStore {
             preferences = p
             error = nil
             hasLoaded = true
+            hasPreferences = true
             onChange?(p)
         } catch {
             guard gen == generation else { return }
@@ -55,6 +58,12 @@ public final class NotificationSettingsStore {
 
     /// Turns one category on or off and saves the whole row.
     public func set(_ category: NotificationPreferences.Category, _ on: Bool) async {
+        // A toggle saves the whole row. After a load that failed the switches show the defaults (all on),
+        // so saving then would turn back on everything the account had turned off: read the row first.
+        if !hasPreferences {
+            await load()
+            guard hasPreferences else { return }
+        }
         guard preferences[category] != on else { return }
         let before = preferences
         preferences[category] = on
@@ -85,7 +94,7 @@ public final class NotificationSettingsStore {
     #if DEBUG
     /// Previews: a state without a load.
     func seed(_ p: NotificationPreferences, error: APIError? = nil) {
-        preferences = p; self.error = error; hasLoaded = true
+        preferences = p; self.error = error; hasLoaded = true; hasPreferences = true
     }
     #endif
 }

@@ -12,12 +12,12 @@ struct DelayStatsView: View {
 
     var body: some View {
         FullPageChrome(title: FullPage.delays.title, year: $store.year, years: store.years, scheme: .dark,
-                       page: DelayInk.page, shareKey: store.revision, onClose: onClose,
+                       page: DelayInk.page, onClose: onClose,
                        sectionBackground: DelayInk.sections, heroInset: 0,
                        chipFill: .white.opacity(0.14), buttonFill: .white.opacity(0.10), frosted: true) {
             DelayReportHero(report: store.delayReport, year: store.year, lookup: lookup)
         } content: {
-            DelayReportSections(report: store.delayReport, year: store.year, key: store.revision, lookup: lookup)
+            DelayReportSections(report: store.delayReport, year: store.year, lookup: lookup)
         }
     }
 }
@@ -170,7 +170,6 @@ struct DelayReportHero: View {
 struct DelayReportSections: View {
     var report: DelayReport
     var year: Int?
-    var key: Int
     var lookup: (String) -> Airport?
     @State private var moreAirlines = false
     @State private var moreAirports = false
@@ -181,10 +180,10 @@ struct DelayReportSections: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ReportSection(title: "My Performance", key: key) { performance }
-            ReportSection(title: "Airline Performance", key: key) { airlines(expanded: moreAirlines) }
-            ReportSection(title: "Airport Performance", key: key) { airports(expanded: moreAirports) }
-            ReportSection(title: "Arrival Delays", key: key) { delays(expanded: moreDelays) }
+            ReportSection(title: "My Performance") { performance }
+            ReportSection(title: "Airline Performance") { airlines(expanded: moreAirlines) }
+            ReportSection(title: "Airport Performance") { airports(expanded: moreAirports) }
+            ReportSection(title: "Arrival Delays") { delays(expanded: moreDelays) }
         }
         .rollingDigits()
     }

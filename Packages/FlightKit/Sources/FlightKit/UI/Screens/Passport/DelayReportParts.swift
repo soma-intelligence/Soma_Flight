@@ -290,13 +290,11 @@ struct Bar: View {
 }
 
 /// A section of the report: its title, a Share button that hands over the section as an image, then the
-/// content.
+/// content. The image is made only when the share sheet asks for it (`SectionSnapshot`): rendering all
+/// four as the report opened held the main thread through its opening zoom.
 struct ReportSection<Content: View>: View {
     var title: String
-    /// Changes whenever the figures change, so the shared image follows.
-    var key: Int
     @ViewBuilder var content: Content
-    @State private var image: Image?
     @Environment(\.reference) private var reference
     @Environment(\.displayScale) private var displayScale
 
@@ -309,7 +307,6 @@ struct ReportSection<Content: View>: View {
         .scaledPadding(.vertical, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.07)).frame(height: 1) }
-        .task(id: key) { render() }
     }
 
     private var header: some View {
@@ -319,27 +316,26 @@ struct ReportSection<Content: View>: View {
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
-            if let image {
-                ShareLink(item: image, subject: Text("Soma Flight"),
-                          message: Text("\(title), from my Soma Flight Delay Report"),
-                          preview: SharePreview("Soma Flight: \(title)", image: image)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                        .scaledFont(15, weight: .semibold)
-                        .foregroundStyle(Theme.primary)
-                        .scaledPadding(.horizontal, 14)
-                        .frame(minHeight: 36)
-                        .background(Capsule().fill(.white.opacity(0.06)))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Share \(title)")
+            ShareLink(item: SectionSnapshot(source: SectionRenderer(page: { AnyView(card) }, scale: max(displayScale, 2))),
+                      subject: Text("Soma Flight"),
+                      message: Text("\(title), from my Soma Flight Delay Report"),
+                      preview: SharePreview("Soma Flight: \(title)", image: Image(systemName: "square.and.arrow.up"))) {
+                Label("Share", systemImage: "square.and.arrow.up")
+                    .scaledFont(15, weight: .semibold)
+                    .foregroundStyle(Theme.primary)
+                    .scaledPadding(.horizontal, 14)
+                    .frame(minHeight: 36)
+                    .background(Capsule().fill(.white.opacity(0.06)))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 1))
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Share \(title)")
         }
     }
 
     /// The section at phone width over the report's dark ground, signed with the app's name.
-    @MainActor private func render() {
-        let card = VStack(alignment: .leading, spacing: 14) {
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 14) {
             Text(ui: title).scaledFont(22, weight: .bold).foregroundStyle(Theme.primary)
             content
             DelayFacts.signature
@@ -349,8 +345,5 @@ struct ReportSection<Content: View>: View {
         .background(DelayInk.sections)
         .environment(\.colorScheme, .dark)
         .environment(\.reference, reference)
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = max(displayScale, 2)
-        image = renderer.cgImage.map { Image(decorative: $0, scale: renderer.scale) }
     }
 }
