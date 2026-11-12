@@ -2,7 +2,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import { jwtVerify } from "npm:jose@5";
 import type { TokenVerifier } from "../_shared/auth.ts";
 import { ApiError } from "../_shared/errors.ts";
-import { handler } from "./handler.ts";
+import { handler, parsePrivateKey } from "./handler.ts";
 
 const NOW = new Date("2026-11-11T12:00:00Z");
 const pair = await crypto.subtle.generateKey(
@@ -60,8 +60,10 @@ Deno.test("no JWT answers 401 unauthorized", async () => {
 });
 
 Deno.test("missing secrets answer 503 provider_unavailable with no token", async () => {
-  const res = await handler(get("good"), deps({ secrets: null }).d);
+  const { d, rateCalls } = deps({ secrets: null });
+  const res = await handler(get("good", "http://localhost:5173"), d);
   assertEquals(res.status, 503);
+  assertEquals(rateCalls.length, 0);
   const body = await res.json();
   assertEquals(body.error.code, "provider_unavailable");
   assertEquals(body.token, undefined);
@@ -87,8 +89,10 @@ Deno.test("a signed-in GET returns an ES256 JWT", async () => {
 });
 
 Deno.test("an Origin outside webOrigins() answers 400 invalid_request", async () => {
-  const res = await handler(get("good", "https://evil.example"), deps().d);
+  const { d, rateCalls } = deps();
+  const res = await handler(get("good", "https://evil.example"), d);
   assertEquals(res.status, 400);
+  assertEquals(rateCalls.length, 0, "a refused origin spends no rate");
   const body = await res.json();
   assertEquals(body.error.code, "invalid_request");
   assertEquals(body.token, undefined);
@@ -96,11 +100,31 @@ Deno.test("an Origin outside webOrigins() answers 400 invalid_request", async ()
 
 Deno.test("a rate_limited ApiError from rate answers 429", async () => {
   const res = await handler(
-    get("good"),
+    get("good", "http://localhost:5173"),
     deps({
       rate: () => Promise.reject(new ApiError("rate_limited", 429, "Too many")),
     }).d,
   );
   assertEquals(res.status, 429);
   assert((await res.json()).error.code === "rate_limited");
+});
+
+Deno.test("no Origin answers 400 invalid_request and spends no rate", async () => {
+  const { d, rateCalls } = deps();
+  const res = await handler(get("good"), d);
+  assertEquals(res.status, 400);
+  const body = await res.json();
+  assertEquals(body.error.code, "invalid_request");
+  assertEquals(body.token, undefined);
+  assertEquals(rateCalls.length, 0);
+});
+
+Deno.test("parsePrivateKey turns literal \\n into line breaks", () => {
+  assertEquals(
+    parsePrivateKey("-----BEGIN PRIVATE KEY-----\\nABC\\n-----END PRIVATE KEY-----"),
+    "-----BEGIN PRIVATE KEY-----\nABC\n-----END PRIVATE KEY-----",
+  );
+  assertEquals(parsePrivateKey("line1\nline2"), "line1\nline2");
+  assertEquals(parsePrivateKey(undefined), undefined);
+  assertEquals(parsePrivateKey("  "), undefined);
 });

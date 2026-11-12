@@ -174,14 +174,18 @@ MapKit JS (header `kid` = the MapKit key id, claims `iss` = team id, `iat`, `exp
 `origin` when the request has an `Origin`). Used by the web globe; the apps do not call it.
 
 - `401 unauthorized` without a valid JWT; `429 rate_limited` after 30 calls per hour per user.
-- `400 invalid_request` when the `Origin` is not in `WEB_ORIGINS`, so no token is minted for another site.
+- `400 invalid_request` without an `Origin`, or when the `Origin` is not in `WEB_ORIGINS`, so no token is
+  minted for another site. These checks and the secrets check run before the rate limit, so a refused
+  call does not count against it.
 - `503 provider_unavailable` while `MAPKIT_KEY_ID`, `MAPKIT_TEAM_ID` or `MAPKIT_PRIVATE_KEY` is unset.
 
 ## CORS
 
-`flight-lookup`, `follow-flight`, `flight-position` and `mapkit-token` answer browser preflights and add
-`Access-Control-Allow-Origin` for the origins in `WEB_ORIGINS` (comma list, default
-`https://flight.somalabs.me,http://localhost:5173`). Requests without an `Origin` (the apps) are untouched.
+These functions answer browser preflights and add `Access-Control-Allow-Origin` for the origins in
+`WEB_ORIGINS` (comma list, default `https://flight.somalabs.me,http://localhost:5173`): every function
+the web app calls (`airport-weather`, `delete-account`, `faa-status`, `flight-lookup`, `follow-flight`,
+`friends`, `mapkit-token`), plus `flight-position`. Requests without an `Origin` (the apps) are
+untouched.
 
 ## flight-position
 

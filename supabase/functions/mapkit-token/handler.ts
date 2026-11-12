@@ -1,8 +1,9 @@
 // GET /mapkit-token -> { token, expiresAt }
 // A short-lived MapKit JS token (ES256 JWT signed with the Apple Maps key) for the web app's globe.
-// Needs the user JWT, rate limited to 30 per hour per user. When the request carries an Origin it
-// must be one of WEB_ORIGINS, and the token is bound to it (the `origin` claim), so a token is
-// never minted for another site.
+// Needs the user JWT and an Origin from WEB_ORIGINS; the token is bound to that origin (the `origin`
+// claim), so a token is never minted for another site or for a caller with no site at all. Rate
+// limited to 30 per hour per user, counted only once the origin and the secrets are good, so a refused
+// call never spends the user's allowance.
 import { importPKCS8, SignJWT } from "npm:jose@5";
 import { requireUser, type TokenVerifier } from "../_shared/auth.ts";
 import { webOrigins } from "../_shared/cors.ts";
@@ -24,15 +25,24 @@ export interface Deps {
   secrets: MapkitSecrets | null;
 }
 
+/** Secrets keep the PEM on one line with literal `\n` sequences; this restores the line breaks. */
+export function parsePrivateKey(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined;
+  const pem = raw.replace(/\\n/g, "\n").trim();
+  return pem === "" ? undefined : pem;
+}
+
 export async function handler(req: Request, deps: Deps): Promise<Response> {
   try {
     if (req.method !== "GET") {
       throw new ApiError("invalid_request", 400, "Use GET");
     }
     const { userId } = await requireUser(req, deps.verify);
-    await deps.rate(userId, "mapkit-token", 30, 60);
     const origin = req.headers.get("origin");
-    if (origin !== null && !webOrigins().includes(origin)) {
+    if (origin === null) {
+      throw new ApiError("invalid_request", 400, "Origin required");
+    }
+    if (!webOrigins().includes(origin)) {
       throw new ApiError("invalid_request", 400, "Origin not allowed");
     }
     const { secrets } = deps;
@@ -44,10 +54,11 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
         "MapKit is not configured",
       );
     }
+    await deps.rate(userId, "mapkit-token", 30, 60);
     const iat = Math.floor(deps.now().getTime() / 1000);
     const exp = iat + TOKEN_TTL_SECONDS;
     const key = await importPKCS8(secrets.privateKey, "ES256");
-    const token = await new SignJWT(origin === null ? {} : { origin })
+    const token = await new SignJWT({ origin })
       .setProtectedHeader({ alg: "ES256", kid: secrets.keyId, typ: "JWT" })
       .setIssuer(secrets.teamId)
       .setIssuedAt(iat)
