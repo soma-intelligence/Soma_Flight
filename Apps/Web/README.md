@@ -14,8 +14,18 @@ Only the publishable key belongs here. Never the service role key.
 
 A production build without `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (https only) shows "No server configured".
 
-`VITE_SUPABASE_PROXY=1` (development only) sends Supabase traffic through the dev server's `/sb` proxy, because the edge functions send no CORS headers yet.
+`VITE_SUPABASE_PROXY=1` (development only) sends Supabase traffic through the dev server's `/sb` proxy, because the edge functions that send CORS headers (`withCors`, see `docs/api-contract.md`) are not deployed yet.
 
 ## What the browser keeps
 
-The spec keeps nothing in the browser except the Supabase session. Two user conveniences are the exception, as the iOS app keeps them on the device too (owner's ruling, 2026-11-11): `sf.appearance` (system, light or dark; sets `data-theme` on `<html>`, system leaves it off) and `sf.units` (distance and 12 or 24 hour clock), both set in Settings. The Supabase session aside, `sf.fakes` and `sf.return` live in sessionStorage only. TanStack Query's cache stays in memory.
+The spec keeps nothing in the browser except the Supabase session. A few user conveniences are the exception, as the iOS app keeps them on the device too (owner's ruling, 2026-11-11). They are per browser, never synced to the account:
+
+| Key | Storage | What |
+| --- | --- | --- |
+| `sf.appearance` | localStorage | System, light or dark, set in Settings. Sets `data-theme` on `<html>`; system leaves it off. |
+| `sf.units` | localStorage | Distance (km or mi) and the 12 or 24 hour clock, set in Settings. Every distance and time follows it live (`useUnits`). |
+| `sf.favoriteAirports` | localStorage | The favourite airports (ICAO codes), set with the star on an airport card. |
+| `sf.return` | sessionStorage | The path to return to after the sign-in link, taken once. |
+| `sf.fakes` | sessionStorage | Development only (`?fakes=1`), compiled out of production. |
+
+TanStack Query's cache stays in memory and is cleared on sign out.

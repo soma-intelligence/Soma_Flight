@@ -69,6 +69,7 @@ The backend lives in `supabase/`: Postgres migrations, seed data and Deno Edge F
 - `Apps/`: the iOS, macOS and watchOS app targets, generated from `project.yml`.
 - `Packages/FlightKit`: the shared SwiftUI app, services and tests.
 - `core/` and `Packages/FlightCoreFFI`: the Rust core (`flightcore`) and its Swift bindings.
+- `Apps/Web`: the web app (Vite, React), a first cut of the same app in the browser; see [its README](Apps/Web/README.md).
 - `supabase/`: migrations, seed data and Edge Functions.
 - `docs/`: API contract, operations, data sources and design notes.
 

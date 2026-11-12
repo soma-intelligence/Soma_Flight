@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchFavorites, favoritesKey, setFavorite } from "@/data/airports";
 import { useFakes } from "@/data/flights";
 
-/** The signed-in user's favourite airports (ICAO). A failed read leaves `data` undefined. */
+/**
+ * The favourite airports (ICAO), kept in this browser only (`sf.favoriteAirports` in localStorage), not
+ * on the account. A failed read leaves `data` undefined.
+ */
 export function useFavorites() {
   const fakes = useFakes();
   return useQuery({

@@ -16,3 +16,4 @@ aircraft-art/
 Apps/Web/node_modules
 Apps/Web/dist
 Apps/Web/.env*.local
+Apps/Web/.vitest/
