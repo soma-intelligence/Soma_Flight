@@ -16,10 +16,11 @@ let fakes = false;
 vi.mock("./client", () => ({ getSupabase: () => ({ from }) }));
 vi.mock("./flights", () => ({ useFakes: () => fakes }));
 
-import { computePassport, initCore, type CorePastFlight } from "@/core/flightcore";
+import { computePassport, computePassportDetail, initCore, type CorePastFlight } from "@/core/flightcore";
 import { airportDir } from "@/test/airportDir";
 import {
   addPastFlight,
+  saveFailureCopy,
   decodePastFlight,
   deletePastFlight,
   exportFileName,
@@ -252,5 +253,49 @@ describe("export", () => {
   it("names the file after the local day", () => {
     expect(exportFileName("csv", new Date(2026, 10, 11, 9))).toBe("soma-flight-history-2026-11-11.csv");
     expect(exportFileName("json", new Date(2026, 0, 2))).toBe("soma-flight-history-2026-01-02.json");
+  });
+});
+
+describe("save failures", () => {
+  const fail = async (error: object) => {
+    insertSelect.mockResolvedValueOnce({ data: null, error });
+    return addPastFlight({ ident: "", day: "2025-03-14", from: "SFO", to: "JFK" }, airportDir).catch((e: unknown) => e);
+  };
+  it("uses the app's distinct lines per database refusal", async () => {
+    expect(saveFailureCopy(await fail({ code: "23514", message: "check" }))).toBe(
+      "An airport code, the flight number, the aircraft or the date isn't accepted",
+    );
+    expect(saveFailureCopy(await fail({ code: "23505", message: "dup" }))).toBe("Already in your Passport");
+    expect(saveFailureCopy(await fail({ code: "23502", message: "null" }))).toBe("A required value is missing");
+    expect(saveFailureCopy(await fail({ code: "42501", message: "rls" }))).toBe(
+      "Your account can't save this flight. Sign in again and retry.",
+    );
+    expect(saveFailureCopy(await fail({ code: "22007", message: "fmt" }))).toBe(
+      "A value is in a format the server doesn't read",
+    );
+  });
+  it("says offline when the request never left", async () => {
+    expect(saveFailureCopy(await fail({ message: "TypeError: Failed to fetch" }))).toBe(
+      "You're offline. Showing the last update.",
+    );
+  });
+  it("falls back on the generic line", async () => {
+    expect(saveFailureCopy(await fail({ code: "XX000", message: "boom" }))).toBe("This flight could not be saved.");
+    expect(saveFailureCopy(new Error("x"))).toBe("This flight could not be saved.");
+  });
+});
+
+describe("countries from the core", () => {
+  const f = (over: Partial<PastFlight>) => toCore([{ ...past(), ...over }], airportDir)[0]!;
+  it("counts distinct countries, skipping canceled flights, blank countries and the other years", () => {
+    const rows = [
+      f({ originCountry: "US", destinationCountry: "FR" }),
+      f({ originCountry: "FR", destinationCountry: "gb ", date: new Date("2026-02-01T12:00:00Z"), originTz: "UTC" }),
+      f({ originCountry: "JP", destinationCountry: "JP", status: "canceled" }),
+      { ...f({ originIcao: "ZZZZ", destinationIcao: "YYYY" }), origin_country: "", destination_country: null },
+    ];
+    expect(computePassportDetail(rows, null).countries.map((c) => c.iso2).sort()).toEqual(["FR", "GB", "US"]);
+    expect(computePassportDetail(rows, 2026).countries.map((c) => c.iso2).sort()).toEqual(["FR", "GB"]);
+    expect(computePassportDetail(rows, 2030).countries).toEqual([]);
   });
 });

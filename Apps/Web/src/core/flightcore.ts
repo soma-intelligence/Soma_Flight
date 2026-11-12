@@ -90,3 +90,34 @@ export type PassportStats = {
 export function computePassport(rows: CorePastFlight[], year?: number | null): PassportStats {
   return parsed<PassportStats>(pkg.computePassport(JSON.stringify(rows), year ?? undefined));
 }
+
+export type CountryRegion =
+  | "europe"
+  | "north_america"
+  | "central_america"
+  | "caribbean"
+  | "south_america"
+  | "africa"
+  | "middle_east"
+  | "asia"
+  | "oceania";
+
+/** A reference country: its ISO 3166-1 alpha-2 code and region (the regions only count visits per region). */
+export type CountryInfo = { iso2: string; region: CountryRegion };
+
+/** The detail the core builds; the web reads the visited countries, the rest keeps the core's camelCase shape. */
+export type PassportDetail = {
+  flights: number;
+  countries: { iso2: string; flights: number }[];
+  unknownCountryFlights: number;
+  [key: string]: unknown;
+};
+
+/** The full passport detail (compute_passport_detail_js): `countries` is the reference list for the per-region counts. */
+export function computePassportDetail(
+  rows: CorePastFlight[],
+  year?: number | null,
+  countries: CountryInfo[] = [],
+): PassportDetail {
+  return parsed<PassportDetail>(pkg.computePassportDetail(JSON.stringify(rows), year ?? undefined, JSON.stringify(countries)));
+}

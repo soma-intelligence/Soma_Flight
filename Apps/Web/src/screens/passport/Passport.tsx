@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { initCore, computePassport, type PassportStats } from "@/core/flightcore";
+import { computePassport, computePassportDetail, initCore, type PassportStats } from "@/core/flightcore";
 import {
   addPastFlight,
-  countryCount,
+  saveFailureCopy,
   deletePastFlight,
   downloadExport,
   fetchPastFlights,
@@ -21,7 +21,6 @@ import { TabTitle } from "../placeholder";
 import { AddPastFlight } from "./AddPastFlight";
 
 const DELETE_FAILED = "Couldn't delete this flight. Try again later.";
-const SAVE_FAILED = "This flight could not be saved.";
 
 /**
  * The travel record, after PassportView: year chips, the passport card with all-time or yearly totals
@@ -57,15 +56,19 @@ export function Passport() {
     () => (selected === null ? all : all.filter((f) => localYear(f, airports) === selected)),
     [all, selected, airports],
   );
-  const stats = useMemo<PassportStats | null>(() => {
+  // Totals and the country count both come from the core. "failed" shows a dash, never dots forever.
+  const figures = useMemo<{ stats: PassportStats; countries: number } | "failed" | null>(() => {
     if (!coreReady || all.length === 0) return null;
     try {
-      return computePassport(toCore(all, airports), selected);
+      const rows = toCore(all, airports);
+      return {
+        stats: computePassport(rows, selected),
+        countries: computePassportDetail(rows, selected).countries.length,
+      };
     } catch {
-      return null;
+      return "failed";
     }
   }, [coreReady, all, airports, selected]);
-  const countries = useMemo(() => countryCount(all, selected, airports), [all, selected, airports]);
 
   const add = useMutation({
     mutationFn: (v: { ident: string; day: string; from: string; to: string }) => addPastFlight(v, airports),
@@ -126,7 +129,7 @@ export function Passport() {
           )
         ) : (
           <>
-            <PassportCard year={selected} stats={stats} countries={countries} />
+            <PassportCard year={selected} figures={figures} />
             <section aria-label="Past flights section" className="pt-5">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5">
                 <h2 className="text-[13px] text-[var(--sf-secondary)] uppercase">
@@ -159,7 +162,7 @@ export function Passport() {
         <AddPastFlight
           airports={airports}
           saving={add.isPending}
-          failure={add.isError ? SAVE_FAILED : null}
+          failure={add.isError ? saveFailureCopy(add.error) : null}
           onClose={() => setAdding(false)}
           onSave={(v) => add.mutate(v)}
         />
@@ -202,9 +205,16 @@ function Figure({ label, value }: { label: string; value: string }) {
 /** "21,720 km" (the app also offers miles; units follow Settings once it lands). */
 const km = (n: number) => `${n.toLocaleString("en-US")} km`;
 
-/** The passport card: totals from the core, with the countries read from the airports. */
-function PassportCard({ year, stats, countries }: { year: number | null; stats: PassportStats | null; countries: number }) {
-  const v = (f: (s: PassportStats) => string) => (stats ? f(stats) : "...");
+/** The passport card: totals and countries from the core; "..." while it loads, "-" when it fails. */
+function PassportCard({
+  year,
+  figures,
+}: {
+  year: number | null;
+  figures: { stats: PassportStats; countries: number } | "failed" | null;
+}) {
+  const v = (f: (x: { stats: PassportStats; countries: number }) => string) =>
+    figures === "failed" ? "-" : figures ? f(figures) : "...";
   return (
     <section
       aria-label="Passport"
@@ -212,11 +222,11 @@ function PassportCard({ year, stats, countries }: { year: number | null; stats: 
     >
       <h2 className="text-[20px] font-medium tracking-wide uppercase">{year ?? "All-Time"} Soma Flight Passport</h2>
       <div className="grid grid-cols-2 gap-x-3.5 gap-y-4 pt-5">
-        <Figure label="Flights" value={v((s) => String(s.flights))} />
-        <Figure label="Distance" value={v((s) => km(s.distanceKm))} />
-        <Figure label="Flight time" value={v((s) => duration(s.flightMinutes))} />
-        <Figure label="Airports" value={v((s) => String(s.airports))} />
-        <Figure label="Countries" value={String(countries)} />
+        <Figure label="Flights" value={v((x) => String(x.stats.flights))} />
+        <Figure label="Distance" value={v((x) => km(x.stats.distanceKm))} />
+        <Figure label="Flight time" value={v((x) => duration(x.stats.flightMinutes))} />
+        <Figure label="Airports" value={v((x) => String(x.stats.airports))} />
+        <Figure label="Countries" value={v((x) => String(x.countries))} />
       </div>
     </section>
   );

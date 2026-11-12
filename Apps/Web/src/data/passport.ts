@@ -92,6 +92,31 @@ function pgError(e: PgError): ApiError {
   return new ApiError("provider_unavailable", 500, e.message);
 }
 
+const SAVE_FAILED = "This flight could not be saved.";
+const OFFLINE = "You're offline. Showing the last update.";
+
+/** What a database error on a write means to the user (SupabaseBackend.rejection, APIError.offline). */
+function writeError(e: PgError): ApiError {
+  const code = e.code ?? "";
+  const rejected = (text: string, status = 400) => new ApiError(status === 401 ? "unauthorized" : "invalid_request", status, text);
+  if (code === "23514") return rejected("An airport code, the flight number, the aircraft or the date isn't accepted");
+  if (code === "23505") return rejected("Already in your Passport");
+  if (code === "23502") return rejected("A required value is missing");
+  if (code === "42501") return rejected("Your account can't save this flight. Sign in again and retry.", 401);
+  if (code.startsWith("22")) return rejected("A value is in a format the server doesn't read");
+  if (!code && (/fetch|network|load failed/i.test(e.message ?? "") || (typeof navigator !== "undefined" && navigator.onLine === false))) {
+    return new ApiError("provider_unavailable", 0, OFFLINE);
+  }
+  const generic = pgError(e);
+  return new ApiError(generic.code, generic.status); // no text: the screen falls back on the generic line
+}
+
+/** The line for a failed save: the app's distinct line when there is one, else "This flight could not be saved." */
+export function saveFailureCopy(e: unknown): string {
+  if (e instanceof ApiError && e.message && e.message !== e.code) return e.message;
+  return SAVE_FAILED;
+}
+
 /** The signed-in user's past flights, newest first. A row that cannot be read is left out. */
 export async function fetchPastFlights(): Promise<PastFlight[]> {
   if (useFakes() && import.meta.env.DEV) {
@@ -279,7 +304,7 @@ export async function addPastFlight(input: NewPastFlight, dir: AirportDirectory)
     destination_country: null,
   };
   const { data, error } = await getSupabase().from("past_flights").insert(body).select(COLUMNS);
-  if (error) throw pgError(error);
+  if (error) throw writeError(error);
   const first = ((data ?? []) as unknown[])[0];
   if (!first) throw new ApiError("not_found", 404);
   return decodePastFlight(first);
@@ -324,19 +349,6 @@ export function toCore(rows: PastFlight[], dir: AirportDirectory): CorePastFligh
     reason: f.reason,
     seat_position: f.seatPosition,
   }));
-}
-
-/** Distinct countries of the airports flown, canceled flights left out, one local `year` or all time. */
-export function countryCount(rows: PastFlight[], year: number | null, dir: AirportDirectory): number {
-  const seen = new Set<string>();
-  for (const f of rows) {
-    if (f.status === "canceled") continue;
-    if (year !== null && localYear(f, dir) !== year) continue;
-    for (const c of [f.originCountry ?? dir(f.originIcao)?.country, f.destinationCountry ?? dir(f.destinationIcao)?.country]) {
-      if (c) seen.add(c.toUpperCase());
-    }
-  }
-  return seen.size;
 }
 
 // MARK: Export (PastFlightExport.swift)

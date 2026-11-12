@@ -21,6 +21,17 @@ vi.mock("@/data/passport", async (orig) => ({
   deletePastFlight: (id: string) => deletePastFlight(id),
   downloadExport: (...a: unknown[]) => downloadExport(...a),
 }));
+let detailFails = false;
+vi.mock("@/core/flightcore", async (orig) => {
+  const real = await orig<typeof import("@/core/flightcore")>();
+  return {
+    ...real,
+    computePassportDetail: (...a: Parameters<typeof real.computePassportDetail>) => {
+      if (detailFails) throw new Error("core");
+      return real.computePassportDetail(...a);
+    },
+  };
+});
 vi.mock("@/ui/airports", async (orig) => ({
   ...(await orig<typeof import("@/ui/airports")>()),
   useAirports: () => airportDir,
@@ -184,6 +195,27 @@ describe("Passport", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export JSON" }));
     expect(downloadExport).toHaveBeenNthCalledWith(1, "csv", [...FLIGHTS].reverse());
     expect(downloadExport).toHaveBeenNthCalledWith(2, "json", [...FLIGHTS].reverse());
+  });
+
+  it("shows a dash, not dots, when the core fails", async () => {
+    detailFails = true;
+    show();
+    await screen.findByText("All-Time Soma Flight Passport");
+    await waitFor(() => expect(stat("Countries")).toContain("-"));
+    expect(screen.queryByText("...")).toBeNull();
+    detailFails = false;
+  });
+
+  it("shows the app's line for a refused save", async () => {
+    addPastFlight.mockRejectedValue(Object.assign(new Error("x"), { code: "invalid_request" }));
+    show();
+    await screen.findByRole("list", { name: "Past flights" });
+    fireEvent.click(screen.getByRole("button", { name: "Add Past Flight" }));
+    const form = await screen.findByRole("dialog", { name: "Add Past Flight" });
+    fireEvent.change(within(form).getByLabelText("From"), { target: { value: "sfo" } });
+    fireEvent.change(within(form).getByLabelText("To"), { target: { value: "jfk" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Save" }));
+    expect(await within(form).findByText("This flight could not be saved.")).toBeTruthy();
   });
 
   it("invites the first flight when there is none", async () => {

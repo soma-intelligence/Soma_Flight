@@ -72,3 +72,16 @@ describe("computePassport", () => {
     }
   });
 });
+
+describe("computePassportDetail", () => {
+  it("matches every core/fixtures/passport_detail.json case", async () => {
+    const { computePassportDetail } = await freshCore();
+    const fx = JSON.parse(
+      await readFile(path.join(import.meta.dirname, "../../../../core/fixtures/passport_detail.json"), "utf8"),
+    );
+    expect(fx.cases.length).toBeGreaterThan(10);
+    for (const c of fx.cases) {
+      expect(computePassportDetail(c.flights, c.year, c.countries), c.name).toEqual(c.expected);
+    }
+  });
+});
