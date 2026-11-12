@@ -50,4 +50,12 @@ describe("flightcore wasm", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });
+
+  it("flightCategory reads ceiling and visibility into VFR, MVFR, IFR or LIFR", async () => {
+    const { flightCategory } = await freshCore();
+    expect(flightCategory(null, 10)).toBe("VFR");
+    expect(flightCategory(2500, 10)).toBe("MVFR");
+    expect(flightCategory(900, 10)).toBe("IFR");
+    expect(flightCategory(300, 0.5)).toBe("LIFR");
+  });
 });

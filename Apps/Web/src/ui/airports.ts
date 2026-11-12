@@ -6,32 +6,42 @@ export type AirportInfo = {
   iata: string | null;
   name: string;
   city: string;
+  /** The ISO 3166 country code ("US", "FR"), empty when the table has none. */
+  country?: string;
   tz: string | null;
   lat: number | null;
   lon: number | null;
 };
-export type AirportDirectory = (icao: string) => AirportInfo | null;
+export type AirportDirectory = (code: string) => AirportInfo | null;
 
 /** Parses the shared reference table (ICAO, IATA, name, city, country, lat, lon, zone; tab separated). */
 export function parseAirportInfo(tsv: string): AirportDirectory {
   const at = new Map<string, AirportInfo>();
+  const byIata = new Map<string, AirportInfo>();
   for (const line of tsv.split("\n")) {
     const f = line.split("\t");
     if (!f[0]) continue;
     const icao = f[0].toUpperCase();
     const lat = f[5] ? Number(f[5]) : NaN;
     const lon = f[6] ? Number(f[6]) : NaN;
-    at.set(icao, {
+    const info: AirportInfo = {
       icao,
       iata: f[1] || null,
       name: f[2] ?? "",
       city: f[3] || f[2] || icao,
+      country: (f[4] ?? "").trim().toUpperCase(),
       tz: f[7]?.trim() || null,
       lat: Number.isFinite(lat) ? lat : null,
       lon: Number.isFinite(lon) ? lon : null,
-    });
+    };
+    at.set(icao, info);
+    if (info.iata && !byIata.has(info.iata.toUpperCase())) byIata.set(info.iata.toUpperCase(), info);
   }
-  return (icao) => at.get(icao.toUpperCase()) ?? null;
+  // An ICAO code (4 letters) or an IATA code (3), any case.
+  return (code) => {
+    const k = code.trim().toUpperCase();
+    return at.get(k) ?? byIata.get(k) ?? null;
+  };
 }
 
 const NONE: AirportDirectory = () => null;

@@ -38,3 +38,10 @@ export function distanceKm(a: LatLon, b: LatLon): number {
 export function greatCircle(a: LatLon, b: LatLon, segments: number): LatLon[] {
   return parsed<LatLon[]>(pkg.greatCircle(JSON.stringify(a), JSON.stringify(b), segments));
 }
+
+export type FlightCategory = "VFR" | "MVFR" | "IFR" | "LIFR";
+
+/** The FAA flight category of a ceiling (feet, null when none) and a visibility (statute miles). */
+export function flightCategory(ceilingFt: number | null, visibilitySm: number): FlightCategory {
+  return parsed<FlightCategory>(pkg.flightCategory(ceilingFt, visibilitySm));
+}
