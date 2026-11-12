@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Flight, FlightStatus } from "@/data/types";
-import { ua990 } from "@/ui/testFlight";
+import { ua990 } from "@/test/flight";
 import { groupMyFlights, isLive, isOver } from "./groups";
 
 const now = new Date(1_793_000_000 * 1000);

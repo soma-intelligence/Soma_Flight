@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Friends } from "@/screens/friends/Friends";
 import { MyFlights } from "@/screens/my-flights/MyFlights";
-import { useMyFlights } from "@/screens/my-flights/useMyFlights";
+import { useLiveMyFlights, useMyFlights } from "@/screens/my-flights/useMyFlights";
 import { Passport } from "@/screens/passport/Passport";
 import { CardStack } from "./CardStack";
 import { Globe } from "./globe/Globe";
@@ -62,7 +62,9 @@ export function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // The followed flights feed the globe on every tab, so the shell, not the list, keeps them live.
   const myFlights = useMyFlights().data;
+  useLiveMyFlights(myFlights);
   const globeFlights = useMemo(() => (myFlights ?? []).map((x) => x.flight), [myFlights]);
 
   const sheet = useSheet(detent, setDetent, !wide);

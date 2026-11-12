@@ -43,8 +43,13 @@ export function countdown(f: Flight, now: Date): string {
   }
 }
 
-/** The card's second line: where the flight stands (DetailFacts.countdownCaption, no airline name in the data). */
-export function countdownCaption(f: Flight): string {
+/** The card's second line: the airline and where the flight stands, "United Airlines · In the air" (DetailFacts.countdownCaption). */
+export function countdownCaption(f: Flight, airline: { name: string } | null): string {
+  const status = statusWord(f);
+  return airline ? `${airline.name} · ${status}` : status;
+}
+
+function statusWord(f: Flight): string {
   switch (f.status) {
     case "departed":
       return "Left the gate";
@@ -83,12 +88,25 @@ export function landedTitle(f: Flight): string | null {
   return word ? `${f.status === "arrived" ? "Arrived" : "Landed"} ${word}` : null;
 }
 
-/** "Total 10h 50m": gate to gate, for a flight that is down. */
-export function landedCaption(f: Flight): string | null {
+const KM_PER_MILE = 1.609_344;
+
+/** "8,965 km" or "5,571 mi" (TravelFacts.distance), grouped the en-US way. */
+export function distanceText(km: number, unit: "km" | "mi" = "km"): string {
+  const value = unit === "km" ? km : Math.round(km / KM_PER_MILE);
+  return `${value.toLocaleString("en-US")} ${unit}`;
+}
+
+/**
+ * "Total 10h 50m · 8,965 km": gate to gate and the distance between the airports (whole km), for a flight
+ * that is down (DetailFacts.landedCaption); parts drop out when unknown, null when nothing is known.
+ */
+export function landedCaption(f: Flight, km: number | null, unit: "km" | "mi" = "km"): string | null {
+  const parts: string[] = [];
   const out = f.actualOut ?? f.estimatedOut ?? f.scheduledOut;
   const arr = f.actualIn ?? f.estimatedIn ?? f.scheduledIn;
-  if (!out || !arr || arr <= out) return null;
-  return `Total ${span(Math.trunc((arr.getTime() - out.getTime()) / 60_000))}`;
+  if (out && arr && arr > out) parts.push(`Total ${span(Math.trunc((arr.getTime() - out.getTime()) / 60_000))}`);
+  if (km !== null) parts.push(distanceText(km, unit));
+  return parts.length ? parts.join(" · ") : null;
 }
 
 /** Green early or on time, red late, once in the air with an arrival to measure; else none (DetailFacts.statusTone). */
@@ -118,8 +136,19 @@ function wholeMinutes(a: Date | null | undefined, b: Date | null | undefined): n
   return Math.round((b.getTime() - a.getTime()) / 60_000);
 }
 
-/** The detailed timetable (Timetable.rows): gate and runway times in their airport's zone, the spans between. */
-export function timetableRows(f: Flight, originTz: Zone, destinationTz: Zone, twelveHour = false): TimetableRow[] {
+/**
+ * The detailed timetable (Timetable.rows): gate and runway times in their airport's zone, the spans between.
+ * With `zonesKnown` false (the airport table is not in yet) known times read "--:--" rather than the
+ * browser's zone; the spans do not depend on a zone.
+ */
+export function timetableRows(
+  f: Flight,
+  originTz: Zone,
+  destinationTz: Zone,
+  twelveHour = false,
+  zonesKnown = true,
+): TimetableRow[] {
+  const at = (d: Date, tz: Zone) => (zonesKnown ? clock(d, tz, twelveHour) : "--:--");
   const out = best(f.actualOut, f.estimatedOut);
   const off = best(f.actualOff, f.estimatedOff);
   const on = best(f.actualOn, f.estimatedOn);
@@ -128,10 +157,10 @@ export function timetableRows(f: Flight, originTz: Zone, destinationTz: Zone, tw
   const time = (section: TimetableRow["section"], title: string, scheduled: Date | null, other: Point | null, tz: Zone): TimetableRow => ({
     section,
     title,
-    scheduled: scheduled ? clock(scheduled, tz, twelveHour) : UNKNOWN,
-    other: other ? clock(other.date, tz, twelveHour) : UNKNOWN,
+    scheduled: scheduled ? at(scheduled, tz) : UNKNOWN,
+    other: other ? at(other.date, tz) : UNKNOWN,
     otherLabel: other?.actual ? "Actual" : "Estimated",
-    level: scheduled && other ? delayLevel(other.date.getTime() - scheduled.getTime(), "scheduled") : null,
+    level: zonesKnown && scheduled && other ? delayLevel(other.date.getTime() - scheduled.getTime(), "scheduled") : null,
   });
   const spanRow = (
     section: TimetableRow["section"],

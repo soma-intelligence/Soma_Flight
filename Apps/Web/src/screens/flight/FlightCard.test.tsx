@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { makeQueryClient } from "@/app/query";
 import { ApiError } from "@/data/api";
 import type { Flight, FollowedFlight } from "@/data/types";
-import { ua990 } from "@/ui/testFlight";
+import { ua990 } from "@/test/flight";
 
 const fetchFlight = vi.fn<(id: string) => Promise<Flight | null>>();
 const fetchMyFlights = vi.fn<() => Promise<FollowedFlight[]>>();
@@ -25,7 +25,7 @@ vi.mock("@/data/flights", () => ({
 vi.mock("@/data/realtime", () => ({ subscribeFlights: () => () => {} }));
 
 import { FlightCard } from "./FlightCard";
-import { countdown, estimate, statusTone, timetableRows } from "./facts";
+import { countdown, countdownCaption, distanceText, estimate, landedCaption, statusTone, timetableRows } from "./facts";
 
 const d = (s: string) => new Date(s);
 const SFO = "America/Los_Angeles";
@@ -90,6 +90,32 @@ describe("FlightCard", () => {
     expect(screen.getByRole("button", { name: "Follow" })).toBeTruthy();
   });
 
+  it("shows the airline's name and its IATA code from airlines.json", async () => {
+    const f = ua990();
+    fetchFlight.mockResolvedValue(f);
+    show(f.id);
+    expect(await screen.findByText("United Airlines · Scheduled")).toBeTruthy();
+  });
+
+  it("Follow stays disabled until the follows are in, and after they fail to load", async () => {
+    const f = ua990();
+    fetchFlight.mockResolvedValue(f);
+    let release: (v: FollowedFlight[]) => void = () => {};
+    fetchMyFlights.mockReturnValue(new Promise((r) => (release = r)));
+    show(f.id);
+    const button = await screen.findByRole("button", { name: "Follow" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    release([{ createdAt: new Date(), flight: f }]);
+    const stop = await screen.findByRole("button", { name: "Stop Following" });
+    expect((stop as HTMLButtonElement).disabled).toBe(false);
+    cleanup();
+
+    fetchMyFlights.mockRejectedValue(new ApiError("provider_unavailable", 500));
+    show(f.id);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect((screen.getByRole("button", { name: "Follow" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("an unknown id shows not found copy", async () => {
     fetchFlight.mockResolvedValue(null);
     show("00000000-0000-4000-8000-00000000dead");
@@ -143,6 +169,31 @@ describe("facts", () => {
     expect(gate.level).toBe("very-late");
     expect(gate.otherLabel).toBe("Actual");
     expect(gate.other).toBe("11:05");
+  });
+
+  it("countdown caption names the airline (DetailFacts.countdownCaption)", () => {
+    expect(countdownCaption(ua990(), { name: "United Airlines" })).toBe("United Airlines · Scheduled");
+    expect(countdownCaption({ ...full }, null)).toBe("In the air");
+    expect(countdownCaption(ua990({ status: "arrived" }), { name: "Air France" })).toBe("Air France · At the gate");
+  });
+
+  it("landed caption: gate to gate and the distance (DetailFacts.landedCaption)", () => {
+    const down = { ...full, status: "arrived" as const, actualIn: d("2026-10-31T09:35:00Z") };
+    expect(landedCaption(down, 8965)).toBe("Total 11h 08m · 8,965 km");
+    expect(landedCaption(down, 8965, "mi")).toBe("Total 11h 08m · 5,571 mi");
+    expect(landedCaption(down, null)).toBe("Total 11h 08m");
+    expect(landedCaption(ua990({ scheduledOut: null, scheduledIn: null }), 120)).toBe("120 km");
+    expect(landedCaption(ua990({ scheduledOut: null, scheduledIn: null }), null)).toBeNull();
+    expect(distanceText(280017)).toBe("280,017 km");
+  });
+
+  it("timetable times read --:-- until the airport zones are known", () => {
+    const rows = timetableRows(full, null, null, false, false);
+    expect(rows[0].scheduled).toBe("--:--");
+    expect(rows[0].other).toBe("--:--");
+    expect(rows[0].level).toBeNull();
+    expect(rows[1].scheduled).toBe("33m");
+    expect(timetableRows(ua990({ scheduledOut: null, scheduledIn: null }), null, null, false, false)[0].scheduled).toBe("--");
   });
 
   it("countdown card wording", () => {

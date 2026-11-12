@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Flight } from "@/data/types";
-import { ua990 } from "./testFlight";
+import { ua990 } from "@/test/flight";
 import {
   clock,
   countdownColumn,

@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { makeQueryClient } from "@/app/query";
 import type { Flight, FollowedFlight } from "@/data/types";
-import { ua990 } from "@/ui/testFlight";
+import { ua990 } from "@/test/flight";
 
 const fetchMyFlights = vi.fn<() => Promise<FollowedFlight[]>>();
 let onRow: ((f: Flight) => void) | null = null;
@@ -27,13 +27,21 @@ vi.mock("@/data/realtime", () => ({
 }));
 
 import { MyFlights } from "./MyFlights";
+import { useLiveMyFlights, useMyFlights } from "./useMyFlights";
+
+/** What the shell does around the list: keeps My Flights live over Realtime. */
+function Live() {
+  useLiveMyFlights(useMyFlights().data);
+  return null;
+}
 
 const H = 3600_000;
 
-function show() {
+function show(live = true) {
   return render(
     <QueryClientProvider client={makeQueryClient()}>
       <MemoryRouter>
+        {live && <Live />}
         <MyFlights />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -72,6 +80,13 @@ describe("MyFlights", () => {
     expect(within(air).getAllByTestId("flight-row")).toHaveLength(1);
     expect(screen.queryByRole("region", { name: "Upcoming" })).toBeNull();
     expect(fetchMyFlights).toHaveBeenCalledTimes(1);
+  });
+
+  it("the list alone opens no Realtime channel (the shell owns it)", async () => {
+    fetchMyFlights.mockResolvedValue([{ createdAt: new Date(), flight: ua990() }]);
+    show(false);
+    expect(await screen.findByRole("region", { name: "Upcoming" })).toBeTruthy();
+    expect(subscribeFlights).not.toHaveBeenCalled();
   });
 
   it("groups rows under caps headers with their counts", async () => {

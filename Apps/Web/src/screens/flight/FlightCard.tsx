@@ -7,7 +7,9 @@ import { fetchFlight, flightKey, followFlight, myFlightsKey, unfollowFlight, use
 import { subscribeFlights } from "@/data/realtime";
 import type { Flight, FollowedFlight } from "@/data/types";
 import { useMyFlights } from "@/screens/my-flights/useMyFlights";
-import { useAirports } from "@/ui/airports";
+import { initCore, distanceKm } from "@/core/flightcore";
+import { airlineOf, useAirlines } from "@/ui/airlines";
+import { airportsReady, useAirports, type AirportInfo } from "@/ui/airports";
 import { ErrorBanner } from "@/ui/ErrorBanner";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { RoundButton } from "@/ui/RoundButton";
@@ -18,6 +20,32 @@ import { Progress } from "./Progress";
 import { GatesCard, TimetableCard } from "./Timetable";
 
 const sameId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** True once the flightcore wasm is in (for the distance); false for good when it cannot load. */
+function useCoreReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    initCore().then(
+      () => live && setReady(true),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return ready;
+}
+
+/** Whole km between two airports (DetailFacts.distanceKm); null when either is unknown or the core is not in. */
+function airportKm(core: boolean, a: AirportInfo | null, b: AirportInfo | null): number | null {
+  if (!core || a?.lat == null || a.lon == null || b?.lat == null || b.lon == null) return null;
+  try {
+    return Math.round(distanceKm({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon }));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * One flight, first cut of FlightDetailView: the header pinned at the top, then the estimate while the
@@ -32,6 +60,9 @@ export function FlightCard() {
   const fakes = useFakes();
   const now = useNow();
   const airport = useAirports();
+  const zonesKnown = airportsReady(airport);
+  const airlines = useAirlines();
+  const core = useCoreReady();
   const mine = useMyFlights();
   const followedRow = mine.data?.find((x) => sameId(x.flight.id, id));
 
@@ -101,11 +132,20 @@ export function FlightCard() {
   const destination = airport(flight.destinationIcao);
   const landed = landedTitle(flight);
   const followed = !!followedRow;
-  const busy = follow.isPending || unfollow.isPending;
+  // Until the list of follows is in, the button cannot say which it is: it stays disabled.
+  const busy = follow.isPending || unfollow.isPending || !mine.isSuccess;
+  const airline = airlineOf(flight, airlines);
 
   return (
     <div data-testid="flight-card" data-flight-id={id} className="flex h-full flex-col">
-      <Header flight={flight} origin={origin} destination={destination} onClose={nav.close} />
+      <Header
+        flight={flight}
+        origin={origin}
+        destination={destination}
+        airline={airline}
+        zonesKnown={zonesKnown}
+        onClose={nav.close}
+      />
       <div className="relative min-h-0 flex-1">
         <div className="h-full overflow-y-auto overscroll-contain">
           <div className="flex flex-col gap-4 px-5 pt-4 pb-[96px]">
@@ -113,11 +153,11 @@ export function FlightCard() {
             <Progress flight={flight} now={now} />
             <CountdownCard
               title={landed ?? countdown(flight, now)}
-              caption={(landed && landedCaption(flight)) || countdownCaption(flight)}
+              caption={(landed && landedCaption(flight, airportKm(core, origin, destination))) || countdownCaption(flight, airline)}
               tone={statusTone(flight)}
             />
             <GatesCard flight={flight} />
-            <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz)} />
+            <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz, false, zonesKnown)} />
           </div>
         </div>
         <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col items-end gap-2 px-5 pb-4">

@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 
 /** What a row and the card need of an airport: its codes, name, city and IANA zone. */
-export type AirportInfo = { icao: string; iata: string | null; name: string; city: string; tz: string | null };
+export type AirportInfo = {
+  icao: string;
+  iata: string | null;
+  name: string;
+  city: string;
+  tz: string | null;
+  lat: number | null;
+  lon: number | null;
+};
 export type AirportDirectory = (icao: string) => AirportInfo | null;
 
 /** Parses the shared reference table (ICAO, IATA, name, city, country, lat, lon, zone; tab separated). */
@@ -11,7 +19,17 @@ export function parseAirportInfo(tsv: string): AirportDirectory {
     const f = line.split("\t");
     if (!f[0]) continue;
     const icao = f[0].toUpperCase();
-    at.set(icao, { icao, iata: f[1] || null, name: f[2] ?? "", city: f[3] || f[2] || icao, tz: f[7]?.trim() || null });
+    const lat = f[5] ? Number(f[5]) : NaN;
+    const lon = f[6] ? Number(f[6]) : NaN;
+    at.set(icao, {
+      icao,
+      iata: f[1] || null,
+      name: f[2] ?? "",
+      city: f[3] || f[2] || icao,
+      tz: f[7]?.trim() || null,
+      lat: Number.isFinite(lat) ? lat : null,
+      lon: Number.isFinite(lon) ? lon : null,
+    });
   }
   return (icao) => at.get(icao.toUpperCase()) ?? null;
 }
@@ -32,11 +50,19 @@ export function loadAirportInfo(): Promise<AirportDirectory> {
   return loading;
 }
 
-/** The airport directory once loaded; until then every lookup is null (rows show codes and the browser's zone). */
+/** True once `dir` is the loaded table, not the empty stand-in: times can be read in the airports' zones. */
+export function airportsReady(dir: AirportDirectory): boolean {
+  return dir !== NONE;
+}
+
+/** The airport directory once loaded; until then every lookup is null (rows show codes and "--:--"). */
 export function useAirports(): AirportDirectory {
   const [dir, setDir] = useState<AirportDirectory>(() => loaded ?? NONE);
   useEffect(() => {
-    if (loaded) return;
+    if (loaded) {
+      if (dir !== loaded) setDir(() => loaded!);
+      return;
+    }
     let live = true;
     loadAirportInfo().then(
       (d) => live && setDir(() => d),
@@ -45,6 +71,6 @@ export function useAirports(): AirportDirectory {
     return () => {
       live = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return dir;
 }

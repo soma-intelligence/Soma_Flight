@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { Flight } from "@/data/types";
-import type { AirportInfo } from "./airports";
+import { airlineOf, useAirlines } from "./airlines";
+import { airportsReady, useAirports, type AirportInfo } from "./airports";
 import { AirlineMark } from "./AirlineMark";
 import {
   airlineCode,
@@ -16,7 +17,8 @@ import {
 } from "./format";
 
 /**
- * A followed flight in My Flights, after MyFlightRow: the countdown column, then the airline mark, flight
+ * A followed flight in My Flights, after MyFlightRow: the countdown column, then the airline mark (its IATA
+ * code from airlines.json), flight
  * number and date, the route by city, and the two codes with their local times (the arrival's "+1" when
  * it lands on a later local date). A hairline closes it under the text.
  */
@@ -34,6 +36,9 @@ export function FlightRow({
   onSelect: () => void;
 }) {
   const count = countdownColumn(flight, now);
+  // Times read in the airports' zones: "--:--" until the airport table is in, never a jump from the browser's zone.
+  const ready = airportsReady(useAirports());
+  const airline = airlineOf(flight, useAirlines());
   const unitColor =
     flight.status === "canceled"
       ? "var(--sf-very-late)"
@@ -42,7 +47,7 @@ export function FlightRow({
         : "var(--sf-secondary)";
   const from = origin?.city ?? originCode(flight);
   const to = destination?.city ?? destinationCode(flight);
-  const day = rowDay(flight, origin?.tz);
+  const day = ready ? rowDay(flight, origin?.tz) : null;
   const said = [
     ident(flight.ident),
     `${from} to ${to}`,
@@ -72,7 +77,7 @@ export function FlightRow({
         <div className="flex flex-col gap-[5px] py-[14px]">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
             <span className="flex items-center gap-2">
-              <AirlineMark code={airlineCode(flight)} size={24} />
+              <AirlineMark code={airlineCode(flight, airline)} size={24} />
               <span className="text-[15px] whitespace-nowrap text-[var(--sf-secondary)]">{ident(flight.ident)}</span>
             </span>
             {day && <span className="text-[15px] whitespace-nowrap text-[var(--sf-secondary)]">{day}</span>}
@@ -81,12 +86,12 @@ export function FlightRow({
             <span className="font-semibold">{from}</span> to <span className="font-semibold">{to}</span>
           </p>
           <div className="flex flex-wrap gap-x-[14px] gap-y-1 pt-0.5">
-            <End icon={ArrowUpRight} code={originCode(flight)} time={clock(bestOut(flight), origin?.tz)} />
+            <End icon={ArrowUpRight} code={originCode(flight)} time={ready ? clock(bestOut(flight), origin?.tz) : "--:--"} />
             <End
               icon={ArrowDownRight}
               code={destinationCode(flight)}
-              time={clock(bestIn(flight), destination?.tz)}
-              marker={rowMarker(flight, origin?.tz, destination?.tz)}
+              time={ready ? clock(bestIn(flight), destination?.tz) : "--:--"}
+              marker={ready ? rowMarker(flight, origin?.tz, destination?.tz) : null}
             />
           </div>
         </div>

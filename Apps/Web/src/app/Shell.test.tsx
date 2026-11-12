@@ -7,10 +7,17 @@ import { makeQueryClient } from "./query";
 import { shellRoutes } from "./routes";
 
 // The shell's screens read My Flights and a flight through the data layer: no server in these tests.
+const mocks = vi.hoisted(() => ({
+  fetchMyFlights: vi.fn(async (): Promise<unknown[]> => []),
+  subscribeFlights: vi.fn((_ids: string[], _cb: unknown) => () => {}),
+}));
 vi.mock("@/data/flights", async (original) => ({
   ...(await original<typeof import("@/data/flights")>()),
-  fetchMyFlights: async () => [],
+  fetchMyFlights: () => mocks.fetchMyFlights(),
   fetchFlight: async () => null,
+}));
+vi.mock("@/data/realtime", () => ({
+  subscribeFlights: (ids: string[], cb: unknown) => mocks.subscribeFlights(ids, cb),
 }));
 
 // A window whose width the test sets; matchMedia answers from it and tells listeners when it moves.
@@ -68,6 +75,14 @@ function setup(entries: InitialEntry[], index = entries.length - 1) {
 }
 
 describe("Shell", () => {
+  it("keeps the followed flights live on every tab, not only on My Flights", async () => {
+    mocks.fetchMyFlights.mockResolvedValueOnce([
+      { createdAt: new Date(), flight: { ...(await import("@/test/flight")).ua990(), id: "abc" } },
+    ]);
+    setup(["/friends"]);
+    await waitFor(() => expect(mocks.subscribeFlights).toHaveBeenCalledWith(["abc"], expect.any(Function)));
+  });
+
   it("shows the Panel at 1024 px and the Sheet at 500 px", () => {
     setup(["/"]);
     expect(screen.getByTestId("panel")).toBeTruthy();

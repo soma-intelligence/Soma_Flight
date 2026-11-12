@@ -2,30 +2,36 @@ import { X } from "lucide-react";
 import type { Flight } from "@/data/types";
 import { AirlineMark } from "@/ui/AirlineMark";
 import type { AirportInfo } from "@/ui/airports";
-import { airlineCode, destinationCode, originCode } from "@/ui/format";
+import type { Airline } from "@/ui/airlines";
+import { designator, destinationCode, ident, originCode } from "@/ui/format";
 import { RoundButton } from "@/ui/RoundButton";
 import { headerLine } from "./facts";
 
 /**
- * The pinned top of the flight card, after DetailHeader: the airline's mark, "UA 990 · FRI, 30 OCT", the
+ * The pinned top of the flight card, after DetailHeader: the airline's mark (its IATA code), "UA 990 · FRI, 30 OCT", the
  * route as the title and the close button, a hairline under it.
  */
 export function Header({
   flight,
   origin,
   destination,
+  airline,
+  zonesKnown,
   onClose,
 }: {
   flight: Flight;
   origin: AirportInfo | null;
   destination: AirportInfo | null;
+  airline: Airline | null;
+  /** False until the airport table is in: the day is left off rather than read in the browser's zone. */
+  zonesKnown: boolean;
   onClose: () => void;
 }) {
   return (
     <header className="flex items-center gap-3 border-b border-[var(--sf-separator)] pt-4 pr-4 pb-3 pl-5">
-      <AirlineMark code={airlineCode(flight)} size={40} />
+      <AirlineMark code={airline?.iata ?? designator(flight.ident)} size={40} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-[var(--sf-secondary)]">{headerLine(flight, origin?.tz)}</p>
+        <p className="truncate text-[13px] font-semibold text-[var(--sf-secondary)]">{zonesKnown ? headerLine(flight, origin?.tz) : ident(flight.ident)}</p>
         <h1 className="line-clamp-2 text-[20px] leading-[25px] font-bold text-[var(--sf-primary)]">
           {`${origin?.city ?? originCode(flight)} to ${destination?.city ?? destinationCode(flight)}`}
         </h1>

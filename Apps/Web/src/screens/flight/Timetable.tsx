@@ -50,11 +50,11 @@ export function TimetableCard({ rows }: { rows: TimetableRow[] }) {
             >
               <span className="min-w-[110px] flex-1 text-[17px] text-[var(--sf-primary)]">{r.title}</span>
               <span className="flex gap-[18px]">
-                <Cell label="Scheduled" value={r.scheduled} color={r.scheduled === "--" ? "var(--sf-secondary)" : undefined} />
+                <Cell label="Scheduled" value={r.scheduled} color={r.scheduled.startsWith("--") ? "var(--sf-secondary)" : undefined} />
                 <Cell
                   label={r.otherLabel}
                   value={r.other}
-                  color={r.level ? LEVEL_COLOR[r.level] : r.other === "--" ? "var(--sf-secondary)" : undefined}
+                  color={r.level ? LEVEL_COLOR[r.level] : r.other.startsWith("--") ? "var(--sf-secondary)" : undefined}
                 />
               </span>
             </div>

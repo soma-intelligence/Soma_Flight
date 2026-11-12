@@ -78,13 +78,12 @@ export function designator(raw: string): string {
   return chars.slice(0, isLetter(chars[2]) ? 3 : 2).join("");
 }
 
-const IATA_OF: Record<string, string> = {
-  AAL: "AA", UAL: "UA", DAL: "DL", SWA: "WN", ASA: "AS", JBU: "B6", AFR: "AF", BAW: "BA", NKS: "NK", FFT: "F9",
-};
-
-/** The short airline code a row shows: IATA where known, else the ICAO operator, else the number's prefix. */
-export function airlineCode(f: Pick<Flight, "operator" | "ident">): string {
-  return f.operator ? (IATA_OF[f.operator] ?? f.operator) : designator(f.ident);
+/**
+ * The code an airline mark shows: the airline's IATA code where the table has one, else the operator's
+ * ICAO, else the number's designator (DetailHeader and MyFlightRow, after airlines.json).
+ */
+export function airlineCode(f: Pick<Flight, "operator" | "ident">, airline?: { iata: string | null } | null): string {
+  return airline?.iata ?? f.operator ?? designator(f.ident);
 }
 
 export const originCode = (f: Flight) => f.originIata ?? f.originIcao;

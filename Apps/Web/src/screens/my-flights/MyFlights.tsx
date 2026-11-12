@@ -9,18 +9,18 @@ import { JetIllustration } from "@/ui/JetIllustration";
 import { useNow } from "@/ui/useNow";
 import { TabTitle } from "../placeholder";
 import { groupMyFlights } from "./groups";
-import { useLiveMyFlights, useMyFlights } from "./useMyFlights";
+import { useMyFlights } from "./useMyFlights";
 
 /**
  * The home list, after MyFlightsView: followed flights in the air first, then the ones still to come,
  * then the finished, canceled and diverted ones until they are over. With nothing followed it invites a
  * search; before the first load it shows a spinner; a failed load with nothing to show keeps only the
- * error banner and its retry. Realtime keeps the rows current. The profile button sits over it (TabRoot).
+ * error banner and its retry. The shell keeps the rows current over Realtime (useLiveMyFlights), on every
+ * tab. The profile button sits over it (TabRoot).
  */
 export function MyFlights() {
   const nav = useShellNav();
   const q = useMyFlights();
-  useLiveMyFlights(q.data);
   const now = useNow();
   const airport = useAirports();
   const groups = useMemo(() => groupMyFlights((q.data ?? []).map((x) => x.flight), now), [q.data, now]);
