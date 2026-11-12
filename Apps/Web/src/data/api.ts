@@ -58,6 +58,25 @@ export function apiErrorFrom(status: number, body: unknown): ApiError {
   return new ApiError(codeFromStatus(status), status);
 }
 
+/** The app's line when a database check refuses a flight row (SupabaseBackend.rejection). */
+export const REJECTED_CHECK = "An airport code, the flight number, the aircraft or the date isn't accepted";
+/** The app's generic failure line, for a refused value that has no line of its own (a display name). */
+export const GENERIC_FAILURE = "That did not work. Try again.";
+
+export type PgError = { code?: string; message?: string };
+/** What the refused row was: a flight row gets the app's flight line, anything else the generic one. */
+export type PgContext = "flight" | "name" | "other";
+
+/** A PostgREST or Postgres error as the app's ApiError; a refused value carries the line for `context`. */
+export function pgError(e: PgError, context: PgContext): ApiError {
+  if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
+  if (e.code === "23514" || e.code === "22P02") {
+    return new ApiError("invalid_request", 400, context === "flight" ? REJECTED_CHECK : GENERIC_FAILURE);
+  }
+  if (e.code === "PGRST116") return new ApiError("not_found", 404, e.message);
+  return new ApiError("provider_unavailable", 500, e.message);
+}
+
 export type CallInit = {
   method?: "GET" | "POST" | "DELETE";
   query?: Record<string, string>;

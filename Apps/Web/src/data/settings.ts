@@ -1,6 +1,6 @@
-import { ApiError, callFunction } from "./api";
+import { ApiError, callFunction, pgError } from "./api";
 import { getSupabase } from "./client";
-import { pgError, useFakes } from "./flights";
+import { useFakes } from "./flights";
 
 export const notificationPrefsKey = ["notificationPrefs"] as const;
 
@@ -30,7 +30,7 @@ export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
     return { ...defaultPrefs(), ...fakeNotificationPrefs() };
   }
   const { data, error } = await getSupabase().from("notification_preferences").select("*").limit(1);
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "other");
   const row = ((data ?? []) as Record<string, unknown>[])[0];
   const out = defaultPrefs();
   if (row) for (const c of NOTIFICATION_COLUMNS) if (typeof row[c] === "boolean") out[c] = row[c];
@@ -51,7 +51,7 @@ export async function setNotificationPref(column: NotificationColumn, on: boolea
   const { error } = await supabase
     .from("notification_preferences")
     .upsert({ user_id: uid, [column]: on, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "other");
 }
 
 /** Saves the name friends see on the user's profile row. */
@@ -62,7 +62,7 @@ export async function saveDisplayName(name: string): Promise<void> {
   const uid = data.session?.user.id;
   if (!uid) throw new ApiError("unauthorized", 401);
   const { error } = await supabase.from("profiles").update({ display_name: name.trim() }).eq("user_id", uid);
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "name");
 }
 
 /** Deletes the account (the `delete-account` function). Never called in fakes mode: the screen skips it. */

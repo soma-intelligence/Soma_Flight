@@ -1,6 +1,6 @@
 import type { CorePastFlight } from "@/core/flightcore";
 import type { AirportDirectory } from "@/ui/airports";
-import { ApiError } from "./api";
+import { ApiError, pgError, type PgError } from "./api";
 import { getSupabase } from "./client";
 import { useFakes } from "./flights";
 
@@ -85,13 +85,6 @@ export function decodePastFlight(raw: unknown): PastFlight {
   };
 }
 
-type PgError = { code?: string; message?: string };
-function pgError(e: PgError): ApiError {
-  if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
-  if (e.code === "23514" || e.code === "22P02") return new ApiError("invalid_request", 400, e.message);
-  return new ApiError("provider_unavailable", 500, e.message);
-}
-
 const SAVE_FAILED = "This flight could not be saved.";
 const OFFLINE = "You're offline. Showing the last update.";
 
@@ -107,7 +100,7 @@ function writeError(e: PgError): ApiError {
   if (!code && (/fetch|network|load failed/i.test(e.message ?? "") || (typeof navigator !== "undefined" && navigator.onLine === false))) {
     return new ApiError("provider_unavailable", 0, OFFLINE);
   }
-  const generic = pgError(e);
+  const generic = pgError(e, "flight");
   return new ApiError(generic.code, generic.status); // no text: the screen falls back on the generic line
 }
 
@@ -124,7 +117,7 @@ export async function fetchPastFlights(): Promise<PastFlight[]> {
     return fakePastFlights();
   }
   const { data, error } = await getSupabase().from("past_flights").select(COLUMNS).order("date", { ascending: false });
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "flight");
   const out: PastFlight[] = [];
   for (const row of (data ?? []) as unknown[]) {
     try {
@@ -144,7 +137,7 @@ export async function deletePastFlight(id: string): Promise<void> {
     return;
   }
   const { data, error } = await getSupabase().from("past_flights").delete().eq("id", id.toLowerCase()).select("id");
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "flight");
   if (!Array.isArray(data) || data.length === 0) throw new ApiError("not_found", 404);
 }
 

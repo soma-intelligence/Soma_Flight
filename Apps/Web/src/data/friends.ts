@@ -1,7 +1,7 @@
-import { callFunction } from "./api";
+import { callFunction, pgError } from "./api";
 import { getSupabase } from "./client";
 import { decodeFlight } from "./decode";
-import { pgError, useFakes } from "./flights";
+import { useFakes } from "./flights";
 import type { Flight } from "./types";
 
 export const friendsKey = ["friends"] as const;
@@ -87,7 +87,7 @@ export async function fetchFriends(): Promise<Friend[]> {
     return fakeFriends();
   }
   const { data, error } = await getSupabase().rpc("friends_list");
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "other");
   const out: Friend[] = [];
   for (const row of (data ?? []) as unknown[]) {
     try {
@@ -106,9 +106,9 @@ export async function fetchFriendsMe(): Promise<FriendsMe> {
     return fakeFriendsMe();
   }
   const { data, error } = await getSupabase().rpc("friends_me");
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "other");
   const r = ((data ?? []) as Row[])[0];
-  if (!r || typeof r.friend_code !== "string") throw pgError({ message: "friends_me: no row" });
+  if (!r || typeof r.friend_code !== "string") throw pgError({ message: "friends_me: no row" }, "other");
   return {
     friendCode: r.friend_code,
     sharingPaused: r.sharing_paused === true,
@@ -124,7 +124,7 @@ export async function fetchFriendFlights(friendId: string | null): Promise<Frien
     return fakeFriendFlights().filter((x) => friendId === null || x.friendId === friendId);
   }
   const { data, error } = await getSupabase().rpc("friend_flights", { p_friend: friendId });
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "other");
   const out: FriendFlight[] = [];
   for (const row of (data ?? []) as Row[]) {
     try {

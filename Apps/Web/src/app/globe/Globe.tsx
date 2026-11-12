@@ -4,12 +4,12 @@ import { initCore } from "@/core/flightcore";
 import { callFunction } from "@/data/api";
 import { useFakes } from "@/data/flights";
 import type { Flight } from "@/data/types";
+import { loadAirportInfo } from "@/ui/airports";
 import { RoundButton } from "@/ui/RoundButton";
 import { useShellNav } from "../nav";
 import { PANEL_INSET, PANEL_WIDTH } from "../Panel";
 import { useWide } from "../useWide";
-import { loadAirports } from "./airports";
-import { globeContent } from "./content";
+import { globeContent, positions } from "./content";
 import { loadMapKit, resetMapKit, type MapKit } from "./loadMapKit";
 
 /** The camera's left padding when the panel stands over the globe (its width plus its inset). */
@@ -104,9 +104,9 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
     const added: { overlays: unknown[]; annotations: unknown[] } = { overlays: [], annotations: [] };
     void (async () => {
       try {
-        const [lookup] = await Promise.all([loadAirports(), initCore()]);
+        const [dir] = await Promise.all([loadAirportInfo(), initCore()]);
         if (cancelled) return;
-        const c = globeContent(flights, new Date(), lookup);
+        const c = globeContent(flights, new Date(), positions(dir));
         const coord = (p: { lat: number; lon: number }) => new mapkit.Coordinate(p.lat, p.lon);
         for (const r of c.routes) {
           added.overlays.push(

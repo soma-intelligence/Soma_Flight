@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const invoke = vi.fn();
 vi.mock("./client", () => ({ getSupabase: () => ({ functions: { invoke } }) }));
 
-import { ApiError, apiErrorFrom, callFunction } from "./api";
+import { ApiError, apiErrorFrom, callFunction, GENERIC_FAILURE, pgError, REJECTED_CHECK } from "./api";
 
 const cases: [number, string][] = [
   [401, "unauthorized"],
@@ -61,5 +61,21 @@ describe("callFunction", () => {
   it("maps a network failure to provider_unavailable", async () => {
     invoke.mockResolvedValueOnce({ data: null, error: new Error("Failed to fetch") });
     await expect(callFunction("flight-lookup", {})).rejects.toMatchObject({ code: "provider_unavailable" });
+  });
+});
+
+describe("pgError", () => {
+  it("gives a refused flight row the app's flight line", () => {
+    const e = pgError({ code: "23514", message: "past_flights_check" }, "flight");
+    expect(e).toMatchObject({ code: "invalid_request", status: 400, message: REJECTED_CHECK });
+  });
+  it("gives a refused display name the generic line, never the flight one", () => {
+    const e = pgError({ code: "23514", message: "profiles_display_name_check" }, "name");
+    expect(e).toMatchObject({ code: "invalid_request", message: GENERIC_FAILURE });
+  });
+  it("maps auth, missing row and anything else", () => {
+    expect(pgError({ code: "PGRST301" }, "other").code).toBe("unauthorized");
+    expect(pgError({ code: "PGRST116" }, "other").code).toBe("not_found");
+    expect(pgError({ message: "boom" }, "other").code).toBe("provider_unavailable");
   });
 });

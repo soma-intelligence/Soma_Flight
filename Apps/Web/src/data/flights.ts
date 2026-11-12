@@ -1,4 +1,4 @@
-import { ApiError, callFunction } from "./api";
+import { callFunction, pgError } from "./api";
 import { getSupabase } from "./client";
 import { decodeFlight } from "./decode";
 import type { Flight, FollowedFlight } from "./types";
@@ -37,16 +37,6 @@ export function useFakes(): boolean {
   return false;
 }
 
-export const REJECTED_CHECK = "An airport code, the flight number, the aircraft or the date isn't accepted";
-type PgError = { code?: string; message?: string };
-export function pgError(e: PgError): ApiError {
-  if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
-  // A check refused the row (the app's line for it, SupabaseBackend.rejection).
-  if (e.code === "23514") return new ApiError("invalid_request", 400, REJECTED_CHECK);
-  if (e.code === "PGRST116") return new ApiError("not_found", 404, e.message);
-  return new ApiError("provider_unavailable", 500, e.message);
-}
-
 /** The signed-in user's follows with their flights. A row that cannot be read is left out. */
 export async function fetchMyFlights(): Promise<FollowedFlight[]> {
   if (useFakes() && import.meta.env.DEV) {
@@ -57,7 +47,7 @@ export async function fetchMyFlights(): Promise<FollowedFlight[]> {
     .from("user_flights")
     .select("created_at, flights(*)")
     .order("created_at");
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "flight");
   const out: FollowedFlight[] = [];
   for (const row of (data ?? []) as unknown as { created_at?: string; flights?: unknown }[]) {
     if (!row.flights) continue;
@@ -78,7 +68,7 @@ export async function fetchFlight(id: string): Promise<Flight | null> {
     return own ?? fakeFriendFlights().find((x) => x.flight.id === id)?.flight ?? null;
   }
   const { data, error } = await getSupabase().from("flights").select("*").eq("id", id).limit(1);
-  if (error) throw pgError(error);
+  if (error) throw pgError(error, "flight");
   const row = (data ?? [])[0];
   return row ? decodeFlight(row) : null;
 }

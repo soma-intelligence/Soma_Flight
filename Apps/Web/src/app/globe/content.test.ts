@@ -3,10 +3,10 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { initCore } from "@/core/flightcore";
 import type { Flight } from "@/data/types";
-import { parseAirports } from "./airports";
-import { globeContent } from "./content";
+import { parseAirportInfo } from "@/ui/airports";
+import { globeContent, positions } from "./content";
 
-const lookup = parseAirports("KSFO\tSFO\tSan Francisco\tSan Francisco\tUS\t37.6213\t-122.379\tx\nRJTT\tHND\tHaneda\tTokyo\tJP\t35.5533\t139.7811\tx\nKJFK\tJFK\tKennedy\tNew York\tUS\t40.6398\t-73.7789\tx\nEGLL\tLHR\tHeathrow\tLondon\tGB\t51.47\t-0.4543\tx\n");
+const lookup = positions(parseAirportInfo("KSFO\tSFO\tSan Francisco\tSan Francisco\tUS\t37.6213\t-122.379\tx\nRJTT\tHND\tHaneda\tTokyo\tJP\t35.5533\t139.7811\tx\nKJFK\tJFK\tKennedy\tNew York\tUS\t40.6398\t-73.7789\tx\nEGLL\tLHR\tHeathrow\tLondon\tGB\t51.47\t-0.4543\tx\n"));
 const now = new Date("2026-11-11T12:00:00Z");
 
 function flight(over: Partial<Flight>): Flight {

@@ -1,6 +1,17 @@
 import { greatCircle, type LatLon } from "@/core/flightcore";
 import type { Flight } from "@/data/types";
-import type { AirportLookup } from "./airports";
+import type { AirportDirectory } from "@/ui/airports";
+
+/** Where an airport is, by ICAO code; null when the directory does not know it. */
+export type AirportLookup = (icao: string) => LatLon | null;
+
+/** The globe's view of the shared airport directory: only the position. */
+export function positions(dir: AirportDirectory): AirportLookup {
+  return (icao) => {
+    const a = dir(icao);
+    return a && a.lat !== null && a.lon !== null ? { lat: a.lat, lon: a.lon } : null;
+  };
+}
 
 export type GlobeContent = {
   routes: LatLon[][];
