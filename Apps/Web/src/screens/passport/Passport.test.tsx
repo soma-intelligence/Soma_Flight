@@ -133,6 +133,8 @@ describe("Passport", () => {
     const list = await screen.findByRole("list", { name: "Past flights" });
     fireEvent.click(within(list).getByRole("button", { name: "Delete UA1 KSFO to KJFK" }));
     const dialog = await screen.findByRole("alertdialog");
+    // In document.body, so the narrow sheet's transform never carries it off screen.
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(within(dialog).getByText("Delete this flight from your history?")).toBeTruthy();
     expect(deletePastFlight).not.toHaveBeenCalled();
     fetchPastFlights.mockResolvedValue(FLIGHTS.filter((f) => f.ident !== "UA1"));
@@ -166,6 +168,7 @@ describe("Passport", () => {
     await screen.findByRole("list", { name: "Past flights" });
     fireEvent.click(screen.getByRole("button", { name: "Add Past Flight" }));
     const form = await screen.findByRole("dialog", { name: "Add Past Flight" });
+    expect(form.parentElement?.parentElement).toBe(document.body);
     fireEvent.change(within(form).getByLabelText("Flight number"), { target: { value: "ua 990" } });
     fireEvent.change(within(form).getByLabelText("Day"), { target: { value: "2026-11-01" } });
     fireEvent.change(within(form).getByLabelText("From"), { target: { value: "sfo" } });

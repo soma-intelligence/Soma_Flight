@@ -189,6 +189,21 @@ describe("Settings notifications", () => {
 });
 
 describe("Settings delete account", () => {
+  it("shows the confirmation in document.body, and Escape closes only the dialog", () => {
+    const shell = vi.fn();
+    window.addEventListener("keydown", shell);
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Account" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(screen.getByTestId("settings-card").contains(dialog)).toBe(false);
+    expect(document.activeElement?.textContent).toBe("Cancel");
+    fireEvent.keyDown(window, { key: "Escape" });
+    window.removeEventListener("keydown", shell);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(shell).not.toHaveBeenCalled();
+    expect(screen.getByTestId("settings-card")).toBeTruthy();
+  });
+
   it("asks for confirmation before calling the function", async () => {
     signOut.mockResolvedValue();
     setup();

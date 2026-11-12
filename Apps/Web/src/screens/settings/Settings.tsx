@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { signOut, useSession } from "@/app/session";
 import { fetchFriendsMe, friendsMeKey, type FriendsMe } from "@/data/friends";
@@ -19,6 +19,7 @@ import {
   type NotificationPrefs,
   type Units,
 } from "@/data/settings";
+import { Dialog } from "@/ui/Dialog";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { CardFrame } from "../placeholder";
 
@@ -385,44 +386,38 @@ function Switch({
 
 /** The deletion's confirmation, with the app's copy. Cancel has focus. */
 function Confirm({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-title"
-        aria-describedby="delete-message"
-        className="w-full max-w-[320px] rounded-[20px] bg-[var(--sf-card)] p-5 text-center"
-      >
-        <h2 id="delete-title" className="text-[17px] font-semibold text-[var(--sf-primary)]">
-          {DELETE_TITLE}
-        </h2>
-        <p id="delete-message" className="pt-1.5 pb-4 text-[15px] text-[var(--sf-secondary)]">
-          {DELETE_MESSAGE}
-        </p>
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="h-11 rounded-full bg-[var(--sf-very-late)] text-[17px] font-semibold text-white"
-          >
-            Delete Account
-          </button>
-          <button
-            type="button"
-            autoFocus
-            onClick={onCancel}
-            className="h-11 rounded-full bg-[var(--sf-pill)] text-[17px] font-semibold text-[var(--sf-primary)]"
-          >
-            Cancel
-          </button>
-        </div>
+    <Dialog
+      role="alertdialog"
+      labelledBy="delete-title"
+      describedBy="delete-message"
+      onClose={onCancel}
+      align="center"
+      className="w-full max-w-[320px] rounded-[20px] bg-[var(--sf-card)] p-5 text-center"
+    >
+      <h2 id="delete-title" className="text-[17px] font-semibold text-[var(--sf-primary)]">
+        {DELETE_TITLE}
+      </h2>
+      <p id="delete-message" className="pt-1.5 pb-4 text-[15px] text-[var(--sf-secondary)]">
+        {DELETE_MESSAGE}
+      </p>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="h-11 rounded-full bg-[var(--sf-very-late)] text-[17px] font-semibold text-white"
+        >
+          Delete Account
+        </button>
+        <button
+          type="button"
+          data-autofocus
+          onClick={onCancel}
+          className="h-11 rounded-full bg-[var(--sf-pill)] text-[17px] font-semibold text-[var(--sf-primary)]"
+        >
+          Cancel
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

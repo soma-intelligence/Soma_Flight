@@ -11,6 +11,7 @@ import { PanelRim, panelBoxStyle, panelStyle } from "./Panel";
 import { useSheet } from "./Sheet";
 import type { Detent } from "./sheetGeometry";
 import { TabRoot } from "./TabRoot";
+import { dialogOpen } from "@/ui/Dialog";
 import { useWide } from "./useWide";
 
 const TAB_SCREENS: Record<Tab, () => ReactNode> = {
@@ -49,6 +50,8 @@ export function Shell() {
   navRef.current = nav;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // A dialog handles its own keys (and stops Escape); while one is open the shell stands down.
+      if (e.defaultPrevented || dialogOpen()) return;
       const n = navRef.current;
       if (e.key === "Escape" && n.isCard) {
         e.preventDefault();
@@ -71,7 +74,15 @@ export function Shell() {
   const content = <CardStack isCard={isCard} root={<TabRoot>{TAB_SCREENS[tab]()}</TabRoot>} />;
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
+    // overflow: clip, not hidden: a clipped box is no scroll container, so focusing a field low in the
+    // sheet can never scroll the whole shell up and leave it there. The reset covers browsers without clip.
+    <div
+      data-testid="shell"
+      className="fixed inset-0 overflow-clip"
+      onScroll={(e) => {
+        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+      }}
+    >
       {/* The globe's place: MapKit, or its dark fallback. */}
       <div data-globe-slot className="absolute inset-0">
         <Globe flights={globeFlights} />

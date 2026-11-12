@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { validateNewFlight, type NewFlightProblem } from "@/data/passport";
 import type { AirportDirectory } from "@/ui/airports";
+import { Dialog } from "@/ui/Dialog";
 
 /** Today as YYYY-MM-DD in the browser's zone: the latest day the picker offers. */
 function today(now: Date = new Date()): string {
@@ -35,13 +36,6 @@ export function AddPastFlight({
   const [errors, setErrors] = useState<Partial<Record<NewFlightProblem, string>>>({});
   const titleId = useId();
   const first = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    first.current?.focus();
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
@@ -79,16 +73,13 @@ export function AddPastFlight({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onSubmit={submit}
-        onClick={(e) => e.stopPropagation()}
-        noValidate
-        className="max-h-full w-full max-w-[420px] overflow-y-auto rounded-t-[24px] bg-[var(--sf-card)] p-5 sm:rounded-[24px]"
-      >
+    <Dialog
+      labelledBy={titleId}
+      onClose={onClose}
+      initialFocus={first}
+      className="w-full max-w-[420px] rounded-[24px] bg-[var(--sf-card)] p-5"
+    >
+      <form onSubmit={submit} noValidate>
         <h2 id={titleId} className="text-[20px] font-semibold text-[var(--sf-primary)]">
           Add Past Flight
         </h2>
@@ -118,6 +109,6 @@ export function AddPastFlight({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

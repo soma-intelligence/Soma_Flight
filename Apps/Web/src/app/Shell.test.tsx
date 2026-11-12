@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, useLocation, type InitialEntry } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Dialog } from "@/ui/Dialog";
 import { makeQueryClient } from "./query";
 import { shellRoutes } from "./routes";
 
@@ -147,6 +148,33 @@ describe("Shell", () => {
     setup(["/", { pathname: "/airport/KSFO", state: { tab: "flights" } }]);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("where").textContent).toBe("/");
+  });
+
+  it("leaves the card open when Escape closes a dialog over it", () => {
+    const onClose = vi.fn();
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <MemoryRouter initialEntries={["/", { pathname: "/airport/KSFO", state: { tab: "flights" } }]} initialIndex={1}>
+          <Routes>{shellRoutes((el) => el)}</Routes>
+          <Where />
+          <Dialog label="Over the card" onClose={onClose}>
+            <button type="button">Cancel</button>
+          </Dialog>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("where").textContent).toBe("/airport/KSFO");
+  });
+
+  it("is a clipped box, so focus cannot scroll the shell", () => {
+    setup(["/"]);
+    const shell = screen.getByTestId("shell");
+    expect(shell.className).toContain("overflow-clip");
+    shell.scrollTop = 436;
+    fireEvent.scroll(shell);
+    expect(shell.scrollTop).toBe(0);
   });
 
   it("goes to the remembered tab when a card was the first page", () => {

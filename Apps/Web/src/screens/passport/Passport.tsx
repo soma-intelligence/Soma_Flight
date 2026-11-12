@@ -13,6 +13,7 @@ import {
   type PastFlight,
 } from "@/data/passport";
 import { useAirports } from "@/ui/airports";
+import { Dialog } from "@/ui/Dialog";
 import { ErrorBanner } from "@/ui/ErrorBanner";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { JetIllustration } from "@/ui/JetIllustration";
@@ -276,37 +277,30 @@ function PastRow({ f, airport, onDelete }: { f: PastFlight; airport: ReturnType<
 
 /** The app's confirmation: "Delete this flight from your history?" with Delete Flight and Cancel. */
 function ConfirmDelete({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={onCancel}>
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-label="Delete this flight from your history?"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[340px] rounded-[20px] bg-[var(--sf-card)] p-5 text-center"
+    <Dialog
+      role="alertdialog"
+      label="Delete this flight from your history?"
+      onClose={onCancel}
+      className="w-full max-w-[340px] rounded-[20px] bg-[var(--sf-card)] p-5 text-center"
+    >
+      <p className="text-[17px] font-semibold text-[var(--sf-primary)]">Delete this flight from your history?</p>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="mt-4 h-11 w-full rounded-full bg-[var(--sf-very-late)] text-[17px] font-semibold text-white"
       >
-        <p className="text-[17px] font-semibold text-[var(--sf-primary)]">Delete this flight from your history?</p>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="mt-4 h-11 w-full rounded-full bg-[var(--sf-very-late)] text-[17px] font-semibold text-white"
-        >
-          Delete Flight
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-2 h-11 w-full rounded-full bg-[var(--sf-pill)] text-[17px] font-semibold text-[var(--sf-primary)]"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+        Delete Flight
+      </button>
+      <button
+        type="button"
+        data-autofocus
+        onClick={onCancel}
+        className="mt-2 h-11 w-full rounded-full bg-[var(--sf-pill)] text-[17px] font-semibold text-[var(--sf-primary)]"
+      >
+        Cancel
+      </button>
+    </Dialog>
   );
 }
 
