@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Friends } from "@/screens/friends/Friends";
 import { MyFlights } from "@/screens/my-flights/MyFlights";
+import { useMyFlights } from "@/screens/my-flights/useMyFlights";
 import { Passport } from "@/screens/passport/Passport";
 import { CardStack } from "./CardStack";
 import { Globe } from "./globe/Globe";
@@ -61,6 +62,9 @@ export function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const myFlights = useMyFlights().data;
+  const globeFlights = useMemo(() => (myFlights ?? []).map((x) => x.flight), [myFlights]);
+
   const sheet = useSheet(detent, setDetent, !wide);
   const content = <CardStack isCard={isCard} root={<TabRoot>{TAB_SCREENS[tab]()}</TabRoot>} />;
 
@@ -68,7 +72,7 @@ export function Shell() {
     <div className="fixed inset-0 overflow-hidden">
       {/* The globe's place: MapKit, or its dark fallback. */}
       <div data-globe-slot className="absolute inset-0">
-        <Globe />
+        <Globe flights={globeFlights} />
       </div>
       {/* One container in both widths: only its chrome changes, so the tab, the cards and their
           scroll positions survive the window crossing 768 px. */}

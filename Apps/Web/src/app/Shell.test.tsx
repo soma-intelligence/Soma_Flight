@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, useLocation, type InitialEntry } from "react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { makeQueryClient } from "./query";
 import { shellRoutes } from "./routes";
+
+// The shell's screens read My Flights and a flight through the data layer: no server in these tests.
+vi.mock("@/data/flights", async (original) => ({
+  ...(await original<typeof import("@/data/flights")>()),
+  fetchMyFlights: async () => [],
+  fetchFlight: async () => null,
+}));
 
 // A window whose width the test sets; matchMedia answers from it and tells listeners when it moves.
 let width = 1024;
@@ -46,10 +55,12 @@ function Where() {
 
 function setup(entries: InitialEntry[], index = entries.length - 1) {
   return render(
-    <MemoryRouter initialEntries={entries} initialIndex={index}>
-      <Routes>{shellRoutes((el) => el)}</Routes>
-      <Where />
-    </MemoryRouter>,
+    <QueryClientProvider client={makeQueryClient()}>
+      <MemoryRouter initialEntries={entries} initialIndex={index}>
+        <Routes>{shellRoutes((el) => el)}</Routes>
+        <Where />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
