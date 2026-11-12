@@ -3,6 +3,7 @@ import { Friends } from "@/screens/friends/Friends";
 import { MyFlights } from "@/screens/my-flights/MyFlights";
 import { Passport } from "@/screens/passport/Passport";
 import { CardStack } from "./CardStack";
+import { Globe } from "./globe/Globe";
 import { useShellNav, type Tab } from "./nav";
 import { FootContext } from "./foot";
 import { PanelRim, panelBoxStyle, panelStyle } from "./Panel";
@@ -65,8 +66,10 @@ export function Shell() {
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      {/* The globe's place (Task 8 mounts MapKit here): the dark sheet colour until then. */}
-      <div data-globe-slot className="absolute inset-0" style={{ background: "#18181A" }} />
+      {/* The globe's place: MapKit, or its dark fallback. */}
+      <div data-globe-slot className="absolute inset-0">
+        <Globe />
+      </div>
       {/* One container in both widths: only its chrome changes, so the tab, the cards and their
           scroll positions survive the window crossing 768 px. */}
       <section
