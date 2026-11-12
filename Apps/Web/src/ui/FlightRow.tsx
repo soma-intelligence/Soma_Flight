@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { Flight } from "@/data/types";
 import { airlineOf, useAirlines } from "./airlines";
+import { readUnits } from "@/data/settings";
 import { airportsReady, useAirports, type AirportInfo } from "./airports";
 import { AirlineMark } from "./AirlineMark";
 import {
@@ -36,6 +37,7 @@ export function FlightRow({
   onSelect: () => void;
 }) {
   const count = countdownColumn(flight, now);
+  const twelveHour = readUnits().clock === "h12";
   // Times read in the airports' zones: "--:--" until the airport table is in, never a jump from the browser's zone.
   const ready = airportsReady(useAirports());
   const airline = airlineOf(flight, useAirlines());
@@ -86,11 +88,11 @@ export function FlightRow({
             <span className="font-semibold">{from}</span> to <span className="font-semibold">{to}</span>
           </p>
           <div className="flex flex-wrap gap-x-[14px] gap-y-1 pt-0.5">
-            <End icon={ArrowUpRight} code={originCode(flight)} time={ready ? clock(bestOut(flight), origin?.tz) : "--:--"} />
+            <End icon={ArrowUpRight} code={originCode(flight)} time={ready ? clock(bestOut(flight), origin?.tz, twelveHour) : "--:--"} />
             <End
               icon={ArrowDownRight}
               code={destinationCode(flight)}
-              time={ready ? clock(bestIn(flight), destination?.tz) : "--:--"}
+              time={ready ? clock(bestIn(flight), destination?.tz, twelveHour) : "--:--"}
               marker={ready ? rowMarker(flight, origin?.tz, destination?.tz) : null}
             />
           </div>

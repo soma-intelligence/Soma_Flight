@@ -38,7 +38,7 @@ export function useFakes(): boolean {
 }
 
 type PgError = { code?: string; message?: string };
-function pgError(e: PgError): ApiError {
+export function pgError(e: PgError): ApiError {
   if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
   if (e.code === "PGRST116") return new ApiError("not_found", 404, e.message);
   return new ApiError("provider_unavailable", 500, e.message);
@@ -70,7 +70,9 @@ export async function fetchMyFlights(): Promise<FollowedFlight[]> {
 export async function fetchFlight(id: string): Promise<Flight | null> {
   if (useFakes() && import.meta.env.DEV) {
     const { fakeFlights } = await import("@/fakes");
-    return fakeFlights().find((f) => f.id === id) ?? null;
+    const { fakeFriendFlights } = await import("@/fakes/friends");
+    const own = fakeFlights().find((f) => f.id === id);
+    return own ?? fakeFriendFlights().find((x) => x.flight.id === id)?.flight ?? null;
   }
   const { data, error } = await getSupabase().from("flights").select("*").eq("id", id).limit(1);
   if (error) throw pgError(error);

@@ -41,4 +41,15 @@ describe("FlightRow", () => {
     expect(screen.getByText("Fri, Oct 30")).toBeTruthy();
     expect(screen.getByText("UA")).toBeTruthy();
   });
+
+  it("reads 12-hour times when the browser's units say so", () => {
+    ready = true;
+    localStorage.setItem("sf.units", JSON.stringify({ distance: "km", clock: "h12" }));
+    try {
+      row();
+      expect(screen.getByText("3:20 PM")).toBeTruthy();
+    } finally {
+      localStorage.removeItem("sf.units");
+    }
+  });
 });
