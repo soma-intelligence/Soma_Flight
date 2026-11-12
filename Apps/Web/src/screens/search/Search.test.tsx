@@ -122,6 +122,29 @@ describe("Search", () => {
     expect(screen.getByTestId("where").textContent).toBe("/flight/a2");
   });
 
+  it("Enter on a focused chip, Try again or a row is not the field's Enter", async () => {
+    callFunction.mockResolvedValue({ flights: [wire("a1", "AF84"), wire("a2", "AF84")] });
+    show();
+    type("af84");
+    await waitFor(() => expect(screen.getAllByTestId("flight-row")).toHaveLength(2));
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Tomorrow" }), { key: "Enter" });
+    fireEvent.keyDown(screen.getAllByTestId("flight-row")[1], { key: "Enter" });
+    fireEvent.keyDown(screen.getAllByTestId("flight-row")[1], { key: "ArrowDown" });
+    expect(screen.getByTestId("where").textContent).toBe("/search");
+    expect(screen.getAllByTestId("search-result")[0].getAttribute("aria-current")).toBe("true");
+    fireEvent.click(screen.getAllByTestId("flight-row")[1]);
+    expect(screen.getByTestId("where").textContent).toBe("/flight/a2");
+  });
+
+  it("Enter on the error banner's Try again does not open anything", async () => {
+    failWith(new ApiError("rate_limited", 429));
+    show();
+    type("af84");
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    fireEvent.keyDown(retry, { key: "Enter" });
+    expect(screen.getByTestId("where").textContent).toBe("/search");
+  });
+
   it("a click opens the flight", async () => {
     callFunction.mockResolvedValue({ flights: [wire("a1", "AF84")] });
     show();

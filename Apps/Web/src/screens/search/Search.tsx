@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search as SearchIcon } from "lucide-react";
 import { useShellNav } from "@/app/nav";
-import { loadAirlines } from "@/ui/airlines";
+import { loadAirlines, type AirlineDirectory } from "@/ui/airlines";
 import { useAirports } from "@/ui/airports";
 import { ErrorBanner } from "@/ui/ErrorBanner";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
@@ -10,7 +10,7 @@ import { FlightRow } from "@/ui/FlightRow";
 import { useNow } from "@/ui/useNow";
 import { CardFrame } from "../placeholder";
 import { dayString, lookupFlights } from "./lookup";
-import { buildAirlineDirectory, parseFlightNumber, type AirlineDirectory, type AirlineRow } from "./parse";
+import { parseFlightNumber } from "./parse";
 
 const DAYS = [
   { label: "Today", offset: 0 },
@@ -19,14 +19,6 @@ const DAYS = [
 ] as const;
 
 const DEBOUNCE_MS = 250;
-
-/** Names from the shared airline table, codes from the shared directory; null if it cannot load (the plain forms still read). */
-function loadDirectory(): Promise<AirlineDirectory | null> {
-  return Promise.all([loadAirlines(), import("@flightkit/Reference/airlines.json")]).then(
-    ([dir, m]) => buildAirlineDirectory((m as unknown as { default: AirlineRow[] }).default, (c) => dir(c) !== null),
-    () => null,
-  );
-}
 
 /**
  * Search by flight number: a field that reads "af84", "AF 84", "84 af" or "air france 84", the day chips
@@ -47,7 +39,10 @@ export function Search() {
 
   useEffect(() => {
     let live = true;
-    void loadDirectory().then((d) => live && setDir(d));
+    loadAirlines().then(
+      (d) => live && setDir(() => d),
+      () => {},
+    );
     return () => {
       live = false;
     };
@@ -71,7 +66,8 @@ export function Search() {
   const results = number ? (q.data ?? []) : [];
   const picked = Math.min(active, Math.max(results.length - 1, 0));
 
-  function onKeyDown(e: React.KeyboardEvent) {
+  /** Arrows and Enter on the field only: a focused chip, Try again or row keeps its own Enter. */
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (results.length === 0) return;
       e.preventDefault();
@@ -86,11 +82,12 @@ export function Search() {
   const empty = number !== null && q.isSuccess && results.length === 0;
   return (
     <CardFrame title="Search" testId="search-card">
-      <div className="px-4 pb-6" onKeyDown={onKeyDown}>
+      <div className="px-4 pb-6">
         <label className="flex items-center gap-2.5 rounded-full bg-[var(--sf-pill)] px-4 py-2.5">
           <SearchIcon size={16} strokeWidth={2.4} aria-hidden className="shrink-0 text-[var(--sf-secondary)]" />
           <input
             ref={input}
+            onKeyDown={onKeyDown}
             aria-label="Flight number"
             value={text}
             onChange={(e) => {

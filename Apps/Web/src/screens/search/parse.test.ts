@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildAirlineDirectory, parseFlightNumber, type AirlineRow } from "./parse";
+import { parseAirlines } from "@/ui/airlines";
+import { parseFlightNumber } from "./parse";
 
-const rows: AirlineRow[] = [
+const rows = [
   { icao: "AFR", iata: "AF", name: "Air France" },
   { icao: "DAL", iata: "DL", name: "Delta Air Lines" },
   { icao: "UAL", iata: "UA", name: "United Airlines" },
   { icao: "LAN", iata: "LA", name: "LATAM Airlines" },
   { icao: "EZY", iata: "U2", name: "easyJet" },
   { icao: "BER", iata: "", name: "Berlin Air" },
+  { icao: "AWQ", iata: "9W", name: "Jet Airways" },
+  { icao: "DLH", iata: "DL", name: "Delta Air Lines" },
+  { icao: "OAL", iata: "OA", name: "Olympic Airways" },
 ];
-const dir = buildAirlineDirectory(rows);
+const dir = parseAirlines(rows);
 
 describe("parseFlightNumber, FlightQuery.parse rule", () => {
   it.each([
@@ -45,6 +49,25 @@ describe("parseFlightNumber, forgiving forms", () => {
   it("a name the list does not know is no flight, and a bare number is no flight", () => {
     expect(parseFlightNumber("84", dir)).toBeNull();
     expect(parseFlightNumber("zebra air 84", dir)).toBeNull();
+  });
+
+  it("Swift cases: DAL 220, 9W 123, DL2204, AF 12 12", () => {
+    expect(parseFlightNumber("DAL 220", dir)).toEqual({ airline: "DAL", number: "220" });
+    expect(parseFlightNumber("9W 123", dir)).toEqual({ airline: "9W", number: "123" });
+    expect(parseFlightNumber("DL2204", dir)).toEqual({ airline: "DL", number: "2204" });
+    // The first number after the code is the flight's; the rest is left over (no date reading here).
+    expect(parseFlightNumber("AF 12 12", dir)).toEqual({ airline: "AF", number: "12" });
+  });
+
+  it("drops apostrophes before reading", () => {
+    expect(parseFlightNumber("air franc'e 84", dir)).toEqual({ airline: "AF", number: "84" });
+    expect(parseFlightNumber("AF’84", dir)).toEqual({ airline: "AF", number: "84" });
+  });
+
+  it("small words are no code even without a directory", () => {
+    expect(parseFlightNumber("to 12")).toBeNull();
+    expect(parseFlightNumber("vol 12")).toBeNull();
+    expect(parseFlightNumber("la 12")).toBeNull();
   });
 
   it("without a directory the name forms are not read", () => {

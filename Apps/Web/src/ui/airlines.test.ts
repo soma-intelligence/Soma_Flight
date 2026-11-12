@@ -9,6 +9,32 @@ const json = [
   { icao: "EJM", iata: "", name: "Executive Jet Management" },
 ];
 
+describe("airline names", () => {
+  const dir = parseAirlines([
+    ...json,
+    { icao: "DAL", iata: "DL", name: "Delta Air Lines" },
+    { icao: "TST", iata: "", name: "L'Avion Café" },
+  ]);
+
+  it("finds the code flight numbers use by the whole name or the name without its tail", () => {
+    expect(dir.named("air france")).toBe("AF");
+    expect(dir.named("Air  France")).toBe("AF");
+    expect(dir.named("delta")).toBe("DL");
+    expect(dir.named("united")).toBe("UA");
+    expect(dir.named("delta air lines")).toBe("DL");
+  });
+
+  it("an airline without an IATA code gives its ICAO code, folding accents and apostrophes", () => {
+    expect(dir.named("executive jet management")).toBe("EJM");
+    expect(dir.named("lavion cafe")).toBe("TST");
+  });
+
+  it("an unknown or empty name gives null", () => {
+    expect(dir.named("zebra")).toBeNull();
+    expect(dir.named("  ")).toBeNull();
+  });
+});
+
 describe("airlines (ReferenceData.airline)", () => {
   const dir = parseAirlines(json);
 

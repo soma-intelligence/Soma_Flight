@@ -1,55 +1,6 @@
-/** One airline of the shared reference list (airlines.json): the fields the parser reads. */
-export type AirlineRow = { icao: string; iata: string; name: string };
-
-/** What the forgiving forms need of the airline list: is this a code, and which code does this name give. */
-export type AirlineDirectory = {
-  /** True when `code` (IATA or ICAO, any case) is an airline's. */
-  hasCode(code: string): boolean;
-  /** The code flight numbers use (IATA, else ICAO) of the airline named by `phrase`, whole or without its tail. */
-  named(phrase: string): string | null;
-};
+import { fold, type AirlineDirectory } from "@/ui/airlines";
 
 export type FlightNumber = { airline: string; number: string };
-
-/** Lower case, accents dropped, anything but letters and digits a space (SearchText.fold). */
-export function fold(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
-
-/** Generic tails an airline is often named without (SearchSuggester.airlineTails). */
-const TAILS = [" air lines", " airlines", " airline", " airways"];
-
-/** Names from the rows; `hasCode` is the shared directory's lookup (src/ui/airlines.ts) when given, else the rows' own codes. */
-export function buildAirlineDirectory(rows: readonly AirlineRow[], knows?: (code: string) => boolean): AirlineDirectory {
-  const codes = new Set<string>();
-  const exact = new Map<string, string>();
-  const short = new Map<string, string>();
-  for (const r of rows) {
-    if (r.iata) codes.add(r.iata.toUpperCase());
-    if (r.icao) codes.add(r.icao.toUpperCase());
-    const code = (r.iata || r.icao).toUpperCase();
-    const name = fold(r.name);
-    if (!name) continue;
-    if (!exact.has(name)) exact.set(name, code);
-    const tail = TAILS.find((t) => name.endsWith(t));
-    if (tail) {
-      const s = name.slice(0, -tail.length);
-      if (s && !short.has(s)) short.set(s, code);
-    }
-  }
-  return {
-    hasCode: (c) => (knows ? knows(c) : codes.has(c.toUpperCase())),
-    named: (p) => {
-      const q = fold(p);
-      return q ? (exact.get(q) ?? short.get(q) ?? null) : null;
-    },
-  };
-}
 
 /** Words that stand for "to", "from" or nothing: a two-letter word among them is no airline code. */
 const WORDS = new Set([
@@ -72,8 +23,8 @@ export function parseFlightNumber(text: string, airlines?: AirlineDirectory): Fl
   const w = fold(text).split(" ").filter(Boolean);
   if (w.length === 0) return null;
   const airlineCode = (c: string): boolean => {
-    if (!airlines) return true;
-    return airlines.hasCode(c) || (c.length === 2 && !WORDS.has(c));
+    if (!airlines) return !WORDS.has(c);
+    return airlines(c) !== null || (c.length === 2 && !WORDS.has(c));
   };
 
   for (let i = 0; i < w.length; i++) {
@@ -91,7 +42,7 @@ function looseNumber(w: string[], airlines: AirlineDirectory): FlightNumber | nu
   for (let i = 0; i < w.length; i++) {
     if (!number(i)) continue;
     const next = w[i + 1];
-    if (next && next.length === 2 && /\p{L}/u.test(next) && !WORDS.has(next) && airlines.hasCode(next)) return out(next, w[i]);
+    if (next && next.length === 2 && /\p{L}/u.test(next) && !WORDS.has(next) && airlines(next) !== null) return out(next, w[i]);
     for (let n = Math.min(4, i); n >= 1; n--) {
       const c = named(i - n, n);
       if (c) return out(c, w[i]);
