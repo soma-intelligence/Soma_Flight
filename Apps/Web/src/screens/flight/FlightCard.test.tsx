@@ -110,9 +110,12 @@ describe("FlightCard", () => {
     expect((stop as HTMLButtonElement).disabled).toBe(false);
     cleanup();
 
+    fetchMyFlights.mockClear();
     fetchMyFlights.mockRejectedValue(new ApiError("provider_unavailable", 500));
     show(f.id);
-    await new Promise((r) => setTimeout(r, 1500));
+    // Settled: the first try and its one retry have failed, and the button is still disabled.
+    await waitFor(() => expect(fetchMyFlights).toHaveBeenCalledTimes(2), { timeout: 4000 });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Follow" })).toBeTruthy());
     expect((screen.getByRole("button", { name: "Follow" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
