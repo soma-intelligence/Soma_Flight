@@ -4,8 +4,9 @@ import { MyFlights } from "@/screens/my-flights/MyFlights";
 import { Passport } from "@/screens/passport/Passport";
 import { CardStack } from "./CardStack";
 import { useShellNav, type Tab } from "./nav";
-import { Panel } from "./Panel";
-import { Sheet } from "./Sheet";
+import { FootContext } from "./foot";
+import { PanelRim, panelBoxStyle, panelStyle } from "./Panel";
+import { useSheet } from "./Sheet";
 import type { Detent } from "./sheetGeometry";
 import { TabRoot } from "./TabRoot";
 import { useWide } from "./useWide";
@@ -59,13 +60,26 @@ export function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const sheet = useSheet(detent, setDetent, !wide);
   const content = <CardStack isCard={isCard} root={<TabRoot>{TAB_SCREENS[tab]()}</TabRoot>} />;
 
   return (
     <div className="fixed inset-0 overflow-hidden">
       {/* The globe's place (Task 8 mounts MapKit here): the dark sheet colour until then. */}
       <div data-globe-slot className="absolute inset-0" style={{ background: "#18181A" }} />
-      {wide ? <Panel>{content}</Panel> : <Sheet detent={detent} onDetent={setDetent}>{content}</Sheet>}
+      {/* One container in both widths: only its chrome changes, so the tab, the cards and their
+          scroll positions survive the window crossing 768 px. */}
+      <section
+        data-testid={wide ? "panel" : "sheet"}
+        aria-label="Panel"
+        className="absolute bg-[var(--sf-background)]"
+        style={wide ? panelStyle : sheet.section}
+      >
+        <div className="relative overflow-hidden" style={wide ? panelBoxStyle : sheet.box}>
+          <FootContext.Provider value={wide ? null : sheet.foot}>{content}</FootContext.Provider>
+        </div>
+        {wide ? <PanelRim /> : sheet.grabber}
+      </section>
     </div>
   );
 }

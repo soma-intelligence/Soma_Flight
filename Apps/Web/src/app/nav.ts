@@ -21,12 +21,11 @@ function isTab(v: unknown): v is Tab {
 
 /**
  * The shell's navigation: the current tab (a card keeps the one it was opened over), opening a card over
- * it, closing the top card, switching tab. Development fakes (`?fakes=1`) ride along on every link.
+ * it, closing the top card, switching tab.
  */
 export function useShellNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const keep = new URLSearchParams(location.search).get("fakes") === "1" ? "?fakes=1" : "";
   const pathTab = tabOf(location.pathname);
   const stateTab = (location.state as CardState | null)?.tab;
   const tab: Tab = pathTab ?? (isTab(stateTab) ? stateTab : "flights");
@@ -35,15 +34,15 @@ export function useShellNav() {
     isCard: pathTab === null,
     /** Opens a card over the current tab. */
     open(path: string) {
-      navigate(path + keep, { state: { tab } satisfies CardState });
+      navigate(path, { state: { tab } satisfies CardState });
     },
     /** Closes the top card: back in history, or to the tab when the card was the first page. */
     close() {
       if (location.key !== "default") navigate(-1);
-      else navigate(TAB_PATH[tab] + keep, { replace: true });
+      else navigate(TAB_PATH[tab], { replace: true });
     },
     showTab(t: Tab) {
-      if (t !== tab || pathTab === null) navigate(TAB_PATH[t] + keep);
+      if (t !== tab || pathTab === null) navigate(TAB_PATH[t]);
     },
   };
 }

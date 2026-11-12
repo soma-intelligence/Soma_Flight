@@ -8952,6 +8952,16 @@
         }
       }
     },
+    "Panel height": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hauteur du panneau"
+          }
+        }
+      }
+    },
     "Paper": {
       "localizations": {
         "fr": {

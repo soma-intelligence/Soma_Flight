@@ -10,8 +10,31 @@ export const flightKey = (id: string) => ["flight", id] as const;
 export function fakesEnabled(dev: boolean, search: string): boolean {
   return dev && new URLSearchParams(search).get("fakes") === "1";
 }
+/** Where development remembers `?fakes=1` for the tab, so in-app links need not carry it. */
+export const FAKES_KEY = "sf.fakes";
+
+/**
+ * True in development once `?fakes=1` has been seen in this tab (the flag sticks in sessionStorage, so
+ * navigation and Sign Out keep fakes on). Always false in production, where the branch is compiled out.
+ */
 export function useFakes(): boolean {
-  return fakesEnabled(import.meta.env.DEV, typeof window === "undefined" ? "" : window.location.search);
+  if (import.meta.env.DEV) {
+    if (typeof window === "undefined") return false;
+    if (fakesEnabled(true, window.location.search)) {
+      try {
+        sessionStorage.setItem(FAKES_KEY, "1");
+      } catch {
+        /* storage blocked: fakes stay on while the URL says so */
+      }
+      return true;
+    }
+    try {
+      return sessionStorage.getItem(FAKES_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 type PgError = { code?: string; message?: string };

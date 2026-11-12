@@ -19,9 +19,20 @@ function nextLayers(
     return layers.map((l, i) => (i < at ? l : i === at ? { ...l, phase: "shown" } : { ...l, phase: "leaving" }));
   }
   const live = layers.filter((l) => l.phase !== "leaving");
-  if (how === "REPLACE" && live.length > 0) {
-    const top = live[live.length - 1];
+  const top = live[live.length - 1];
+  if (how === "REPLACE" && top) {
     return layers.map((l) => (l === top ? { key, element, phase: "shown" } : l));
+  }
+  if (how === "POP" && top) {
+    // Back to a card this stack never held (opened before a reload): it shows in place under the top
+    // card, which drops away over it.
+    const i = layers.indexOf(top);
+    return [
+      ...layers.slice(0, i),
+      { key, element, phase: "shown" },
+      { ...top, phase: "leaving" },
+      ...layers.slice(i + 1),
+    ];
   }
   return [...layers, { key, element, phase: "entering" }];
 }

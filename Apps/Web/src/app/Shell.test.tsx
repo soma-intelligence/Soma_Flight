@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, useLocation, type InitialEntry } from "react-router";
 import { shellRoutes } from "./routes";
 
@@ -36,7 +36,12 @@ afterEach(cleanup);
 
 function Where() {
   const l = useLocation();
-  return <output data-testid="where">{l.pathname}</output>;
+  return (
+    <>
+      <output data-testid="where">{l.pathname}</output>
+      <output data-testid="search">{l.search}</output>
+    </>
+  );
 }
 
 function setup(entries: InitialEntry[], index = entries.length - 1) {
@@ -145,5 +150,46 @@ describe("Shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByTestId("where").textContent).toBe("/search");
     expect(screen.getByRole("slider", { name: "Panel height" }).getAttribute("aria-valuetext")).toBe("medium");
+  });
+
+  it("keeps two stacked cards across 768 px, and Back shows the lower one", async () => {
+    setup([
+      "/",
+      { pathname: "/flight/a", state: { tab: "flights" } },
+      { pathname: "/flight/b", state: { tab: "flights" } },
+    ]);
+    setWidth(500);
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+    expect(screen.getByTestId("where").textContent).toBe("/flight/a");
+    await waitFor(() => expect(screen.queryByText("b")).toBeNull());
+    expect(screen.getByText("a")).toBeTruthy();
+    expect(screen.getAllByTestId("flight-card")).toHaveLength(1);
+  });
+
+  it("shows a card the stack never held when Back returns to it (after a reload)", async () => {
+    setup([
+      { pathname: "/flight/a", state: { tab: "flights" } },
+      { pathname: "/flight/b", state: { tab: "flights" } },
+    ]);
+    expect(screen.queryByText("a")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByTestId("where").textContent).toBe("/flight/a");
+    expect(screen.getByText("a")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("b")).toBeNull());
+  });
+
+  it("keeps the tab's scroll position when the width crosses 768 px", () => {
+    const { container } = setup(["/"]);
+    const scroller = container.querySelector(".overflow-y-auto")!;
+    scroller.scrollTop = 120;
+    setWidth(500);
+    expect(container.querySelector(".overflow-y-auto")).toBe(scroller);
+  });
+
+  it("adds nothing to the query string when it navigates", () => {
+    setup(["/?fakes=1"]);
+    fireEvent.click(screen.getByRole("button", { name: "Friends" }));
+    expect(screen.getByTestId("where").textContent).toBe("/friends");
+    expect(screen.getByTestId("search").textContent).toBe("");
   });
 });
