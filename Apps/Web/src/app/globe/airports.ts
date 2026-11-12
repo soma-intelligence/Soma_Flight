@@ -21,9 +21,7 @@ let loading: Promise<AirportLookup> | null = null;
 
 /** The app's airport table (the same file the iOS app bundles), fetched once, in its own chunk. */
 export function loadAirports(): Promise<AirportLookup> {
-  loading ??= import(
-    "../../../../../Packages/FlightKit/Sources/FlightKit/Resources/Reference/airports.tsv?raw"
-  ).then(
+  loading ??= import("@flightkit/Reference/airports.tsv?raw").then(
     (m: { default: string }) => parseAirports(m.default),
     (e: unknown) => {
       loading = null;

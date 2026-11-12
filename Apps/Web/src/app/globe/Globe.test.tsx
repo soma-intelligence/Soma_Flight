@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 
 const loadMapKit = vi.fn();
-vi.mock("./loadMapKit", () => ({ loadMapKit: (...a: unknown[]) => loadMapKit(...a) }));
+vi.mock("./loadMapKit", () => ({ loadMapKit: (...a: unknown[]) => loadMapKit(...a), resetMapKit: () => {} }));
 vi.mock("@/data/api", () => ({ callFunction: vi.fn() }));
 
 import { Globe } from "./Globe";
@@ -43,6 +43,26 @@ describe("Globe", () => {
     await screen.findByRole("button", { name: "Retry" });
     fireEvent.click(screen.getByRole("button", { name: "Airports" }));
     expect(screen.getByTestId("where").textContent).toBe("/airports");
+  });
+
+  it("shows the fallback with Retry when MapKit reports an error event", async () => {
+    let fire: () => void = () => {};
+    class FakeMap {
+      static MapTypes = { Hybrid: "hybrid", Satellite: "satellite" };
+      destroy() {}
+    }
+    loadMapKit.mockResolvedValue({
+      Map: FakeMap,
+      Padding: class {},
+      addEventListener: (_: string, l: () => void) => (fire = l),
+      removeEventListener: () => {},
+    });
+    setup();
+    await waitFor(() => expect(loadMapKit).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    await waitFor(() => expect(fire).not.toBe(undefined));
+    act(() => fire());
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeTruthy();
   });
 
   it("in fakes mode never loads MapKit and still shows the fallback", async () => {

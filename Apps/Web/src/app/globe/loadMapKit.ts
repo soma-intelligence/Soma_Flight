@@ -22,6 +22,11 @@ declare global {
 
 let loading: Promise<MapKit> | null = null;
 
+/** Forgets the shared load, so the next `loadMapKit` starts again (after MapKit reported a bad token). */
+export function resetMapKit(): void {
+  loading = null;
+}
+
 function insertScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.mapkit) return resolve();

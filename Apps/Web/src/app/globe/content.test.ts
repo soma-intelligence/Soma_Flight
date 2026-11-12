@@ -6,7 +6,7 @@ import type { Flight } from "@/data/types";
 import { parseAirports } from "./airports";
 import { globeContent } from "./content";
 
-const lookup = parseAirports("KJFK\tJFK\tKennedy\tNew York\tUS\t40.6398\t-73.7789\tx\nEGLL\tLHR\tHeathrow\tLondon\tGB\t51.47\t-0.4543\tx\n");
+const lookup = parseAirports("KSFO\tSFO\tSan Francisco\tSan Francisco\tUS\t37.6213\t-122.379\tx\nRJTT\tHND\tHaneda\tTokyo\tJP\t35.5533\t139.7811\tx\nKJFK\tJFK\tKennedy\tNew York\tUS\t40.6398\t-73.7789\tx\nEGLL\tLHR\tHeathrow\tLondon\tGB\t51.47\t-0.4543\tx\n");
 const now = new Date("2026-11-11T12:00:00Z");
 
 function flight(over: Partial<Flight>): Flight {
@@ -35,6 +35,13 @@ describe("globeContent", () => {
     expect(c.routes).toHaveLength(2);
     expect(c.routes[0][0]).toEqual({ lat: 40.6398, lon: -73.7789 });
     expect(c.airports.map((a) => a.code).sort()).toEqual(["JFK", "LHR"]);
+  });
+
+  it("a transpacific route has no 360 degree longitude jump between points", () => {
+    const c = globeContent([flight({ originIcao: "KSFO", destinationIcao: "RJTT" })], now, lookup);
+    const r = c.routes[0];
+    expect(r.length).toBeGreaterThan(2);
+    for (let i = 1; i < r.length; i++) expect(Math.abs(r[i].lon - r[i - 1].lon)).toBeLessThan(180);
   });
 
   it("a flight with no position puts no plane", () => {

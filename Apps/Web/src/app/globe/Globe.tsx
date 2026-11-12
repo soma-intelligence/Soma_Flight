@@ -1,4 +1,4 @@
-import { Box, Tag, TowerControl } from "lucide-react";
+import { Tag, TowerControl } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { initCore } from "@/core/flightcore";
 import { callFunction } from "@/data/api";
@@ -10,10 +10,12 @@ import { PANEL_INSET, PANEL_WIDTH } from "../Panel";
 import { useWide } from "../useWide";
 import { loadAirports } from "./airports";
 import { globeContent } from "./content";
-import { loadMapKit, type MapKit } from "./loadMapKit";
+import { loadMapKit, resetMapKit, type MapKit } from "./loadMapKit";
 
 /** The camera's left padding when the panel stands over the globe (its width plus its inset). */
 export const GLOBE_PADDING_WIDE = PANEL_WIDTH + PANEL_INSET;
+/** The dark `--sf-background`: the globe is dark in both themes, so the fallback is too. */
+export const GLOBE_FILL = "#18181A";
 const NO_FLIGHTS: Flight[] = [];
 
 async function fetchToken(): Promise<string> {
@@ -37,7 +39,6 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
   const [attempt, setAttempt] = useState(0);
   const [mapkit, setMapkit] = useState<MapKit | null>(null);
   const [labels, setLabels] = useState(true);
-  const [tilt, setTilt] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const map = useRef<any>(null);
 
@@ -48,6 +49,8 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
       return;
     }
     let cancelled = false;
+    let onError: (() => void) | null = null;
+    let loaded: MapKit | null = null;
     setPhase("loading");
     loadMapKit(fetchToken).then(
       (mk) => {
@@ -58,9 +61,13 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
           showsZoomControl: false,
           showsCompass: mk.FeatureVisibility?.Hidden ?? "hidden",
         });
-        // The globe projection, where this MapKit JS offers it.
-        const globe = mk.Map.Projections?.Globe ?? mk.MapProjection?.Globe;
-        if (globe !== undefined && "projection" in m) m.projection = globe;
+        // A bad or revoked token surfaces as MapKit's `error` event: same fallback, and a retry starts clean.
+        onError = () => {
+          resetMapKit();
+          if (!cancelled) setPhase("failed");
+        };
+        mk.addEventListener("error", onError);
+        loaded = mk;
         map.current = m;
         setMapkit(mk);
         setPhase("ready");
@@ -71,6 +78,7 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
     );
     return () => {
       cancelled = true;
+      if (onError) loaded?.removeEventListener?.("error", onError);
       map.current?.destroy?.();
       map.current = null;
       setMapkit(null);
@@ -87,11 +95,6 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
     if (!mapkit || !map.current) return;
     map.current.mapType = labels ? mapkit.Map.MapTypes.Hybrid : mapkit.Map.MapTypes.Satellite;
   }, [mapkit, labels]);
-
-  useEffect(() => {
-    if (!mapkit || !map.current) return;
-    map.current.isRotationEnabled = tilt;
-  }, [mapkit, tilt]);
 
   // Routes, planes and airports for the flights.
   useEffect(() => {
@@ -136,21 +139,20 @@ export function Globe({ flights = NO_FLIGHTS }: { flights?: Flight[] }) {
   }, [mapkit, flights]);
 
   return (
-    <div data-globe className="absolute inset-0" style={{ background: "#18181A" }}>
+    <div data-globe className="absolute inset-0" style={{ background: GLOBE_FILL }}>
       <div ref={host} className="absolute inset-0" />
       {phase === "failed" && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ paddingLeft: wide ? GLOBE_PADDING_WIDE : 0 }}>
           <button
             type="button"
             onClick={() => setAttempt((n) => n + 1)}
-            className="rounded-full px-3 py-1 text-[13px] text-white/45 hover:text-white/70"
+            className="rounded-full px-3 py-1 text-[13px] text-white/45 hover:text-white/70 focus-visible:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
           >
             Retry
           </button>
         </div>
       )}
       <div className="absolute right-3 top-3 flex gap-2 min-[768px]:right-4 min-[768px]:top-4">
-        <Switch label="3D" pressed={tilt} onClick={() => setTilt((v) => !v)} icon={Box} />
         <Switch label="Labels" pressed={labels} onClick={() => setLabels((v) => !v)} icon={Tag} />
         <RoundButton icon={TowerControl} label="Airports" onClick={() => nav.open("/airports")} />
       </div>
@@ -167,7 +169,7 @@ function Switch({
   label: string;
   pressed: boolean;
   onClick: () => void;
-  icon: typeof Box;
+  icon: typeof Tag;
 }) {
   return (
     <button
