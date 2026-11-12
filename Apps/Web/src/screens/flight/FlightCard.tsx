@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
+import { useFoot } from "@/app/foot";
 import { useShellNav } from "@/app/nav";
 import { fetchFriendFlights, friendFlightsKey } from "@/data/friends";
 import { fetchFlight, flightKey, followFlight, myFlightsKey, unfollowFlight, useFakes } from "@/data/flights";
@@ -19,6 +20,59 @@ import { countdown, countdownCaption, landedCaption, landedTitle, statusTone, ti
 import { CountdownCard, Header } from "./Header";
 import { Progress } from "./Progress";
 import { GatesCard, TimetableCard } from "./Timetable";
+
+/** The foot's own block: 8 px above, the 52 px capsule, 16 px to the edge. */
+const FOOT_BLOCK = 8 + 52 + 16;
+/** How far above the foot the content starts to fade (PillFadeMask.fade). */
+const FADE = 44;
+
+/**
+ * Follow or Stop Following at the card's foot, as the tab pill sits at the list's foot (TabRoot,
+ * PillFadeMask): over a fade to the sheet colour that is solid by the button's middle, so no row reads
+ * through it, and on the window's bottom edge while the iPhone-width sheet moves (FootContext). Reports its
+ * height so the scroll content keeps that much room and its last row scrolls clear.
+ */
+function FollowFoot({ children, onHeight }: { children: ReactNode; onHeight: (h: number) => void }) {
+  const foot = useFoot();
+  const box = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(FOOT_BLOCK);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const h = Math.max(FOOT_BLOCK, Math.ceil(el.getBoundingClientRect().height));
+      setHeight(h);
+      onHeight(h);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onHeight]);
+  const total = FADE + height;
+  // Clear, 0.65 of the sheet colour at 55%, solid by the button's middle (16 + 26 px above the edge).
+  const solidAt = total - 16 - 26;
+  const fade = `linear-gradient(to bottom, transparent 0px, color-mix(in srgb, var(--sf-background) 65%, transparent) ${
+    solidAt * 0.55
+  }px, var(--sf-background) ${solidAt}px)`;
+  return (
+    <div
+      data-testid="follow-foot"
+      className="pointer-events-none absolute right-0 left-0 z-10"
+      style={
+        foot
+          ? { top: 0, height: total, transform: `translateY(${foot.y - total}px)`, transition: foot.transition }
+          : { bottom: 0, height: total }
+      }
+    >
+      <div className="absolute inset-0" style={{ background: fade }} />
+      <div ref={box} className="absolute right-0 bottom-0 left-0 flex flex-col items-end gap-2 px-5 pt-2 pb-4">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const sameId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
@@ -94,6 +148,8 @@ export function FlightCard() {
   }, [fakes, readOnly, flight?.id, id, qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [followError, setFollowError] = useState<string | null>(null);
+  // The foot's measured height (button, and the error over it): the scroll content keeps that much room.
+  const [footHeight, setFootHeight] = useState(FOOT_BLOCK);
   const follow = useMutation({
     mutationFn: async (f: Flight) => {
       if (!fakes) await followFlight({ flightId: f.id });
@@ -151,7 +207,7 @@ export function FlightCard() {
   const airline = airlineOf(flight, airlines);
 
   return (
-    <div data-testid="flight-card" data-flight-id={id} className="flex h-full flex-col">
+    <div data-testid="flight-card" data-flight-id={id} className="relative flex h-full flex-col">
       <Header
         flight={flight}
         origin={origin}
@@ -162,7 +218,11 @@ export function FlightCard() {
       />
       <div className="relative min-h-0 flex-1">
         <div className="h-full overflow-y-auto overscroll-contain">
-          <div className="flex flex-col gap-4 px-5 pt-4 pb-[96px]">
+          <div
+            data-testid="card-scroll-content"
+            className="flex flex-col gap-4 px-5 pt-4"
+            style={{ paddingBottom: readOnly ? 24 : footHeight + 8 }}
+          >
             {q.error && <ErrorBanner message={errorCopy(errorCode(q.error))} onRetry={() => void q.refetch()} />}
             <Progress flight={flight} now={now} />
             <CountdownCard
@@ -177,35 +237,35 @@ export function FlightCard() {
             <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz, false, zonesKnown)} />
           </div>
         </div>
-        {!readOnly && (
-          <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col items-end gap-2 px-5 pb-4">
-            {followError && (
-              <div className="pointer-events-auto w-full">
-                <ErrorBanner message={followError} />
-              </div>
-            )}
-            {followed ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => unfollow.mutate(flight)}
-                className="sf-glass pointer-events-auto h-[52px] rounded-full px-[22px] text-[18px] font-semibold text-[var(--sf-primary)] disabled:opacity-60"
-              >
-                Stop Following
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => follow.mutate(flight)}
-                className="pointer-events-auto h-[52px] rounded-full bg-[var(--sf-accent)] px-[22px] text-[18px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] disabled:opacity-60"
-              >
-                Follow
-              </button>
-            )}
-          </div>
-        )}
       </div>
+      {!readOnly && (
+        <FollowFoot onHeight={setFootHeight}>
+          {followError && (
+            <div className="pointer-events-auto w-full">
+              <ErrorBanner message={followError} />
+            </div>
+          )}
+          {followed ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => unfollow.mutate(flight)}
+              className="sf-glass pointer-events-auto h-[52px] rounded-full px-[22px] text-[18px] font-semibold text-[var(--sf-primary)] disabled:opacity-60"
+            >
+              Stop Following
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => follow.mutate(flight)}
+              className="pointer-events-auto h-[52px] rounded-full bg-[var(--sf-accent)] px-[22px] text-[18px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] disabled:opacity-60"
+            >
+              Follow
+            </button>
+          )}
+        </FollowFoot>
+      )}
     </div>
   );
 }

@@ -119,6 +119,21 @@ describe("FlightCard", () => {
     expect((screen.getByRole("button", { name: "Follow" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("the foot sits over a fade, and the scroll content keeps room for it so the last row scrolls clear", async () => {
+    const f = ua990();
+    fetchFlight.mockResolvedValue(f);
+    show(f.id);
+    await screen.findByRole("button", { name: "Follow" });
+    const foot = screen.getByTestId("follow-foot");
+    const content = screen.getByTestId("card-scroll-content");
+    // The foot is not inside the scroller: it floats over it, and the scroller's content pads for it.
+    expect(content.contains(foot)).toBe(false);
+    expect(foot.firstElementChild?.getAttribute("style")).toContain("linear-gradient");
+    const pad = parseFloat(content.style.paddingBottom);
+    const footHeight = 8 + 52 + 16;
+    expect(pad).toBeGreaterThanOrEqual(footHeight);
+  });
+
   it("an unknown id shows not found copy", async () => {
     fetchFlight.mockResolvedValue(null);
     show("00000000-0000-4000-8000-00000000dead");
