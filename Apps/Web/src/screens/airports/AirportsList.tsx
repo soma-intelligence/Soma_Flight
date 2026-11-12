@@ -7,6 +7,7 @@ import { useFakes } from "@/data/flights";
 import { airportsReady, useAirports, type AirportInfo } from "@/ui/airports";
 import { CategoryChip } from "@/ui/CategoryChip";
 import { RoundButton } from "@/ui/RoundButton";
+import { categoryOf } from "./category";
 import { useFavorites } from "./hooks";
 
 /**
@@ -31,12 +32,24 @@ export function AirportsList() {
 
   const codes = [...yours, ...hubs];
   const weather = useQuery({
-    queryKey: airportWeatherKey(codes.join(",")),
+    queryKey: airportWeatherKey(codes),
     queryFn: () => fetchAirportWeather(codes),
     enabled: ready && !favs.isPending && codes.length > 0,
     staleTime: fakes ? Number.POSITIVE_INFINITY : 5 * 60_000,
   });
-  const byIcao = useMemo(() => new Map((weather.data ?? []).map((w) => [w.icao, w])), [weather.data]);
+  const rows = weather.data;
+  // The same source as the card: the core's category from ceiling and visibility.
+  const categories = useQuery({
+    queryKey: ["airportCategories", weather.dataUpdatedAt],
+    queryFn: async () => new Map(await Promise.all((rows ?? []).map(async (r) => [r.icao, r.weather ? await categoryOf(r.weather) : null] as const))),
+    enabled: !!rows,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const byIcao = useMemo(
+    () => (categories.data ? new Map((rows ?? []).map((w) => [w.icao, w])) : new Map<string, AirportWeather>()),
+    [rows, categories.data],
+  );
+  const cats = categories.data;
 
   const loading = !ready || favs.isPending;
 
@@ -50,8 +63,8 @@ export function AirportsList() {
         </div>
       ) : (
         <div className="pb-24">
-          <Group title="Favorites" subtitle="Airports you starred" codes={yours} dir={dir} weather={byIcao} onOpen={(c) => nav.open(`/airport/${c}`)} />
-          <Group title="Busiest hubs" subtitle="Large airports around the world" codes={hubs} dir={dir} weather={byIcao} onOpen={(c) => nav.open(`/airport/${c}`)} />
+          <Group title="Favorites" subtitle="Airports you starred" codes={yours} dir={dir} weather={byIcao} cats={cats} onOpen={(c) => nav.open(`/airport/${c}`)} />
+          <Group title="Busiest hubs" subtitle="Large airports around the world" codes={hubs} dir={dir} weather={byIcao} cats={cats} onOpen={(c) => nav.open(`/airport/${c}`)} />
           <p className="px-5 pt-6 text-[12px] text-[var(--sf-secondary)]">Weather from NOAA METARs, public data.</p>
         </div>
       )}
@@ -65,6 +78,7 @@ function Group({
   codes,
   dir,
   weather,
+  cats,
   onOpen,
 }: {
   title: string;
@@ -72,6 +86,7 @@ function Group({
   codes: string[];
   dir: (c: string) => AirportInfo | null;
   weather: Map<string, AirportWeather>;
+  cats: Map<string, string | null> | undefined;
   onOpen: (icao: string) => void;
 }) {
   if (codes.length === 0) return null;
@@ -85,7 +100,7 @@ function Group({
         const a = dir(c);
         if (!a) return null;
         return (
-          <Row key={c} airport={a} weather={weather.get(c)} last={i === codes.length - 1} favorite={title === "Favorites"} onOpen={() => onOpen(a.icao)} />
+          <Row key={c} airport={a} weather={weather.get(c)} category={cats?.get(c) ?? null} last={i === codes.length - 1} favorite={title === "Favorites"} onOpen={() => onOpen(a.icao)} />
         );
       })}
     </section>
@@ -95,12 +110,14 @@ function Group({
 function Row({
   airport,
   weather,
+  category,
   favorite,
   last,
   onOpen,
 }: {
   airport: AirportInfo;
   weather: AirportWeather | undefined;
+  category: string | null;
   favorite: boolean;
   last: boolean;
   onOpen: () => void;
@@ -124,7 +141,7 @@ function Row({
         <span className="block truncate text-[16.5px] font-semibold text-[var(--sf-primary)]">{airport.name}</span>
         <span className="mt-0.5 flex items-center gap-2 text-[13.5px] text-[var(--sf-secondary)]">
           <span className="truncate">{airport.city}</span>
-          {w?.category && <CategoryChip category={w.category} />}
+          {category && <CategoryChip category={category} />}
           {w?.tempC != null && <span className="tabular-nums">{`${Math.round(w.tempC)}°`}</span>}
         </span>
       </span>

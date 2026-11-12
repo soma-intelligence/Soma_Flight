@@ -1,12 +1,7 @@
 import type { AirportConditions, AirportWeather, FaaStatus } from "@/data/airports";
 
-let favorites = ["KSFO", "LFPG"];
-
-/** Favourites held in memory: toggling in fakes mode never leaves the page. */
-export const fakeFavorites = (): string[] => [...favorites];
-export function setFakeFavorite(icao: string, on: boolean): void {
-  favorites = on ? (favorites.includes(icao) ? favorites : [...favorites, icao]) : favorites.filter((c) => c !== icao);
-}
+/** What fakes mode starts with when the browser has no favourites yet. */
+export const fakeFavorites = (): string[] => ["KSFO", "LFPG"];
 
 const KSFO: AirportConditions = {
   category: "MVFR",

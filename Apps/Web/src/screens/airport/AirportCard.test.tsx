@@ -117,6 +117,13 @@ describe("AirportCard", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("a code that is not 3 or 4 letters shows not found and asks for nothing", async () => {
+    show("KSFO123");
+    expect(await screen.findByRole("heading", { name: "Airport not found" })).toBeTruthy();
+    expect(fetchAirportWeather).not.toHaveBeenCalled();
+    expect(fetchFaaStatus).not.toHaveBeenCalled();
+  });
+
   it("the star adds the airport to the favourites", async () => {
     show("KSFO");
     fireEvent.click(await screen.findByRole("button", { name: "Add to favorites" }));

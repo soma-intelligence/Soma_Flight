@@ -1,29 +1,26 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSession = vi.fn();
-const order = vi.fn();
-const select = vi.fn(() => ({ order }));
-const insert = vi.fn();
-const eq2 = vi.fn();
-const eq1 = vi.fn(() => ({ eq: eq2 }));
-const del = vi.fn(() => ({ eq: eq1 }));
-const from = vi.fn(() => ({ select, insert, delete: del }));
 const callFunction = vi.fn();
 
-vi.mock("./client", () => ({ getSupabase: () => ({ from, auth: { getSession } }) }));
 vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), callFunction: (...a: unknown[]) => callFunction(...a) }));
 
 import {
   airportList,
+  airportWeatherKey,
   fetchAirportWeather,
   fetchFaaStatus,
+  FAVORITES_KEY,
   fetchFavorites,
   HUBS,
   isFaaCovered,
   setFavorite,
 } from "./airports";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+});
 
 describe("airportList", () => {
   it("puts favourites first, then the hubs, each code once, only codes the directory knows", () => {
@@ -38,34 +35,58 @@ describe("airportList", () => {
   });
 });
 
-describe("favourites", () => {
-  it("reads the signed-in user's favorite_airports, oldest first", async () => {
-    order.mockResolvedValueOnce({ data: [{ airport_icao: "KSFO" }, { airport_icao: "LFPG" }], error: null });
-    expect(await fetchFavorites()).toEqual(["KSFO", "LFPG"]);
-    expect(from).toHaveBeenCalledWith("favorite_airports");
-    expect(order).toHaveBeenCalledWith("created_at");
+describe("favourites (this browser only)", () => {
+  it("starts empty", async () => {
+    expect(await fetchFavorites()).toEqual([]);
   });
 
-  it("adding inserts the user's row", async () => {
-    getSession.mockResolvedValueOnce({ data: { session: { user: { id: "u-1" } } } });
-    insert.mockResolvedValueOnce({ error: null });
+  it("adding persists the code in localStorage, upper case, once", async () => {
+    await setFavorite("ksfo", true);
     await setFavorite("KSFO", true);
-    expect(insert).toHaveBeenCalledWith({ user_id: "u-1", airport_icao: "KSFO" });
+    await setFavorite("LFPG", true);
+    expect(JSON.parse(localStorage.getItem(FAVORITES_KEY)!)).toEqual(["KSFO", "LFPG"]);
+    expect(await fetchFavorites()).toEqual(["KSFO", "LFPG"]);
   });
 
-  it("removing deletes that airport's row", async () => {
-    getSession.mockResolvedValueOnce({ data: { session: { user: { id: "u-1" } } } });
-    eq2.mockResolvedValueOnce({ error: null });
+  it("removing takes it out", async () => {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(["KSFO", "LFPG"]));
     await setFavorite("KSFO", false);
-    expect(del).toHaveBeenCalled();
-    expect(eq1).toHaveBeenCalledWith("user_id", "u-1");
-    expect(eq2).toHaveBeenCalledWith("airport_icao", "KSFO");
+    expect(await fetchFavorites()).toEqual(["LFPG"]);
   });
 
-  it("a write error throws", async () => {
-    getSession.mockResolvedValueOnce({ data: { session: { user: { id: "u-1" } } } });
-    insert.mockResolvedValueOnce({ error: { code: "54000", message: "too many favorite airports" } });
-    await expect(setFavorite("KSFO", true)).rejects.toThrow();
+  it("a corrupt value reads as empty and the next write replaces it", async () => {
+    localStorage.setItem(FAVORITES_KEY, "{not json");
+    expect(await fetchFavorites()).toEqual([]);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify({ a: 1 }));
+    expect(await fetchFavorites()).toEqual([]);
+    await setFavorite("KSFO", true);
+    expect(await fetchFavorites()).toEqual(["KSFO"]);
+  });
+
+  it("storage that throws gives an empty list and never throws", async () => {
+    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(await fetchFavorites()).toEqual([]);
+    await expect(setFavorite("KSFO", true)).resolves.toBeUndefined();
+    get.mockRestore();
+    set.mockRestore();
+  });
+
+  it("never reads or writes the favorite_airports table", async () => {
+    await setFavorite("KSFO", true);
+    await fetchFavorites();
+    expect(callFunction).not.toHaveBeenCalled();
+  });
+});
+
+describe("airportWeatherKey", () => {
+  it("is the same for any order and duplicates", () => {
+    expect(airportWeatherKey(["KSFO", "LFPG"])).toEqual(airportWeatherKey(["LFPG", "KSFO", "KSFO"]));
+    expect(airportWeatherKey(["KSFO"])).not.toEqual(airportWeatherKey(["KSFO", "LFPG"]));
   });
 });
 

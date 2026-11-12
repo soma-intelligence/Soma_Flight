@@ -1,9 +1,9 @@
-import { ApiError, callFunction } from "./api";
-import { getSupabase } from "./client";
+import { callFunction } from "./api";
 import { useFakes } from "./flights";
 
 export const favoritesKey = ["favoriteAirports"] as const;
-export const airportWeatherKey = (codes: string) => ["airportWeather", codes] as const;
+/** Keyed on the sorted set of codes, so the order (a star moving a row) never refetches. */
+export const airportWeatherKey = (codes: readonly string[]) => ["airportWeather", [...new Set(codes)].sort().join(",")] as const;
 export const faaStatusKey = (code: string) => ["faaStatus", code] as const;
 
 /** Large airports across the world, the list's base after the favourites (AirportsListStore.hubs). */
@@ -34,39 +34,42 @@ export function airportList(favorites: readonly string[], known: (icao: string) 
 const FAA_COUNTRIES = new Set(["US", "PR", "GU", "VI", "AS", "MP"]);
 export const isFaaCovered = (country: string) => FAA_COUNTRIES.has(country.toUpperCase());
 
-type PgError = { code?: string; message?: string };
-function pgError(e: PgError): ApiError {
-  if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
-  return new ApiError("provider_unavailable", 500, e.message);
+/** Where this browser keeps its favourite airports, like the device's UserDefaults list on iOS. */
+export const FAVORITES_KEY = "sf.favoriteAirports";
+
+function readStored(): string[] | null {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (raw === null) return null;
+    const v: unknown = JSON.parse(raw);
+    if (!Array.isArray(v)) return [];
+    return v.filter((c): c is string => typeof c === "string").map((c) => c.toUpperCase());
+  } catch {
+    return [];
+  }
 }
 
-/** The signed-in user's favourite airports (ICAO), oldest first. */
+/** This browser's favourite airports (ICAO). Empty when storage is blocked or holds something else. */
 export async function fetchFavorites(): Promise<string[]> {
+  const stored = readStored();
+  if (stored !== null) return stored;
   if (useFakes() && import.meta.env.DEV) {
     const { fakeFavorites } = await import("@/fakes");
     return fakeFavorites();
   }
-  const { data, error } = await getSupabase().from("favorite_airports").select("airport_icao").order("created_at");
-  if (error) throw pgError(error);
-  return (data ?? []).map((r) => String((r as { airport_icao: unknown }).airport_icao).toUpperCase());
+  return [];
 }
 
-/** Stars or unstars an airport. In fakes mode it only changes local state. */
+/** Stars or unstars an airport in this browser only. Never touches the account's push-alert list. */
 export async function setFavorite(icao: string, on: boolean): Promise<void> {
   const code = icao.toUpperCase();
-  if (useFakes() && import.meta.env.DEV) {
-    const { setFakeFavorite } = await import("@/fakes");
-    setFakeFavorite(code, on);
-    return;
+  const now = await fetchFavorites();
+  const next = on ? (now.includes(code) ? now : [...now, code]) : now.filter((c) => c !== code);
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+  } catch {
+    /* storage blocked: the star stays for this page only */
   }
-  const sb = getSupabase();
-  const { data } = await sb.auth.getSession();
-  const uid = data.session?.user.id;
-  if (!uid) throw new ApiError("unauthorized", 401);
-  const { error } = on
-    ? await sb.from("favorite_airports").insert({ user_id: uid, airport_icao: code })
-    : await sb.from("favorite_airports").delete().eq("user_id", uid).eq("airport_icao", code);
-  if (error) throw pgError(error);
 }
 
 export type AirportConditions = {

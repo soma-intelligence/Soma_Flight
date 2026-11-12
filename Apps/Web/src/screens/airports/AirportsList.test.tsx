@@ -7,6 +7,7 @@ import { airportDir } from "@/test/airportDir";
 
 const fetchFavorites = vi.fn<() => Promise<string[]>>();
 const fetchAirportWeather = vi.fn();
+const flightCategory = vi.fn<(c: number | null, v: number) => string>();
 
 vi.mock("@/data/airports", async (orig) => ({
   ...(await orig<typeof import("@/data/airports")>()),
@@ -16,6 +17,11 @@ vi.mock("@/data/airports", async (orig) => ({
 vi.mock("@/ui/airports", async (orig) => ({
   ...(await orig<typeof import("@/ui/airports")>()),
   useAirports: () => airportDir,
+}));
+
+vi.mock("@/core/flightcore", () => ({
+  initCore: () => Promise.resolve(),
+  flightCategory: (c: number | null, v: number) => flightCategory(c, v),
 }));
 
 import { AirportsList } from "./AirportsList";
@@ -41,6 +47,7 @@ function show() {
 beforeEach(() => {
   vi.clearAllMocks();
   fetchAirportWeather.mockResolvedValue([]);
+  flightCategory.mockReturnValue("IFR");
 });
 afterEach(cleanup);
 
@@ -79,13 +86,14 @@ describe("AirportsList", () => {
   it("a row shows the flight category when the weather came, and nothing when it did not", async () => {
     fetchFavorites.mockResolvedValue(["KSFO", "LFPG"]);
     fetchAirportWeather.mockResolvedValue([
-      { icao: "KSFO", iata: "SFO", weather: { category: "MVFR", tempC: 17, windKt: 9, gustKt: null } },
+      { icao: "KSFO", iata: "SFO", weather: { category: "VFR", ceilingFt: 900, visibilitySm: 8, tempC: 17, windKt: 9, gustKt: null } },
       { icao: "LFPG", iata: "CDG", weather: null },
     ]);
     show();
     const favs = await screen.findByRole("region", { name: "Favorites" });
     const [sfo, cdg] = within(favs).getAllByRole("button");
-    expect(await within(sfo).findByText("MVFR")).toBeTruthy();
+    expect(await within(sfo).findByText("IFR")).toBeTruthy(); // the core's answer, as on the card
+    expect(flightCategory).toHaveBeenCalledWith(900, 8);
     expect(within(cdg).queryByText(/VFR|IFR/)).toBeNull();
   });
 

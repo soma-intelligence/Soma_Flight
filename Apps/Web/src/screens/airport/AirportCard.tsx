@@ -12,7 +12,7 @@ import {
   type FaaProgram,
 } from "@/data/airports";
 import { useFakes } from "@/data/flights";
-import { flightCategory, initCore } from "@/core/flightcore";
+import { categoryOf } from "@/screens/airports/category";
 import { useFavorites, useToggleFavorite } from "@/screens/airports/hooks";
 import { airportsReady, useAirports } from "@/ui/airports";
 import { CategoryChip } from "@/ui/CategoryChip";
@@ -77,14 +77,15 @@ export function AirportCard() {
   const favs = useFavorites();
   const toggle = useToggleFavorite();
 
-  const ready = airportsReady(dir);
+  const valid = /^[A-Za-z]{3,4}$/.test(code);
+  const ready = airportsReady(dir) && valid;
   const info = dir(code);
   const icao = info?.icao ?? code.toUpperCase();
   const covered = info ? isFaaCovered(info.country ?? "") : false;
   const stale = fakes ? Number.POSITIVE_INFINITY : 5 * 60_000;
 
   const weather = useQuery({
-    queryKey: airportWeatherKey(icao),
+    queryKey: airportWeatherKey([icao]),
     queryFn: async () => (await fetchAirportWeather([icao])).find((w) => w.icao === icao)?.weather ?? null,
     enabled: ready,
     staleTime: stale,
@@ -95,6 +96,16 @@ export function AirportCard() {
     enabled: ready && covered,
     staleTime: stale,
   });
+
+  if (!valid) {
+    return (
+      <div data-testid="airport-card" className="relative h-full overflow-y-auto">
+        <h1 className="px-5 pt-[22px] pr-[76px] text-[26px] leading-[31px] font-bold text-[var(--sf-primary)]">Airport not found</h1>
+        <p className="px-5 pt-1 text-[15px] text-[var(--sf-secondary)]">Check the code and try again.</p>
+        <RoundButton icon={X} label="Close" onClick={nav.close} className="absolute top-4 right-4" />
+      </div>
+    );
+  }
 
   const isFav = (favs.data ?? []).includes(icao);
 
@@ -145,18 +156,11 @@ function Chip({ children }: { children: string }) {
   );
 }
 
-/** The category the core reads from the ceiling and visibility; the feed's own word until the wasm is in. */
 function useCategory(w: AirportConditions): string | null {
-  const vis = w.visibilitySm;
   const q = useQuery({
-    queryKey: ["flightCategory", w.ceilingFt, vis],
-    queryFn: async () => {
-      await initCore();
-      return flightCategory(w.ceilingFt, vis as number);
-    },
-    enabled: vis !== null,
+    queryKey: ["flightCategory", w.ceilingFt, w.visibilitySm, w.category],
+    queryFn: () => categoryOf(w),
     staleTime: Number.POSITIVE_INFINITY,
-    retry: false,
   });
   return q.data ?? w.category;
 }
