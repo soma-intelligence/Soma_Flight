@@ -68,7 +68,7 @@ export function FriendCard() {
                   origin={airport(x.flight.originIcao)}
                   destination={airport(x.flight.destinationIcao)}
                   now={now}
-                  onSelect={() => nav.open(`/flight/${x.flight.id}`)}
+                  onSelect={() => nav.open(`/friend/${id}/flight/${x.flight.id}`)}
                 />
               ))
             )}

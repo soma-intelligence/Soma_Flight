@@ -45,7 +45,7 @@ function show(id = "t-1") {
       <MemoryRouter initialEntries={[`/friend/${id}`]}>
         <Routes>
           <Route path="friend/:id" element={<FriendCard />} />
-          <Route path="flight/:id" element={<Where />} />
+          <Route path="friend/:fid/flight/:id" element={<Where />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -65,7 +65,7 @@ describe("FriendCard", () => {
     expect(fetchFriendFlights).toHaveBeenCalledWith("t-1");
     const row = await screen.findByTestId("flight-row");
     fireEvent.click(row);
-    expect(screen.getByTestId("where").textContent).toBe("/flight/00000000-0000-4000-8000-000000000990");
+    expect(screen.getByTestId("where").textContent).toBe("/friend/t-1/flight/00000000-0000-4000-8000-000000000990");
   });
 
   it("says nothing is coming up, or that the friend is not sharing", async () => {

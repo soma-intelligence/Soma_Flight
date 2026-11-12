@@ -1522,6 +1522,16 @@
         }
       }
     },
+    "Alerts arrive on your phone, through the Soma Flight app. These switches count for every flight on your account.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les alertes arrivent sur ton téléphone, via l'app Soma Flight. Ces réglages valent pour tous les vols de ton compte."
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "fr": {
@@ -1828,6 +1838,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Icône de l'app"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apparence"
           }
         }
       }
@@ -3182,6 +3202,16 @@
         }
       }
     },
+    "Copy Invitation Link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le lien d'invitation"
+          }
+        }
+      }
+    },
     "Corner": {
       "localizations": {
         "fr": {
@@ -3248,6 +3278,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossible de supprimer ton compte"
+          }
+        }
+      }
+    },
+    "Couldn't copy it. Here is your link:": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de le copier. Voici ton lien :"
           }
         }
       }
@@ -3992,6 +4032,16 @@
         }
       }
     },
+    "Distance": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance"
+          }
+        }
+      }
+    },
     "Distance in km": {
       "localizations": {
         "fr": {
@@ -4088,6 +4138,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chaque lien fonctionne une fois, pendant 7 jours"
+          }
+        }
+      }
+    },
+    "Each link works once, for 7 days.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque lien ne marche qu'une fois, pendant 7 jours."
           }
         }
       }
@@ -6362,6 +6422,16 @@
         }
       }
     },
+    "Kept in this browser.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gardé dans ce navigateur."
+          }
+        }
+      }
+    },
     "Kept on this device only. Soma Flight never sends your boarding pass to its servers.": {
       "localizations": {
         "fr": {
@@ -6802,6 +6872,16 @@
         }
       }
     },
+    "Link Copied": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lien copié"
+          }
+        }
+      }
+    },
     "Listed twice": {
       "localizations": {
         "fr": {
@@ -7222,6 +7302,16 @@
         }
       }
     },
+    "Miles": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miles"
+          }
+        }
+      }
+    },
     "Missed": {
       "localizations": {
         "fr": {
@@ -7518,6 +7608,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOTAM"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom"
           }
         }
       }
@@ -8398,6 +8498,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rien n'a été ajouté."
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications"
           }
         }
       }
@@ -10562,6 +10672,16 @@
         }
       }
     },
+    "Shown to your friends": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visible par tes amis"
+          }
+        }
+      }
+    },
     "Shows every security checkpoint": {
       "localizations": {
         "fr": {
@@ -11252,6 +11372,16 @@
         }
       }
     },
+    "System": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Système"
+          }
+        }
+      }
+    },
     "System Notification Settings": {
       "localizations": {
         "fr": {
@@ -11908,6 +12038,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leurs vols sont dans ton onglet Amis."
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thème"
           }
         }
       }
@@ -13572,6 +13712,16 @@
         }
       }
     },
+    "You're still signed in.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu es toujours connecté."
+          }
+        }
+      }
+    },
     "Your %@": {
       "localizations": {
         "fr": {
@@ -13812,6 +13962,16 @@
         }
       }
     },
+    "canceled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "annulé"
+          }
+        }
+      }
+    },
     "countries": {
       "localizations": {
         "fr": {
@@ -13828,6 +13988,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "pays"
+          }
+        }
+      }
+    },
+    "departing now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "décolle maintenant"
+          }
+        }
+      }
+    },
+    "departs in": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "décolle dans"
+          }
+        }
+      }
+    },
+    "diverted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dérouté"
           }
         }
       }
@@ -13872,6 +14062,26 @@
         }
       }
     },
+    "in the air": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en vol"
+          }
+        }
+      }
+    },
+    "landed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "atterri"
+          }
+        }
+      }
+    },
     "lost to delays": {
       "localizations": {
         "fr": {
@@ -13902,222 +14112,12 @@
         }
       }
     },
-    "Copy Invitation Link": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copier le lien d'invitation"
-          }
-        }
-      }
-    },
-    "Link Copied": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lien copié"
-          }
-        }
-      }
-    },
-    "Each link works once, for 7 days.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chaque lien ne marche qu'une fois, pendant 7 jours."
-          }
-        }
-      }
-    },
-    "Couldn't copy it. Here is your link:": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Impossible de le copier. Voici ton lien :"
-          }
-        }
-      }
-    },
-    "Name": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nom"
-          }
-        }
-      }
-    },
-    "Shown to your friends": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visible par tes amis"
-          }
-        }
-      }
-    },
-    "Kept in this browser.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gardé dans ce navigateur."
-          }
-        }
-      }
-    },
-    "Distance": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Distance"
-          }
-        }
-      }
-    },
-    "Miles": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Miles"
-          }
-        }
-      }
-    },
-    "Notifications": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications"
-          }
-        }
-      }
-    },
-    "Alerts arrive on your phone, through the Soma Flight app. These switches count for every flight on your account.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les alertes arrivent sur ton téléphone, via l'app Soma Flight. Ces réglages valent pour tous les vols de ton compte."
-          }
-        }
-      }
-    },
-    "Appearance": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apparence"
-          }
-        }
-      }
-    },
-    "Theme": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thème"
-          }
-        }
-      }
-    },
-    "System": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Système"
-          }
-        }
-      }
-    },
-    "You're still signed in.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu es toujours connecté."
-          }
-        }
-      }
-    },
-    "departs in": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "décolle dans"
-          }
-        }
-      }
-    },
-    "in the air": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "en vol"
-          }
-        }
-      }
-    },
-    "landed": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "atterri"
-          }
-        }
-      }
-    },
-    "canceled": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "annulé"
-          }
-        }
-      }
-    },
-    "diverted": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dérouté"
-          }
-        }
-      }
-    },
     "scheduled": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "prévu"
-          }
-        }
-      }
-    },
-    "departing now": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "décolle maintenant"
           }
         }
       }

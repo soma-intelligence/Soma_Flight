@@ -37,9 +37,12 @@ export function useFakes(): boolean {
   return false;
 }
 
+export const REJECTED_CHECK = "An airport code, the flight number, the aircraft or the date isn't accepted";
 type PgError = { code?: string; message?: string };
 export function pgError(e: PgError): ApiError {
   if (e.code === "PGRST301" || e.code === "PGRST302") return new ApiError("unauthorized", 401, e.message);
+  // A check refused the row (the app's line for it, SupabaseBackend.rejection).
+  if (e.code === "23514") return new ApiError("invalid_request", 400, REJECTED_CHECK);
   if (e.code === "PGRST116") return new ApiError("not_found", 404, e.message);
   return new ApiError("provider_unavailable", 500, e.message);
 }

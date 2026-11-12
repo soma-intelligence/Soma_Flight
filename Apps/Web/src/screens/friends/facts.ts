@@ -100,6 +100,3 @@ export function route(f: Flight, lookup: (code: string) => AirportInfo | null): 
 export function since(d: Date): string {
   return `Friends since ${new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(d)}`;
 }
-
-/** What goes with a link: the app's words (FriendFacts.inviteMessage). */
-export const INVITE_MESSAGE = "Let's follow each other's flights on Soma Flight.";

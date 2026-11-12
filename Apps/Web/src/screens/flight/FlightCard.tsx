@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { useShellNav } from "@/app/nav";
+import { fetchFriendFlights, friendFlightsKey } from "@/data/friends";
 import { fetchFlight, flightKey, followFlight, myFlightsKey, unfollowFlight, useFakes } from "@/data/flights";
 import { subscribeFlights } from "@/data/realtime";
 import type { Flight, FollowedFlight } from "@/data/types";
@@ -52,9 +53,12 @@ function airportKm(core: boolean, a: AirportInfo | null, b: AirportInfo | null):
  * flight cannot be heard, the countdown card, gates and terminals and the detailed timetable, with Follow
  * or Stop Following at the foot. The other cards come with Plan 2; nothing here is a dead control.
  * Realtime keeps the row current. In development fakes, following changes local state only.
+ * Opened from a friend's page (`/friend/:fid/flight/:id`) it is read only, as iOS's friend flight screen:
+ * the flight comes from that friend's shared flights, with no Follow and no Realtime subscription.
  */
 export function FlightCard() {
-  const { id = "" } = useParams();
+  const { id = "", fid } = useParams();
+  const readOnly = fid !== undefined;
   const nav = useShellNav();
   const qc = useQueryClient();
   const fakes = useFakes();
@@ -66,18 +70,28 @@ export function FlightCard() {
   const mine = useMyFlights();
   const followedRow = mine.data?.find((x) => sameId(x.flight.id, id));
 
-  const q = useQuery({
+  const own = useQuery({
     queryKey: flightKey(id),
     queryFn: () => fetchFlight(id),
     staleTime: fakes ? Number.POSITIVE_INFINITY : 60_000,
     placeholderData: followedRow?.flight,
+    enabled: !readOnly,
   });
+  // A friend's flight is read from the friend's shared list (the page's cache, fetched when absent).
+  const theirs = useQuery({
+    queryKey: friendFlightsKey(fid ?? ""),
+    queryFn: () => fetchFriendFlights(fid ?? ""),
+    select: (list) => list.find((x) => sameId(x.flight.id, id))?.flight ?? null,
+    staleTime: fakes ? Number.POSITIVE_INFINITY : 60_000,
+    enabled: readOnly,
+  });
+  const q = readOnly ? theirs : own;
   const flight = q.data ?? null;
 
   useEffect(() => {
-    if (fakes || !flight) return;
+    if (fakes || readOnly || !flight) return;
     return subscribeFlights([flight.id], (row) => qc.setQueryData(flightKey(id), row));
-  }, [fakes, flight?.id, id, qc]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fakes, readOnly, flight?.id, id, qc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [followError, setFollowError] = useState<string | null>(null);
   const follow = useMutation({
@@ -153,39 +167,44 @@ export function FlightCard() {
             <Progress flight={flight} now={now} />
             <CountdownCard
               title={landed ?? countdown(flight, now)}
-              caption={(landed && landedCaption(flight, airportKm(core, origin, destination))) || countdownCaption(flight, airline)}
+              caption={
+                (landed && landedCaption(flight, airportKm(core, origin, destination))) ||
+                countdownCaption(flight, airline)
+              }
               tone={statusTone(flight)}
             />
             <GatesCard flight={flight} />
             <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz, false, zonesKnown)} />
           </div>
         </div>
-        <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col items-end gap-2 px-5 pb-4">
-          {followError && (
-            <div className="pointer-events-auto w-full">
-              <ErrorBanner message={followError} />
-            </div>
-          )}
-          {followed ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => unfollow.mutate(flight)}
-              className="sf-glass pointer-events-auto h-[52px] rounded-full px-[22px] text-[18px] font-semibold text-[var(--sf-primary)] disabled:opacity-60"
-            >
-              Stop Following
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => follow.mutate(flight)}
-              className="pointer-events-auto h-[52px] rounded-full bg-[var(--sf-accent)] px-[22px] text-[18px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] disabled:opacity-60"
-            >
-              Follow
-            </button>
-          )}
-        </div>
+        {!readOnly && (
+          <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col items-end gap-2 px-5 pb-4">
+            {followError && (
+              <div className="pointer-events-auto w-full">
+                <ErrorBanner message={followError} />
+              </div>
+            )}
+            {followed ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => unfollow.mutate(flight)}
+                className="sf-glass pointer-events-auto h-[52px] rounded-full px-[22px] text-[18px] font-semibold text-[var(--sf-primary)] disabled:opacity-60"
+              >
+                Stop Following
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => follow.mutate(flight)}
+                className="pointer-events-auto h-[52px] rounded-full bg-[var(--sf-accent)] px-[22px] text-[18px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.18)] disabled:opacity-60"
+              >
+                Follow
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

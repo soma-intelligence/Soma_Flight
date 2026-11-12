@@ -115,6 +115,11 @@ describe("profile and account", () => {
     expect(eq).toHaveBeenCalledWith("user_id", "u-1");
   });
 
+  it("maps a refused name (23514) to invalid_request", async () => {
+    eq.mockResolvedValueOnce({ error: { code: "23514", message: "profiles_display_name_check" } });
+    await expect(saveDisplayName("x")).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
   it("deletes the account through the delete-account function", async () => {
     callFunction.mockResolvedValueOnce({ ok: true });
     await deleteAccount();

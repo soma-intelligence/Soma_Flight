@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, Copy, Link as LinkIcon, Send } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShellNav } from "@/app/nav";
 import {
   createInvite,
@@ -21,7 +21,17 @@ import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { JetIllustration } from "@/ui/JetIllustration";
 import { useNow } from "@/ui/useNow";
 import { TabTitle } from "../placeholder";
-import { EMPTY_TEXT, EMPTY_TITLE, SECTION_TITLE, route, sections, since, upcomingFlight, when, type Tone } from "./facts";
+import {
+  EMPTY_TEXT,
+  EMPTY_TITLE,
+  SECTION_TITLE,
+  route,
+  sections,
+  since,
+  upcomingFlight,
+  when,
+  type Tone,
+} from "./facts";
 import { FriendAvatar } from "./FriendAvatar";
 
 const TONE: Record<Tone, string> = {
@@ -40,6 +50,12 @@ type Copied = "link" | "code" | null;
 function useInviteLink() {
   const [copied, setCopied] = useState<Copied>(null);
   const [shown, setShown] = useState<string | null>(null);
+  // "Copied" goes back to the plain label after about 2 seconds.
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(null), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
   const m = useMutation({
     mutationFn: async () => {
       const invite = await createInvite();
@@ -53,7 +69,14 @@ function useInviteLink() {
       }
     },
   });
-  return { copied, setCopied, shown, make: () => m.mutate(), pending: m.isPending, error: m.error };
+  return {
+    copied,
+    setCopied,
+    shown,
+    make: () => m.mutate(),
+    pending: m.isPending,
+    error: m.error,
+  };
 }
 
 /** The Friends tab, after FriendsView: the user's friend code and invitation link, then friends in three groups. */
@@ -63,13 +86,17 @@ export function Friends() {
   const airport = useAirports();
   const me = useQuery({ queryKey: friendsMeKey, queryFn: fetchFriendsMe });
   const friends = useQuery({ queryKey: friendsKey, queryFn: fetchFriends });
-  const flights = useQuery({ queryKey: friendFlightsKey(null), queryFn: () => fetchFriendFlights(null) });
+  const flights = useQuery({
+    queryKey: friendFlightsKey(null),
+    queryFn: () => fetchFriendFlights(null),
+  });
   const invite = useInviteLink();
 
   const list: Friend[] = friends.data ?? [];
   const all: FriendFlight[] = flights.data ?? [];
   const groups = useMemo(() => sections(list, all), [list, all]);
-  const failure = friends.error ?? invite.error;
+  const failed = [me, friends, flights].filter((q) => q.error);
+  const failure = failed[0]?.error ?? invite.error;
 
   async function copyCode() {
     if (!me.data) return;
@@ -85,20 +112,33 @@ export function Friends() {
     <div>
       <TabTitle>Friends</TabTitle>
       <div className="px-4 pb-6">
-        {me.data && (
+        {
           <section aria-label="Your friend code" className="mb-[14px] rounded-[18px] bg-[var(--sf-card)] px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5">
-              <div>
+              {me.data ? (
+                <div>
+                  <p className="text-[13px] text-[var(--sf-secondary)] uppercase">Your friend code</p>
+                  <p
+                    aria-label={`Friend code ${me.data.friendCode.split("").join(" ")}`}
+                    className="text-[22px] font-semibold tracking-[0.08em] whitespace-nowrap text-[var(--sf-primary)] tabular-nums"
+                  >
+                    {spacedCode(me.data.friendCode)}
+                  </p>
+                </div>
+              ) : (
                 <p className="text-[13px] text-[var(--sf-secondary)] uppercase">Your friend code</p>
-                <p aria-label={`Friend code ${me.data.friendCode.split("").join(" ")}`} className="text-[22px] font-semibold tracking-[0.08em] whitespace-nowrap text-[var(--sf-primary)] tabular-nums">
-                  {spacedCode(me.data.friendCode)}
-                </p>
-              </div>
+              )}
               <div className="flex flex-wrap gap-2">
-                <PillButton onClick={() => void copyCode()} icon={invite.copied === "code" ? Check : Copy}>
-                  {invite.copied === "code" ? "Copied" : "Copy Code"}
-                </PillButton>
-                <PillButton onClick={invite.make} icon={invite.copied === "link" ? Check : LinkIcon} disabled={invite.pending}>
+                {me.data && (
+                  <PillButton onClick={() => void copyCode()} icon={invite.copied === "code" ? Check : Copy}>
+                    {invite.copied === "code" ? "Copied" : "Copy Code"}
+                  </PillButton>
+                )}
+                <PillButton
+                  onClick={invite.make}
+                  icon={invite.copied === "link" ? Check : LinkIcon}
+                  disabled={invite.pending}
+                >
                   {invite.copied === "link" ? "Link Copied" : "Copy Invitation Link"}
                 </PillButton>
               </div>
@@ -110,7 +150,7 @@ export function Friends() {
               </p>
             )}
           </section>
-        )}
+        }
         <p role="status" aria-live="polite" className="sr-only">
           {invite.copied === "link" ? "Invitation link copied" : invite.copied === "code" ? "Friend code copied" : ""}
         </p>
@@ -118,16 +158,20 @@ export function Friends() {
           <div className="pb-[14px]">
             <ErrorBanner
               message={errorCopy(errorCode(failure))}
-              onRetry={friends.error ? () => void friends.refetch() : undefined}
+              onRetry={failed.length ? () => failed.forEach((q) => void q.refetch()) : undefined}
             />
           </div>
         )}
         {friends.isPending ? (
-          <div role="status" aria-label="Loading your friends" className="flex min-h-[200px] items-center justify-center">
+          <div
+            role="status"
+            aria-label="Loading your friends"
+            className="flex min-h-[200px] items-center justify-center"
+          >
             <span className="size-6 animate-spin rounded-full border-2 border-[var(--sf-separator)] border-t-[var(--sf-secondary)]" />
           </div>
         ) : list.length === 0 ? (
-          friends.error ? null : (
+          failed.length ? null : (
             <div data-testid="friends-empty" className="flex flex-col items-center gap-1.5 py-6 text-center">
               <div className="w-full py-3 pb-[22px]">
                 <JetIllustration width={240} />
@@ -165,12 +209,23 @@ export function Friends() {
                   >
                     <FriendAvatar id={f.id} name={f.displayName} emoji={f.emoji} />
                     <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                      <span className="truncate text-[17px] font-semibold text-[var(--sf-primary)]">{friendName(f)}</span>
+                      <span className="truncate text-[17px] font-semibold text-[var(--sf-primary)]">
+                        {friendName(f)}
+                      </span>
                       {next && w ? (
                         <>
-                          <span className="truncate text-[15px] text-[var(--sf-secondary)]">{route(next, airport)}</span>
-                          <span className="flex items-center gap-1.5 text-[15px] font-medium" style={{ color: TONE[w.tone] }}>
-                            <span aria-hidden className="size-[7px] rounded-full" style={{ background: TONE[w.tone] }} />
+                          <span className="truncate text-[15px] text-[var(--sf-secondary)]">
+                            {route(next, airport)}
+                          </span>
+                          <span
+                            className="flex items-center gap-1.5 text-[15px] font-medium"
+                            style={{ color: TONE[w.tone] }}
+                          >
+                            <span
+                              aria-hidden
+                              className="size-[7px] rounded-full"
+                              style={{ background: TONE[w.tone] }}
+                            />
                             {w.text}
                           </span>
                         </>
@@ -180,7 +235,12 @@ export function Friends() {
                         </span>
                       )}
                     </span>
-                    <ChevronRight size={16} strokeWidth={2.4} aria-hidden className="shrink-0 text-[var(--sf-secondary)]" />
+                    <ChevronRight
+                      size={16}
+                      strokeWidth={2.4}
+                      aria-hidden
+                      className="shrink-0 text-[var(--sf-secondary)]"
+                    />
                   </button>
                 );
               })}

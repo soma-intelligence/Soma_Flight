@@ -62,9 +62,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   writeText.mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-  fetchFriendsMe.mockResolvedValue({ friendCode: "K7M2X9QP", sharingPaused: false, displayName: "Quentin", emoji: null });
+  fetchFriendsMe.mockResolvedValue({
+    friendCode: "K7M2X9QP",
+    sharingPaused: false,
+    displayName: "Quentin",
+    emoji: null,
+  });
   fetchFriendFlights.mockResolvedValue([]);
-  createInvite.mockResolvedValue({ id: "i-1", url: "https://somalabs.me/i/abc123", expiresAt: new Date("2026-11-18T00:00:00Z") });
+  createInvite.mockResolvedValue({
+    id: "i-1",
+    url: "https://somalabs.me/i/abc123",
+    expiresAt: new Date("2026-11-18T00:00:00Z"),
+  });
 });
 afterEach(cleanup);
 
@@ -114,6 +123,38 @@ describe("Friends", () => {
     expect(empty.textContent).toContain("Fly apart, stay close");
     fireEvent.click(screen.getByRole("button", { name: "Invite a Friend" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://somalabs.me/i/abc123"));
+  });
+
+  it("shows a failed code read and its retry, and keeps the invitation link", async () => {
+    fetchFriends.mockResolvedValue([maya]);
+    fetchFriendsMe.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "provider_unavailable" }));
+    show();
+    expect((await screen.findByRole("alert")).textContent).toContain("temporarily unavailable");
+    expect(screen.getByRole("button", { name: /Copy Invitation Link/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("K7M2 X9QP")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("shows a failed flights read instead of passing friends off as having no flights, and retries it", async () => {
+    fetchFriends.mockResolvedValue([maya]);
+    fetchFriendFlights.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "provider_unavailable" }));
+    show();
+    expect((await screen.findByRole("alert")).textContent).toContain("temporarily unavailable");
+    fetchFriendFlights.mockResolvedValue([{ friendId: "a-1", flight: ua990({ status: "en_route" }) }]);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(screen.getByRole("region", { name: "In the Air" })).toBeTruthy());
+    expect(fetchFriendFlights).toHaveBeenCalledTimes(2);
+  });
+
+  it("puts 'Link Copied' back to its label after about 2 seconds", async () => {
+    fetchFriends.mockResolvedValue([maya]);
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: /Copy Invitation Link/ }));
+    expect(await screen.findByRole("button", { name: /Link Copied/ })).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Copy Invitation Link/ })).toBeTruthy(), {
+      timeout: 3000,
+    });
   });
 
   it("shows the app's error copy and a retry when the list cannot load", async () => {

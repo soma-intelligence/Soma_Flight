@@ -32,6 +32,7 @@ export function shellRoutes(guard: (shell: ReactElement) => ReactElement) {
       <Route path="flight/:id" element={<FlightCard />} />
       <Route path="airport/:code" element={<AirportCard />} />
       <Route path="friend/:id" element={<FriendCard />} />
+      <Route path="friend/:fid/flight/:id" element={<FlightCard />} />
       <Route path="airports" element={<AirportsList />} />
       <Route path="search" element={<Search />} />
       <Route path="settings/*" element={<Settings />} />

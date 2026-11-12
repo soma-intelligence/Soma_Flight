@@ -27,15 +27,41 @@ const DELETE_MESSAGE = "Your followed flights and flight history will be removed
 
 /** The alert categories, in the app's order, with its titles and grey lines (NotificationPreferences.Category). */
 const CATEGORIES: { column: NotificationColumn; title: string; detail: string }[] = [
-  { column: "delays", title: "Delays", detail: "New delays, back on time, schedule changes, a late inbound plane, FAA ground stops" },
+  {
+    column: "delays",
+    title: "Delays",
+    detail: "New delays, back on time, schedule changes, a late inbound plane, FAA ground stops",
+  },
   { column: "gates", title: "Gates and Terminals", detail: "Your gate, gate changes and terminal changes" },
-  { column: "takeoff_landing", title: "Take-off and Landing", detail: "Left the gate, took off, landed, arrived at the gate" },
+  {
+    column: "takeoff_landing",
+    title: "Take-off and Landing",
+    detail: "Left the gate, took off, landed, arrived at the gate",
+  },
   { column: "boarding", title: "Boarding", detail: "Boarding has started, boarding time changes" },
-  { column: "aircraft", title: "Aircraft Changes", detail: "A different aircraft type or tail number before you leave" },
+  {
+    column: "aircraft",
+    title: "Aircraft Changes",
+    detail: "A different aircraft type or tail number before you leave",
+  },
   { column: "baggage", title: "Baggage", detail: "The belt your bags come out on" },
-  { column: "cancellations", title: "Cancellations and Diversions", detail: "Canceled, back on the schedule, diverted" },
-  { column: "favorite_airports", title: "Favorite Airports", detail: "Ground stops, delay programs and closures at airports you follow" },
+  {
+    column: "cancellations",
+    title: "Cancellations and Diversions",
+    detail: "Canceled, back on the schedule, diverted",
+  },
+  {
+    column: "favorite_airports",
+    title: "Favorite Airports",
+    detail: "Ground stops, delay programs and closures at airports you follow",
+  },
 ];
+
+/** The app's line for a failed write: a refused value says why, anything else the usual copy. */
+function failureText(e: unknown): string {
+  const m = (e as { message?: string; code?: string }) ?? {};
+  return m.code === "invalid_request" && m.message ? m.message : errorCopy(errorCode(e));
+}
 
 /**
  * Settings, after SettingsView: profile, units, notifications, appearance, then the account (Sign Out and
@@ -57,16 +83,17 @@ export function Settings() {
   const prefs = useQuery({ queryKey: notificationPrefsKey, queryFn: fetchNotificationPrefs });
 
   const toggle = useMutation({
+    mutationKey: ["notificationPref"],
     mutationFn: ({ column, on }: { column: NotificationColumn; on: boolean }) => setNotificationPref(column, on),
     onMutate: ({ column, on }) => {
       setMessage(null);
-      const before = qc.getQueryData<NotificationPrefs>(notificationPrefsKey);
-      if (before) qc.setQueryData<NotificationPrefs>(notificationPrefsKey, { ...before, [column]: on });
-      return { before };
+      qc.setQueryData<NotificationPrefs>(notificationPrefsKey, (old) => (old ? { ...old, [column]: on } : old));
     },
-    onError: (e, _v, ctx) => {
-      if (ctx?.before) qc.setQueryData(notificationPrefsKey, ctx.before);
-      setMessage(errorCopy(errorCode(e)));
+    onError: (e) => setMessage(failureText(e)),
+    // The server's row is the truth: read it back once the last write settles (no stale snapshot to restore).
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: ["notificationPref"] }) <= 1)
+        void qc.invalidateQueries({ queryKey: notificationPrefsKey });
     },
   });
 
@@ -76,11 +103,12 @@ export function Settings() {
       qc.setQueryData<FriendsMe>(friendsMeKey, (old) => (old ? { ...old, displayName: name.trim() } : old));
       setDraft(null);
     },
-    onError: (e) => setMessage(errorCopy(errorCode(e))),
+    onError: (e) => setMessage(failureText(e)),
   });
 
   const name = draft ?? me.data?.displayName ?? "";
-  const nameChanged = draft !== null && draft.trim() !== (me.data?.displayName ?? "");
+  // The database keeps 1 to 40 characters after trimming, so an empty draft cannot be saved.
+  const nameChanged = draft !== null && draft.trim() !== "" && draft.trim() !== (me.data?.displayName ?? "");
 
   async function out() {
     setBusy(true);
@@ -134,7 +162,7 @@ export function Settings() {
                 <input
                   value={name}
                   onChange={(e) => setDraft(e.target.value)}
-                  maxLength={60}
+                  maxLength={40}
                   placeholder="Shown to your friends"
                   className="h-10 min-w-0 flex-1 rounded-[10px] bg-[var(--sf-background)] px-3 text-[17px] text-[var(--sf-primary)] placeholder:text-[var(--sf-secondary)]"
                 />
@@ -152,7 +180,11 @@ export function Settings() {
             </label>
             <div className="flex flex-col gap-0.5 text-[13px] text-[var(--sf-secondary)]">
               Email
-              {fakes && import.meta.env.DEV ? <span className="text-[17px] text-[var(--sf-primary)]">demo@example.com</span> : <Email />}
+              {fakes && import.meta.env.DEV ? (
+                <span className="text-[17px] text-[var(--sf-primary)]">demo@example.com</span>
+              ) : (
+                <Email />
+              )}
             </div>
           </div>
         </Group>
@@ -186,22 +218,31 @@ export function Settings() {
           />
         </Group>
 
-        <Group
-          title="Notifications"
-          footer="Alerts arrive on your phone, through the Soma Flight app. These switches count for every flight on your account."
-        >
-          {CATEGORIES.map((c, i) => (
-            <Switch
-              key={c.column}
-              title={c.title}
-              detail={c.detail}
-              checked={prefs.data?.[c.column] ?? true}
-              disabled={!prefs.data}
-              last={i === CATEGORIES.length - 1}
-              onChange={(on) => toggle.mutate({ column: c.column, on })}
-            />
-          ))}
-        </Group>
+        <section aria-label="Notifications" className="pt-4">
+          <h2 className="px-4 pb-1.5 text-[13px] text-[var(--sf-secondary)] uppercase">Notifications</h2>
+          <p className="px-4 text-[15px] text-[var(--sf-secondary)]">
+            Alerts arrive on your phone, through the Soma Flight app. These switches count for every flight on your
+            account.
+          </p>
+        </section>
+        {[
+          { title: "Flight Alerts", items: CATEGORIES.slice(0, 7) },
+          { title: "Airports", items: CATEGORIES.slice(7) },
+        ].map((g) => (
+          <Group key={g.title} title={g.title}>
+            {g.items.map((c, i) => (
+              <Switch
+                key={c.column}
+                title={c.title}
+                detail={c.detail}
+                checked={prefs.data?.[c.column] ?? true}
+                disabled={!prefs.data}
+                last={i === g.items.length - 1}
+                onChange={(on) => toggle.mutate({ column: c.column, on })}
+              />
+            ))}
+          </Group>
+        ))}
 
         <Group title="Appearance" footer="Kept in this browser.">
           <Choice

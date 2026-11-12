@@ -25,7 +25,8 @@ vi.mock("@/data/settings", async (orig) => ({
 }));
 vi.mock("@/data/friends", async (orig) => ({
   ...(await orig<typeof import("@/data/friends")>()),
-  fetchFriendsMe: () => Promise.resolve({ friendCode: "K7M2X9QP", sharingPaused: false, displayName: "Quentin", emoji: null }),
+  fetchFriendsMe: () =>
+    Promise.resolve({ friendCode: "K7M2X9QP", sharingPaused: false, displayName: "Quentin", emoji: null }),
 }));
 
 import { Settings } from "./Settings";
@@ -52,8 +53,13 @@ async function loadedSwitch(name: RegExp): Promise<HTMLElement> {
 }
 
 beforeEach(() => {
-  fetchNotificationPrefs.mockResolvedValue(defaultPrefs());
-  setNotificationPref.mockResolvedValue();
+  // The server's row: a write changes it, a refetch reads it.
+  const row = defaultPrefs();
+  fetchNotificationPrefs.mockImplementation(() => Promise.resolve({ ...row }));
+  setNotificationPref.mockImplementation((c, on) => {
+    row[c] = on;
+    return Promise.resolve();
+  });
   deleteAccount.mockResolvedValue();
   saveDisplayName.mockResolvedValue();
 });
@@ -111,6 +117,25 @@ describe("Settings profile, units, appearance", () => {
     await waitFor(() => expect(saveDisplayName).toHaveBeenCalledWith("Q"));
   });
 
+  it("limits the name to 40 characters and cannot save an empty one", async () => {
+    setup();
+    const input = (await screen.findByLabelText("Name")) as HTMLInputElement;
+    expect(input.maxLength).toBe(40);
+    await waitFor(() => expect(input.value).toBe("Quentin"));
+    fireEvent.change(input, { target: { value: "   " } });
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+
+  it("shows the app's line when the database refuses the name (23514)", async () => {
+    saveDisplayName.mockRejectedValue(new ApiError("invalid_request", 400, "A value is not accepted here"));
+    setup();
+    const input = (await screen.findByLabelText("Name")) as HTMLInputElement;
+    await waitFor(() => expect(input.value).toBe("Quentin"));
+    fireEvent.change(input, { target: { value: "Q" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("A value is not accepted here"));
+  });
+
   it("keeps units per browser", () => {
     setup();
     fireEvent.click(screen.getByRole("radio", { name: "Miles" }));
@@ -144,6 +169,16 @@ describe("Settings notifications", () => {
     expect(screen.getByRole("switch", { name: /Baggage/ }).getAttribute("aria-checked")).toBe("false");
   });
 
+  it("groups the switches as Flight Alerts and Airports", async () => {
+    setup();
+    await loadedSwitch(/Baggage/);
+    const alerts = screen.getByRole("region", { name: "Flight Alerts" });
+    expect(within(alerts).getAllByRole("switch")).toHaveLength(7);
+    expect(
+      within(screen.getByRole("region", { name: "Airports" })).getByRole("switch", { name: /Favorite Airports/ }),
+    ).toBeTruthy();
+  });
+
   it("puts a switch back and shows the error when the write fails", async () => {
     setNotificationPref.mockRejectedValue(new ApiError("provider_unavailable", 500));
     setup();
@@ -160,7 +195,9 @@ describe("Settings delete account", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete Account" }));
     const dialog = screen.getByRole("alertdialog");
     expect(dialog.textContent).toContain("Delete your account?");
-    expect(dialog.textContent).toContain("Your followed flights and flight history will be removed. This can't be undone.");
+    expect(dialog.textContent).toContain(
+      "Your followed flights and flight history will be removed. This can't be undone.",
+    );
     expect(deleteAccount).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("alertdialog")).toBeNull();
