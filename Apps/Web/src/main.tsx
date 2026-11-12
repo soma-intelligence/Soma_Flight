@@ -7,16 +7,19 @@ import { NoServer } from "@/app/NoServer";
 import { readConfig } from "@/app/config";
 import { makeQueryClient } from "@/app/query";
 import { AppRoutes } from "@/app/routes";
+import { clearCacheOnSignOut } from "@/app/session";
 import { applyAppearance } from "@/data/settings";
 
 applyAppearance();
 
 const config = readConfig(import.meta.env as Record<string, string | undefined>, import.meta.env.PROD);
+const queryClient = config ? makeQueryClient() : null;
+if (queryClient) clearCacheOnSignOut(queryClient);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {config ? (
-      <QueryClientProvider client={makeQueryClient()}>
+    {queryClient ? (
+      <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>

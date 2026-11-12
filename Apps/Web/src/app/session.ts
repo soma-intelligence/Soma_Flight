@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { QueryClient } from "@tanstack/react-query";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "@/data/client";
 
 export type SessionState = { session: Session | null; loading: boolean };
@@ -22,6 +23,21 @@ export function useSession(): SessionState {
     };
   }, []);
   return state;
+}
+
+/**
+ * The one place the cache is emptied: on SIGNED_OUT (Sign Out, account deletion, a session ended in
+ * another tab), every cached query goes, so the next account never sees the last one's flights.
+ * Returns the unsubscribe.
+ */
+export function clearCacheOnSignOut(
+  queryClient: QueryClient,
+  auth: Pick<SupabaseClient["auth"], "onAuthStateChange"> = getSupabase().auth,
+): () => void {
+  const { data } = auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") queryClient.clear();
+  });
+  return () => data.subscription.unsubscribe();
 }
 
 export async function signOut(): Promise<void> {
