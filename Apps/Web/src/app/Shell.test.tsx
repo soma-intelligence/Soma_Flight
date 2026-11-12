@@ -53,6 +53,9 @@ function Where() {
   );
 }
 
+/** The flight card open on `id`, if any. */
+const card = (id: string) => document.querySelector(`[data-flight-id="${id}"]`);
+
 function setup(entries: InitialEntry[], index = entries.length - 1) {
   return render(
     <QueryClientProvider client={makeQueryClient()}>
@@ -172,8 +175,8 @@ describe("Shell", () => {
     setWidth(500);
     fireEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
     expect(screen.getByTestId("where").textContent).toBe("/flight/a");
-    await waitFor(() => expect(screen.queryByText("b")).toBeNull());
-    expect(screen.getByText("a")).toBeTruthy();
+    await waitFor(() => expect(card("b")).toBeNull());
+    expect(card("a")).toBeTruthy();
     expect(screen.getAllByTestId("flight-card")).toHaveLength(1);
   });
 
@@ -182,11 +185,11 @@ describe("Shell", () => {
       { pathname: "/flight/a", state: { tab: "flights" } },
       { pathname: "/flight/b", state: { tab: "flights" } },
     ]);
-    expect(screen.queryByText("a")).toBeNull();
+    expect(card("a")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.getByTestId("where").textContent).toBe("/flight/a");
-    expect(screen.getByText("a")).toBeTruthy();
-    await waitFor(() => expect(screen.queryByText("b")).toBeNull());
+    expect(card("a")).toBeTruthy();
+    await waitFor(() => expect(card("b")).toBeNull());
   });
 
   it("keeps the tab's scroll position when the width crosses 768 px", () => {
