@@ -9,7 +9,6 @@ import {
   fetchNotificationPrefs,
   notificationPrefsKey,
   readAppearance,
-  readUnits,
   saveDisplayName,
   setNotificationPref,
   writeAppearance,
@@ -17,9 +16,9 @@ import {
   type Appearance,
   type NotificationColumn,
   type NotificationPrefs,
-  type Units,
 } from "@/data/settings";
 import { Dialog } from "@/ui/Dialog";
+import { useUnits } from "@/ui/units";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { CardFrame } from "../placeholder";
 
@@ -76,7 +75,7 @@ export function Settings() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [units, setUnits] = useState<Units>(readUnits);
+  const units = useUnits();
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -199,9 +198,7 @@ export function Settings() {
               ["mi", "Miles"],
             ]}
             onChange={(distance) => {
-              const next = { ...units, distance };
-              setUnits(next);
-              writeUnits(next);
+              writeUnits({ ...units, distance });
             }}
           />
           <Choice
@@ -212,9 +209,7 @@ export function Settings() {
               ["h12", "12-Hour"],
             ]}
             onChange={(clock) => {
-              const next = { ...units, clock };
-              setUnits(next);
-              writeUnits(next);
+              writeUnits({ ...units, clock });
             }}
           />
         </Group>

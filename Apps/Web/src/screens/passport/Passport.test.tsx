@@ -2,7 +2,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { writeUnits } from "@/data/settings";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { makeQueryClient } from "@/app/query";
 import { initCore } from "@/core/flightcore";
@@ -106,6 +107,22 @@ describe("Passport", () => {
     expect(stat("Airports")).toContain("4");
     expect(stat("Countries")).toContain("3");
     expect(stat("Flight time")).toContain("3h");
+  });
+
+  it("shows distances in miles when Settings says so, and follows a change live", async () => {
+    localStorage.setItem("sf.units", JSON.stringify({ distance: "mi", clock: "h24" }));
+    try {
+      show();
+      await screen.findByText("All-Time Soma Flight Passport");
+      await waitFor(() => expect(stat("Distance")).toContain("13,496 mi"));
+      const list = screen.getByRole("list", { name: "Past flights" });
+      expect(list.textContent).toContain(" mi");
+      expect(list.textContent).not.toContain(" km");
+      act(() => writeUnits({ distance: "km", clock: "h24" }));
+      expect(stat("Distance")).toContain("21,720 km");
+    } finally {
+      localStorage.removeItem("sf.units");
+    }
   });
 
   it("lists the past flights newest first", async () => {

@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { clock } from "@/ui/format";
+import { useUnits, visibilityText } from "@/ui/units";
 import { Star, X } from "lucide-react";
 import { useParams } from "react-router";
 import { useShellNav } from "@/app/nav";
@@ -43,11 +45,11 @@ function countryName(code: string): string {
   }
 }
 
-/** "14:05 PDT": the clock in the airport's zone with the zone's short name. */
-function localTime(now: Date, tz: string | null): string {
+/** "14:05 PDT" (or "2:05 PM PDT"): the clock in the airport's zone with the zone's short name. */
+function localTime(now: Date, tz: string | null, twelveHour = false): string {
   try {
     const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: tz ?? undefined, ...o });
-    const time = f({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+    const time = clock(now, tz, twelveHour);
     const zone = f({ timeZoneName: "short" }).formatToParts(now).find((p) => p.type === "timeZoneName")?.value ?? "";
     return `${time} ${zone}`.trim();
   } catch {
@@ -74,6 +76,7 @@ export function AirportCard() {
   const dir = useAirports();
   const fakes = useFakes();
   const now = useNow();
+  const twelveHour = useUnits().clock === "h12";
   const favs = useFavorites();
   const toggle = useToggleFavorite();
 
@@ -118,7 +121,7 @@ export function AirportCard() {
             <Chip>{icao}</Chip>
             {info && (
               <span data-testid="airport-local-time">
-                <Chip>{localTime(now, info.tz)}</Chip>
+                <Chip>{localTime(now, info.tz, twelveHour)}</Chip>
               </span>
             )}
           </div>
@@ -166,6 +169,7 @@ function useCategory(w: AirportConditions): string | null {
 }
 
 function WeatherBlock({ w, now }: { w: AirportConditions; now: Date }) {
+  const units = useUnits();
   const category = useCategory(w);
   const [name, line] = category ? (CATEGORY_NAME[category] ?? [category, ""]) : ["", ""];
   return (
@@ -186,7 +190,7 @@ function WeatherBlock({ w, now }: { w: AirportConditions; now: Date }) {
       )}
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-[14px]">
         <Fact label="Ceiling" value={w.ceilingFt === null ? "None" : `${w.ceilingFt.toLocaleString("en-US")} ft`} />
-        <Fact label="Visibility" value={w.visibilitySm === null ? "--" : `${w.visibilitySm} mi`} />
+        <Fact label="Visibility" value={visibilityText(w.visibilitySm, units.distance)} />
         <Fact label="Wind" value={w.windKt === null ? "--" : `${w.windKt} kt`} sub={w.windDirDeg === null ? undefined : `from ${w.windDirDeg}°`} />
         <Fact label="Gusts" value={w.gustKt === null ? "None" : `${w.gustKt} kt`} />
       </dl>

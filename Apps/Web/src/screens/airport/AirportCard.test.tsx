@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { writeUnits } from "@/data/settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { airportDir } from "@/test/airportDir";
@@ -89,6 +90,15 @@ describe("AirportCard", () => {
     expect(screen.getByText("17°C")).toBeTruthy();
     expect(screen.getByText(/14 kt/)).toBeTruthy();
     expect(screen.getByText(/22 kt/)).toBeTruthy();
+    expect(screen.getByText("13 km")).toBeTruthy(); // 8 statute miles, in the default unit
+  });
+
+  it("reads visibility in miles when Settings says so, live", async () => {
+    show("KSFO");
+    expect(await screen.findByText("13 km")).toBeTruthy();
+    act(() => writeUnits({ distance: "mi", clock: "h24" }));
+    expect(screen.getByText("8 mi")).toBeTruthy();
+    localStorage.removeItem("sf.units");
   });
 
   it("shows the FAA programs for a US airport", async () => {

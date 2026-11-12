@@ -18,6 +18,7 @@ import { ErrorBanner } from "@/ui/ErrorBanner";
 import { errorCode, errorCopy } from "@/ui/errorCopy";
 import { JetIllustration } from "@/ui/JetIllustration";
 import { duration } from "@/ui/format";
+import { distanceText, useUnits } from "@/ui/units";
 import { TabTitle } from "../placeholder";
 import { AddPastFlight } from "./AddPastFlight";
 
@@ -203,9 +204,6 @@ function Figure({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** "21,720 km" (the app also offers miles; units follow Settings once it lands). */
-const km = (n: number) => `${n.toLocaleString("en-US")} km`;
-
 /** The passport card: totals and countries from the core; "..." while it loads, "-" when it fails. */
 function PassportCard({
   year,
@@ -214,6 +212,7 @@ function PassportCard({
   year: number | null;
   figures: { stats: PassportStats; countries: number } | "failed" | null;
 }) {
+  const unit = useUnits().distance;
   const v = (f: (x: { stats: PassportStats; countries: number }) => string) =>
     figures === "failed" ? "-" : figures ? f(figures) : "...";
   return (
@@ -224,7 +223,7 @@ function PassportCard({
       <h2 className="text-[20px] font-medium tracking-wide uppercase">{year ?? "All-Time"} Soma Flight Passport</h2>
       <div className="grid grid-cols-2 gap-x-3.5 gap-y-4 pt-5">
         <Figure label="Flights" value={v((x) => String(x.stats.flights))} />
-        <Figure label="Distance" value={v((x) => km(x.stats.distanceKm))} />
+        <Figure label="Distance" value={v((x) => distanceText(x.stats.distanceKm, unit))} />
         <Figure label="Flight time" value={v((x) => duration(x.stats.flightMinutes))} />
         <Figure label="Airports" value={v((x) => String(x.stats.airports))} />
         <Figure label="Countries" value={v((x) => String(x.countries))} />
@@ -234,6 +233,7 @@ function PassportCard({
 }
 
 function PastRow({ f, airport, onDelete }: { f: PastFlight; airport: ReturnType<typeof useAirports>; onDelete: () => void }) {
+  const unit = useUnits().distance;
   const o = airport(f.originIcao);
   const d = airport(f.destinationIcao);
   const name = f.ident || "Private flight";
@@ -259,7 +259,7 @@ function PastRow({ f, airport, onDelete }: { f: PastFlight; airport: ReturnType<
           {name}
           {" · "}
           {day}
-          {f.distanceKm > 0 ? ` · ${km(f.distanceKm)}` : ""}
+          {f.distanceKm > 0 ? ` · ${distanceText(f.distanceKm, unit)}` : ""}
           {f.status !== "completed" ? ` · ${f.status === "canceled" ? "Canceled" : "Diverted"}` : ""}
         </p>
       </div>

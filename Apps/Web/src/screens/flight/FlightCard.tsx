@@ -10,6 +10,7 @@ import { subscribeFlights } from "@/data/realtime";
 import type { Flight, FollowedFlight } from "@/data/types";
 import { useMyFlights } from "@/screens/my-flights/useMyFlights";
 import { initCore, distanceKm } from "@/core/flightcore";
+import { useUnits } from "@/ui/units";
 import { airlineOf, useAirlines } from "@/ui/airlines";
 import { airportsReady, useAirports, type AirportInfo } from "@/ui/airports";
 import { ErrorBanner } from "@/ui/ErrorBanner";
@@ -121,6 +122,7 @@ export function FlightCard() {
   const zonesKnown = airportsReady(airport);
   const airlines = useAirlines();
   const core = useCoreReady();
+  const units = useUnits();
   const mine = useMyFlights();
   const followedRow = mine.data?.find((x) => sameId(x.flight.id, id));
 
@@ -228,13 +230,13 @@ export function FlightCard() {
             <CountdownCard
               title={landed ?? countdown(flight, now)}
               caption={
-                (landed && landedCaption(flight, airportKm(core, origin, destination))) ||
+                (landed && landedCaption(flight, airportKm(core, origin, destination), units.distance)) ||
                 countdownCaption(flight, airline)
               }
               tone={statusTone(flight)}
             />
             <GatesCard flight={flight} />
-            <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz, false, zonesKnown)} />
+            <TimetableCard rows={timetableRows(flight, origin?.tz, destination?.tz, units.clock === "h12", zonesKnown)} />
           </div>
         </div>
       </div>

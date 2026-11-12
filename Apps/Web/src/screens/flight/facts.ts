@@ -1,4 +1,5 @@
 import type { Flight } from "@/data/types";
+import { distanceText } from "@/ui/units";
 import { clock, delayLevel, headerDay, ident, span, type DelayLevel } from "@/ui/format";
 
 type Zone = string | null | undefined;
@@ -88,13 +89,7 @@ export function landedTitle(f: Flight): string | null {
   return word ? `${f.status === "arrived" ? "Arrived" : "Landed"} ${word}` : null;
 }
 
-const KM_PER_MILE = 1.609_344;
-
-/** "8,965 km" or "5,571 mi" (TravelFacts.distance), grouped the en-US way. */
-export function distanceText(km: number, unit: "km" | "mi" = "km"): string {
-  const value = unit === "km" ? km : Math.round(km / KM_PER_MILE);
-  return `${value.toLocaleString("en-US")} ${unit}`;
-}
+export { distanceText };
 
 /**
  * "Total 10h 50m · 8,965 km": gate to gate and the distance between the airports (whole km), for a flight

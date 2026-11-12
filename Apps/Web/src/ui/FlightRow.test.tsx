@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { writeUnits } from "@/data/settings";
 import { ua990 } from "@/test/flight";
 
 let ready = false;
@@ -40,6 +41,18 @@ describe("FlightRow", () => {
     expect(screen.getByText("+1")).toBeTruthy();
     expect(screen.getByText("Fri, Oct 30")).toBeTruthy();
     expect(screen.getByText("UA")).toBeTruthy();
+  });
+
+  it("switches to 12-hour times live when Settings changes the clock", () => {
+    ready = true;
+    try {
+      row();
+      expect(screen.getByText("15:20")).toBeTruthy();
+      act(() => writeUnits({ distance: "km", clock: "h12" }));
+      expect(screen.getByText("3:20 PM")).toBeTruthy();
+    } finally {
+      localStorage.removeItem("sf.units");
+    }
   });
 
   it("reads 12-hour times when the browser's units say so", () => {

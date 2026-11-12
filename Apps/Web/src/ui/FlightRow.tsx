@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { useUnits } from "./units";
 import type { Flight } from "@/data/types";
 import { airlineOf, useAirlines } from "./airlines";
-import { readUnits } from "@/data/settings";
 import { airportsReady, useAirports, type AirportInfo } from "./airports";
 import { AirlineMark } from "./AirlineMark";
 import {
@@ -37,7 +37,7 @@ export function FlightRow({
   onSelect: () => void;
 }) {
   const count = countdownColumn(flight, now);
-  const twelveHour = readUnits().clock === "h12";
+  const twelveHour = useUnits().clock === "h12";
   // Times read in the airports' zones: "--:--" until the airport table is in, never a jump from the browser's zone.
   const ready = airportsReady(useAirports());
   const airline = airlineOf(flight, useAirlines());

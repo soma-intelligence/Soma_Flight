@@ -74,23 +74,28 @@ export async function deleteAccount(): Promise<void> {
 
 export const APPEARANCE_KEY = "sf.appearance";
 export const UNITS_KEY = "sf.units";
+/** Fired on the window when this page writes the units, so every reader (useUnits) updates live. */
+export const UNITS_EVENT = "sf-units";
 
 export type Appearance = "system" | "light" | "dark";
 export type Units = { distance: "km" | "mi"; clock: "h24" | "h12" };
 const DEFAULT_UNITS: Units = { distance: "km", clock: "h24" };
 
+/** Where a choice lives when storage is blocked: this page only. */
+const memory = new Map<string, string>();
 function read(key: string): string | null {
   try {
-    return localStorage.getItem(key);
+    return localStorage.getItem(key) ?? memory.get(key) ?? null;
   } catch {
-    return null;
+    return memory.get(key) ?? null;
   }
 }
 function write(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
+    memory.delete(key);
   } catch {
-    /* storage blocked: the choice holds for this page only */
+    memory.set(key, value); /* storage blocked: the choice holds for this page only */
   }
 }
 
@@ -125,4 +130,5 @@ export function readUnits(): Units {
 
 export function writeUnits(units: Units): void {
   write(UNITS_KEY, JSON.stringify(units));
+  window.dispatchEvent(new Event(UNITS_EVENT));
 }
