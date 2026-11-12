@@ -45,3 +45,48 @@ export type FlightCategory = "VFR" | "MVFR" | "IFR" | "LIFR";
 export function flightCategory(ceilingFt: number | null, visibilitySm: number): FlightCategory {
   return parsed<FlightCategory>(pkg.flightCategory(ceilingFt, visibilitySm));
 }
+
+/** A past flight as the core reads it (`PastFlight` in core/flightcore/src/passport.rs, snake_case). */
+export type CorePastFlight = {
+  /** Departure instant, unix seconds. */
+  departed_at: number;
+  /** IANA zone of the departure airport; unknown values fall back to UTC. */
+  tz: string;
+  ident: string;
+  origin_icao: string;
+  destination_icao: string;
+  airline?: string | null;
+  aircraft_type?: string | null;
+  distance_km: number;
+  block_minutes?: number | null;
+  delay_minutes: number;
+  status: "completed" | "canceled" | "diverted";
+  origin_country?: string | null;
+  destination_country?: string | null;
+  air_minutes?: number | null;
+  registration?: string | null;
+  seat_class?: string | null;
+  seat?: string | null;
+  reason?: string | null;
+  seat_position?: string | null;
+};
+
+export type PassportStats = {
+  flights: number;
+  longHaul: number;
+  distanceKm: number;
+  flightMinutes: number;
+  airports: number;
+  airlines: number;
+  delayLostMinutes: number;
+  avgDelayMinutes: number;
+  delayedFlights: number;
+  avgDelayedMinutes: number;
+  mostFlownAircraft: { aircraftType: string; count: number } | null;
+  routes: [string, string][];
+};
+
+/** Passport totals over `rows`, all time or one local departure `year` (compute_passport_js). */
+export function computePassport(rows: CorePastFlight[], year?: number | null): PassportStats {
+  return parsed<PassportStats>(pkg.computePassport(JSON.stringify(rows), year ?? undefined));
+}

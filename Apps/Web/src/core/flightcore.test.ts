@@ -59,3 +59,16 @@ describe("flightcore wasm", () => {
     expect(flightCategory(300, 0.5)).toBe("LIFR");
   });
 });
+
+describe("computePassport", () => {
+  it("matches every core/fixtures/passport.json case", async () => {
+    const { computePassport } = await freshCore();
+    const fx = JSON.parse(
+      await readFile(path.join(import.meta.dirname, "../../../../core/fixtures/passport.json"), "utf8"),
+    );
+    expect(fx.cases.length).toBeGreaterThan(3);
+    for (const c of fx.cases) {
+      expect(computePassport(c.flights, c.year), c.name).toEqual(c.expected);
+    }
+  });
+});
