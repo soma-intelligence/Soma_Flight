@@ -77,6 +77,7 @@ select vault.create_secret('<service role key>', 'service_role_key');
 | `faa-notams` | `FAA_NOTAM_URL` | optional: the endpoint, default `https://external-api.faa.gov/notamapi/v1/notams`, should the FAA move it |
 | `flight-lookup`, `follow-flight`, `maintenance` | `STATUS_PROVIDER` | `aeroapi` (default when unset), `aviationstack`, `flightlabs` or `none`. Anything other than `aeroapi` makes no AeroAPI alerts and turns on the polling refresh (docs/free-providers.md) |
 | `airport-board` | `BOARD_PROVIDER` | `aeroapi` (default), `aviationstack`, `flightlabs` or `none` |
+| `airport-stats` | `BOARD_LIST_LIVE` | `false` keeps the Airports list free of provider calls: live numbers on the airport card only (set 2026-11-14 with `BOARD_PROVIDER=aviationstack` on the free tier). Unset or `true` once a paid plan can pay for a cold list (up to 20 airports, 40 requests) |
 | `flight-position` | `POSITION_PROVIDER` | `aeroapi` (default), `aviationstack`, `flightlabs`, `opensky` or `none` |
 | provider callers | `AVIATIONSTACK_KEY`, `FLIGHTLABS_KEY`, `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET` | the provider keys; OpenSky also works without its pair (anonymous) |
 | provider callers | `AVIATIONSTACK_MONTHLY_QUOTA`, `FLIGHTLABS_MONTHLY_QUOTA`, `OPENSKY_DAILY_CREDITS` | the plan's allowance, default the free tier (100, 50, 400; 4,000 for OpenSky with an account). Set it to the paid plan's number after an upgrade |
