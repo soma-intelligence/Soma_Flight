@@ -15,6 +15,8 @@ const boardDeps = { db, board };
 Deno.serve((req) =>
   handler(req, {
     provider,
+    // BOARD_LIST_LIVE=false: live numbers on the airport card only, never for the whole list.
+    listLive: Deno.env.get("BOARD_LIST_LIVE") !== "false",
     airports: (codes) => airportRows(db, codes),
     rate: (userId) =>
       checkRate(userId, "airport-stats", STATS_MAX_PER_HOUR, 60, db),

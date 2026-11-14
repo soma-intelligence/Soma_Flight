@@ -13,12 +13,11 @@ struct AirportStatusCard: View {
     var live: AirportLiveStats?
     var weather: AirportConditions?
 
-    private var title: String {
-        switch status.level {
-        case .normal: "Running normally"
-        case .minor: "Some delays"
-        case .major: "Major disruption"
-        }
+    private var title: String { AirportStatusTitle.of(status) }
+
+    /// The program or weather line, or on an unconfirmed calm day the reason the app says no more.
+    private var subtitle: String? {
+        status.line ?? (status.level == .normal && !status.confirmed ? AirportStatusTitle.unconfirmedNote : nil)
     }
 
     var body: some View {
@@ -27,7 +26,7 @@ struct AirportStatusCard: View {
                 AirportStatusDot(level: status.level, size: 10)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(ui: title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
-                    if let line = status.line {
+                    if let line = subtitle {
                         Text(ui: line).scaledFont(13.5).foregroundStyle(Theme.secondary)
                     }
                 }

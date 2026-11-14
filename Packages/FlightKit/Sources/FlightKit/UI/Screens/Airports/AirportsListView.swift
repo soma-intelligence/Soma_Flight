@@ -83,7 +83,11 @@ public struct AirportsListView: View {
     /// The list in a few lines: the airports with issues and their status.
     private var shareText: String {
         let issues = store.rows.filter { $0.status.level > .normal }
-        guard !issues.isEmpty else { return "Airports running normally, from Soma Flight." }
+        guard !issues.isEmpty else {
+            return store.rows.allSatisfy(\.status.confirmed)
+                ? "Airports running normally, from Soma Flight."
+                : "No reported airport disruption, from Soma Flight."
+        }
         return "Airport issues now, from Soma Flight:\n" + issues.map {
             "\($0.airport.iata ?? $0.airport.id) \($0.airport.name): \($0.status.line ?? "")"
         }.joined(separator: "\n")

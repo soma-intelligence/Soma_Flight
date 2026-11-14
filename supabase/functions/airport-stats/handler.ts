@@ -46,6 +46,11 @@ export interface Deps {
   /** One direction's board for an airport: the shared snapshot, refreshed when older than 5 minutes. */
   board: (icao: string, kind: Direction, now: Date) => Promise<Board>;
   rate?: (userId: string) => Promise<void>;
+  /**
+   * False (BOARD_LIST_LIVE=false): the list gets no live numbers, only the card does. A cold list refreshes
+   * up to 20 airports at once, which a small allowance (Aviationstack Free, 100 requests a month) cannot pay.
+   */
+  listLive?: boolean;
 }
 
 /** On time, delayed 15 minutes or more, canceled: the list's three columns. */
@@ -107,7 +112,8 @@ export interface ListItem {
 
 export interface List {
   available: boolean;
-  reason: "no_provider" | null;
+  /** `list_off`: a provider is set but BOARD_LIST_LIVE=false keeps the list free of calls. */
+  reason: "no_provider" | "list_off" | null;
   provider: ProviderName;
   airports: ListItem[];
 }
@@ -316,6 +322,16 @@ export async function handler(req: Request, deps: Deps): Promise<Response> {
           today: null,
           next_7_days: null,
         } satisfies Detail,
+      );
+    }
+    if (many !== null && deps.listLive === false) {
+      return json(
+        {
+          available: false,
+          reason: "list_off",
+          provider: deps.provider,
+          airports: [],
+        } satisfies List,
       );
     }
     await deps.rate?.(userId);

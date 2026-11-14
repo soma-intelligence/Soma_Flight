@@ -246,8 +246,14 @@ public struct AirportStatus: Sendable, Hashable {
     public var level: AirportStatusLevel
     /// Nil on a normal day with nothing to say.
     public var line: String?
+    /// True when counted live numbers back the level. A normal level without them only means nobody reported
+    /// a problem (no FAA program, calm weather): airlines can still cancel thousands of flights, as after the
+    /// FAA ground stop of 2026-11-13, so the app never calls such an airport "running normally".
+    public var confirmed: Bool
 
-    public init(level: AirportStatusLevel, line: String?) { self.level = level; self.line = line }
+    public init(level: AirportStatusLevel, line: String?, confirmed: Bool = false) {
+        self.level = level; self.line = line; self.confirmed = confirmed
+    }
 
     public static let normal = AirportStatus(level: .normal, line: nil)
 
@@ -271,10 +277,19 @@ public struct AirportStatus: Sendable, Hashable {
         for (b, word) in [(live?.departures, "Departures"), (live?.arrivals, "Arrivals")] {
             if let b { found.append(board(b, word)) }
         }
+        // Counted numbers (at least `minFlights` in one direction) are what can confirm a calm day.
+        let counted = [live?.departures, live?.arrivals].contains { ($0?.total ?? 0) >= minFlights }
         // The first of the worst wins: programs before weather before numbers.
-        guard let worst = found.map(\.level).max(), worst > .normal else { return .normal }
-        return found.first { $0.level == worst } ?? .normal
+        guard let worst = found.map(\.level).max(), worst > .normal else {
+            return counted ? AirportStatus(level: .normal, line: nil, confirmed: true) : .normal
+        }
+        var status = found.first { $0.level == worst } ?? .normal
+        status.confirmed = counted
+        return status
     }
+
+    /// Fewer flights than this in a direction say nothing about it.
+    public static let minFlights = 5
 
     static func program(_ p: AirportProgram) -> AirportStatus {
         let avg = p.averageMinutes.map { ", about \(Format.minutes($0))" } ?? ""
@@ -304,7 +319,7 @@ public struct AirportStatus: Sendable, Hashable {
     }
 
     static func board(_ b: AirportBrief, _ word: String) -> AirportStatus {
-        guard b.total >= 5, let onTime = b.onTimePercent else { return .normal }
+        guard b.total >= minFlights, let onTime = b.onTimePercent else { return .normal }
         if b.avgDelayMinutes >= majorDelay || onTime < majorOnTime || (b.canceledPercent ?? 0) >= 10 {
             return .init(level: .major, line: "\(word) running \(Format.minutes(b.avgDelayMinutes)) late")
         }
@@ -313,4 +328,18 @@ public struct AirportStatus: Sendable, Hashable {
         }
         return .normal
     }
+}
+
+/// The words for an airport's level, shared by the card and the list.
+public enum AirportStatusTitle {
+    public static func of(_ s: AirportStatus) -> String {
+        switch s.level {
+        case .normal: s.confirmed ? "Running normally" : "No reported disruption"
+        case .minor: "Some delays"
+        case .major: "Major disruption"
+        }
+    }
+
+    /// Under a normal level with no live numbers: why the app does not say more.
+    public static let unconfirmedNote = "Live delay numbers unavailable"
 }

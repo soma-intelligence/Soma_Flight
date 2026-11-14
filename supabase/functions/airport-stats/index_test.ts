@@ -143,6 +143,19 @@ Deno.test("BOARD_PROVIDER=none: available false, no board call, no rate count", 
   assertEquals(rated, 0);
 });
 
+Deno.test("BOARD_LIST_LIVE=false: the list asks no board, the card still does", async () => {
+  const { d, calls } = deps({ provider: "aviationstack", listLive: false });
+  const list = await ask<List>("airports=SFO,LAX", d);
+  assertEquals(list.status, 200);
+  assertEquals(list.body.available, false);
+  assertEquals(list.body.reason, "list_off");
+  assertEquals(list.body.airports, []);
+  assertEquals(calls, []);
+  const one = await ask<Detail>("airport=SFO", d);
+  assertEquals(one.body.available, true);
+  assertEquals(calls, ["KSFO departures", "KSFO arrivals"]);
+});
+
 Deno.test("detail: counts, trend and traffic from the boards", async () => {
   const { d, calls } = deps();
   const r = await ask<Detail>("airport=SFO", d);

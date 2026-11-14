@@ -185,7 +185,16 @@ public final class AirportsListStore {
         ]
         for (kind, title, level) in groups {
             let rows = rest.filter { $0.status.level == level }
-            if !rows.isEmpty { out.append(Section(kind: kind, title: title, subtitle: nil, rows: rows)) }
+            guard !rows.isEmpty else { continue }
+            // Calm rows without live numbers are only "nothing reported": never "running normally".
+            if level == .normal, !rows.allSatisfy(\.status.confirmed) {
+                out.append(Section(kind: kind, title: "No Reported Disruption",
+                                   subtitle: rows.contains(where: \.status.confirmed)
+                                       ? nil : AirportStatusTitle.unconfirmedNote,
+                                   rows: rows))
+            } else {
+                out.append(Section(kind: kind, title: title, subtitle: nil, rows: rows))
+            }
         }
         return out
     }

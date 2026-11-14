@@ -67,6 +67,20 @@ import Testing
         #expect(AirportStatus.of(AirportOverview(icao: "KATL")).level == .normal)
     }
 
+    /// A calm FAA feed and calm weather are not proof the airport runs normally (airlines can cancel thousands
+    /// of flights after a ground stop ends): only counted live numbers confirm it.
+    @Test func onlyLiveNumbersConfirmNormal() {
+        #expect(AirportStatus.of(nil).confirmed == false)
+        #expect(AirportStatus.of(AirportOverview(icao: "KATL", programs: [])).confirmed == false)
+        let calm = AirportBrief(total: 100, onTime: 90, delayed: 10, canceled: 0, avgDelayMinutes: 6)
+        #expect(AirportStatus.of(nil, live: .init(icao: "X", departures: calm, arrivals: calm)).confirmed)
+        let few = AirportBrief(total: 3, onTime: 3, delayed: 0, canceled: 0, avgDelayMinutes: 0)
+        #expect(AirportStatus.of(nil, live: .init(icao: "X", departures: few, arrivals: nil)).confirmed == false)
+        #expect(AirportStatusTitle.of(AirportStatus.of(nil)) == "No reported disruption")
+        #expect(AirportStatusTitle.of(AirportStatus.of(nil, live: .init(icao: "X", departures: calm, arrivals: calm)))
+            == "Running normally")
+    }
+
     @Test func boardNumbersSetTheLevel() {
         let calm = AirportBrief(total: 100, onTime: 90, delayed: 10, canceled: 0, avgDelayMinutes: 6)
         let late = AirportBrief(total: 100, onTime: 70, delayed: 30, canceled: 0, avgDelayMinutes: 20)
@@ -84,7 +98,7 @@ import Testing
         let late = AirportBrief(total: 100, onTime: 70, delayed: 30, canceled: 0, avgDelayMinutes: 20)
         let s = AirportStatus.of(AirportOverview(icao: "KEWR", programs: [stop]),
                                  live: .init(icao: "KEWR", departures: late, arrivals: nil))
-        #expect(s == AirportStatus(level: .major, line: "Ground stop"))
+        #expect(s == AirportStatus(level: .major, line: "Ground stop", confirmed: true))
     }
 
     // MARK: List store
