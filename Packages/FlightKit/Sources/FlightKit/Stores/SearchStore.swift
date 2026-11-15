@@ -499,11 +499,12 @@ public final class SearchStore {
         return .searching
     }
 
-    /// Return: the top suggestion when there is one, else a search of the text as typed.
+    /// Return: a whole query as typed, else the top suggestion when there is one, else the text as typed.
     @discardableResult
     public func submit() -> SearchPick {
         suggestNow()
-        if let top = suggestions.top { return pick(top) }
+        // A whole query ("paris nyc next week") runs as typed: a suggestion would replace it.
+        if !intent.isComplete, let top = suggestions.top { return pick(top) }
         liveTask?.cancel()
         searchTask?.cancel()
         searchTask = Task { [weak self] in await self?.search() }

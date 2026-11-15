@@ -1,3 +1,4 @@
+import FlightImportKit
 import SwiftUI
 
 /// The flights the user already follows, as search results meet them. A flight lookup answers
@@ -44,6 +45,7 @@ public struct SearchView: View {
     /// Planned flights added from this screen, before `planned` hears of them.
     @State private var plannedHere: Set<UpcomingFlight.ID> = []
     @State private var pending: Set<Flight.ID> = []
+    @State private var choosingDay = false
     @FocusState private var focused: Bool
     @Environment(\.airportStaticControls) private var staticControls
     @Environment(\.units) private var units
@@ -110,19 +112,27 @@ public struct SearchView: View {
 
     private var isBlank: Bool { store.text.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    private var showsChips: Bool { !isBlank && (!store.intent.chips.isEmpty || store.note != nil) }
-
-    /// What the text reads as, under the field; it fades in and out on its own.
+    /// What the text reads as, under the field: the day first (a tap opens the calendar), then the other
+    /// pieces, each removable, then the store's note.
     private var understood: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if showsChips {
-                SearchChipsRow(chips: store.intent.chips, note: store.note) { Self.remove($0, from: store) }
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.bottom, 8)
-                    .transition(.opacity)
+        SearchChipsRow(chips: store.intent.chips.filter { if case .day = $0 { false } else { true } },
+                       note: isBlank ? nil : store.note,
+                       day: SearchDayButton(day: store.intent.day) { choosingDay = true }) { Self.remove($0, from: store) }
+            .scaledPadding(.horizontal, 16)
+            .scaledPadding(.bottom, 8)
+            .sheet(isPresented: $choosingDay) {
+                SearchDaySheet(selected: store.intent.day, today: LocalDay(.now, in: .current)) { day in
+                    choosingDay = false
+                    Self.setDay(day, in: store)
+                    if !staticControls { focused = true }
+                }
             }
-        }
-        .animation(.easeOut(duration: 0.15), value: showsChips)
+    }
+
+    /// Writes the calendar's day into the field as if typed, the other words kept.
+    static func setDay(_ day: LocalDay?, in store: SearchStore) {
+        store.text = SearchDayText.setting(day, in: store.text, intent: store.intent)
+        store.textChanged()
     }
 
     /// Takes the chip's words out of the field and reads the rest again.
@@ -212,8 +222,17 @@ public struct SearchView: View {
     @ViewBuilder private var typing: some View {
         let shown = Self.typingSuggestions(store.suggestions, results: store.items)
         if !store.items.isEmpty { results }
+        // A whole query, summed up in one row on top: return or a tap searches it as typed.
+        let whole = store.items.isEmpty && store.intent.isComplete
+        if whole {
+            OptionRow(icon: "magnifyingglass", title: SearchSummary.text(store.intent, clock: units.clock),
+                      subtitle: store.isSearching ? "Searching\u{2026}" : "Search these flights") {
+                handle(store.submit())
+            }
+            .scaledPadding(.top, 4)
+        }
         SearchSuggestionList(suggestions: shown, lookup: lookup) { handle(store.pick($0)) }
-        if store.items.isEmpty, shown.isEmpty, !store.isSearching, store.error == nil, store.note == nil,
+        if !whole, store.items.isEmpty, shown.isEmpty, !store.isSearching, store.error == nil, store.note == nil,
                   store.intent.isSearchable || store.intent.chips.isEmpty {
             Text("Press return to search \u{201C}\(store.text.trimmingCharacters(in: .whitespaces))\u{201D}")
                 .scaledFont(15)
@@ -293,7 +312,7 @@ public struct SearchView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.top, 8)
                     .scaledPadding(.bottom, 2)
-                ForEach(store.recent, id: \.self) { q in
+                ForEach(store.recent.prefix(Self.startRecent), id: \.self) { q in
                     let intent = store.intent(for: q)
                     OptionRow(icon: Self.recentIcon(intent), title: q, subtitle: Self.recentSubtitle(intent, clock: units.clock)) {
                         handle(store.pick(.recent(q)))
@@ -305,7 +324,7 @@ public struct SearchView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.top, store.recent.isEmpty ? 8 : 16)
                     .scaledPadding(.bottom, 2)
-                ForEach(start.frequent) { frequentRow($0) }
+                ForEach(start.frequent.prefix(Self.startFrequent)) { frequentRow($0) }
             }
             if let onImport {
                 CapsHeader("More")
@@ -338,6 +357,9 @@ public struct SearchView: View {
     }
 
     static let frequentIcon: CGFloat = 24
+    /// The field empty: this many recent searches, then this many frequently used airlines and airports.
+    static let startRecent = 3
+    static let startFrequent = 4
 
     /// "F8 · FLE" for an airline, "SFO · KSFO · San Francisco" for an airport.
     static func subtitle(_ item: FrequentItem) -> String {

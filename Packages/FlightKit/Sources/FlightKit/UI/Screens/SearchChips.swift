@@ -55,6 +55,53 @@ enum SearchChipText {
     }()
 }
 
+/// A whole query in one line: "Los Angeles → Tokyo · Wed Nov 4 · 18:00", "AF 84 · Mon Nov 2".
+enum SearchSummary {
+    static func text(_ intent: SearchIntent, clock: TimeStyle) -> String {
+        var parts: [String] = []
+        if let ident = intent.ident {
+            parts.append(Format.ident(ident))
+        } else if let airline = intent.airline {
+            parts.append(airline.name)
+        }
+        let places = intent.chips.compactMap { if case .place(let a) = $0 { a.first?.city } else { nil } }
+        if !places.isEmpty { parts.append(places.joined(separator: " \u{2192} ")) }
+        if let day = intent.day { parts.append(SearchChipText.day(day)) }
+        if let t = intent.timeOfDay { parts.append(SearchChipText.time(t, clock: clock)) }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+}
+
+/// The day the calendar picks, written into the field as if typed.
+enum SearchDayText {
+    /// `text` with its date words replaced by `day` ("20 dec"), or taken out when `day` is nil.
+    static func setting(_ day: LocalDay?, in text: String, intent: SearchIntent) -> String {
+        var t = text
+        if let old = intent.day { t = intent.removing(.day(old), from: t) }
+        t = t.trimmingCharacters(in: .whitespaces)
+        guard let day else { return t }
+        return SearchStart.appending(word(day), to: t)
+    }
+
+    /// "20 dec": a day and a short month, which every reading of the field takes the same way.
+    static func word(_ day: LocalDay) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .gmt
+        guard let date = cal.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) else {
+            return day.description
+        }
+        return formatter.string(from: date).lowercased()
+    }
+
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .gmt
+        f.dateFormat = "d MMM"
+        return f
+    }()
+}
+
 /// What the empty field offers: day shortcuts, then the frequently used airlines and airports.
 struct SearchStart: Equatable {
     /// A chip that adds a day word to the field.
@@ -116,13 +163,21 @@ struct SearchChip: View {
 struct SearchChipsRow: View {
     var chips: [SearchIntent.Chip]
     var note: String?
+    /// The calendar button, first in the row; nil leaves it out.
+    var day: SearchDayButton?
     var onRemove: (SearchIntent.Chip) -> Void
     @Environment(\.units) private var units
 
+    init(chips: [SearchIntent.Chip], note: String?, day: SearchDayButton? = nil,
+         onRemove: @escaping (SearchIntent.Chip) -> Void) {
+        self.chips = chips; self.note = note; self.day = day; self.onRemove = onRemove
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !chips.isEmpty {
+            if !chips.isEmpty || day != nil {
                 ChipFlow(spacing: 8) {
+                    if let day { day }
                     ForEach(chips, id: \.self) { chip in
                         SearchChip(title: SearchChipText.label(chip, clock: units.clock), removes: true) { onRemove(chip) }
                             .transition(.opacity)

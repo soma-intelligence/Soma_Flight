@@ -30,6 +30,14 @@ public struct SearchIntent: Sendable, Equatable {
     /// True when there is something to look up: a flight number, an airline or a place.
     public var isSearchable: Bool { ident != nil || airline != nil || !origins.isEmpty || !destinations.isEmpty }
 
+    /// True when every word was read and they make a whole query: a flight number, or a searchable
+    /// piece with something else (a route, a place and a day). Return searches it as typed, and the
+    /// screen sums it up in one row.
+    public var isComplete: Bool {
+        guard isSearchable, leftover.isEmpty, !isBeyondReach else { return false }
+        return ident != nil || chips.count >= 2
+    }
+
     /// The text without the words `chip` read, other words as typed. The text unchanged when the chip is
     /// not one of these.
     public func removing(_ chip: Chip, from text: String) -> String {

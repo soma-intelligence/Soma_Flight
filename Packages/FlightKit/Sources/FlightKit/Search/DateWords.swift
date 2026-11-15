@@ -49,6 +49,21 @@ enum DateWords {
         case "tomorrow", "demain": return offset(1, 1)
         case "day" where at(i + 1) == "after" && at(i + 2) == "tomorrow": return offset(2, 3)
         case "apres" where at(i + 1) == "demain": return offset(2, 2)
+        // "next week", "semaine prochaine": its Monday.
+        case "next" where at(i + 1) == "week": return offset(daysTo(weekday: 2, from: today), 2)
+        case "semaine" where at(i + 1) == "prochaine": return offset(daysTo(weekday: 2, from: today), 2)
+        // "weekend", "this weekend", "ce week end": today on a weekend, else the coming Saturday.
+        case "weekend": return offset(weekendOffset(today), 1)
+        case "week" where at(i + 1) == "end": return offset(weekendOffset(today), 2)
+        case "this", "ce":
+            if at(i + 1) == "weekend" { return offset(weekendOffset(today), 2) }
+            if at(i + 1) == "week", at(i + 2) == "end" { return offset(weekendOffset(today), 3) }
+        // "in 2 days", "dans 3 jours", "in 2 weeks", "dans 2 semaines".
+        case "in", "dans":
+            if let n = at(i + 1).flatMap({ Int($0) }), (0...limit).contains(n), let unit = at(i + 2) {
+                if ["day", "days", "jour", "jours"].contains(unit) { return offset(n, 3) }
+                if ["week", "weeks", "semaine", "semaines"].contains(unit), n * 7 <= limit { return offset(n * 7, 3) }
+            }
         default: break
         }
         // "12 dec [2026]", "dec 12 [2026]".
@@ -111,6 +126,26 @@ enum DateWords {
         guard day(words, now: now, tz: tz, monthFirst: monthFirst) == nil,
               let far = day(words, now: now, tz: tz, monthFirst: monthFirst, limit: .max) else { return false }
         return LocalDay(now, in: tz).days(to: far.day) > maxDaysAhead
+    }
+
+    /// `Calendar`'s weekday of `day`, Sunday 1.
+    private static func weekday(of day: LocalDay) -> Int {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let d = cal.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) ?? .now
+        return cal.component(.weekday, from: d)
+    }
+
+    /// Days from `today` to the next `weekday` after it (a week ahead when today is that weekday).
+    private static func daysTo(weekday target: Int, from today: LocalDay) -> Int {
+        let delta = (target - weekday(of: today) + 7) % 7
+        return delta == 0 ? 7 : delta
+    }
+
+    /// 0 on a Saturday or Sunday, else the days to Saturday.
+    private static func weekendOffset(_ today: LocalDay) -> Int {
+        let w = weekday(of: today)
+        return w == 1 || w == 7 ? 0 : 7 - w
     }
 
     private static func add(_ days: Int, to day: LocalDay) -> LocalDay? {

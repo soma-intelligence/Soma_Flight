@@ -118,6 +118,9 @@ public struct SearchSuggestions: Sendable, Equatable {
 
     public static let empty = SearchSuggestions(groups: [])
 
+    /// At most this many rows in all, whatever the groups: a short list the eye takes in at once.
+    public static let maxRows = 5
+
     /// What the return key picks.
     public var top: SearchSuggestion? { groups.first?.items.first }
     public var all: [SearchSuggestion] { groups.flatMap(\.items) }
@@ -187,6 +190,8 @@ public struct SearchSuggester: Sendable {
     private let airlineByCode: [String: Airline]
     /// Indices into `airports` by folded city.
     private let airportsByCity: [String: [Int]]
+    /// `placeAliases` resolved: folded phrase to its airports, main first.
+    private let aliasAirports: [String: [Airport]]
 
     public init(airports: [Airport], airlines: [Airline], sizes: AirportSizes = .bundled) {
         self.airports = airports.map { a in
@@ -215,7 +220,34 @@ public struct SearchSuggester: Sendable {
         for a in airlines { lines[a.id.uppercased()] = a }
         for a in airlines { if let i = a.iata?.uppercased(), lines[i] == nil { lines[i] = a } }
         airlineByCode = lines
+        var aliases: [String: [Airport]] = [:]
+        for (phrase, iatas) in Self.placeAliases {
+            // A city code that is also a real airport's stays that airport.
+            if phrase.count == 3, codes[phrase.uppercased()] != nil { continue }
+            let found = iatas.compactMap { codes[$0] }
+            if !found.isEmpty { aliases[phrase] = found }
+        }
+        aliasAirports = aliases
     }
+
+    /// What people call places that no airport list names: the IATA city codes ("nyc", "lon") and
+    /// nicknames ("roissy", "sf", "vegas"), folded, to IATA airport codes, the main airport first.
+    static let placeAliases: [String: [String]] = [
+        // IATA metropolitan codes.
+        "nyc": ["JFK", "EWR", "LGA"], "par": ["CDG", "ORY"], "lon": ["LHR", "LGW", "STN", "LTN", "LCY", "SEN"],
+        "tyo": ["HND", "NRT"], "chi": ["ORD", "MDW"], "was": ["IAD", "DCA", "BWI"], "mil": ["MXP", "LIN", "BGY"],
+        "rom": ["FCO", "CIA"], "sto": ["ARN", "BMA"], "mow": ["SVO", "DME", "VKO"], "bue": ["EZE", "AEP"],
+        "sao": ["GRU", "CGH", "VCP"], "rio": ["GIG", "SDU"], "yto": ["YYZ", "YTZ"], "ymq": ["YUL"],
+        "osa": ["KIX", "ITM"], "sel": ["ICN", "GMP"], "bjs": ["PEK", "PKX"], "jkt": ["CGK", "HLP"],
+        // Nicknames, English and French.
+        "ny": ["JFK", "EWR", "LGA"], "new york city": ["JFK", "EWR", "LGA"], "big apple": ["JFK", "EWR", "LGA"],
+        "sf": ["SFO"], "san fran": ["SFO"], "frisco": ["SFO"], "bay area": ["SFO", "OAK", "SJC"],
+        "la": ["LAX"], "vegas": ["LAS"], "dc": ["IAD", "DCA", "BWI"], "philly": ["PHL"], "nola": ["MSY"],
+        "roissy": ["CDG"], "charles de gaulle": ["CDG"], "zaventem": ["BRU"],
+        "marignane": ["MRS"], "saint exupery": ["LYS"], "blagnac": ["TLS"], "merignac": ["BOD"],
+        "rio de janeiro": ["GIG", "SDU"], "sao paulo": ["GRU", "CGH"], "tokyo": ["HND", "NRT"],
+        "moscou": ["SVO", "DME", "VKO"], "milan": ["MXP", "LIN", "BGY"],
+    ]
 
     /// Over the bundled airports and airlines, built once per process.
     public static func bundled() -> SearchSuggester { shared }
@@ -247,7 +279,7 @@ public struct SearchSuggester: Sendable {
         // "CDG to ..." is about the route, not every airport named "to".
         if route.isEmpty {
             rows += airlineRows(q)
-            rows += airportRows(q)
+            rows += airportRows(q, known: known)
         }
         rows += recentRows(q, recent: recent)
         return Self.group(rows)
@@ -291,7 +323,7 @@ public struct SearchSuggester: Sendable {
             exactKnown = exactKnown || exact
             // A number typed: its flights rank high. Only the airline's code: under the airline itself.
             let hasDigit = typed.contains(where: \.isNumber)
-            let score = exact ? 1100 : hasDigit ? 950 : 600
+            let score = exact ? 1100 : hasDigit ? 950 : 870
             rows.append(Scored(kind: .flights, item: .flight(ident: SearchText.ident(k.ident), known: k),
                                score: score + (k.followed ? 5 : 0), tie: Self.identTie(k.ident)))
         }
@@ -367,8 +399,14 @@ public struct SearchSuggester: Sendable {
         let qWords = SearchText.words(q)
         var out: [(AirportEntry, Int)] = []
         var rest: [AirportEntry] = []
+        // A city code or nickname ranks its airports first, in its own order.
+        let aliased = aliasAirports[q].map { list in Dictionary(list.enumerated().map { ($1.id, $0) }) { a, _ in a } } ?? [:]
         for e in airports {
             let a = e.airport
+            if let rank = aliased[a.id] {
+                out.append((e, 1060 - rank))
+                continue
+            }
             var score: Int?
             if isCode, a.iata == code { score = 1000 }
             else if isCode, a.id == code { score = 980 }
@@ -406,8 +444,14 @@ public struct SearchSuggester: Sendable {
         return airportMatches(q).prefix(limit).map(\.entry.airport)
     }
 
-    private func airportRows(_ q: String) -> [Scored] {
-        let matches = airportMatches(q)
+    /// Airports the user flew from or to rank this much higher.
+    static let knownAirportBoost = 80
+
+    private func airportRows(_ q: String, known: [KnownFlight] = []) -> [Scored] {
+        let mine = Set(known.flatMap { [$0.origin, $0.destination] })
+        let matches = airportMatches(q).map { m in
+            (entry: m.entry, score: m.score + (mine.contains(m.entry.airport.id) ? Self.knownAirportBoost : 0))
+        }.sorted { ($1.score, $0.entry.airport.id) < ($0.score, $1.entry.airport.id) }
         var rows = matches.map { Scored(kind: .airports, item: .airport($0.entry.airport), score: $0.score, tie: $0.entry.airport.id) }
         // An airport named by its exact code also offers its board, right under it.
         if let first = matches.first, first.score >= 980 {
@@ -429,6 +473,9 @@ public struct SearchSuggester: Sendable {
     /// may be empty ("CDG to", "CDG " once an airport was picked).
     private func routeParts(_ text: String) -> (String, String)? {
         let lower = text.lowercased()
+        // "sao paulo", "new york city": one place, even when its first word is a city code.
+        let whole = SearchText.fold(lower)
+        if aliasAirports[whole] != nil || airportsByCity[whole] != nil { return nil }
         for sep in [" to ", "\u{2192}", ">", "-"] {
             if let r = lower.range(of: sep) {
                 let a = String(lower[..<r.lowerBound]).trimmingCharacters(in: .whitespaces)
@@ -453,7 +500,8 @@ public struct SearchSuggester: Sendable {
     }
 
     private func isAirportCode(_ s: String) -> Bool {
-        (3...4).contains(s.count) && s.allSatisfy(\.isLetter) && airportByCode[s.uppercased()] != nil
+        (3...4).contains(s.count) && s.allSatisfy(\.isLetter)
+            && (airportByCode[s.uppercased()] != nil || aliasAirports[s.lowercased()] != nil)
     }
 
     private func routeRows(_ text: String, known: [KnownFlight]) -> [Scored] {
@@ -530,6 +578,7 @@ public struct SearchSuggester: Sendable {
     func airports(named phrase: String) -> (airports: [Airport], match: NameMatch)? {
         let q = SearchText.fold(phrase)
         guard !q.isEmpty else { return nil }
+        if let found = aliasAirports[q] { return (found, .exact) }
         if let ids = airportsByCity[q] { return (cityAirports(ids), .exact) }
         let qWords = SearchText.words(q).map(String.init)
         if q.count >= 4, qWords.contains(where: { !Self.genericAirportWords.contains($0) }),
@@ -598,6 +647,14 @@ public struct SearchSuggester: Sendable {
             let mine = best.values.filter { $0.kind == kind }
                 .sorted { ($1.score, $0.tie, $0.item.id) < ($0.score, $1.tie, $1.item.id) }
             if !mine.isEmpty { groups.append((kind, Array(mine.prefix(kind.limit)))) }
+        }
+        // Only the best rows overall stay, `maxRows` at most. Recent searches are not counted: the
+        // screen shows them only with the field empty.
+        let kept = Set(groups.flatMap(\.rows).filter { $0.kind != .recent }.sorted { ($1.score, $0.item.id) < ($0.score, $1.item.id) }
+            .prefix(SearchSuggestions.maxRows).map(\.item.id))
+        groups = groups.compactMap { g in
+            let rows = g.rows.filter { g.kind == .recent || kept.contains($0.item.id) }
+            return rows.isEmpty ? nil : (g.kind, rows)
         }
         let order = SearchSuggestions.Kind.allCases
         groups.sort {
