@@ -842,6 +842,16 @@
         }
       }
     },
+    "Account ID": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ID du compte"
+          }
+        }
+      }
+    },
     "Acknowledgements": {
       "localizations": {
         "fr": {
@@ -3212,6 +3222,16 @@
         }
       }
     },
+    "Copy your account ID": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copie l'ID de ton compte"
+          }
+        }
+      }
+    },
     "Corner": {
       "localizations": {
         "fr": {
@@ -3318,6 +3338,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossible d'accéder au trousseau. Déverrouille l'appareil et réessaie."
+          }
+        }
+      }
+    },
+    "Couldn't sync": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation impossible"
           }
         }
       }
@@ -4092,6 +4122,26 @@
         }
       }
     },
+    "Document Numbers": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Numéros des documents"
+          }
+        }
+      }
+    },
+    "Document Sync": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchro des documents"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "fr": {
@@ -4278,6 +4328,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Revue des e-mails"
+          }
+        }
+      }
+    },
+    "Email sign-in link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lien de connexion par e-mail"
           }
         }
       }
@@ -6022,6 +6082,16 @@
         }
       }
     },
+    "ID Copied": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ID copié"
+          }
+        }
+      }
+    },
     "ILS glide slope for runway 28L out of service": {
       "localizations": {
         "fr": {
@@ -7622,6 +7692,16 @@
         }
       }
     },
+    "Name and Photo": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom et photo"
+          }
+        }
+      }
+    },
     "Name or code": {
       "localizations": {
         "fr": {
@@ -8612,6 +8692,16 @@
         }
       }
     },
+    "Offline": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hors ligne"
+          }
+        }
+      }
+    },
     "Offline, nothing saved": {
       "localizations": {
         "fr": {
@@ -8898,6 +8988,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ouvre la recherche dans Soma Flight pour suivre un vol."
+          }
+        }
+      }
+    },
+    "Opens Travel Documents": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre les documents de voyage"
           }
         }
       }
@@ -10662,6 +10762,16 @@
         }
       }
     },
+    "Shown after %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affichés après %@"
+          }
+        }
+      }
+    },
     "Shown to friends only": {
       "localizations": {
         "fr": {
@@ -10718,6 +10828,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Affiche ces rangées"
+          }
+        }
+      }
+    },
+    "Shows your account and security": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiche ton compte et ta sécurité"
           }
         }
       }
@@ -10798,6 +10918,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Se déconnecter ?"
+          }
+        }
+      }
+    },
+    "Sign-In": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion"
           }
         }
       }
@@ -11368,6 +11498,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Synchroniser"
+          }
+        }
+      }
+    },
+    "Syncing…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation…"
           }
         }
       }
@@ -12912,6 +13052,16 @@
         }
       }
     },
+    "Up to date": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À jour"
+          }
+        }
+      }
+    },
     "Upcoming": {
       "localizations": {
         "fr": {
@@ -14118,6 +14268,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "prévu"
+          }
+        }
+      }
+    },
+    "your passcode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ton code"
+          }
+        }
+      }
+    },
+    "your password": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ton mot de passe"
           }
         }
       }
