@@ -20,6 +20,8 @@ public struct SettingsView: View {
     var profile: ProfileStore?
     /// The history behind the Travel Tools rows; nil hides the section.
     var travelTools: TravelToolsSource?
+    /// The followed flights, whose freshness the Profil's sync row shows; nil leaves the row out.
+    var flights: MyFlightsStore?
     var scrolls: Bool
     /// The closing data note of the Mac settings page.
     var dataNote: Bool
@@ -41,6 +43,10 @@ public struct SettingsView: View {
     @State private var showingCalendar = false
     @State private var showingDocuments = false
     @State private var showingUnits = false
+    /// The Profil, opened from the account row.
+    @State private var showingProfile = false
+    /// Travel Documents pushed over the Profil sheet (the Mac).
+    @State private var profileDocuments = false
     #if os(iOS)
     /// The app icon in use on the phone.
     @State private var systemIcon = AppIconModel(setter: SystemAppIconSetting())
@@ -74,16 +80,18 @@ public struct SettingsView: View {
     ///   - profile: the user's name and photo (`HomeModel.profile`); Profile then shows them and opens the editor.
     ///   - travelTools: the Passport history; Travel Tools then lists the year in review, the route poster, the
     ///     Schengen count, status goals and expense reports. Nil hides the section.
+    ///   - flights: the followed flights (`HomeModel.myFlights`); the Profil's sync row says how fresh they are.
     ///   - onClose: closes Settings from the round X at the top right (the phone's sheet); nil leaves it out.
     public init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
                 history: (any HistoryService)? = nil, onDeleteAccount: ((String?) async -> Bool)? = nil,
                 notifications: NotificationSettingsStore? = nil, calendar: CalendarSync? = nil,
                 friends: FriendsStore? = nil, profile: ProfileStore? = nil, travelTools: TravelToolsSource? = nil,
-                onClose: (() -> Void)? = nil) {
+                flights: MyFlightsStore? = nil, onClose: (() -> Void)? = nil) {
         self.init(session: session, units: units, onSignIn: onSignIn, history: history,
                   onDeleteAccount: onDeleteAccount, notifications: notifications, calendar: calendar, friends: friends,
                   profile: profile, scrolls: true, onClose: onClose)
         self.travelTools = travelTools
+        self.flights = flights
     }
 
     init(session: SessionStore, units: Binding<Units>, onSignIn: (() -> Void)? = nil,
@@ -123,10 +131,12 @@ public struct SettingsView: View {
             PushedPage(onClose: closePage) { pageView(page) }
         }
         #if DEBUG
-        // Screenshot runs: `-settingsPage documents` opens Travel Documents over the list.
+        // Screenshot runs: `-settingsPage documents` opens Travel Documents over the list, `profile` the Profil.
         .onAppear {
-            if UserDefaults.standard.string(forKey: "settingsPage") == "documents", documents != nil {
-                showingDocuments = true
+            switch UserDefaults.standard.string(forKey: "settingsPage") {
+            case "documents" where documents != nil: showingDocuments = true
+            case "profile" where session.session != nil: showingProfile = true
+            default: break
             }
         }
         #endif
@@ -161,11 +171,12 @@ public struct SettingsView: View {
 
     #if os(iOS)
     /// A page of Settings opened over the list.
-    enum Page: Hashable { case units, notifications, calendar, documents, acknowledgements }
+    enum Page: Hashable { case profile, units, notifications, calendar, documents, acknowledgements }
 
-    /// The page on show, as a card stack's path (one page at most).
+    /// The pages on show, as a card stack's path: one, or Travel Documents over the Profil.
     var openPages: [Page] {
-        if showingUnits { [.units] }
+        if showingProfile { showingDocuments ? [.profile, .documents] : [.profile] }
+        else if showingUnits { [.units] }
         else if showingNotifications { [.notifications] }
         else if showingCalendar { [.calendar] }
         else if showingDocuments { [.documents] }
@@ -173,13 +184,17 @@ public struct SettingsView: View {
         else { [] }
     }
 
+    /// Drops the top page: Travel Documents opened from the Profil goes back to the Profil.
     private func closePage() {
+        if showingProfile, showingDocuments { showingDocuments = false; return }
+        showingProfile = false
         showingUnits = false; showingNotifications = false; showingCalendar = false; showingDocuments = false
         showingAcknowledgements = false
     }
 
     @ViewBuilder private func pageView(_ page: Page) -> some View {
         switch page {
+        case .profile: profilePage(onDocuments: documents == nil ? nil : { showingDocuments = true })
         case .units: UnitsSettingsView(units: $units)
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
@@ -189,6 +204,23 @@ public struct SettingsView: View {
     }
     #endif
 
+    /// The Profil of the account signed in; nothing once it signs out.
+    @ViewBuilder private func profilePage(onDocuments: (() -> Void)?, onDone: (() -> Void)? = nil) -> some View {
+        if let user = session.session {
+            AccountProfileView(session: user, profile: profile, flights: flights, onDocuments: onDocuments,
+                               onSignOut: { confirm(.signOut, closing: onDone) },
+                               onDeleteAccount: onDeleteAccount == nil ? nil : { confirm(.deleteAccount, closing: onDone) },
+                               deleting: deleting)
+        }
+    }
+
+    /// Asks before signing out or deleting. On the Mac the Profil sheet closes first, so the dialog shows on
+    /// Settings; on the phone the Profil stays under it.
+    private func confirm(_ action: Confirmation, closing: (() -> Void)?) {
+        closing?()
+        confirming = action
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let error = session.error {
@@ -196,7 +228,7 @@ public struct SettingsView: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.bottom, 12)
             }
-            SettingsHero(session: session.session, profile: profile, onSignIn: onSignIn)
+            SettingsHero(session: session.session, profile: profile, onSignIn: onSignIn, onProfile: { showingProfile = true })
 
             if let appIcon {
                 SettingsSection("App Icon") {
@@ -296,6 +328,17 @@ public struct SettingsView: View {
         }
         #if !os(iOS)
         // The phone opens them as cards over the list instead (`body`).
+        .sheet(isPresented: $showingProfile) {
+            NavigationStack {
+                profilePage(onDocuments: documents == nil ? nil : { profileDocuments = true },
+                            onDone: { showingProfile = false })
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingProfile = false } } }
+                    .navigationDestination(isPresented: $profileDocuments) {
+                        if let documents { TravelDocumentsView(store: documents) }
+                    }
+            }
+            .frame(minWidth: 420, minHeight: 600)
+        }
         .sheet(isPresented: $showingUnits) {
             NavigationStack {
                 UnitsSettingsView(units: $units)
@@ -387,24 +430,25 @@ public struct SettingsView: View {
 // MARK: - Rows
 
 /// Who is signed in, as the head of Settings, the way OnePass opens its own: a card with the photo, the name
-/// and the account's email, and a chevron when the row opens something (the profile editor, or Sign In when
-/// signed out). Without a profile the email alone, and nothing to open.
+/// and the account's email, and a chevron when the row opens something (the Profil, where the name and photo
+/// are edited, or Sign In when signed out).
 struct SettingsHero: View {
     var session: UserSession?
     var profile: ProfileStore?
     var onSignIn: (() -> Void)?
-    @State private var editing = false
+    /// Opens the Profil (`AccountProfileView`); nil leaves a signed-in row with nothing to open.
+    var onProfile: (() -> Void)?
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
         let editable = session != nil && profile?.owner != nil
         let name = editable ? (profile?.displayName ?? "") : ""
-        let action: (() -> Void)? = editable ? { editing = true } : (session == nil ? onSignIn : nil)
+        let action: (() -> Void)? = session == nil ? onSignIn : onProfile
         Group {
             if let action {
                 Button(action: action) { card(name: name, opens: true) }
                     .buttonStyle(SettingsRowStyle())
-                    .accessibilityHint(editable ? "Edit your name and photo" : "Sign in")
+                    .accessibilityHint(UIText.localized(session == nil ? "Sign in" : "Shows your account and security"))
             } else {
                 card(name: name, opens: false)
             }
@@ -413,15 +457,7 @@ struct SettingsHero: View {
         .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
         .scaledPadding(.horizontal, 16)
         .scaledPadding(.top, 4)
-        .sheet(isPresented: $editing) {
-            if let profile {
-                ProfileOnboardingView(store: profile, mode: .edit) { editing = false }
-                    .presentationBackground(Theme.background)
-                    #if os(macOS)
-                    .frame(minWidth: 420, minHeight: 560)
-                    #endif
-            }
-        }
+        .accessibilityIdentifier("account.current")
     }
 
     private func card(name: String, opens: Bool) -> some View {

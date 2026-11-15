@@ -723,6 +723,18 @@ public final class HomeModel {
         // `-toast "Added UA 990"` holds that toast on screen (no timer) for a capture.
         if let text = args.string(forKey: "toast") { toast = text }
         if let tab = args.string(forKey: "tab").flatMap(HomeTab.init(rawValue:)) { self.tab = tab }
+        #if DEBUG
+        // `-fakeSignIn apple` (or `email`) signs the fakes in, so the account row opens the Profil. Fakes only.
+        if !env.requiresSignIn, session.session == nil, let how = args.string(forKey: "fakeSignIn") {
+            Task {
+                switch how {
+                case "apple": await session.signInWithApple(idToken: "fake", nonce: "fake")
+                case "email": _ = await session.signInWithEmail("traveller@example.com")
+                default: break
+                }
+            }
+        }
+        #endif
         // `-open friend` opens the first friend's page, `-open friendFlight` their first flight.
         if args.string(forKey: "open") == "friend", let f = friends.friends.first {
             tab = .friends

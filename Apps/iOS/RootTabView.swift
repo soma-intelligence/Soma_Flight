@@ -269,7 +269,8 @@ struct RootTabView: View {
                           notifications: home.notificationSettings, calendar: home.calendar, friends: home.friends,
                           profile: home.profile,
                           travelTools: TravelToolsSource(store: home.passport, lookup: env.lookup,
-                                                         travellerName: home.profile.displayName))
+                                                         travellerName: home.profile.displayName),
+                          flights: home.myFlights)
                 .environment(\.units, units)
         }
         // An invitation link the app was opened with: accept or decline.
@@ -487,6 +488,7 @@ private struct SettingsSheet: View {
     var friends: FriendsStore?
     var profile: ProfileStore?
     var travelTools: TravelToolsSource?
+    var flights: MyFlightsStore?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -495,7 +497,7 @@ private struct SettingsSheet: View {
         // its own X over this one.
         SettingsView(session: session, units: $units, history: history, onDeleteAccount: onDeleteAccount,
                      notifications: notifications, calendar: calendar, friends: friends, profile: profile,
-                     travelTools: travelTools, onClose: { dismiss() })
+                     travelTools: travelTools, flights: flights, onClose: { dismiss() })
         .presentationDetents([.large])
         .presentationBackground(Theme.background)
         .presentationCornerRadius(Theme.sheetRadius)
