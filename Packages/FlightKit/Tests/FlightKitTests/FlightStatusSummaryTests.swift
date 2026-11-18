@@ -115,14 +115,15 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(make(f).text == "Landed")
     }
 
-    @Test func canceledKeepsRed() {
+    @Test func canceledIsGrey() {
         var f = Self.af84
         f.status = .canceled
         let s = make(f)
         #expect(s.text == "Canceled")
         #expect(s.level == .canceled)
         #expect(s.progress == nil)
-        #expect(s.tone == Theme.veryLate)
+        #expect(s.tone == Theme.canceled, "grey, not red (owner call 2026-11-18)")
+        #expect(s.textTone == Theme.canceledText)
     }
 
     @Test func diverted() {

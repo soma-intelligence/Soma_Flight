@@ -143,7 +143,8 @@ import Testing
         }
         let aus = try await svc.stats("KAUS")
         #expect(aus.departures.severity != .normal && aus.arrivals.severity == .major)
-        #expect(try await svc.stats("KSFO").departures.severity == .normal)
+        // 11 min average, a third late: Moderate since the 2026-11-18 rule, no longer Calm.
+        #expect(try await svc.stats("KSFO").departures.severity == .moderate)
     }
 
     @Test func timesShiftToNow() async throws {

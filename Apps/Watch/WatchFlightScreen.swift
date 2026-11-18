@@ -52,9 +52,9 @@ struct WatchFlightScreen: View {
                 .foregroundStyle(ActivityPalette.secondary)
             Text(d.status)
                 .font(.system(.title2, weight: .bold))
-                // The flight card's rule: white on time, the level's colour otherwise, red when canceled.
+                // The flight card's rule: white on time, grey when canceled, the level's colour otherwise.
                 .foregroundStyle(d.level == .onTime ? ActivityPalette.primary
-                                 : d.level == .canceled ? ActivityPalette.veryLate : ActivityPalette.color(d.level))
+                                 : d.level == .canceled ? ActivityPalette.secondary : ActivityPalette.color(d.level))
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
             Text(d.countdownLine)

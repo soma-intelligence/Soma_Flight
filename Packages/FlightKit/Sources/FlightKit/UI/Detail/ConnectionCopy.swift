@@ -143,7 +143,7 @@ enum ConnectionCopy {
     /// "On time", "20m late", "Scheduled", "Canceled".
     static func alternateStatus(_ f: AlternateFlight) -> (text: String, color: Color) {
         switch f.status {
-        case .canceled: return ("Canceled", Theme.veryLate)
+        case .canceled: return ("Canceled", Theme.canceledText)
         case .departed, .enRoute: return ("Departed", Theme.secondary)
         case .landed, .arrived: return ("Arrived", Theme.secondary)
         case .diverted: return ("Diverted", Theme.diverted)

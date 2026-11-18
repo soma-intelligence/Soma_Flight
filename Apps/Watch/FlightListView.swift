@@ -125,10 +125,9 @@ enum WatchTone {
         }
     }
 
-    /// Red for canceled, purple for diverted, else grey, as in My Flights.
+    /// Purple for diverted, else grey (canceled too), as in My Flights.
     static func unitColor(_ status: FlightStatus) -> Color {
         switch status {
-        case .canceled: ActivityPalette.veryLate
         case .diverted: ActivityPalette.diverted
         default: ActivityPalette.secondary
         }

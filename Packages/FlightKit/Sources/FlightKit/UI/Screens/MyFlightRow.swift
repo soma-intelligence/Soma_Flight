@@ -339,7 +339,7 @@ public struct MyFlightRow: View {
 
     private var unitColor: Color {
         switch flight.status {
-        case .canceled: Theme.veryLate
+        case .canceled: Theme.canceledText
         case .diverted: Theme.diverted
         default: Theme.secondary
         }

@@ -8,7 +8,7 @@ enum FriendFacts {
     static func status(_ f: Flight, now: Date) -> (text: String, color: Color) {
         let late = lateText(f)
         switch f.status {
-        case .canceled: return ("Canceled", Theme.veryLate)
+        case .canceled: return ("Canceled", Theme.canceledText)
         case .diverted: return ("Diverted", Theme.diverted)
         case .landed, .arrived: return ("Landed", Theme.secondary)
         case .departed, .enRoute:
@@ -68,7 +68,7 @@ enum FriendFacts {
     /// "in the air · lands in 1h 20m", "departs in 40 min · 25 min late", "landed", "canceled".
     static func when(_ f: Flight, now: Date) -> (text: String, color: Color) {
         switch f.status {
-        case .canceled: return (UIText.localized("canceled"), Theme.veryLate)
+        case .canceled: return (UIText.localized("canceled"), Theme.canceledText)
         case .diverted: return (UIText.localized("diverted"), Theme.diverted)
         case .landed, .arrived: return (UIText.localized("landed"), Theme.secondary)
         case .departed, .enRoute:

@@ -73,11 +73,13 @@ Corrigés en partie :
 - **A12** : en plus du code ami, trois troncatures AX5 vues au deuxième passage sont corrigées : le badge de l'aéroport, le titre de la carte Passeport et les heures de Mes vols (l'heure prévue barrée passe à la ligne).
 - Aucun contrôle sur un vrai appareil ni avec Accessibility Inspector.
 
-Décisions qui reviennent à Quentin :
+Décisions de Quentin (2026-11-18) :
 
-- **E2** : une liste périmée affiche maintenant son âge, même en ligne. Cela revient sur le choix du 2026-11-08 (pas de badge en ligne).
-- **E3** : après une expiration de session, les données du compte restent sur l'appareil tant que la reconnexion est en attente. Elles partent si on abandonne ou si un autre compte se connecte.
-- Questions déjà ouvertes : la couleur « annulé », le seuil « Calme » de l'aéroport, la place du bouton « Ajouter un ami ».
+- **E2** : gardé. Une liste périmée affiche son âge, même en ligne. Cela remplace le choix du 2026-11-08.
+- **E3** : gardé. Après une expiration de session, les données du compte restent sur l'appareil tant que la reconnexion est en attente. Elles partent si on abandonne ou si un autre compte se connecte.
+- **Vol annulé** : gris partout (app, Amis, correspondances, widget, Watch), plus rouge. Le rouge reste réservé aux gros retards.
+- **Seuil « Calme »** : une direction passe à « Modéré » dès 10 min de retard moyen, ou dès que plus de 25 % des vols ont 15 min de retard. La règle est dans le cœur Rust (`compute_stats`) et dans `AirportPerformance.delayStats`. Le xcframework et les deux paquets WASM sont recompilés. Rien n'est déployé sur Supabase.
+- **Ajouter un ami** : un bouton « + » en verre revient dans l'en-tête des Amis, à côté de l'avatar. Le menu « … » de la carte du code garde l'entrée.
 
 Notes de corrections par zone : `2026-11-18-fix-api-stores.md`, `2026-11-18-fix-api-kit.md`, `2026-11-18-fix-strings-home.md`, `2026-11-18-fix-strings-detail.md`, `2026-11-18-fix-strings-settings.md`.
 

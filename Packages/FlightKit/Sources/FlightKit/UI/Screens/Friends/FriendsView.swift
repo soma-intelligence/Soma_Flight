@@ -20,6 +20,7 @@ public struct FriendsView: View {
     @State private var removing: Friend?
     @Environment(\.sheetDetent) private var detent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.metricsScale) private var scale
     @Environment(\.requestSignIn) private var requestSignIn
 
     /// - Parameters:
@@ -39,10 +40,20 @@ public struct FriendsView: View {
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
-                // The root header (R5), as on Passport: the shell's avatar is its one trailing control, so
-                // Add a Friend moved to the code card's menu and the empty state.
-                SheetHeader.root("Friends") { ShellAvatarSlot() }
+                // The root header (R5), as on Passport, with Add a Friend as a glass "+" beside the shell's
+                // avatar (owner call 2026-11-18): the screen's main action stays one tap away. The code card's
+                // menu keeps it too. The button sits in an overlay so the combined heading does not swallow it.
+                SheetHeader.root("Friends") {
+                    HStack(spacing: 8) {
+                        Color.clear.frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
+                        ShellAvatarSlot()
+                    }
+                }
                     .rootHeaderAccessibility()
+                    .overlay(alignment: .trailing) {
+                        RoundButton(systemImage: "plus", label: UIText.localized("Add a Friend")) { adding = true }
+                            .scaledPadding(.trailing, Theme.gutter + 44 + 8)
+                    }
                     .scaledPadding(.top, 18)
                     .scaledPadding(.bottom, 8)
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }

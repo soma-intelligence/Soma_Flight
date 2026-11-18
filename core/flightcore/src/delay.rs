@@ -79,6 +79,9 @@ pub struct DelayStats {
 const HOUR: i64 = 3600;
 const LATE15_S: i64 = 15 * 60;
 const LATE45_S: i64 = 45 * 60;
+/// Average delay from which a direction reads Moderate rather than Calm: 10 min, below the 15 min a
+/// single flight needs to count as late, so "Calm" never sits beside a third of the flights held up.
+const MODERATE_AVG_S: i64 = 10 * 60;
 const TOP: usize = 5;
 
 fn delay_seconds(r: &BoardFlight) -> Option<i64> {
@@ -171,7 +174,10 @@ pub fn compute_stats(rows: &[BoardFlight]) -> DelayStats {
         || (total > 0 && canceled as u64 * 10 >= total as u64)
     {
         Severity::Major
-    } else if n_avg > 0 && sum_s >= LATE15_S * n_avg {
+    } else if (n_avg > 0 && sum_s >= MODERATE_AVG_S * n_avg)
+        || (total > 0 && delayed15 as u64 * 4 > total as u64)
+    {
+        // An average of 10 min or more, or more than a quarter of the flights 15 min late.
         Severity::Moderate
     } else {
         Severity::Normal

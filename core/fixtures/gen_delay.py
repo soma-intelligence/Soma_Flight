@@ -54,7 +54,7 @@ def stats(rows):
     avg = sum_sec / n_avg / 60 if n_avg else 0.0
     if (n_avg and sum_sec >= 45 * 60 * n_avg) or canceled * 10 >= total and total > 0:
         sev = "major"
-    elif n_avg and sum_sec >= 15 * 60 * n_avg:
+    elif (n_avg and sum_sec >= 10 * 60 * n_avg) or (total > 0 and delayed15 * 4 > total):
         sev = "moderate"
     else:
         sev = "normal"
@@ -93,6 +93,10 @@ add("unknown_status_string", [row("U1", "AAL", "KJFK", "holding", T0, 20)])
 add("no_scheduled_counts_in_total_only", [row("S1", "AAL", "KJFK", "departed", None), row("S2", "AAL", "KJFK", "canceled", None), row("S3", "AAL", "KJFK", "departed", T0, 0)])
 add("diverted_excluded_from_average", [row("D1", "AAL", "KJFK", "diverted", T0, 300), row("D2", "AAL", "KJFK", "departed", T0, 10)])
 add("severity_normal", [row(f"N{i}", "AAL", "KJFK", "departed", T0, 5) for i in range(10)])
+add("severity_normal_avg_9", [row(f"C{i}", "AAL", "KJFK", "departed", T0, 9) for i in range(4)])
+add("severity_moderate_avg_10", [row(f"C{i}", "AAL", "KJFK", "departed", T0, 10) for i in range(4)])
+add("severity_normal_late_25pct", [row("Q0", "AAL", "KJFK", "departed", T0, 20)] + [row(f"Q{i}", "AAL", "KJFK", "departed", T0, 0) for i in range(1, 4)])
+add("severity_moderate_late_over_25pct", [row(f"Q{i}", "AAL", "KJFK", "departed", T0, 16) for i in range(2)] + [row(f"Q{i}", "AAL", "KJFK", "departed", T0, 0) for i in range(2, 7)])
 add("severity_moderate_avg_15", [row(f"M{i}", "AAL", "KJFK", "departed", T0, 15) for i in range(3)])
 add("severity_moderate_avg_44", [row(f"M{i}", "AAL", "KJFK", "departed", T0, 44) for i in range(3)])
 add("severity_major_avg_45", [row(f"J{i}", "AAL", "KJFK", "departed", T0, 45) for i in range(3)])
@@ -111,7 +115,7 @@ meta = {
     "rules": {
         "on_time_delay_minutes_lt": 15, "late45_delay_minutes_gte": 45,
         "severity_major_avg_minutes_gte": 45, "severity_major_cancel_pct_gte": 10,
-        "severity_moderate_avg_minutes_gte": 15,
+        "severity_moderate_avg_minutes_gte": 10, "severity_moderate_delayed15_pct_gt": 25,
         "negative_delay_floors_at": 0, "worst_list_len": 5, "hour_seconds": 3600,
         "avg_delay_tolerance": 1e-9,
     },

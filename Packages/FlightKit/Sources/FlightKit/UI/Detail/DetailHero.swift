@@ -22,7 +22,7 @@ struct HeroFacts: Equatable, Sendable {
     /// The gate grid shows for every flight but a canceled or diverted one (`GlanceFacts.isShown`).
     var showsGrid: Bool
 
-    /// The bar and headline colour (red for canceled, the delay colour otherwise).
+    /// The bar and headline colour (the delay colour, grey for canceled).
     var tone: Color { FlightStatusSummary.tone(for: level) }
 
     static let canceledNote = "The airline canceled this flight. Check with them for a new booking."

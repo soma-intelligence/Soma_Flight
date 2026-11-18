@@ -121,7 +121,7 @@ public struct AirportPerformance: Codable, Sendable, Hashable {
     public var delayStats: DelayStats {
         let severity: Severity = canceled * 10 >= max(total, 1) ? .major
             : avgDelayMinutes >= AirportStatus.majorDelay ? .major
-            : avgDelayMinutes >= AirportStatus.minorDelay ? .moderate : .normal
+            : avgDelayMinutes >= AirportStatus.moderateDelay || delayed * 4 > total ? .moderate : .normal
         return DelayStats(total: total, onTime: onTime, delayed15: delayed, canceled: canceled,
                           avgDelayMinutes: Double(avgDelayMinutes), perHour: [], worstRoutes: worstRoutes,
                           worstAirlines: worstAirlines, severity: severity)
@@ -260,6 +260,9 @@ public struct AirportStatus: Sendable, Hashable {
     /// Average delay at which a direction is a minor issue, and a major one.
     public static let minorDelay = 15
     public static let majorDelay = 45
+    /// Average delay from which a direction reads Moderate rather than Calm (owner call 2026-11-18), the same
+    /// rule as flightcore's `compute_stats`: 10 min, or more than a quarter of the flights 15 min late.
+    public static let moderateDelay = 10
     /// On-time share under which a direction is a minor issue, and a major one.
     public static let minorOnTime = 75
     public static let majorOnTime = 50
@@ -323,7 +326,7 @@ public struct AirportStatus: Sendable, Hashable {
         if b.avgDelayMinutes >= majorDelay || onTime < majorOnTime || (b.canceledPercent ?? 0) >= 10 {
             return .init(level: .major, line: "\(word) running \(Format.minutes(b.avgDelayMinutes)) late")
         }
-        if b.avgDelayMinutes >= minorDelay || onTime < minorOnTime {
+        if b.avgDelayMinutes >= moderateDelay || onTime < minorOnTime {
             return .init(level: .minor, line: "\(word) running \(Format.minutes(b.avgDelayMinutes)) late")
         }
         return .normal

@@ -624,7 +624,7 @@
      "canceled": 1
     }
    ],
-   "severity": "normal"
+   "severity": "moderate"
   },
   "arrivals": {
    "total": 150,
@@ -832,7 +832,7 @@
      "canceled": 0
     }
    ],
-   "severity": "normal"
+   "severity": "moderate"
   }
  },
  "LFPG": {

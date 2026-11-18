@@ -225,10 +225,11 @@ struct OpsReportTests {
         #expect(store.weather?.tafIssuedAt != nil)
     }
 
-    @Test func sanFranciscoIsNormal() async {
+    @Test func sanFranciscoIsLateButNotForTheWeather() async {
+        // The seed's SFO runs 11 and 13 min late on average: Moderate since the 2026-11-18 rule, with fine weather.
         let (r, _) = await report("KSFO")
-        #expect(r.cause == .normal)
-        #expect(r.summary == "Flights at SFO are running close to time and the weather is fine.")
+        guard case .notWeather = r.cause else { Issue.record("expected notWeather, got \(r.cause)"); return }
+        #expect(r.summary == "Flights at SFO are running late, departures by 11m and arrivals by 13m on average. The weather is fine, so the cause lies elsewhere.")
     }
 
     @Test func summaryWhenWeatherIsPoorButFlightsAreOnTime() {

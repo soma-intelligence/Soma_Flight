@@ -17,11 +17,10 @@ extension FlightWidgetDisplay {
     var headlineColor: Color { Self.color(headlineTone) }
     var levelColor: Color { activity.levelColor }
     var statusColor: Color { activity.statusColor }
-    /// The countdown's word when it has no figure: red for canceled, purple for diverted, else grey,
+    /// The countdown's word when it has no figure: purple for diverted, else grey (canceled too),
     /// as in My Flights.
     var unitColor: Color {
         switch flight.status {
-        case .canceled: ActivityPalette.veryLate
         case .diverted: ActivityPalette.diverted
         default: ActivityPalette.secondary
         }

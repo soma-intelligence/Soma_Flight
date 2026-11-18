@@ -32,15 +32,12 @@ public struct FlightStatusSummary: Hashable, Sendable {
     /// The colour of the words: the same hue as `tone`, darkened in light mode to reach 4.5:1 (A3).
     public var textTone: Color { Self.textTone(for: level) }
 
-    /// The status line's colour for `level`: red for canceled, the delay colour otherwise.
-    public static func tone(for level: DelayLevel) -> Color {
-        level == .canceled ? Theme.veryLate : level.color
-    }
+    /// The status line's colour for `level`: the delay colour, grey for canceled (owner call 2026-11-18: red
+    /// means a bad delay; a canceled flight no longer runs, and the word says the rest).
+    public static func tone(for level: DelayLevel) -> Color { level.color }
 
-    /// `tone(for:)` as a text colour (`DelayLevel.textColor`, `Theme.veryLateText` for canceled).
-    public static func textTone(for level: DelayLevel) -> Color {
-        level == .canceled ? Theme.veryLateText : level.textColor
-    }
+    /// `tone(for:)` as a text colour (`DelayLevel.textColor`, `Theme.canceledText` for canceled).
+    public static func textTone(for level: DelayLevel) -> Color { level.textColor }
 
     /// The separator between the pieces of a status line.
     static let separator = " \u{00B7} "
