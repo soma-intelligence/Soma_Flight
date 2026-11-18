@@ -121,8 +121,9 @@ extension DetailFacts {
 
 // MARK: - Header
 
-/// The pinned top of the flight sheet: the airline's logo, "UA 990 · FRI, 30 OCT", the route as the
-/// title, and the close button. On the Mac the bottom bar's buttons sit here too (`actions`).
+/// The pinned top of the flight sheet, as the Detail header (R5): the airline's logo, "UA 990 · FRI, 30 OCT"
+/// in small caps, the route as the 20 pt title, and the 44 pt glass close button. On the Mac the bar's
+/// buttons sit here too (`actions`).
 struct DetailHeader: View {
     var flight: Flight
     var origin: Airport?
@@ -131,66 +132,26 @@ struct DetailHeader: View {
     var onClose: (() -> Void)?
     /// Drawn between the title and the close button (the Mac panel's share, bell and menu).
     var actions: AnyView?
-    @ScaledMetric(relativeTo: .title3) private var logo: CGFloat = 40
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        SheetHeader.detail(
+            overline: DetailFacts.headerLine(flight, origin: origin),
+            title: ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode),
+            onClose: onClose
+        ) {
             AirlineLogo(airline: airline, code: airline?.iata ?? TravelFacts.airlineCode(ident: flight.ident),
-                        size: logo, decorative: true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(DetailFacts.headerLine(flight, origin: origin))
-                    .scaledFont(13, weight: .semibold)
-                    .foregroundStyle(Theme.secondary)
-                    .lineLimit(1)
-                Text(ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode))
-                    .themeFont(.sheetTitle)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
+                        size: 36, decorative: true)
+        } actions: {
             if let actions { actions }
-            if let onClose {
-                RoundButton(systemImage: "xmark", label: "Close", action: onClose)
-            }
         }
-    }
-}
-
-/// The rounded card under the header: "Departs in 1 day" and the airline with the flight's state.
-struct CountdownCard: View {
-    var title: String
-    var caption: String
-    /// Green or red once the arrival can be set against its schedule; nil keeps the grey card.
-    var tone: Color?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(ui: title)
-                .scaledFont(18, weight: .semibold)
-                .foregroundStyle(tone ?? Theme.primary)
-            Text(ui: caption)
-                .scaledFont(15, weight: tone == nil ? .regular : .medium)
-                .foregroundStyle(tone.map { $0.opacity(0.85) } ?? Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .scaledPadding(.horizontal, 16)
-        .scaledPadding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tone.map { $0.opacity(0.16) } ?? Theme.card))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .strokeBorder(tone.map { $0.opacity(0.35) } ?? Theme.separator, lineWidth: 1))
-        .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - Bottom bar
 
-/// The floating controls at the bottom of the flight sheet: the menu of rarer actions and the flight's
-/// alert bell (followed flights only) as glass circles on the left, a blue Share capsule on the right.
-/// `compact` is the Mac panel's form: share, bell and menu as small circles in the header.
+/// The Mac panel's flight actions: share, the alert bell (followed flights only) and the menu of rarer
+/// actions as small circles in the header. The phone shows them in the glass action bar
+/// (`FlightDetailView.actionBar`, R4).
 struct DetailBottomBar<Menu: View>: View {
     /// The live link and the flight in words (`FlightShareItem`).
     var share: FlightShareItem
@@ -202,36 +163,13 @@ struct DetailBottomBar<Menu: View>: View {
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        if compact {
-            HStack(spacing: 6) {
-                ShareLink(item: share, preview: SharePreview(share.title)) { icon("square.and.arrow.up") }
-                    .accessibilityLabel("Share Flight")
-                bell
-                more
-            }
-            .buttonStyle(.plain)
-        } else {
-            HStack(spacing: 10) {
-                more
-                    .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .circle)
-                if notify != nil {
-                    bell
-                        .glassEffect(.regular.tint(HomeTabPill.tint).interactive(), in: .circle)
-                }
-                Spacer(minLength: 12)
-                ShareLink(item: share, preview: SharePreview(share.title)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                        .font(.system(size: Theme.fontSize(18, scale), weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, Theme.metric(22, scale))
-                        .frame(height: Theme.metric(52, scale))
-                        .contentShape(Capsule())
-                }
-                .glassEffect(.regular.tint(Theme.accent).interactive(), in: .capsule)
+        HStack(spacing: 6) {
+            ShareLink(item: share, preview: SharePreview(share.title)) { icon("square.and.arrow.up") }
                 .accessibilityLabel("Share Flight")
-            }
-            .buttonStyle(.plain)
+            bell
+            more
         }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var bell: some View {

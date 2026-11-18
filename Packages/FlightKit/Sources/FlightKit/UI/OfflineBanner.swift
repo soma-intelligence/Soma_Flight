@@ -41,10 +41,40 @@ public struct OfflineBanner: View {
     }
 }
 
+public extension OfflineBanner {
+    /// The home's offline state while saved flights show (R8): the small glass pill "Offline · positions
+    /// estimated" under the header, in place of the banner. A tap tries again, as the banner's button did.
+    /// Penpot: Status pill
+    struct Pill: View {
+        var retry: (() -> Void)?
+
+        public init(retry: (() -> Void)? = nil) { self.retry = retry }
+
+        public static let text = "Offline \u{00B7} positions estimated"
+
+        public var body: some View {
+            if let retry {
+                Button(action: retry) { pill }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: 44)
+                    .contentShape(Capsule())
+                    .accessibilityHint(Text(ui: "Tries to connect again"))
+            } else {
+                pill
+            }
+        }
+
+        private var pill: some View {
+            StatusPill(Self.text, systemImage: "wifi.slash")
+        }
+    }
+}
+
 #Preview {
     VStack(spacing: 10) {
         OfflineBanner(retry: {})
         OfflineBanner()
+        OfflineBanner.Pill(retry: {})
     }
     .padding()
     .background(Theme.background)

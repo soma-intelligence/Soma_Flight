@@ -80,10 +80,11 @@ public struct PassportView: View {
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
-                ScreenTitle("Passport")
-                    .scaledPadding(.horizontal, Theme.gutter)
-                    .scaledPadding(.top, 22)
-                    .scaledPadding(.bottom, 10)
+                // The root header (R5): the large title, the shell's avatar on the right.
+                SheetHeader.root("Passport") { ShellAvatarSlot() }
+                    .rootHeaderAccessibility()
+                    .scaledPadding(.top, 18)
+                    .scaledPadding(.bottom, 6)
                 if !store.years.isEmpty {
                     YearChips(years: store.years, selection: $store.year)
                         .scaledPadding(.bottom, 10)

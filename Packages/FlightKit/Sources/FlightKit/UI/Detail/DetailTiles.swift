@@ -43,7 +43,7 @@ extension DetailFacts {
 
 // MARK: - Tiles
 
-/// "Booking Code" and "Seat" side by side, "Tap to edit" until set. The booking tile offers a paste
+/// "Booking code" and "Seat" side by side, "Tap to edit" until set. The booking tile offers a paste
 /// button while empty; pasted text is kept only when it is a booking code.
 struct DetailTiles: View {
     var details: FollowDetails
@@ -65,7 +65,7 @@ struct DetailTiles: View {
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
                 : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
             layout {
-                tile(icon: "ticket", title: "Booking Code", value: details.bookingCode, field: .bookingCode)
+                tile(icon: "ticket", title: "Booking code", value: details.bookingCode, field: .bookingCode)
                 tile(icon: "carseat.right", title: "Seat", value: DetailFacts.seatLine(details), field: .seat)
             }
             if let hint {
@@ -101,9 +101,9 @@ struct DetailTiles: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .scaledPadding(.horizontal, 16)
             .scaledPadding(.vertical, 15)
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.card.opacity(0.5)))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.separator, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            // A flat card (R6): white, 14 pt corners, no stroke.
+            .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .detailEditor(field, editing: editing, store: store)

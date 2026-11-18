@@ -103,13 +103,14 @@ public struct AirportScreen: View {
     }
 
     public var body: some View {
-        AirportView(store: store, lookup: lookup, favorites: favorites, pastFlights: pastFlights)
+        // The bell and the close X sit in the airport's Detail header (R5).
+        AirportView(store: store, lookup: lookup, favorites: favorites, pastFlights: pastFlights, onClose: onClose,
+                    headerActions: AnyView(
+                        FavoriteAirportToggle(service: favoriteAlerts, icao: store.airport?.id,
+                                              country: store.airport?.country)
+                            // The toggle keeps its own 16 pt top inset for an overlay; the header centres it.
+                            .scaledPadding(.top, -16)))
             .environment(\.flightBrief, brief)
-            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
-            .overlay(alignment: .topTrailing) {
-                FavoriteAirportToggle(service: favoriteAlerts, icao: store.airport?.id, country: store.airport?.country)
-                    .scaledPadding(.trailing, 68)
-            }
             .task { await store.load() }
     }
 }
@@ -284,16 +285,20 @@ public extension View {
     }
 }
 
-/// The circular glass X at the top right of a card or a modal sheet.
+/// The one close control of the app (R5): a 44 pt Liquid Glass circle with the `xmark` symbol.
+/// Penpot: Button/Close
 public struct CloseButton: View {
     var action: () -> Void
+    var inset: Bool
 
-    public init(action: @escaping () -> Void) { self.action = action }
+    /// - Parameter inset: keeps the 16 pt top and trailing margin for a `.overlay(alignment: .topTrailing)`
+    ///   placement (the default, as before); false inside a laid out header such as `SheetHeader`.
+    public init(inset: Bool = true, action: @escaping () -> Void) { self.action = action; self.inset = inset }
 
     public var body: some View {
-        RoundButton(systemImage: "xmark", label: "Close", action: action)
-            .scaledPadding(.top, 16)
-            .scaledPadding(.trailing, 16)
+        RoundButton(systemImage: "xmark", label: "Close", side: 44, action: action)
+            .scaledPadding(.top, inset ? 16 : 0)
+            .scaledPadding(.trailing, inset ? 16 : 0)
     }
 }
 

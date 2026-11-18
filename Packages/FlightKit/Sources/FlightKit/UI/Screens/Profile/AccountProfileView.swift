@@ -3,15 +3,18 @@ import SwiftUI
 import LocalAuthentication
 #endif
 
-/// Settings > account row: the Profil, the way OnePass draws its own (2026-11-14). The avatar, the name and
-/// how the account signs in, then two cards. Compte: name and photo, email, account ID (copied on a tap) and
-/// how fresh the followed flights are. Sécurité: the sign-in method, the Travel Documents lock and sync,
-/// the privacy policy, signing out and deleting the account. Only what the app knows is shown; a row
-/// without its data is left out. Nothing is changed on the page itself: each row opens what changes it.
+/// Settings > account row: the Profil (refined 2026-11-17, R5 and R6). The modal header, the avatar, the name
+/// and how the account signs in, then flat cards under small caps labels. Account: name and photo, email,
+/// account ID (copied on a tap) and how fresh the followed flights are. Security: the sign-in method and the
+/// Travel Documents lock and sync. Then the privacy policy and signing out, and deleting the account on its
+/// own card. Only what the app knows is shown; a row without its data is left out. Nothing is changed on the
+/// page itself (each row opens what changes it), so the header has no Done.
 struct AccountProfileView: View {
     var session: UserSession
     var profile: ProfileStore?
     var flights: MyFlightsStore?
+    /// The X of the modal header; nil leaves the header out.
+    var onClose: (() -> Void)?
     var onDocuments: (() -> Void)?
     var onSignOut: () -> Void
     var onDeleteAccount: (() -> Void)?
@@ -24,6 +27,9 @@ struct AccountProfileView: View {
     @State private var editing = false
     /// The ID row says "copied" for a moment after a tap.
     @State private var idCopied = false
+
+    /// The line under Delete Account.
+    static let deleteNote = "Removes your account and its flights from every device."
 
     private var name: String {
         guard let profile, profile.owner != nil else { return "" }
@@ -38,13 +44,21 @@ struct AccountProfileView: View {
     }
 
     var body: some View {
-        ScreenScroll(scrolls: scrolls) {
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                accountCard.scaledPadding(.top, 24)
-                securityCard.scaledPadding(.top, 20)
+        VStack(spacing: 0) {
+            if let onClose {
+                SheetHeader(.modal(title: "Profile", leading: .close(onClose)))
+                    .scaledPadding(.top, 8)
             }
-            .scaledPadding(.bottom, 32)
+            ScreenScroll(scrolls: scrolls) {
+                VStack(alignment: .leading, spacing: 0) {
+                    header
+                    accountCard.scaledPadding(.top, 24)
+                    securityCard
+                    linksCard.scaledPadding(.top, 20)
+                    deleteCard
+                }
+                .scaledPadding(.bottom, 32)
+            }
         }
         .background(Theme.background)
         .sheet(isPresented: $editing) {
@@ -64,54 +78,60 @@ struct AccountProfileView: View {
         VStack(spacing: 8) {
             UserAvatar(photo: profile?.owner != nil ? profile?.photo : nil, name: name.isEmpty ? nil : name,
                        id: profile?.owner ?? session.userId, size: Theme.metric(72, scale))
-                .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
             Text(verbatim: name.isEmpty ? (email ?? UIText.localized("Signed in")) : name)
-                .scaledFont(22, weight: .bold, relativeTo: .title2)
+                .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .accessibilityAddTraits(.isHeader)
             if let method {
+                // The chip: the accent at 14 % behind accent words.
                 Text(verbatim: method)
                     .scaledFont(12, weight: .semibold)
                     .foregroundStyle(Theme.accent)
-                    .scaledPadding(.horizontal, 8)
-                    .scaledPadding(.vertical, 3)
-                    .background(Theme.accent.opacity(0.15), in: .capsule)
+                    .scaledPadding(.horizontal, 10)
+                    .frame(minHeight: Theme.metric(26, scale))
+                    .background(Theme.accent.opacity(0.14), in: .capsule)
                     .accessibilityIdentifier("profile.methodBadge")
             }
         }
         .frame(maxWidth: .infinity)
-        .scaledPadding(.top, 28)
-        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.top, 8)
+        .scaledPadding(.horizontal, Theme.gutter)
     }
 
-    // MARK: - Compte
+    // MARK: - Account
 
     private var accountCard: some View {
-        ProfileCard(title: "Account", symbol: "person.text.rectangle.fill", color: SettingsStyle.blue) {
+        let showsEmail = !(email ?? "").isEmpty
+        let short = ProfileFacts.shortID(session.userId)
+        let showsSync = flights != nil
+        return ProfileSection(title: "Account", id: "profile.account") {
             if let profile, profile.owner != nil {
-                ProfileNavRow(label: "Name and Photo",
-                              value: name.isEmpty ? UIText.localized("Add your name and photo") : name,
-                              id: "profile.account.name") { editing = true }
+                ProfileRow(title: "Name and Photo",
+                           value: name.isEmpty ? UIText.localized("Add your name and photo") : name,
+                           last: !showsEmail && short == nil && !showsSync,
+                           id: "profile.account.name") { editing = true }
                     .accessibilityHint(UIText.localized("Edit your name and photo"))
             }
-            ProfileTextRow(label: "Email", value: email, id: "profile.account.email")
-            if let short = ProfileFacts.shortID(session.userId) {
-                ProfileNavRow(label: "Account ID", value: idCopied ? UIText.localized("ID Copied") : short,
-                              accessory: idCopied ? "checkmark" : "doc.on.doc", monospaced: !idCopied,
-                              id: "profile.account.id") { copyID() }
+            if showsEmail {
+                ProfileRow(title: "Email", value: email, accessory: nil,
+                           last: short == nil && !showsSync, id: "profile.account.email")
+            }
+            if let short {
+                ProfileRow(title: "Account ID", value: idCopied ? UIText.localized("ID Copied") : short,
+                           accessory: idCopied ? "checkmark" : "doc.on.doc", accessoryTint: Theme.accent,
+                           monospaced: !idCopied, last: !showsSync, id: "profile.account.id") { copyID() }
                     .accessibilityHint(UIText.localized("Copy your account ID"))
             }
             if let flights {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    ProfileTextRow(label: "Sync",
-                                   value: ProfileFacts.syncLine(ProfileFacts.SyncState(flights), now: context.date),
-                                   id: "profile.account.sync")
+                    ProfileRow(title: "Sync",
+                               value: ProfileFacts.syncLine(ProfileFacts.SyncState(flights), now: context.date),
+                               accessory: nil, last: true, id: "profile.account.sync")
                 }
             }
         }
-        .accessibilityIdentifier("profile.account")
     }
 
     private func copyID() {
@@ -123,30 +143,59 @@ struct AccountProfileView: View {
         }
     }
 
-    // MARK: - Sécurité
+    // MARK: - Security
 
-    private var securityCard: some View {
-        ProfileCard(title: "Security", symbol: "lock.shield.fill", color: SettingsStyle.green) {
-            ProfileTextRow(label: "Sign-In", value: method, id: "profile.security.signIn")
-            if let documents, let onDocuments {
-                ProfileNavRow(label: "Document Numbers", value: ProfileFacts.documentsLock(biometry: Self.biometry,
-                                                                                         onMac: Self.onMac),
-                              id: "profile.security.documents", action: onDocuments)
-                    .accessibilityHint(UIText.localized("Opens Travel Documents"))
-                ProfileNavRow(label: "Document Sync", value: ProfileFacts.documentsSync(documents.syncsWithICloud),
-                              id: "profile.security.documentsSync", action: onDocuments)
-                    .accessibilityHint(UIText.localized("Opens Travel Documents"))
+    /// The sign-in method and the Travel Documents lock and sync; nothing when the app knows none of them.
+    @ViewBuilder private var securityCard: some View {
+        let showsMethod = !(method ?? "").isEmpty
+        let showsDocuments = documents != nil && onDocuments != nil
+        if showsMethod || showsDocuments {
+            ProfileSection(title: "Security", id: "profile.security") {
+                if showsMethod {
+                    ProfileRow(title: "Sign-In", value: method, accessory: nil, last: !showsDocuments,
+                               id: "profile.security.signIn")
+                }
+                if let documents, let onDocuments {
+                    ProfileRow(title: "Document Numbers",
+                               value: ProfileFacts.documentsLock(biometry: Self.biometry, onMac: Self.onMac),
+                               id: "profile.security.documents", action: onDocuments)
+                        .accessibilityHint(UIText.localized("Opens Travel Documents"))
+                    ProfileRow(title: "Document Sync", value: ProfileFacts.documentsSync(documents.syncsWithICloud),
+                               last: true, id: "profile.security.documentsSync", action: onDocuments)
+                        .accessibilityHint(UIText.localized("Opens Travel Documents"))
+                }
             }
-            ProfileNavRow(label: "Privacy Policy", value: nil, accessory: "arrow.up.right",
-                          id: "profile.security.privacy") { openURL(SettingsView.privacyURL) }
-            ProfileNavRow(label: "Sign Out", value: nil, accessory: nil, id: "profile.security.signOut",
-                          action: onSignOut)
-            if let onDeleteAccount {
-                ProfileNavRow(label: "Delete Account", value: nil, accessory: nil, destructive: true,
-                              busy: deleting, id: "profile.security.delete", action: deleting ? nil : onDeleteAccount)
-            }
+            .scaledPadding(.top, 20)
         }
-        .accessibilityIdentifier("profile.security")
+    }
+
+    // MARK: - Links and deletion
+
+    private var linksCard: some View {
+        ProfileSection(title: nil, id: "profile.links") {
+            ProfileRow(title: "Privacy Policy", value: nil, accessory: "arrow.up.right",
+                       id: "profile.security.privacy") { openURL(SettingsView.privacyURL) }
+            ProfileRow(title: "Sign Out", value: nil, accessory: nil, tone: .action, last: true,
+                       id: "profile.security.signOut", action: onSignOut)
+        }
+    }
+
+    @ViewBuilder private var deleteCard: some View {
+        if let onDeleteAccount {
+            VStack(alignment: .leading, spacing: 8) {
+                ProfileSection(title: nil, id: "profile.delete") {
+                    ProfileRow(title: "Delete Account", value: nil, accessory: nil, tone: .destructive,
+                               busy: deleting, last: true, id: "profile.security.delete",
+                               action: deleting ? nil : onDeleteAccount)
+                }
+                Text(ui: Self.deleteNote)
+                    .themeFont(.sectionSubtitle)
+                    .foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .scaledPadding(.horizontal, Theme.gutter + 16)
+            }
+            .scaledPadding(.top, 20)
+        }
     }
 
     private static var onMac: Bool {
@@ -176,115 +225,106 @@ struct AccountProfileView: View {
 
 // MARK: - Parts
 
-/// A Profil card, as OnePass draws it: a bar of the card's colour on top, the tile and the title, then
-/// the rows.
-private struct ProfileCard<Content: View>: View {
-    var title: String
-    var symbol: String
-    var color: Color
+/// A Profil section (R6): the small caps label outside, then one flat card of rows, no stroke, no coloured top.
+private struct ProfileSection<Content: View>: View {
+    var title: String?
+    var id: String
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Rectangle().fill(color).frame(height: 4).accessibilityHidden(true)
-            HStack(spacing: 14) {
-                SettingsTile(symbol: symbol, color: color)
-                Text(ui: title)
-                    .scaledFont(17, weight: .semibold, relativeTo: .headline)
-                    .foregroundStyle(Theme.primary)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: 6) {
+            if let title { SectionLabel(title) }
+            RefinedCard(padding: 0) {
+                VStack(spacing: 0) { content }
             }
-            .scaledPadding(.horizontal, 16)
-            .frame(minHeight: 52)
-            Rectangle().fill(Theme.separator).frame(height: 0.5)
-                .scaledPadding(.leading, SettingsStyle.textInset)
-            content
-            Spacer().frame(height: 14)
-        }
-        .background(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous).fill(Theme.card))
-        .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
-        .scaledPadding(.horizontal, 16)
-        // A container: the card's identifier never replaces its rows' own.
-        .accessibilityElement(children: .contain)
-    }
-}
-
-/// A label over its value; nothing when the value is empty.
-private struct ProfileTextRow: View {
-    var label: String
-    var value: String?
-    var id: String
-
-    var body: some View {
-        if let value, !value.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ui: label).scaledFont(13).foregroundStyle(Theme.secondary)
-                Text(verbatim: value)
-                    .scaledFont(17)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(2)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .scaledPadding(.horizontal, 16)
-            .scaledPadding(.top, 10)
-            .accessibilityElement(children: .combine)
+            .scaledPadding(.horizontal, Theme.gutter)
+            // A container: the card's identifier never replaces its rows' own.
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(id)
-            .privacySensitive()
         }
     }
 }
 
-/// A row that opens something: the label (and its value under it), a chevron or `accessory` at the end.
-/// Without a value the label reads as the action ("Sign Out"), in red when `destructive`.
-private struct ProfileNavRow: View {
-    var label: String
+/// One row of a Profil card: the title in the body size and its value under it in grey (a row without a value
+/// reads as its action, in the accent or red), then a chevron or `accessory`, and a separator unless `last`.
+/// With an action the row is a button; without one its value stays selectable.
+private struct ProfileRow: View {
+    enum Tone { case plain, action, destructive }
+
+    var title: String
     var value: String?
     var accessory: String? = "chevron.right"
+    var accessoryTint: Color = Theme.secondary.opacity(0.7)
     var monospaced = false
-    var destructive = false
+    var tone: Tone = .plain
     var busy = false
+    var last = false
     var id: String
     var action: (() -> Void)?
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        Button { action?() } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let value {
-                        Text(ui: label).scaledFont(13).foregroundStyle(Theme.secondary)
-                        Text(verbatim: value)
-                            .scaledFont(17)
-                            .monospaced(monospaced)
-                            .foregroundStyle(Theme.primary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                    } else {
-                        Text(ui: label).scaledFont(17).foregroundStyle(destructive ? Theme.veryLate : Theme.accent)
-                    }
-                }
-                Spacer(minLength: 8)
-                if busy {
-                    ProgressView().controlSize(.small)
-                } else if let accessory {
-                    Image(systemName: accessory)
-                        .scaledFont(14, weight: .semibold)
-                        .foregroundStyle(Theme.secondary.opacity(0.7))
-                        .accessibilityHidden(true)
+        VStack(spacing: 0) {
+            if let action {
+                Button(action: action) { row.contentShape(Rectangle()) }
+                    .buttonStyle(SettingsRowStyle())
+                    .disabled(busy)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityIdentifier(id)
+            } else if tone != .plain || busy {
+                row
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier(id)
+            } else {
+                row
+                    .textSelection(.enabled)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier(id)
+            }
+            if !last {
+                Rectangle().fill(Theme.separator).frame(height: 0.5).scaledPadding(.leading, 16)
+            }
+        }
+        .privacySensitive()
+    }
+
+    private var titleColor: Color {
+        switch tone {
+        case .plain: Theme.primary
+        case .action: Theme.accent
+        case .destructive: Theme.veryLate
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ui: title).themeFont(.body).foregroundStyle(titleColor)
+                if let value, !value.isEmpty {
+                    Text(verbatim: value)
+                        .themeFont(.sectionSubtitle)
+                        .monospaced(monospaced)
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .scaledPadding(.horizontal, 16)
-            .scaledPadding(.top, 10)
-            .contentShape(Rectangle())
+            Spacer(minLength: 8)
+            if busy {
+                ProgressView().controlSize(.small)
+            } else if let accessory {
+                Image(systemName: accessory)
+                    .scaledFont(accessory == "chevron.right" || accessory == "arrow.up.right" ? 13 : 17,
+                                weight: accessory == "chevron.right" || accessory == "arrow.up.right" ? .semibold : .medium)
+                    .foregroundStyle(accessoryTint)
+                    .frame(minWidth: 22)
+                    .accessibilityHidden(true)
+            }
         }
-        .buttonStyle(SettingsRowStyle())
-        .disabled(action == nil)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier(id)
-        .privacySensitive()
+        .padding(.vertical, value == nil ? 0 : 6)
+        .frame(maxWidth: .infinity, minHeight: Theme.metric(value == nil ? 50 : 60, scale), alignment: .leading)
+        .scaledPadding(.horizontal, 16)
     }
 }
 
@@ -294,7 +334,7 @@ private struct ProfileNavRow: View {
     Group {
         if let profile {
             AccountProfileView(session: UserSession(userId: FakeProfileService.userId, email: nil, usesApple: true),
-                               profile: profile, onDocuments: {}, onSignOut: {}, onDeleteAccount: {})
+                               profile: profile, onClose: {}, onDocuments: {}, onSignOut: {}, onDeleteAccount: {})
         } else {
             ProgressView()
         }

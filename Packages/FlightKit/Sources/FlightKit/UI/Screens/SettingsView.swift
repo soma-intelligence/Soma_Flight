@@ -123,12 +123,12 @@ public struct SettingsView: View {
         // On the phone Notifications, Calendar and Acknowledgements slide up over the list as cards inside
         // the Settings sheet, as the home's screens do, rather than stacking a second sheet over it. Their
         // X sits where the sheet's own does and drops the card back down.
+        // The list and the Profil and Travel Documents pages draw their own modal header (R5), close on the
+        // left; the other pages keep the round X at the top right until their own lot moves them.
         CardStack(path: openPages, onPop: closePage) {
-            list.overlay(alignment: .topTrailing) {
-                if let onClose { CloseButton(action: onClose) }
-            }
+            list
         } card: { page in
-            PushedPage(onClose: closePage) { pageView(page) }
+            PushedPage(onClose: closePage, drawsClose: !Self.pagesWithHeader.contains(page)) { pageView(page) }
         }
         #if DEBUG
         // Screenshot runs: `-settingsPage documents` opens Travel Documents over the list, `profile` the Profil.
@@ -147,17 +147,11 @@ public struct SettingsView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if onClose != nil {
-                // The sheet's bar: the title centred on the line of the round X, as OnePass sets Settings.
-                Text("Settings")
-                    .scaledFont(17, weight: .semibold, relativeTo: .headline)
-                    .foregroundStyle(Theme.primary)
-                    .accessibilityAddTraits(.isHeader)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 44)
-                    .scaledPadding(.top, 16)
-                    .scaledPadding(.horizontal, 64)
-                    .scaledPadding(.bottom, 6)
+            if let onClose {
+                // The modal header (R5): the title centred, the glass X on the left, no Done (nothing to save).
+                SheetHeader(.modal(title: "Settings", leading: .close(onClose)))
+                    .scaledPadding(.top, 8)
+                    .scaledPadding(.bottom, 8)
             } else {
                 ScreenTitle("Settings")
                     .scaledPadding(.horizontal, Theme.gutter)
@@ -172,6 +166,9 @@ public struct SettingsView: View {
     #if os(iOS)
     /// A page of Settings opened over the list.
     enum Page: Hashable { case profile, units, notifications, calendar, documents, acknowledgements }
+
+    /// The pages that draw their own modal header, so their card adds no X of its own.
+    static let pagesWithHeader: Set<Page> = [.profile, .documents]
 
     /// The pages on show, as a card stack's path: one, or Travel Documents over the Profil.
     var openPages: [Page] {
@@ -194,20 +191,22 @@ public struct SettingsView: View {
 
     @ViewBuilder private func pageView(_ page: Page) -> some View {
         switch page {
-        case .profile: profilePage(onDocuments: documents == nil ? nil : { showingDocuments = true })
+        case .profile: profilePage(onDocuments: documents == nil ? nil : { showingDocuments = true }, onClose: closePage)
         case .units: UnitsSettingsView(units: $units)
         case .notifications: if let notifications { NotificationSettingsView(store: notifications) }
         case .calendar: if let calendar { CalendarSettingsView(sync: calendar) }
-        case .documents: if let documents { TravelDocumentsView(store: documents) }
+        case .documents: if let documents { TravelDocumentsView(store: documents, onClose: closePage) }
         case .acknowledgements: AcknowledgementsView()
         }
     }
     #endif
 
     /// The Profil of the account signed in; nothing once it signs out.
-    @ViewBuilder private func profilePage(onDocuments: (() -> Void)?, onDone: (() -> Void)? = nil) -> some View {
+    /// - Parameter onClose: the X of the Profil's modal header.
+    @ViewBuilder private func profilePage(onDocuments: (() -> Void)?, onDone: (() -> Void)? = nil,
+                                          onClose: (() -> Void)? = nil) -> some View {
         if let user = session.session {
-            AccountProfileView(session: user, profile: profile, flights: flights, onDocuments: onDocuments,
+            AccountProfileView(session: user, profile: profile, flights: flights, onClose: onClose, onDocuments: onDocuments,
                                onSignOut: { confirm(.signOut, closing: onDone) },
                                onDeleteAccount: onDeleteAccount == nil ? nil : { confirm(.deleteAccount, closing: onDone) },
                                deleting: deleting)
@@ -330,9 +329,9 @@ public struct SettingsView: View {
         // The phone opens them as cards over the list instead (`body`).
         .sheet(isPresented: $showingProfile) {
             NavigationStack {
+                // The Profil's own modal header closes it (R5), in place of a toolbar Done.
                 profilePage(onDocuments: documents == nil ? nil : { profileDocuments = true },
-                            onDone: { showingProfile = false })
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingProfile = false } } }
+                            onDone: { showingProfile = false }, onClose: { showingProfile = false })
                     .navigationDestination(isPresented: $profileDocuments) {
                         if let documents { TravelDocumentsView(store: documents) }
                     }
@@ -443,37 +442,56 @@ struct SettingsHero: View {
     var body: some View {
         let editable = session != nil && profile?.owner != nil
         let name = editable ? (profile?.displayName ?? "") : ""
-        let action: (() -> Void)? = session == nil ? onSignIn : onProfile
+        let shape = RoundedRectangle(cornerRadius: Theme.metric(Theme.cardRadius, scale), style: .continuous)
         Group {
-            if let action {
-                Button(action: action) { card(name: name, opens: true) }
+            if session == nil {
+                // Signed out (R6 board): the empty avatar and the line, then the one strong button.
+                VStack(spacing: 0) {
+                    card(name: name, opens: false)
+                    if let onSignIn {
+                        Button(action: onSignIn) {
+                            Text("Sign in")
+                                .scaledFont(17, weight: .semibold)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: Theme.metric(50, scale))
+                                .background(Capsule().fill(Theme.accent))
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(UIText.localized("Sign in"))
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.bottom, 16)
+                    }
+                }
+            } else if let onProfile {
+                Button(action: onProfile) { card(name: name, opens: true) }
                     .buttonStyle(SettingsRowStyle())
-                    .accessibilityHint(UIText.localized(session == nil ? "Sign in" : "Shows your account and security"))
+                    .accessibilityHint(UIText.localized("Shows your account and security"))
             } else {
                 card(name: name, opens: false)
             }
         }
-        .background(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous).fill(Theme.card))
-        .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
-        .scaledPadding(.horizontal, 16)
+        .background(shape.fill(Theme.card))
+        .clipShape(shape)
+        .scaledPadding(.horizontal, Theme.gutter)
         .scaledPadding(.top, 4)
         .accessibilityIdentifier("account.current")
     }
 
     private func card(name: String, opens: Bool) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             UserAvatar(photo: session != nil && profile?.owner != nil ? profile?.photo : nil,
                        name: name.isEmpty ? nil : name, id: profile?.owner ?? session?.userId,
-                       size: Theme.metric(56, scale))
-                .overlay(Circle().strokeBorder(Theme.primary.opacity(0.06), lineWidth: 1))
+                       size: Theme.metric(48, scale))
             VStack(alignment: .leading, spacing: 2) {
                 Text(ui: title(name))
-                    .scaledFont(20, weight: .semibold, relativeTo: .title3)
+                    .themeFont(.sectionTitle)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Text(ui: detail)
-                    .scaledFont(15)
+                    .themeFont(.label)
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -482,8 +500,7 @@ struct SettingsHero: View {
             if opens { RowChevron() }
         }
         .multilineTextAlignment(.leading)
-        .scaledPadding(.horizontal, 16)
-        .scaledPadding(.vertical, 12)
+        .scaledPadding(.all, 16)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -529,50 +546,47 @@ struct SettingsTile: View {
     }
 }
 
-/// A titled group of rows on a rounded card, inset from the screen's edges, with an optional grey note under it
-/// (the inset grouped look of the system's own settings).
+/// A group of rows on one flat card (R6): the small caps label outside the card, the card at the gutter with
+/// the 14 pt corner and no stroke, and an optional grey note under it.
 struct SettingsSection<Content: View>: View {
     var title: String?
     var footer: String?
     @ViewBuilder var content: Content
+    @Environment(\.metricsScale) private var scale
 
     init(_ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title; self.footer = footer; self.content = content()
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.metric(SettingsStyle.radius, scale), style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             if let title {
-                Text(verbatim: UIText.localized(title).uppercased())
-                    .scaledFont(13)
-                    .tracking(0.2)
-                    .foregroundStyle(Theme.secondary)
-                    .scaledPadding(.horizontal, 32)
-                    .scaledPadding(.bottom, 7)
-                    .accessibilityAddTraits(.isHeader)
+                SectionLabel(title)
+                    .scaledPadding(.bottom, 6)
             }
             VStack(spacing: 0) { content }
-                .background(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous).fill(Theme.card))
-                .clipShape(RoundedRectangle(cornerRadius: SettingsStyle.radius, style: .continuous))
-                .scaledPadding(.horizontal, 16)
+                .background(shape.fill(Theme.card))
+                .clipShape(shape)
+                .scaledPadding(.horizontal, Theme.gutter)
             if let footer {
                 Text(ui: footer)
-                    .scaledFont(13)
+                    .themeFont(.sectionSubtitle)
                     .foregroundStyle(Theme.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .scaledPadding(.horizontal, 32)
-                    .scaledPadding(.top, 7)
+                    .scaledPadding(.horizontal, Theme.gutter + 16)
+                    .scaledPadding(.top, 8)
             }
         }
-        .scaledPadding(.top, 28)
+        .scaledPadding(.top, 24)
     }
 }
 
 /// Settings' shared measures and its tile palette, after OnePass's Settings: each row wears a tile of its
 /// own hue, graphite for the account and the plain links, red for deleting.
 enum SettingsStyle {
-    /// The inset grouped card's corner, as the system's own settings cards turn.
-    static let radius: CGFloat = 26
+    /// The card's corner: the one card radius of the app (R6).
+    static let radius: CGFloat = Theme.cardRadius
     static let iconSide: CGFloat = 29
     /// The tile's corner: 27 percent of its side.
     static let iconRadius: CGFloat = iconSide * 0.27
@@ -643,13 +657,16 @@ struct SettingsRow<Accessory: View>: View {
     /// The square's colour: blue for the app's features, graphite for account and support, red for deleting.
     enum Tone { case feature, neutral, destructive }
 
-    var icon: String
+    /// The tile's symbol; nil draws the row without a tile, its text at the card's edge.
+    var icon: String?
     var title: String
     var subtitle: String?
     var tone: Tone = .feature
     /// The tile's own hue; nil takes the tone's.
     var tint: Color?
     var last = false
+    /// The title reads as the row's action ("Add Loyalty Number"), in the accent colour.
+    var actionTitle = false
     var action: (() -> Void)?
     @ViewBuilder var accessory: Accessory
     @Environment(\.metricsScale) private var scale
@@ -663,9 +680,15 @@ struct SettingsRow<Accessory: View>: View {
             }
             if !last {
                 Rectangle().fill(Theme.separator).frame(height: 0.5)
-                    .padding(.leading, Theme.metric(SettingsStyle.textInset, scale))
+                    .padding(.leading, Theme.metric(icon == nil ? 16 : SettingsStyle.textInset, scale))
             }
         }
+    }
+
+    /// Red for deleting, the accent for an action row (`actionTitle`), else the primary ink.
+    private var titleColor: Color {
+        if tone == .destructive { return Theme.veryLate }
+        return actionTitle ? Theme.accent : Theme.primary
     }
 
     private var fill: Color {
@@ -679,9 +702,9 @@ struct SettingsRow<Accessory: View>: View {
 
     private var row: some View {
         HStack(spacing: 14) {
-            SettingsTile(symbol: icon, color: fill)
+            if let icon { SettingsTile(symbol: icon, color: fill) }
             VStack(alignment: .leading, spacing: 2) {
-                Text(ui: title).scaledFont(17).foregroundStyle(tone == .destructive ? Theme.veryLate : Theme.primary)
+                Text(ui: title).themeFont(.body).foregroundStyle(titleColor)
                 if let subtitle {
                     Text(ui: subtitle).scaledFont(13).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
                 }
@@ -690,8 +713,9 @@ struct SettingsRow<Accessory: View>: View {
             accessory
         }
         .scaledPadding(.horizontal, 16)
-        .frame(minHeight: subtitle == nil ? 52 : 60)
-        .padding(.vertical, subtitle == nil ? 0 : 8)
+        // The text's own breathing room sits inside the 50 or 60 pt row (the board's row heights).
+        .padding(.vertical, subtitle == nil ? 0 : 6)
+        .frame(minHeight: Theme.metric(subtitle == nil ? 50 : 60, scale))
     }
 }
 
@@ -759,12 +783,14 @@ struct SettingsPreview: View {
 /// the top right, where the sheet's own sits, which drops the card back to the list.
 struct PushedPage<Content: View>: View {
     var onClose: () -> Void
+    /// False when the page draws its own modal header with the X (R5).
+    var drawsClose = true
     @ViewBuilder var content: Content
 
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
+            .overlay(alignment: .topTrailing) { if drawsClose { CloseButton(action: onClose) } }
             .background(Theme.background)
     }
 }

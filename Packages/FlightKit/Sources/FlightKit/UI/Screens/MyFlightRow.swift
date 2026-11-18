@@ -38,9 +38,10 @@ extension DetailFacts {
 // MARK: - Shared chrome
 
 /// The layout both My Flights rows share, so they cannot drift apart: the countdown column beside the
-/// airline logo, flight number and date, the route, and the two codes, closed by a hairline. At
-/// accessibility sizes the countdown leads the text as one line. Only the countdown and the data differ.
-struct FlightRowChrome<Countdown: View, Ends: View>: View {
+/// airline logo, flight number and date, the route, the two codes, and an optional footer (the refined
+/// status line and progress bar, R1), closed by a hairline. At accessibility sizes the countdown leads the
+/// text as one line. Only the countdown and the data differ.
+struct FlightRowChrome<Countdown: View, Ends: View, Footer: View>: View {
     var airline: Airline?
     var code: String
     var ident: String
@@ -51,12 +52,22 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
     var line: String
     var lineColor: Color
     var accessibilityText: String
-    @ViewBuilder var countdown: Countdown
-    @ViewBuilder var ends: Ends
+    var countdown: Countdown
+    var ends: Ends
+    /// Under the times line: the progress bar and the status line of a followed flight.
+    var footer: Footer
     @Environment(\.dynamicTypeSize) private var typeSize
     @ScaledMetric(relativeTo: .largeTitle) private var column: CGFloat = 66
     /// The airline's mark beside the flight number.
     @ScaledMetric(relativeTo: .subheadline) private var mark: CGFloat = 24
+
+    init(airline: Airline?, code: String, ident: String, day: String?, from: String, to: String, line: String,
+         lineColor: Color, accessibilityText: String, @ViewBuilder countdown: () -> Countdown,
+         @ViewBuilder ends: () -> Ends, @ViewBuilder footer: () -> Footer) {
+        self.airline = airline; self.code = code; self.ident = ident; self.day = day; self.from = from; self.to = to
+        self.line = line; self.lineColor = lineColor; self.accessibilityText = accessibilityText
+        self.countdown = countdown(); self.ends = ends(); self.footer = footer()
+    }
 
     var body: some View {
         Group {
@@ -107,6 +118,7 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
                 VStack(alignment: .leading, spacing: 4) { ends }
             }
             .scaledPadding(.top, 2)
+            footer
         }
     }
 
@@ -130,15 +142,41 @@ struct FlightRowChrome<Countdown: View, Ends: View>: View {
     }
 }
 
+extension FlightRowChrome where Footer == EmptyView {
+    /// A row with nothing under its times (a planned flight: no status yet).
+    init(airline: Airline?, code: String, ident: String, day: String?, from: String, to: String, line: String,
+         lineColor: Color, accessibilityText: String, @ViewBuilder countdown: () -> Countdown,
+         @ViewBuilder ends: () -> Ends) {
+        self.init(airline: airline, code: code, ident: ident, day: day, from: from, to: to, line: line,
+                  lineColor: lineColor, accessibilityText: accessibilityText, countdown: countdown, ends: ends) {
+            EmptyView()
+        }
+    }
+}
+
 /// One end of a row's route: the arrow disc, the airport code and its local time ("--:--" when unknown),
-/// with the arrival's day marker ("+1") when given.
+/// with the arrival's day marker ("+1") when given. A time that moved from the schedule is drawn in the
+/// status colour with the scheduled time struck through beside it (R1); an estimate the app made itself
+/// (offline) says "est." instead.
 struct FlightRowEnd: View {
     var icon: String
     var code: String
     var time: Date?
     var tz: TimeZone?
     var marker: String?
+    /// The scheduled time, struck through when it differs from `time` by a minute or more.
+    var scheduled: Date? = nil
+    /// The colour of `time`; primary when nil.
+    var tone: Color? = nil
+    /// `time` is the app's own estimate (no connection): "est." follows it and no struck time shows.
+    var estimated = false
     @Environment(\.units) private var units
+
+    /// The scheduled time to strike through: only when the shown time moved from it by a minute or more.
+    static func struck(time: Date?, scheduled: Date?) -> Date? {
+        guard let time, let scheduled, abs(time.timeIntervalSince(scheduled)) >= 60 else { return nil }
+        return scheduled
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 6) {
@@ -152,13 +190,25 @@ struct FlightRowEnd: View {
                 .foregroundStyle(Theme.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text(time.map { Format.clock($0, tz ?? .current, units.clock) } ?? "--:--")
-                    .foregroundStyle(Theme.primary)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(tone ?? Theme.primary)
                 if let marker {
                     Text(ui: marker)
                         .scaledFont(11, weight: .medium)
-                        .foregroundStyle(Theme.primary)
+                        .foregroundStyle(tone ?? Theme.primary)
                         .baselineOffset(8)
                 }
+            }
+            if estimated {
+                Text(ui: "est.")
+                    .scaledFont(13)
+                    .foregroundStyle(Theme.secondary)
+            } else if let was = Self.struck(time: time, scheduled: scheduled) {
+                Text(Format.clock(was, tz ?? .current, units.clock))
+                    .scaledFont(13)
+                    .strikethrough(true, color: Theme.secondary)
+                    .foregroundStyle(Theme.secondary)
+                    .accessibilityLabel(Text(ui: "scheduled \(Format.clock(was, tz ?? .current, units.clock))"))
             }
         }
         .scaledFont(17)
@@ -169,19 +219,42 @@ struct FlightRowEnd: View {
 
 // MARK: - Row
 
-/// A followed flight in My Flights: the countdown column, then the airline logo, flight number and date,
-/// the route by city, and the two codes with their local times (the arrival's "+1" when it lands on a
-/// later local date). A hairline closes it under the text.
+/// A followed flight in My Flights (R1): the countdown column, then the airline logo, flight number and
+/// date, the route by city, the two codes with their local times (the arrival's "+1" when it lands on a
+/// later local date; a moved time in the status colour beside the struck scheduled one), a progress bar
+/// while in the air, and the status line in words and colour ("Departed 16m late · lands 05:28"). A
+/// hairline closes it under the text.
 public struct MyFlightRow: View {
     var flight: Flight
     var origin: Airport?
     var destination: Airport?
     var airline: Airline?
     var now: Date
+    var estimated: Bool
+    @Environment(\.units) private var units
 
-    public init(flight: Flight, origin: Airport?, destination: Airport?, airline: Airline?, now: Date = .now) {
+    /// - Parameter estimated: no connection, so the arrival is the app's own estimate: it reads "est." and
+    ///   the status line says so.
+    public init(flight: Flight, origin: Airport?, destination: Airport?, airline: Airline?, now: Date = .now,
+                estimated: Bool = false) {
         self.flight = flight; self.origin = origin; self.destination = destination
-        self.airline = airline; self.now = now
+        self.airline = airline; self.now = now; self.estimated = estimated
+    }
+
+    /// The row's status: `FlightStatusSummary`, with " est." after an estimated landing time offline.
+    static func status(_ f: Flight, now: Date, origin: Airport?, destination: Airport?, clock: TimeStyle,
+                       estimated: Bool) -> FlightStatusSummary {
+        var s = FlightStatusSummary.make(for: f, now: now, origin: origin, destination: destination, clock: clock)
+        if estimated, s.progress != nil, s.text.contains(" \u{00B7} lands ") { s.text += " est." }
+        return s
+    }
+
+    /// The colour of a shown time: grey once canceled, the status colour when it moved later than scheduled,
+    /// primary otherwise.
+    static func timeTone(_ f: Flight, time: Date?, scheduled: Date?, status: FlightStatusSummary) -> Color? {
+        if f.status == .canceled { return Theme.secondary }
+        guard let time, let scheduled, time.timeIntervalSince(scheduled) >= 60 else { return nil }
+        return status.tone
     }
 
     /// "Fri, Oct 30": the day it leaves as best known (the time shown beside the origin), in the origin's zone.
@@ -201,19 +274,34 @@ public struct MyFlightRow: View {
 
     public var body: some View {
         let count = DetailFacts.countdownColumn(flight, now: now)
+        let status = Self.status(flight, now: now, origin: origin, destination: destination, clock: units.clock,
+                                 estimated: estimated)
+        let out = DetailFacts.bestOut(flight), arr = DetailFacts.bestIn(flight)
         FlightRowChrome(
             airline: airline, code: code, ident: Format.ident(flight.ident), day: Self.day(flight, origin: origin),
             from: origin?.city ?? flight.originCode, to: destination?.city ?? flight.destinationCode,
             line: [count.value, count.unit].filter { !$0.isEmpty }.joined(separator: " "),
             lineColor: count.value.isEmpty ? unitColor : Theme.primary,
-            accessibilityText: accessibilityText(count)
+            accessibilityText: accessibilityText(count, status: status)
         ) {
             countdown(count)
         } ends: {
-            FlightRowEnd(icon: "arrow.up.right", code: flight.originCode, time: DetailFacts.bestOut(flight),
-                         tz: origin?.timeZone, marker: nil)
-            FlightRowEnd(icon: "arrow.down.right", code: flight.destinationCode, time: DetailFacts.bestIn(flight),
-                         tz: destination?.timeZone, marker: Self.marker(flight, origin: origin, destination: destination))
+            FlightRowEnd(icon: "arrow.up.right", code: flight.originCode, time: out, tz: origin?.timeZone,
+                         marker: nil, scheduled: flight.scheduledOut,
+                         tone: Self.timeTone(flight, time: out, scheduled: flight.scheduledOut, status: status))
+            FlightRowEnd(icon: "arrow.down.right", code: flight.destinationCode, time: arr, tz: destination?.timeZone,
+                         marker: Self.marker(flight, origin: origin, destination: destination),
+                         scheduled: flight.scheduledIn,
+                         tone: Self.timeTone(flight, time: arr, scheduled: flight.scheduledIn, status: status),
+                         estimated: estimated && status.progress != nil)
+        } footer: {
+            VStack(alignment: .leading, spacing: 8) {
+                if let progress = status.progress {
+                    FlightProgressBar(progress: progress, tone: status.tone)
+                }
+                StatusLine(status)
+            }
+            .scaledPadding(.top, 6)
         }
     }
 
@@ -247,11 +335,12 @@ public struct MyFlightRow: View {
         flight.operator.map(AirportFacts.airlineCode) ?? TravelFacts.airlineCode(ident: flight.ident)
     }
 
-    private func accessibilityText(_ c: (value: String, unit: String)) -> String {
+    private func accessibilityText(_ c: (value: String, unit: String), status: FlightStatusSummary) -> String {
         var parts = [Format.ident(flight.ident),
                      ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode)]
         if let day = Self.day(flight, origin: origin) { parts.append(day) }
         parts.append(c.value.isEmpty ? c.unit.capitalized : "\(c.value) \(c.unit.lowercased())")
+        parts.append(status.text.replacingOccurrences(of: " \u{00B7} ", with: ", "))
         return parts.joined(separator: ", ")
     }
 }

@@ -29,36 +29,26 @@ enum TravelDocumentsCopy {
 public struct TravelDocumentsView: View {
     var store: TravelDocumentsStore
     var onDone: (() -> Void)?
+    /// The X of the modal header when the page opens over Settings (the phone's card stack).
+    var onClose: (() -> Void)?
 
     @Environment(\.reference) private var reference
+    @Environment(\.metricsScale) private var scale
     @Environment(\.scenePhase) private var phase
     @State private var editing: TravelDocumentEditor.Subject?
     @State private var confirmingDelete = false
     @State private var copied: String?
 
-    public init(store: TravelDocumentsStore, onDone: (() -> Void)? = nil) {
-        self.store = store; self.onDone = onDone
+    /// - Parameters:
+    ///   - onDone: closes the page from its own sheet (the Mac).
+    ///   - onClose: closes the page from Settings' card stack (the phone).
+    public init(store: TravelDocumentsStore, onDone: (() -> Void)? = nil, onClose: (() -> Void)? = nil) {
+        self.store = store; self.onDone = onDone; self.onClose = onClose
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let onDone {
-                HStack {
-                    Spacer()
-                    Button("Done", action: onDone)
-                        .scaledFont(17, weight: .semibold)
-                        .foregroundStyle(Theme.accent)
-                        .buttonStyle(.plain)
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .scaledPadding(.horizontal, Theme.gutter)
-                .scaledPadding(.top, 8)
-            }
-            ScreenTitle("Travel Documents")
-                .scaledPadding(.horizontal, Theme.gutter)
-                .scaledPadding(.top, onDone == nil ? 22 : 0)
-                .scaledPadding(.bottom, 16)
+            header
             ScreenScroll(scrolls: true) { content }
         }
         .background(Theme.background)
@@ -81,10 +71,28 @@ public struct TravelDocumentsView: View {
         }
     }
 
+    /// The modal header (R5): the title centred, the glass X on the left. Each number saves in its own editor,
+    /// so the page has no Done. Pushed in a navigation stack (the Mac Profil), the stack's back button closes it.
+    @ViewBuilder private var header: some View {
+        if let close = onClose ?? onDone {
+            SheetHeader(.modal(title: "Travel Documents", leading: .close(close)))
+                .scaledPadding(.top, 8)
+        } else {
+            Text("Travel Documents")
+                .themeFont(.sectionTitle)
+                .foregroundStyle(Theme.primary)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+                .frame(maxWidth: .infinity, minHeight: Theme.metric(56, scale))
+                .scaledPadding(.top, 8)
+        }
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let failure = store.failure {
-                Text(ui: failure).scaledFont(13).foregroundStyle(Theme.late).scaledPadding(.horizontal, 16).scaledPadding(.top, 8)
+                Text(ui: failure).themeFont(.sectionSubtitle).foregroundStyle(Theme.late)
+                    .scaledPadding(.horizontal, Theme.gutter + 16).scaledPadding(.top, 8)
             }
             group("Loyalty") {
                 ForEach(store.profile.loyalty) { n in
@@ -94,7 +102,7 @@ public struct TravelDocumentsView: View {
                         copyButton(n.number, label: "Copy \(n.number)") { Clipboard.copy(n.number, sensitive: false) }
                     }
                 }
-                SettingsRow(icon: "plus.circle.fill", title: "Add Loyalty Number", last: true,
+                SettingsRow(icon: "plus.circle.fill", title: "Add Loyalty Number", last: true, actionTitle: true,
                             action: { editing = .loyalty(nil) }) { EmptyView() }
             }
             group("Documents") {
@@ -116,13 +124,18 @@ public struct TravelDocumentsView: View {
                 Button {
                     if store.isRevealed { store.hide() } else { Task { await store.reveal() } }
                 } label: {
+                    // The secondary capsule button: the accent on the pill colour, 50 pt tall.
                     Label(store.isRevealed ? "Hide Numbers" : "Show Numbers",
                           systemImage: store.isRevealed ? "eye.slash" : "faceid")
                         .scaledFont(17, weight: .semibold)
                         .foregroundStyle(Theme.accent)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .scaledPadding(.horizontal, 24)
+                        .frame(minWidth: Theme.metric(200, scale), minHeight: Theme.metric(50, scale))
+                        .background(Capsule().fill(Theme.pill))
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
                 .scaledPadding(.top, 16)
             }
             group("Sync") {
@@ -143,14 +156,14 @@ public struct TravelDocumentsView: View {
                 }
             }
             Text(ui: TravelDocumentsCopy.footnote)
-                .scaledFont(13)
+                .themeFont(.sectionSubtitle)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.horizontal, Theme.gutter + 16)
                 .scaledPadding(.top, 8)
             if let copied {
-                Text("Copied \(copied)").scaledFont(13).foregroundStyle(Theme.secondary)
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 4)
+                Text("Copied \(copied)").themeFont(.sectionSubtitle).foregroundStyle(Theme.secondary)
+                    .scaledPadding(.horizontal, Theme.gutter + 16).scaledPadding(.top, 4)
                     .accessibilityAddTraits(.updatesFrequently)
             }
         }

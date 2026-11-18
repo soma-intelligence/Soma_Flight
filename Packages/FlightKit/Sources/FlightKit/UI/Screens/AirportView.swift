@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The airport sheet: header, issues card on bad days, departure and arrival performance with
 /// delay trends, weather, security waits (US airports), the day's totals, the most disrupted routes and airlines, traffic
-/// numbers, Runway Regulars, the user's history here, then the departures and arrivals boards, with a bottom
-/// bar (boards, favourite, more, share). The sheet shell supplies the close button.
+/// numbers, Runway Regulars, the user's history here, then the departures and arrivals boards. A glass action
+/// bar (R4: boards, favourite, more, share) sits above the home indicator and the content ends above it. The
+/// header is the Detail header (R5), with the shell's bell and close button.
 public struct AirportView: View {
     var store: AirportStore
     var lookup: (String) -> Airport?
@@ -12,6 +13,8 @@ public struct AirportView: View {
     var rowLimit: Int?
     var favorites: AirportFavorites?
     var pastFlights: [PastFlight]
+    var onClose: (() -> Void)?
+    var headerActions: AnyView?
     @State private var boardRequest: BoardRequest?
     @State private var shareImage: Image?
     @Environment(\.colorScheme) private var scheme
@@ -22,18 +25,23 @@ public struct AirportView: View {
     ///   - now: a fixed clock for previews; nil follows the real time, refreshed each minute.
     ///   - favorites: the favourite airports the bar's star toggles; nil hides the bar.
     ///   - pastFlights: the user's Passport, for "Your History Here".
+    ///   - onClose: closes the sheet from the header's glass X; nil hides it.
+    ///   - headerActions: drawn beside the close button (the airport's alert bell).
     public init(store: AirportStore, lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
-                favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = []) {
+                favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = [], onClose: (() -> Void)? = nil,
+                headerActions: AnyView? = nil) {
         self.init(store: store, lookup: lookup, now: now, scrolls: true, rowLimit: nil, favorites: favorites,
-                  pastFlights: pastFlights)
+                  pastFlights: pastFlights, onClose: onClose, headerActions: headerActions)
     }
 
     /// `scrolls: false` lays everything out in one tall stack (snapshots); `rowLimit` caps board rows.
     init(store: AirportStore, lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool, rowLimit: Int?,
-         favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = []) {
+         favorites: AirportFavorites? = nil, pastFlights: [PastFlight] = [], onClose: (() -> Void)? = nil,
+         headerActions: AnyView? = nil) {
         self.store = store; self.lookup = lookup; self.fixedNow = now
         self.scrolls = scrolls; self.rowLimit = rowLimit
         self.favorites = favorites; self.pastFlights = pastFlights
+        self.onClose = onClose; self.headerActions = headerActions
     }
 
     static let boardAnchor = "airport-board"
@@ -52,15 +60,16 @@ public struct AirportView: View {
     private func page(now: Date) -> some View {
         VStack(spacing: 0) {
             AirportHeader(airport: store.airport, code: store.airport?.id ?? "", now: now,
-                          loading: !store.hasLoaded && store.error == nil)
-                .scaledPadding(.horizontal, Theme.gutter)
-                .scaledPadding(.top, 18)
-                .scaledPadding(.bottom, 12)
-            Rectangle().fill(Theme.separator).frame(height: 1)
+                          loading: !store.hasLoaded && store.error == nil, actions: headerActions, onClose: onClose)
+                .scaledPadding(.top, 10)
+                .scaledPadding(.bottom, 4)
             if scrolls {
                 ScrollViewReader { proxy in
-                    ScrollView { sections(now: now) }
-                        .safeAreaInset(edge: .bottom) { bar(proxy) }
+                    ScrollView {
+                        // The last section ends above the glass bar (R4), never under it.
+                        if showsBar { sections(now: now).refinedActionBarInset() } else { sections(now: now) }
+                    }
+                    .detailActionBar(shown: showsBar) { bar(proxy) }
                 }
             } else {
                 sections(now: now)
@@ -77,15 +86,45 @@ public struct AirportView: View {
                         boardRequest: boardRequest)
     }
 
+    /// The bar shows with the favourites to toggle, once the airport is known.
+    private var showsBar: Bool { favorites != nil && store.airport != nil }
+
+    /// The glass action bar (R4): Departures and Arrivals (with boards), Favorite, More and Share.
     @ViewBuilder private func bar(_ proxy: ScrollViewProxy) -> some View {
         if let favorites, let airport = store.airport {
-            AirportBottomBar(isFavorite: favorites.contains(airport.id),
-                             hasBoards: store.departures != nil || store.arrivals != nil,
-                             shareImage: shareImage, shareTitle: airport.name,
-                             onDepartures: { show(.departures, proxy) }, onArrivals: { show(.arrivals, proxy) },
-                             onFavorite: { withAnimation(.snappy) { favorites.toggle(airport.id) } },
-                             copyCode: airport.iata ?? airport.id)
-                .scaledPadding(.bottom, 4)
+            let boards = store.departures != nil || store.arrivals != nil
+            let favorite = favorites.contains(airport.id)
+            DetailActionBar(count: boards ? 5 : 3) {
+                if boards {
+                    Button { show(.departures, proxy) } label: {
+                        DetailActionLabel(title: "Departures", systemImage: "airplane.departure")
+                    }
+                    Button { show(.arrivals, proxy) } label: {
+                        DetailActionLabel(title: "Arrivals", systemImage: "airplane.arrival")
+                    }
+                }
+                Button { withAnimation(.snappy) { favorites.toggle(airport.id) } } label: {
+                    DetailActionLabel(title: "Favorite", systemImage: favorite ? "star.fill" : "star",
+                                      tint: favorite ? Theme.late : nil)
+                }
+                .accessibilityValue(favorite ? "On" : "Off")
+                Menu {
+                    Button("Copy Code", systemImage: "doc.on.doc") { AirportBottomBar.copy(airport.iata ?? airport.id) }
+                } label: {
+                    DetailActionLabel(title: "More", systemImage: "ellipsis.circle")
+                }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("More")
+                if let shareImage {
+                    ShareLink(item: shareImage, preview: SharePreview(airport.name, image: shareImage)) {
+                        DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                    }
+                } else {
+                    DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                        .opacity(0.4)
+                        .accessibilityAddTraits(.isButton)
+                }
+            }
         }
     }
 
@@ -141,28 +180,33 @@ struct AirportSections: View {
     }
 
     private var tz: TimeZone { store.airport?.timeZone ?? .current }
+
+    /// "22:28": the newest fetch behind the severity card, in the airport's time.
+    private var updatedClock: String? {
+        store.fetchedAt.values.max().map { Format.clock($0, tz, units.clock) }
+    }
     private var code: String { store.airport?.iata ?? store.airport?.id ?? "" }
 
     var body: some View {
         MaybeLazyVStack(lazy: lazy) {
             if let error = store.error {
                 ErrorBanner(error: error, retry: { Task { await store.load() } })
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
+                    .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.top, 16)
             }
             let faa = FAAFacts.airportRows(programs: store.programs, notams: store.notams, code: code, timeZone: tz,
                                            clock: units.clock, now: now, includeWeatherNow: store.stats == nil)
             let severity = FAAFacts.issuesSeverity(stats: store.stats, rows: faa)
             if severity != .normal {
                 IssuesCard(severity: severity, departures: store.stats?.departures, arrivals: store.stats?.arrivals,
-                           weather: store.weather, programs: faa)
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
+                           weather: store.weather, programs: faa, updated: updatedClock)
+                    .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.top, 16)
             } else if store.overview != nil || store.liveStats?.available == true {
                 AirportStatusCard(status: store.status, live: store.liveStats, weather: store.overview?.weather)
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
+                    .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.top, 16)
             }
             if store.stats != nil || store.weather != nil {
                 OperationsReportRow(impact: store.weather.map(WeatherImpact.of)) { showingReport = true }
-                    .scaledPadding(.horizontal, 16).scaledPadding(.top, 16)
+                    .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.top, 12)
             }
             if let stats = store.stats {
                 performance(.departures, stats.departures)

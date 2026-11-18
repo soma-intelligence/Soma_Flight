@@ -26,6 +26,8 @@ struct RootTabView: View {
     /// so MapKit's compass would move with it.
     @Namespace private var mapScope
     @State private var showSettings = false
+    /// The Nearby Flights radar, opened from the map's Live control.
+    @State private var showRadar = false
     /// The screen and its safe areas, which place the sheet's three detents.
     @State private var geometry = SheetGeometry.standard
     @StoredUnits private var units: Units
@@ -142,17 +144,9 @@ struct RootTabView: View {
         .environment(\.fullPageZoom, pageZoom))
     }
 
-    /// The map buttons with the Airports and Radar buttons under them, shared by both panel layouts.
+    /// The map control capsule, shared by both panel layouts (`RegularHomeView`, `DuoSplitHomeView`).
     private var panelMapControls: some View {
         mapButtons(hidden: false)
-            .overlay(alignment: .topTrailing) {
-                AirportsMapButton { home.openAirports() }
-                    .pointerHighlight(Circle())
-                    .padding(.trailing, 12).padding(.top, 8 + 89 + 10)
-            }
-            .overlay(alignment: .topTrailing) {
-                RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10)
-            }
     }
 
     /// The iPhone home (and the iPad in a compact width): the globe under the resizable sheet.
@@ -170,11 +164,6 @@ struct RootTabView: View {
                     .ignoresSafeArea()
             }
             .overlay(alignment: .topTrailing) { mapButtons(hidden: home.shell.detent == .expanded) }
-            // Airports: its own round button under the map controls (kept apart from mapButtons).
-            .overlay(alignment: .topTrailing) {
-                AirportsMapButton { home.openAirports() }.padding(.trailing, 12).padding(.top, 8 + 89 + 10)
-            }
-            .overlay(alignment: .topTrailing) { RadarEntryButton(env: env).padding(.trailing, 12 + 44 + 10).padding(.top, 8 + 89 + 10) }
             .mapScope(mapScope)
             .sheet(isPresented: .constant(true)) { sheet }
     }
@@ -318,7 +307,8 @@ struct RootTabView: View {
         case .flights:
             MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { presentSearch() },
                           lookup: env.lookup, planned: home.followLater.items,
-                          onRemovePlanned: { home.followLater.remove($0) })
+                          onRemovePlanned: { home.followLater.remove($0) },
+                          onImport: { home.showImport = true })
         case .friends:
             FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
         case .passport:
@@ -331,38 +321,23 @@ struct RootTabView: View {
 
     // MARK: Map controls
 
-    /// The 3D switch over the place-name switch in one glass capsule, as Maps groups its controls. MapKit's
-    /// compass shows under it only while the globe is turned. Shown over the map in the medium and
-    /// collapsed detents; expanded, the sheet covers the map and they fade out (`hidden`).
+    /// The map's controls as one vertical glass capsule, top right (R2): the 2D/3D switch, the place-name
+    /// switch (the map style), and one Live control. Live replaces the two round broadcast buttons that sat
+    /// under the capsule: it opens a menu with Nearby Flights (the radar, when this build has it) and
+    /// Airports (the airports list with their live delays); without the radar it opens Airports at once.
+    /// MapKit's compass shows under the capsule only while the globe is turned. Shown over the map in the
+    /// medium and collapsed detents; expanded, the sheet covers the map and they fade out (`hidden`).
     private func mapButtons(hidden: Bool) -> some View {
-        VStack(spacing: 0) {
-            Button { threeD.toggle() } label: {
-                Text(threeD ? "2D" : "3D")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .pointerHighlight(.rect(cornerRadius: 22))
-            .accessibilityLabel(threeD ? "Flat View" : "3D View")
-            Rectangle().fill(.white.opacity(0.18)).frame(width: 24, height: 1)
-            Button { labels.toggle() } label: {
-                Image(systemName: labels ? "map.fill" : "map")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .pointerHighlight(.rect(cornerRadius: 22))
-            .accessibilityLabel(labels ? "Hide Place Names" : "Show Place Names")
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .capsule)
-        // MapKit's compass, only while the globe is turned, under the Airports button.
-        .overlay(alignment: .top) {
+        VStack(alignment: .trailing, spacing: 10) {
+            MapControlCapsule([
+                MapControlItem(threeD ? "Flat View" : "3D View", glyph: threeD ? "2D" : "3D") { threeD.toggle() },
+                MapControlItem(labels ? "Hide Place Names" : "Show Place Names",
+                               systemImage: labels ? "map.fill" : "map") { labels.toggle() },
+                liveControl,
+            ])
+            // MapKit's compass, only while the globe is turned.
             MapCompass(scope: mapScope)
                 .mapControlVisibility(.automatic)
-                .offset(y: 89 + 10 + 44 + 10)
         }
         .padding(.trailing, 12)
         .padding(.top, 8)
@@ -370,6 +345,23 @@ struct RootTabView: View {
         .allowsHitTesting(!hidden)
         .accessibilityHidden(hidden)
         .animation(.smooth(duration: 0.25), value: home.shell.detent)
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showRadar) {
+            RadarView(store: env.makeRadarStore(), onClose: { showRadar = false })
+        }
+        #endif
+    }
+
+    /// The single Live control: Nearby Flights and Airports in a menu, or Airports alone without the radar.
+    private var liveControl: MapControlItem {
+        let symbol = "dot.radiowaves.left.and.right"
+        guard env.nearby.isAvailable else {
+            return MapControlItem("Airports", systemImage: symbol) { home.openAirports() }
+        }
+        return .menu("Live", systemImage: symbol) {
+            Button("Nearby Flights", systemImage: "dot.radiowaves.left.and.right") { showRadar = true }
+            Button("Airports", systemImage: "antenna.radiowaves.left.and.right") { home.openAirports() }
+        }
     }
 }
 

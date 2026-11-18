@@ -20,8 +20,8 @@ public struct FollowedFlights: Sendable, Equatable {
 
 /// Find a flight to follow: one field at the very top, focused on open, for a flight number, a route or
 /// an airport in any words ("Paris New York 12 dec", "AF 84 demain", "air france 84"). Under it, chips
-/// show what the text reads as, each removable. Empty, it offers the frequently used airlines and
-/// airports, the recent searches and Import; while typing, after a short pause on something searchable,
+/// show what the text reads as, each removable. Empty, it offers the recent searches, examples, the
+/// frequently used airlines and airports, and Import; while typing, after a short pause on something searchable,
 /// its results come first, right under the field (live flights to follow now, planned ones weeks ahead
 /// to add for later, each with an Add button and opening its flight on a tap), then the ranked
 /// suggestions on the device (`SearchSuggester`). Return picks the top suggestion. Errors show in a
@@ -88,7 +88,18 @@ public struct SearchView: View {
             // The field is the top of the screen: no title over it, the close button beside it.
             HStack(spacing: 10) {
                 field
-                if let onClose { RoundButton(systemImage: "xmark", label: "Close", action: onClose) }
+                // Cancel, as a modal header's leading word (R5): Search saves nothing.
+                if let onClose {
+                    Button(action: onClose) {
+                        Text(ui: "Cancel")
+                            .scaledFont(17)
+                            .foregroundStyle(Theme.accent)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
+                }
             }
             .scaledPadding(.horizontal, 16)
             .scaledPadding(.top, 14)
@@ -302,53 +313,64 @@ public struct SearchView: View {
         onPlan(u)
     }
 
-    /// The field empty: recent searches first (the likeliest next search), then the frequently used
-    /// airlines and airports, then Import. No day shortcuts: a day is one word in the field.
+    /// The field empty (R8, A10): recent searches first (the likeliest next search), then examples that
+    /// fill the field, then the frequently used airlines and airports, then Import, each group a flat card
+    /// under its small caps label. No day shortcuts: a day is one word in the field.
     private var suggestions: some View {
         let start = SearchStart(frequent: frequent)
-        return VStack(alignment: .leading, spacing: 0) {
-            if !store.recent.isEmpty {
-                CapsHeader("Recent searches")
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 8)
-                    .scaledPadding(.bottom, 2)
-                ForEach(store.recent.prefix(Self.startRecent), id: \.self) { q in
-                    let intent = store.intent(for: q)
-                    OptionRow(icon: Self.recentIcon(intent), title: q, subtitle: Self.recentSubtitle(intent, clock: units.clock)) {
-                        handle(store.pick(.recent(q)))
+        let recent = Array(store.recent.prefix(Self.startRecent))
+        let frequent = Array(start.frequent.prefix(Self.startFrequent))
+        return VStack(alignment: .leading, spacing: 20) {
+            if !recent.isEmpty {
+                SearchStartCard(title: "Recent searches") {
+                    ForEach(Array(recent.enumerated()), id: \.element) { index, q in
+                        let intent = store.intent(for: q)
+                        SearchStartRow(symbol: Self.recentIcon(intent), title: q,
+                                       subtitle: Self.recentSubtitle(intent, clock: units.clock),
+                                       divider: index < recent.count - 1) {
+                            handle(store.pick(.recent(q)))
+                        }
                     }
                 }
             }
-            if !start.frequent.isEmpty {
-                CapsHeader("Frequently used")
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, store.recent.isEmpty ? 8 : 16)
-                    .scaledPadding(.bottom, 2)
-                ForEach(start.frequent.prefix(Self.startFrequent)) { frequentRow($0) }
+            SearchExampleChips { fillExample($0) }
+            if !frequent.isEmpty {
+                SearchStartCard(title: "Frequently used") {
+                    ForEach(Array(frequent.enumerated()), id: \.element.id) { index, item in
+                        frequentRow(item, divider: index < frequent.count - 1)
+                    }
+                }
             }
             if let onImport {
-                CapsHeader("More")
-                    .scaledPadding(.horizontal, 16)
-                    .scaledPadding(.top, 16)
-                    .scaledPadding(.bottom, 2)
-                OptionRow(icon: "square.and.arrow.down", title: "Import flights",
-                          subtitle: "From another app, your calendar, an email or a CSV file", action: onImport)
+                SearchStartCard(title: "More") {
+                    SearchStartRow(symbol: "square.and.arrow.down", prominent: true, title: "Import flights",
+                                   subtitle: "From another app, your calendar, an email or a CSV file",
+                                   divider: false, action: onImport)
+                }
             }
         }
+        .scaledPadding(.top, 8)
+    }
+
+    /// An example fills the field as if typed and keeps the keyboard up.
+    private func fillExample(_ example: String) {
+        store.text = example
+        store.textChanged()
+        if !staticControls { focused = true }
     }
 
     /// An airline fills the field with its code and a space, ready for the number; an airport too, and
     /// then offers its board and its routes.
-    @ViewBuilder private func frequentRow(_ item: FrequentItem) -> some View {
+    @ViewBuilder private func frequentRow(_ item: FrequentItem, divider: Bool) -> some View {
         switch item {
         case .airline(let a, _):
-            FrequentRow(title: a.name, subtitle: Self.subtitle(item)) {
+            SearchStartRow(title: a.name, subtitle: Self.subtitle(item), divider: divider) {
                 AirlineLogo(airline: a, code: a.iata ?? a.id, size: Self.frequentIcon, decorative: true)
             } action: {
                 handle(store.pick(.airline(a)))
             }
         case .airport(let a, _):
-            FrequentRow(title: DetailFacts.shortName(a.name), subtitle: Self.subtitle(item)) {
+            SearchStartRow(title: DetailFacts.shortName(a.name), subtitle: Self.subtitle(item), divider: divider) {
                 CountryFlag(code: a.country, size: Self.frequentIcon, decorative: true)
             } action: {
                 handle(store.pick(.airport(a)))

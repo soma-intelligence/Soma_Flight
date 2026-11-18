@@ -56,6 +56,17 @@ public enum Theme {
     /// Active ticks on wind bars.
     public static let wind = Color(light: 0x2F86E0, dark: 0x5AAEF0)
 
+    // MARK: Refined chrome (Penpot tokens gate.badge, gate.ink, sheet.grabber, glass.control)
+    /// The yellow gate and belt badges, the same in both schemes.
+    public static let gateBadge = Color(light: 0xF4C430, dark: 0xF4C430)
+    /// Lettering on a gate badge, the same in both schemes.
+    public static let gateInk = Color(light: 0x000000, dark: 0x000000)
+    /// The sheet's drag grabber.
+    public static let sheetGrabber = Color(light: 0xB8B8BE, dark: 0x5C5C62)
+    /// The fill a glass control falls back to where Liquid Glass is not drawn (white at 72 % in light,
+    /// #2C2C2E at 70 % in dark).
+    public static let glassControl = Color(light: 0xFFFFFF, lightOpacity: 0.72, dark: 0x2C2C2E, darkOpacity: 0.7)
+
     // MARK: Full Passport (sampled from the v1.1 references 37 to 44; the page is always dark)
     /// The Passport header's deep violet: the year chips row and the map panel.
     public static let passportPage = Color(red: 0x1A / 255, green: 0x01 / 255, blue: 0x5A / 255)
@@ -155,11 +166,19 @@ public enum Theme {
 public extension Color {
     /// A colour that follows the appearance: `dark` in dark mode, `light` otherwise. Hex is 0xRRGGBB.
     init(light: UInt32, dark: UInt32) {
+        self.init(light: light, lightOpacity: 1, dark: dark, darkOpacity: 1)
+    }
+
+    /// `init(light:dark:)` with an opacity for each scheme (a translucent token such as `glassControl`).
+    init(light: UInt32, lightOpacity: CGFloat, dark: UInt32, darkOpacity: CGFloat) {
         #if canImport(UIKit)
-        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
+        self.init(uiColor: UIColor {
+            $0.userInterfaceStyle == .dark ? UIColor(hex: dark, alpha: darkOpacity) : UIColor(hex: light, alpha: lightOpacity)
+        })
         #else
         self.init(nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(hex: dark) : NSColor(hex: light)
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(hex: dark, alpha: darkOpacity) : NSColor(hex: light, alpha: lightOpacity)
         })
         #endif
     }
@@ -167,16 +186,16 @@ public extension Color {
 
 #if canImport(UIKit)
 private extension UIColor {
-    convenience init(hex: UInt32) {
+    convenience init(hex: UInt32, alpha: CGFloat = 1) {
         self.init(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                  blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+                  blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
     }
 }
 #else
 private extension NSColor {
-    convenience init(hex: UInt32) {
+    convenience init(hex: UInt32, alpha: CGFloat = 1) {
         self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                  blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+                  blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
     }
 }
 #endif

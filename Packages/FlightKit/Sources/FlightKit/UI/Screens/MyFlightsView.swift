@@ -18,8 +18,10 @@ public struct MyFlightsView: View {
     var scrolls: Bool
     var planned: [UpcomingFlight]
     var onRemovePlanned: (UpcomingFlight.ID) -> Void
+    var onImport: (() -> Void)?
     @Environment(\.reference) private var reference
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.sheetDetentActions) private var detentActions
 
     /// - Parameters:
     ///   - onSearch: opens the search sheet from the empty state; nil hides the button.
@@ -28,19 +30,22 @@ public struct MyFlightsView: View {
     ///   - planned: flights added ahead of time and not followed yet (the follow-later queue), listed in
     ///     Upcoming with a "PLANNED" row; they have no detail screen, so tapping one does nothing.
     ///   - onRemovePlanned: deletes a planned flight by its id (swipe or the long-press menu).
+    ///   - onImport: opens Import from the empty state's second button; nil leaves the button out.
     public init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)? = nil,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
-                planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in }) {
+                planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in },
+                onImport: (() -> Void)? = nil) {
         self.init(store: store, onSelect: onSelect, onSearch: onSearch, lookup: lookup, now: now, scrolls: true,
-                  planned: planned, onRemovePlanned: onRemovePlanned)
+                  planned: planned, onRemovePlanned: onRemovePlanned, onImport: onImport)
     }
 
     init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)?,
          lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
-         planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in }) {
+         planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in },
+         onImport: (() -> Void)? = nil) {
         self.store = store; self.onSelect = onSelect; self.onSearch = onSearch
         self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls
-        self.planned = planned; self.onRemovePlanned = onRemovePlanned
+        self.planned = planned; self.onRemovePlanned = onRemovePlanned; self.onImport = onImport
     }
 
     /// One row of a group: a followed flight or a planned one, with the time it leaves for ordering.
@@ -57,14 +62,30 @@ public struct MyFlightsView: View {
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
-                ScreenTitle("My Flights")
-                    .scaledPadding(.horizontal, Theme.gutter)
-                    .scaledPadding(.top, 22)
-                    .scaledPadding(.bottom, 12)
+                header
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
         .background(Theme.background)
+    }
+
+    /// No connection, by the store (its last load failed offline) or by the system's path monitor.
+    private var isOffline: Bool { store.isOffline || connectivity?.isOnline == false }
+
+    /// The root header (R5): the large title, the shell's profile button overlaid on its right (a clear
+    /// 44 pt slot keeps the room). VoiceOver's "Expand" and "Collapse" on it move the sheet a detent.
+    private var header: some View {
+        SheetHeader.root("My Flights") {
+            Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityActions {
+            if let expand = detentActions?.expand { Button("Expand", action: expand) }
+            if let collapse = detentActions?.collapse { Button("Collapse", action: collapse) }
+        }
+        .scaledPadding(.top, 15)
+        .scaledPadding(.bottom, 4)
     }
 
     /// The groups in order: in the air, upcoming (followed and planned flights together, by departure),
@@ -103,10 +124,16 @@ public struct MyFlightsView: View {
     @ViewBuilder private func content(now: Date) -> some View {
         let groups = self.groups(now: now)
         VStack(alignment: .leading, spacing: 0) {
-            // Offline is not an error here: the saved list keeps working, so the banner stays calm.
-            if store.isOffline || connectivity?.isOnline == false {
-                OfflineBanner(retry: reload)
-                    .scaledPadding(.bottom, 10)
+            // Offline is not an error here: the saved list keeps working, so only a small pill says so (R8).
+            // With nothing saved the calm banner explains the empty list instead.
+            if isOffline {
+                if groups.isEmpty {
+                    OfflineBanner(retry: reload)
+                        .scaledPadding(.bottom, 10)
+                } else {
+                    OfflineBanner.Pill(retry: reload)
+                        .scaledPadding(.bottom, 14)
+                }
             } else {
                 if let error = store.error {
                     ErrorBanner(error: error, retry: reload)
@@ -124,7 +151,7 @@ public struct MyFlightsView: View {
                         .frame(maxWidth: .infinity, minHeight: 200)
                         .accessibilityLabel("Loading your flights")
                 } else if store.error == nil {
-                    EmptyFlights(onSearch: onSearch)
+                    HomeEmptyFlights(onAdd: onSearch, onImport: onImport)
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 200)
                 }
@@ -155,7 +182,8 @@ public struct MyFlightsView: View {
     private func followedRow(_ flight: Flight, now: Date) -> some View {
         Button { onSelect(flight) } label: {
             MyFlightRow(flight: flight, origin: lookup(flight.originIcao),
-                        destination: lookup(flight.destinationIcao), airline: airline(flight), now: now)
+                        destination: lookup(flight.destinationIcao), airline: airline(flight), now: now,
+                        estimated: isOffline)
         }
         .buttonStyle(.plain)
         .swipeToDelete("Delete \(Format.ident(flight.ident))") {
@@ -186,44 +214,6 @@ public struct MyFlightsView: View {
 
     private func airline(_ f: Flight) -> Airline? {
         f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)
-    }
-}
-
-/// Centered invitation shown when nothing is followed: the climbing jet, a short title and Search.
-struct EmptyFlights: View {
-    var onSearch: (() -> Void)?
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Spacer(minLength: 0)
-            // Smaller than Passport's: the home sheet opens at half height and Search should stay in view.
-            EmptyStateIllustration(variant: .climb, size: 240)
-                .scaledPadding(.bottom, 10)
-            Text("Where to next?")
-                .scaledFont(20, weight: .semibold)
-                .foregroundStyle(Theme.primary)
-                .accessibilityAddTraits(.isHeader)
-            Text("Add a flight you're taking by number, route or airport.")
-                .scaledFont(15)
-                .foregroundStyle(Theme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            if let onSearch {
-                Button(action: onSearch) {
-                    Label("Search", systemImage: "magnifyingglass")
-                        .scaledFont(15, weight: .semibold)
-                        .foregroundStyle(Theme.primary)
-                        .scaledPadding(.horizontal, 16)
-                        .scaledPadding(.vertical, 9)
-                        .background(Capsule().fill(Theme.pill))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .scaledPadding(.top, 10)
-            }
-            Spacer(minLength: 0)
-        }
-        .multilineTextAlignment(.center)
-        .scaledPadding(.vertical, 24)
     }
 }
 

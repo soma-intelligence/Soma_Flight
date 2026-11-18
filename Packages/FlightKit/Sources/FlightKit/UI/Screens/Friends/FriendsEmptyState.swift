@@ -1,14 +1,20 @@
 import SwiftUI
 
-/// The Friends tab with no friend yet, under the code row: our two jets climbing together, one line, one sentence and Invite
-/// a Friend, the tab's one strong button, which opens the share sheet with the invitation link (made when it
-/// is tapped, reused until it nears its end).
+/// The Friends tab with no friend yet (R8, refined 2026-11-17): the friends glyph on its tint, one line, one
+/// sentence, then the invite card showing the user's code (copy, QR, share), Invite a Friend, the tab's one
+/// strong button, which opens the share sheet with the invitation link (made when it is tapped, reused until it
+/// nears its end), and a quiet Add a Friend that opens the add sheet to type a friend's code.
 struct FriendsEmptyState: View {
     var store: FriendsStore
-    /// A collapsed home sheet: the jets alone, as large as its few points allow and centred in them. The line, the
-    /// sentence and Invite a Friend come in as the sheet rises, with the code row's spring.
+    /// A collapsed home sheet: our two jets alone, as large as its few points allow and centred in them. The
+    /// rest comes in as the sheet rises, with the code card's spring.
     var compact = false
+    /// Opens the QR sheet from the code card.
+    var onShowQR: () -> Void = {}
+    /// Opens Add a Friend (type a friend's code); nil leaves the link out.
+    var onAdd: (() -> Void)?
     @Environment(\.sheetContentRoom) private var room
+    @Environment(\.metricsScale) private var scale
 
     /// The jets picture's height over its width (900 x 483).
     private static let aspect: CGFloat = 483 / 900
@@ -28,42 +34,65 @@ struct FriendsEmptyState: View {
                 EmptyStateIllustration(variant: .pair, size: compactSize, verticalPadding: 0)
                     .frame(height: room ?? Self.collapsedRoom)
             } else {
-                EmptyStateIllustration(variant: .pair, size: 240)
-                    // Its full height even where the sheet is short: the rest is cut, never the jets squeezed.
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !compact {
                 details.transition(.opacity.combined(with: .offset(y: 12)))
             }
         }
-        .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
-        .scaledPadding(.horizontal, 32)
         .animation(.spring(duration: 0.4, bounce: 0.15), value: compact)
     }
 
-    @ViewBuilder private var details: some View {
+    private var details: some View {
         VStack(spacing: 0) {
+            glyph
+                .scaledPadding(.top, 48)
             Text(ui: FriendFacts.emptyTitle)
-                .scaledFont(19, weight: .semibold)
+                .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
                 .scaledPadding(.top, 18)
             Text(ui: FriendFacts.emptyText)
-                .scaledFont(14)
+                .themeFont(.label)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .scaledPadding(.top, 4)
+                .scaledPadding(.top, 6)
+                .scaledPadding(.horizontal, 30)
+            if store.me != nil {
+                FriendCodeRow(store: store, onShowQR: onShowQR, onAdd: onAdd)
+                    .scaledPadding(.top, 28)
+            }
             InviteShareButton(store: store) {
-                Label("Invite a Friend", systemImage: "paperplane.fill")
-                    .scaledFont(15, weight: .semibold)
+                Label("Invite a Friend", systemImage: "person.badge.plus")
+                    .themeFont(.sectionTitle)
                     .foregroundStyle(.white)
-                    .scaledPadding(.horizontal, 20)
-                    .scaledPadding(.vertical, 11)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: Theme.metric(50, scale))
                     .background(Capsule().fill(Theme.accent))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
-            .scaledPadding(.top, 18)
+            .scaledPadding(.top, 24)
+            if let onAdd {
+                Button(action: onAdd) {
+                    Text("Add a Friend")
+                        .themeFont(.label)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.accent)
+                        .frame(minWidth: 200, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .scaledPadding(.top, 8)
+            }
         }
+        .multilineTextAlignment(.center)
+    }
+
+    /// The friends symbol on a circle of the friends colour at 14 %.
+    private var glyph: some View {
+        Image(systemName: "person.2.fill")
+            .scaledFont(24, weight: .semibold)
+            .foregroundStyle(Theme.friend)
+            .frame(width: Theme.metric(64, scale), height: Theme.metric(64, scale))
+            .background(Circle().fill(Theme.friend.opacity(0.14)))
+            .accessibilityHidden(true)
     }
 }

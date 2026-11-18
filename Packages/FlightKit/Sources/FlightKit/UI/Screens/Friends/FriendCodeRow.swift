@@ -16,46 +16,52 @@ enum FriendQR {
     }
 }
 
-// MARK: - Code row
+// MARK: - Code card
 
-/// The user's friend code as one slim row at the top of the tab: `FriendCodeLabel`, then QR, Copy (a
-/// check for a moment once copied) and Share, which makes the invitation link when tapped. The tab's quieter actions (pause every share, a new code, refresh) sit in the trailing
-/// menu and on a long press of the row.
+/// The user's friend code as one flat card (R6, R8): `FriendCodeLabel`, then Copy (a check for a moment once
+/// copied), QR and Share, which makes the invitation link when tapped, each a 44 pt glass circle. The tab's
+/// quieter actions (add a friend by code, pause every share, a new code, refresh) sit in the trailing menu and
+/// on a long press of the card.
 struct FriendCodeRow: View {
     var store: FriendsStore
     var onShowQR: () -> Void
+    /// Opens Add a Friend (the header's old add button); nil leaves it out of the menu.
+    var onAdd: (() -> Void)?
     @State private var copied = false
     @State private var resetCopied: Task<Void, Never>?
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
         let code = store.me?.friendCode
-        HStack(spacing: Theme.metric(8, scale)) {
-            FriendCodeLabel(code: code)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
-            Spacer(minLength: 4)
-            icon("qrcode", label: "Show QR Code", action: onShowQR)
-                .disabled(code == nil)
-            icon(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy Friend Code",
-                 tint: copied ? Theme.onTime : Theme.primary, action: copy)
-                .disabled(code == nil)
-            InviteShareButton(store: store) { circle("square.and.arrow.up", tint: Theme.primary) }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Share Invitation")
-            menu
+        RefinedCard(padding: 0) {
+            HStack(spacing: Theme.metric(8, scale)) {
+                FriendCodeLabel(code: code)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
+                Spacer(minLength: 4)
+                icon(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy Friend Code",
+                     tint: copied ? Theme.onTime : Theme.primary, action: copy)
+                    .disabled(code == nil)
+                icon("qrcode", label: "Show QR Code", action: onShowQR)
+                    .disabled(code == nil)
+                InviteShareButton(store: store) { circle("square.and.arrow.up", tint: Theme.primary) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Share Invitation")
+                menu
+            }
+            .scaledPadding(.leading, 16)
+            .scaledPadding(.trailing, 4)
+            .scaledPadding(.vertical, 16)
         }
-        .scaledPadding(.leading, 16)
-        .scaledPadding(.trailing, 6)
-        .frame(height: Theme.metric(54, scale))
-        .background(Capsule().fill(Theme.card.opacity(0.5)))
-        .overlay(Capsule().strokeBorder(Theme.separator, lineWidth: 1))
-        .contentShape(Capsule())
+        .contentShape(Rectangle())
         .contextMenu { options }
         .onDisappear { resetCopied?.cancel(); resetCopied = nil }
     }
 
     @ViewBuilder private var options: some View {
+        if let onAdd {
+            Button("Add a Friend", systemImage: "person.badge.plus", action: onAdd)
+        }
         if let me = store.me {
             Button("Show QR Code", systemImage: "qrcode", action: onShowQR)
             Divider()
@@ -71,7 +77,7 @@ struct FriendCodeRow: View {
             Image(systemName: "ellipsis")
                 .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
-                .frame(width: Theme.metric(28, scale), height: Theme.metric(40, scale))
+                .frame(width: Theme.metric(28, scale), height: Theme.metric(44, scale))
                 .contentShape(Rectangle())
         }
         .menuIndicator(.hidden)
@@ -86,14 +92,15 @@ struct FriendCodeRow: View {
             .accessibilityLabel(label)
     }
 
+    /// A 44 pt glass circle, the card's one button shape (R9 tap target).
     private func circle(_ systemImage: String, tint: Color) -> some View {
         Image(systemName: systemImage)
-            .scaledFont(14, weight: .semibold)
+            .scaledFont(17, weight: .semibold)
             .foregroundStyle(tint)
             .contentTransition(.symbolEffect(.replace))
-            .frame(width: Theme.metric(36, scale), height: Theme.metric(36, scale))
-            .background(Circle().fill(Theme.pill))
+            .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
             .contentShape(Circle())
+            .roundGlass()
     }
 
     private func copy() {
@@ -111,25 +118,24 @@ struct FriendCodeRow: View {
 
 // MARK: - Code label
 
-/// The row's label: a small tracked "YOUR CODE" over the code in SF Pro Rounded, its two groups of four
-/// split by a centred dot. Codes use Crockford's alphabet (no I, L, O or U), so a rounded face stays
-/// unambiguous. VoiceOver reads the row's own label, one character at a time.
+/// The card's label: a small caps "YOUR CODE" in secondary over the code in SF Pro Rounded, its two groups
+/// of four split by a centred dot. Codes use Crockford's alphabet (no I, L, O or U), so a rounded face stays
+/// unambiguous. VoiceOver reads the card's own label, one character at a time.
 struct FriendCodeLabel: View {
     var code: String?
     @Environment(\.metricsScale) private var scale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.metric(3, scale)) {
+        VStack(alignment: .leading, spacing: Theme.metric(4, scale)) {
             Text("YOUR CODE")
-                .scaledFont(10, weight: .semibold, relativeTo: .caption2)
-                .tracking(1.4)
-                .foregroundStyle(Theme.secondary.opacity(0.8))
+                .scaledFont(12, weight: .medium, relativeTo: .caption)
+                .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
-            HStack(spacing: Theme.metric(7, scale)) {
+            HStack(spacing: Theme.metric(8, scale)) {
                 group(code?.count == 8 ? code.map { String($0.prefix(4)) } : nil)
                 Circle()
-                    .fill(Theme.secondary.opacity(0.6))
-                    .frame(width: Theme.metric(3.5, scale), height: Theme.metric(3.5, scale))
+                    .fill(Theme.primary)
+                    .frame(width: Theme.metric(4, scale), height: Theme.metric(4, scale))
                 group(code?.count == 8 ? code.map { String($0.suffix(4)) } : nil)
             }
         }
@@ -137,9 +143,9 @@ struct FriendCodeLabel: View {
 
     private func group(_ text: String?) -> some View {
         Text(text ?? "····")
-            .scaledFont(19, weight: .medium, design: .rounded)
+            .scaledFont(22, weight: .semibold, design: .rounded)
             .monospacedDigit()
-            .tracking(1.8)
+            .tracking(1.5)
             .foregroundStyle(Theme.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)

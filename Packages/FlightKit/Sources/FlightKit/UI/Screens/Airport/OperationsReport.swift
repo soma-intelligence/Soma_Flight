@@ -372,33 +372,41 @@ struct BriefChip: View {
     }
 }
 
-/// The airport sheet's way into the report: the weather verdict in one line and a chevron.
+/// The airport sheet's way into the report, as a flat card row (R6): an accent icon tile, "Operations report",
+/// the weather verdict in one line (amber when it slows flights) and a chevron.
+/// Penpot: Card/Operations report
 struct OperationsReportRow: View {
     var impact: WeatherImpact?
     var action: () -> Void
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .scaledFont(22, weight: .medium)
-                    .foregroundStyle(Theme.primary)
-                    .frame(width: 30)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Operations Report").scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
-                    Text(impact.map { $0.reason } ?? "Delays and weather, decoded")
-                        .scaledFont(14.5)
-                        .foregroundStyle(impact?.slows == true ? Theme.late : Theme.secondary)
-                        .lineLimit(2)
+            RefinedCard(padding: 0) {
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(.white)
+                        .frame(width: Theme.metric(30, scale), height: Theme.metric(30, scale))
+                        .background(RoundedRectangle(cornerRadius: Theme.metric(8, scale), style: .continuous)
+                            .fill(Theme.accent))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Operations report").themeFont(.body).foregroundStyle(Theme.primary)
+                        Text(impact.map { $0.reason } ?? "Delays and weather, decoded")
+                            .themeFont(.sectionSubtitle)
+                            .foregroundStyle(impact?.slows == true ? Theme.late : Theme.secondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .scaledFont(13, weight: .semibold)
+                        .foregroundStyle(Theme.secondary.opacity(0.6))
+                        .accessibilityHidden(true)
                 }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .scaledFont(14, weight: .semibold)
-                    .foregroundStyle(Theme.secondary)
+                .scaledPadding(.horizontal, 16)
+                .frame(minHeight: Theme.metric(60, scale))
             }
-            .scaledPadding(.all, 14)
-            .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -60,9 +60,13 @@ public struct ProfileOnboardingView: View {
             }
         }
         .background(Theme.background.ignoresSafeArea())
-        .overlay(alignment: .topTrailing) {
+        // Edit mode is a modal (R5): Cancel on the left, Done on the right saves, as the Save button does.
+        .safeAreaInset(edge: .top, spacing: 0) {
             if mode == .edit {
-                CloseButton(action: onDone).padding(.top, 16).padding(.trailing, 16)
+                SheetHeader(.modal(title: "Your profile", leading: .cancel(onDone), onDone: save,
+                                   doneDisabled: !canSave))
+                    .scaledPadding(.top, 8)
+                    .background(Theme.background)
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $pickerItem, matching: .images, preferredItemEncoding: .compatible)
@@ -91,7 +95,7 @@ public struct ProfileOnboardingView: View {
 
     private var page: some View {
             VStack(spacing: 0) {
-                Color.clear.frame(height: mode == .onboarding ? 72 : 56)
+                Color.clear.frame(height: mode == .onboarding ? 72 : 16)
                 avatar
                     .scaledPadding(.bottom, 22)
                 header
@@ -172,9 +176,12 @@ public struct ProfileOnboardingView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Text(mode == .onboarding ? "Welcome aboard" : "Your profile")
-                .scaledFont(30, weight: .bold, relativeTo: .largeTitle)
-                .foregroundStyle(Theme.primary)
+            // Edit mode carries "Your profile" in its modal header instead.
+            if mode == .onboarding {
+                Text("Welcome aboard")
+                    .scaledFont(30, weight: .bold, relativeTo: .largeTitle)
+                    .foregroundStyle(Theme.primary)
+            }
             Text(ui: subtitle)
                 .scaledFont(16)
                 .foregroundStyle(Theme.secondary)

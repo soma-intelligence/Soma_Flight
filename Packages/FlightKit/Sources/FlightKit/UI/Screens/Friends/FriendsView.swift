@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The Friends tab: the title with one Add Friend button (the shell's profile button sits beside it), the
-/// user's friend code as one slim row (QR, Copy, Share, and the tab's other actions in its menu), requests
+/// The Friends tab: the root header (R5), the large title with the shell's profile button on its right, the
+/// user's friend code as one flat card (Copy, QR, Share, and the tab's other actions, Add a Friend first, in
+/// its menu), requests
 /// waiting for an answer as a compact banner, then friends in three groups (in the air, a flight coming up,
 /// nothing coming up), each row with their next flight in its status colour. With no friend yet, a short
 /// invitation opens the share sheet. A friend's row opens their page; a long press holds the sharing switches and Remove. Their
@@ -37,16 +38,12 @@ public struct FriendsView: View {
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(alignment: .leading, spacing: 0) {
-                // Same title and spacing as My Flights and Passport; the add button sits left of the
-                // shell's profile button, which keeps the last 60 points.
-                ScreenTitle("Friends")
-                    .overlay(alignment: .trailing) {
-                        RoundButton(systemImage: "person.badge.plus", label: "Add Friend") { adding = true }
-                            .scaledPadding(.trailing, 48)
-                    }
-                    .scaledPadding(.horizontal, Theme.gutter)
-                    .scaledPadding(.top, 22)
-                    .scaledPadding(.bottom, 12)
+                // The root header (R5), as on Passport: the shell's avatar is its one trailing control, so
+                // Add a Friend moved to the code card's menu and the empty state.
+                SheetHeader.root("Friends") { ShellAvatarSlot() }
+                    .rootHeaderAccessibility()
+                    .scaledPadding(.top, 18)
+                    .scaledPadding(.bottom, 8)
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }
@@ -75,8 +72,12 @@ public struct FriendsView: View {
 
     // MARK: Content
 
-    /// The code row shows once the user's code is known, except in a collapsed home sheet.
-    private var showsCode: Bool { store.me != nil && detent != .collapsed }
+    /// The code card shows once the user's code is known, except in a collapsed home sheet and with no friend
+    /// yet, where the empty state holds it as its invite card.
+    private var showsCode: Bool { store.me != nil && detent != .collapsed && !showsEmptyInvite }
+
+    /// No friend yet, loaded without an error: the empty state (R8) shows.
+    private var showsEmptyInvite: Bool { store.friends.isEmpty && store.hasLoaded && store.error == nil }
 
     /// The code row's arrival and exit: a soft spring, a plain cross-fade with Reduce Motion.
     private var revealAnimation: Animation {
@@ -89,7 +90,7 @@ public struct FriendsView: View {
             // sheet leaves it out so its few points show the friends (or the two jets) instead; raised, it
             // slides down from under the title and pushes the rest down (owner's call, 2026-10-31).
             if showsCode {
-                FriendCodeRow(store: store, onShowQR: { showingQR = true })
+                FriendCodeRow(store: store, onShowQR: { showingQR = true }, onAdd: { adding = true })
                     .scaledPadding(.bottom, 14)
                     .transition(reduceMotion ? .opacity : .codeReveal)
             }
@@ -118,7 +119,8 @@ public struct FriendsView: View {
                 if !store.hasLoaded {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 200).accessibilityLabel("Loading your friends")
                 } else if store.error == nil {
-                    FriendsEmptyState(store: store, compact: detent == .collapsed)
+                    FriendsEmptyState(store: store, compact: detent == .collapsed, onShowQR: { showingQR = true },
+                                      onAdd: { adding = true })
                 }
             } else {
                 ForEach(store.sections(), id: \.section) { group in
@@ -137,7 +139,7 @@ public struct FriendsView: View {
                 }
             }
         }
-        .scaledPadding(.horizontal, 16)
+        .scaledPadding(.horizontal, Theme.gutter)
         // Clears the floating tab pill (the shell's bottom inset) with room to spare, as on the other tabs.
         .scaledPadding(.bottom, 40)
         // The rows under the code row glide down to make room for it, and back up as it leaves.
@@ -225,8 +227,8 @@ struct FriendRequestsBanner: View {
                 }
             }
             .scaledPadding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Theme.card.opacity(0.5)))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.separator, lineWidth: 1))
+            // A flat card (R6): the card colour, the 14 pt corner, no stroke.
+            .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
             .scaledPadding(.bottom, 18)
         }
     }

@@ -55,6 +55,12 @@ extension DetailFacts {
         return "On Time"
     }
 
+    /// "16m Late" as "16m late", "On Time" as "On time": every word after the first in lower case.
+    static func sentenceCase(_ s: String) -> String {
+        guard let first = s.first else { return s }
+        return String(first) + s.dropFirst().lowercased()
+    }
+
     /// "SFO · San Francisco Intl.": the code and a shortened airport name.
     static func airportLine(code: String, airport: Airport?) -> String {
         guard let airport else { return code }
@@ -111,6 +117,9 @@ struct DepartArrive: View {
     var onAirport: (String) -> Void = { _ in }
     /// The likely departure gate while none is assigned (`FlightDetailStore.gatePrediction`).
     var predictedGate: GatePrediction? = nil
+    /// The colour of a late side: the hero's delay colour (`FlightStatusSummary.tone`) when the flight is late
+    /// or very late, so the big times agree with the hero and the home row; amber for a smaller delay.
+    var lateTone: Color = Theme.late
     @Environment(\.units) private var units
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -166,13 +175,14 @@ struct DepartArrive: View {
                       scheduled: Date?, offset: Int?, gate: String?, terminal: String?, belt: String?,
                       marker: String?) -> some View {
         let tz = airport?.timeZone ?? .current
-        // Late in red, early or on time in green, white while only the schedule is known.
+        // Late in the flight's delay colour, early or on time in green, plain while only the schedule is known.
         let tone: Color = switch offset {
         case nil: Theme.primary
-        case let m? where m >= 1: Theme.veryLate
+        case let m? where m >= 1: lateTone
         default: Theme.onTime
         }
-        let status = DetailFacts.offsetWord(offset) ?? word
+        // "16m late", "On time": sentence case, as on the hero and the home row.
+        let status = DetailFacts.offsetWord(offset).map { DetailFacts.sentenceCase($0) } ?? word
         let statusTone = offset == nil ? Theme.secondary : tone
         // The schedule, struck through beside the time, once the best time moved off it.
         let struck: String? = if let scheduled, let offset, offset != 0 {

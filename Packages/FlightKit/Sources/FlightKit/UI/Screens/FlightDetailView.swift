@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// One followed flight in full: the airline, flight number and route pinned at the top; then the
-/// countdown card, a canceled or diverted notice, the "At a glance" card (on time or late, both gates,
-/// boarding, the belt), departure and arrival with their gates, the booking
+/// One followed flight in full: the airline, flight number and route pinned at the top (the Detail header,
+/// R5); then the hero status card (R3: the headline in the delay colour, the airline and time left, the route
+/// progress, both gates, boarding, the belt), departure and arrival with their gates, the booking
 /// code and seat tiles, the boarding pass, Good to Know, the arrival forecast and where the plane is (paid data, when
 /// insights are on), the detailed timetable, the airline, the user's
-/// history on the route, every update, the notes and a link to report a data issue. A floating bar shares
-/// the flight, turns its alerts on or off and holds the rarer actions. The map arc and live plane
+/// history on the route, every update, the notes and a link to report a data issue. A glass action bar
+/// (R4) holds More, Alerts and Share, and the content ends above it. The map arc and live plane
 /// belong to the shell.
 public struct FlightDetailView: View {
     var store: FlightDetailStore
@@ -55,12 +55,9 @@ public struct FlightDetailView: View {
                 if let flight = store.flight {
                     DetailHeader(flight: flight, origin: store.origin, destination: plannedDestination(flight),
                                  airline: airline(flight), onClose: onClose,
-                                 actions: Self.barInHeader ? AnyView(bottomBar(flight, compact: true)) : nil)
-                        .scaledPadding(.leading, Theme.gutter)
-                        .scaledPadding(.trailing, 16)
-                        .scaledPadding(.top, 16)
-                        .scaledPadding(.bottom, 12)
-                    Hairline()
+                                 actions: Self.barInHeader ? AnyView(bottomBar(flight)) : nil)
+                        .scaledPadding(.top, 10)
+                        .scaledPadding(.bottom, 4)
                     ScrollViewReader { proxy in
                         ScreenScroll(scrolls: scrolls) { sections(flight, now: now) }
                             .defaultScrollAnchor(Self.startAnchor)
@@ -68,9 +65,7 @@ public struct FlightDetailView: View {
                     }
                 } else {
                     if let onClose {
-                        HStack { Spacer(); RoundButton(systemImage: "xmark", label: "Close", action: onClose) }
-                            .scaledPadding(.top, 16)
-                            .scaledPadding(.trailing, 16)
+                        HStack { Spacer(); CloseButton(action: onClose) }
                     }
                     if let error = store.error {
                         ErrorBanner(error: error, retry: reload)
@@ -83,13 +78,9 @@ public struct FlightDetailView: View {
             }
         }
         .background(Theme.background)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let flight = store.flight, !Self.barInHeader, barShown {
-                bottomBar(flight)
-                    .scaledPadding(.horizontal, Theme.gutter)
-                    .scaledPadding(.bottom, 6)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
+        // The glass action bar (R4), pinned above the home indicator; the content pads itself to end above it.
+        .detailActionBar(shown: store.flight != nil && !Self.barInHeader && barShown) {
+            if let flight = store.flight { actionBar(flight) }
         }
         // Only the flip is state: a height written every frame of a drag re-ran the whole page.
         .onGeometryChange(for: Bool.self) { Self.showsBar(height: $0.size.height) } action: { shown in
@@ -205,36 +196,38 @@ public struct FlightDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Lazy: the cards below the fold are built as they scroll in, not while the card rises.
             LazyVStack(alignment: .leading, spacing: 16) {
+                // A failed refresh keeps the last known flight on screen under one inline card (R8).
                 if let error = store.error {
-                    ErrorBanner(error: error, retry: reload)
+                    RefreshErrorCard(error: error, updatedAt: flight.updatedAt, now: now, retry: reload)
                 }
                 if let error = store.detailsError {
                     ErrorBanner(error: error)
                 }
+                // The hero (R3): status, progress and the key facts in one card, coloured like the home row.
+                DetailHeroCard(facts: heroFacts(flight, now: now), flight: flight, origin: store.origin,
+                               aircraft: flight.aircraftType.flatMap { reference.type($0) },
+                               pass: store.boardingPass, predictedGate: store.gatePrediction,
+                               stamp: store.error == nil ? nil : HeroFacts.age(since: flight.updatedAt, now: now),
+                               now: now)
+                    // Reloads a stale flight; drawn as a background so it adds no stack spacing.
+                    .background {
+                        if !store.isArchived {
+                            SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now) {
+                                await store.load()
+                            }
+                        }
+                    }
                 if !store.isArchived {
-                    SectionFreshness(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: now) { await store.load() }
                     EstimatedProgressCard(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now)
                 }
-                if let notice = notice(flight) { notice }
                 // Canceled, or 3 hours late at the gate: the airline's line, its rebooking page, what to ask.
                 if !store.isArchived, CancellationKit.isShown(flight) {
                     CancellationKitCard(flight: flight,
                                         contact: AirlineContacts.bundled.contact(airline(flight)?.id ?? flight.operator))
                 }
-                CountdownCard(title: DetailFacts.landedTitle(flight)
-                                ?? DetailFacts.countdown(flight, destination: store.destination, now: now),
-                              caption: DetailFacts.landedTitle(flight) == nil ? DetailFacts.countdownCaption(flight, airline: airline(flight))
-                                : DetailFacts.landedCaption(flight, origin: store.origin,
-                                                            destination: plannedDestination(flight), unit: units.distance)
-                                  ?? DetailFacts.countdownCaption(flight, airline: airline(flight)),
-                              tone: DetailFacts.statusTone(flight))
-                // The key facts in one card: on time or late, both gates, boarding and the belt.
-                AtAGlanceCard(flight: flight, origin: store.origin,
-                              aircraft: flight.aircraftType.flatMap { reference.type($0) },
-                              pass: store.boardingPass, prediction: store.delayPrediction(now: now),
-                              predictedGate: store.gatePrediction)
                 DepartArrive(flight: flight, origin: store.origin, destination: plannedDestination(flight), now: now,
-                             onAirport: onAirport, predictedGate: store.gatePrediction)
+                             onAirport: onAirport, predictedGate: store.gatePrediction,
+                             lateTone: Self.lateTone(heroFacts(flight, now: now).level))
                     .scaledPadding(.top, 16)
                 if let details = store.details {
                     DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } },
@@ -260,7 +253,7 @@ public struct FlightDetailView: View {
                 }
             }
             .scaledPadding(.horizontal, Theme.gutter)
-            .scaledPadding(.top, 16)
+            .scaledPadding(.top, 8)
             .scaledPadding(.bottom, 24)
 
             VStack(alignment: .leading, spacing: 16) {
@@ -357,8 +350,8 @@ public struct FlightDetailView: View {
             }
             .scaledPadding(.horizontal, Theme.gutter)
         }
-        // Room for the floating bar over the last card (the Mac has it in the header).
-        .scaledPadding(.bottom, Self.barInHeader ? 24 : 88)
+        // The last card ends above the glass action bar (R4); the Mac has the actions in its header.
+        .modifier(ActionBarRoom(on: !Self.barInHeader))
         .connectionUpdates(store.connections, flight: flight, now: now)
     }
 
@@ -371,56 +364,92 @@ public struct FlightDetailView: View {
         #endif
     }
 
-    private func bottomBar(_ flight: Flight, compact: Bool = false) -> some View {
-        DetailBottomBar(share: shareItem(flight),
-                        notify: DetailFacts.takesAlerts(flight) && !store.isArchived ? store.notify : nil,
-                        onNotify: { on in Task { await store.setNotify(on) } }, compact: compact) {
-            let share = shareItem(flight)
-            ShareLink(item: share, preview: SharePreview(share.title)) {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-            if let sharing, sharing.isSharing {
-                Button("Stop Sharing", systemImage: "link.badge.minus") { Task { await sharing.stop() } }
-            }
-            Divider()
-            if let a = airline(flight) {
-                let links = AirlineCard.buttons(a)
-                if !links.isEmpty {
-                    Menu {
-                        ForEach(links, id: \.self) { link in
-                            Button(DetailFacts.menuTitle(link.title)) { openURL(link.url) }
-                        }
-                    } label: {
-                        Label("Contact Airline", systemImage: "phone")
-                    }
+    /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts).
+    private func notify(_ flight: Flight) -> Bool? {
+        DetailFacts.takesAlerts(flight) && !store.isArchived ? store.notify : nil
+    }
+
+    /// The Mac panel's share, bell and menu, as small circles in the header.
+    private func bottomBar(_ flight: Flight) -> some View {
+        DetailBottomBar(share: shareItem(flight), notify: notify(flight),
+                        onNotify: { on in Task { await store.setNotify(on) } }, compact: true) {
+            moreMenu(flight)
+        }
+    }
+
+    /// The phone's glass action bar (R4): More (the menu), Alerts (followed flights that still send alerts)
+    /// and Share.
+    private func actionBar(_ flight: Flight) -> some View {
+        let notify = notify(flight)
+        let share = shareItem(flight)
+        return DetailActionBar(count: notify == nil ? 2 : 3) {
+            Menu { moreMenu(flight) } label: { DetailActionLabel(title: "More", systemImage: "ellipsis.circle") }
+                .menuIndicator(.hidden)
+                // Share stays on top even when the menu opens upward from the bar.
+                .menuOrder(.fixed)
+                .accessibilityLabel("More")
+            if let notify {
+                Button { Task { await store.setNotify(!notify) } } label: {
+                    DetailActionLabel(title: "Alerts", systemImage: notify ? "bell.fill" : "bell.slash",
+                                      tint: notify ? Theme.accent : nil)
                 }
+                .accessibilityLabel(notify ? "Turn Off Alerts" : "Turn On Alerts")
+                .accessibilityValue(notify ? "On" : "Off")
             }
-            let places = [store.origin, plannedDestination(flight)].compactMap { $0 }
-            if !places.isEmpty {
+            ShareLink(item: share, preview: SharePreview(share.title)) {
+                DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Share Flight")
+        }
+    }
+
+    /// The rarer actions, behind More.
+    @ViewBuilder private func moreMenu(_ flight: Flight) -> some View {
+        let share = shareItem(flight)
+        ShareLink(item: share, preview: SharePreview(share.title)) {
+            Label("Share", systemImage: "square.and.arrow.up")
+        }
+        if let sharing, sharing.isSharing {
+            Button("Stop Sharing", systemImage: "link.badge.minus") { Task { await sharing.stop() } }
+        }
+        Divider()
+        if let a = airline(flight) {
+            let links = AirlineCard.buttons(a)
+            if !links.isEmpty {
                 Menu {
-                    ForEach(places, id: \.id) { airport in
-                        if let url = DetailFacts.mapsURL(airport) {
-                            Button("\(airport.iata ?? airport.id) · \(DetailFacts.shortName(airport.name))") { openURL(url) }
-                        }
+                    ForEach(links, id: \.self) { link in
+                        Button(DetailFacts.menuTitle(link.title)) { openURL(link.url) }
                     }
                 } label: {
-                    Label("Open In Maps", systemImage: "map")
+                    Label("Contact Airline", systemImage: "phone")
                 }
             }
-            Divider()
-            if store.details != nil, !store.isArchived {
-                Button("Edit Flight Record", systemImage: "pencil") { editing = .bookingCode }
-            }
-            Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {
-                // No mail app: the address goes to the pasteboard, as under the report link.
-                openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt)) { accepted in
-                    if !accepted { Pasteboard.copy(DetailFacts.supportAddress) }
+        }
+        let places = [store.origin, plannedDestination(flight)].compactMap { $0 }
+        if !places.isEmpty {
+            Menu {
+                ForEach(places, id: \.id) { airport in
+                    if let url = DetailFacts.mapsURL(airport) {
+                        Button("\(airport.iata ?? airport.id) · \(DetailFacts.shortName(airport.name))") { openURL(url) }
+                    }
                 }
+            } label: {
+                Label("Open In Maps", systemImage: "map")
             }
-            if store.isFollowed { FlightTextsMenuItem(model: flightTexts) }
-            if store.isFollowed {
-                Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
+        }
+        Divider()
+        if store.details != nil, !store.isArchived {
+            Button("Edit Flight Record", systemImage: "pencil") { editing = .bookingCode }
+        }
+        Button(DetailFacts.reportLabel, systemImage: "exclamationmark.bubble") {
+            // No mail app: the address goes to the pasteboard, as under the report link.
+            openURL(DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt)) { accepted in
+                if !accepted { Pasteboard.copy(DetailFacts.supportAddress) }
             }
+        }
+        if store.isFollowed { FlightTextsMenuItem(model: flightTexts) }
+        if store.isFollowed {
+            Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
         }
     }
 
@@ -482,55 +511,38 @@ public struct FlightDetailView: View {
         return DetailFacts.timeZoneChange(origin: o, destination: d, arrival: arrival, clock: units.clock)
     }
 
+    /// A late side's colour in Depart / Arrive: red when the flight is very late, else amber.
+    static func lateTone(_ level: DelayLevel) -> Color {
+        level == .veryLate ? Theme.veryLate : Theme.late
+    }
+
+    /// The hero card's words and colour (R3), from the same summary as the home row.
+    private func heroFacts(_ f: Flight, now: Date) -> HeroFacts {
+        HeroFacts.make(f, airline: airline(f), origin: store.origin, planned: plannedDestination(f),
+                       actual: store.destination, prediction: store.delayPrediction(now: now),
+                       unit: units.distance, clock: units.clock, now: now)
+    }
+
     /// The card and timeline describe the planned trip; a diversion target only shows when it is
     /// the planned airport.
     private func plannedDestination(_ f: Flight) -> Airport? {
         store.destination?.id == f.destinationIcao ? store.destination : nil
     }
-
-    private func notice(_ f: Flight) -> AnyView? {
-        switch f.status {
-        case .canceled:
-            return AnyView(StatusNotice(color: Theme.veryLate, title: "Canceled",
-                                        text: "The airline canceled this flight. Check with them for a new booking."))
-        case .diverted:
-            // Only a target other than the planned airport is news.
-            let to = store.destination.flatMap { $0.id == f.destinationIcao ? nil : "\($0.city) (\($0.iata ?? $0.id))" }
-            return AnyView(StatusNotice(color: Theme.diverted, title: "Diverted",
-                                        text: to.map { "Landing at \($0) instead of \(f.destinationCode)." }
-                                            ?? "Not landing at \(f.destinationCode). The new airport is not known yet."))
-        default:
-            return nil
-        }
-    }
 }
 
 // MARK: - Pieces
 
-/// Tinted card for a canceled or diverted flight.
-struct StatusNotice: View {
-    var color: Color
-    var title: String
-    var text: String
+/// Pads the sheet's content to end above the glass action bar: `refinedActionBarInset()` on the phone, a
+/// plain 24 pt on the Mac, whose actions sit in the header.
+private struct ActionBarRoom: ViewModifier {
+    var on: Bool
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                Circle().fill(color.opacity(0.25)).frame(width: 16, height: 16)
-                Circle().fill(color).frame(width: 7, height: 7)
-            }
-            .scaledPadding(.top, 3)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(ui: title).scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)
-                Text(ui: text).scaledFont(15).foregroundStyle(Theme.primary.opacity(0.8))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+    func body(content: Content) -> some View {
+        if on {
+            content.refinedActionBarInset()
+        } else {
+            content.scaledPadding(.bottom, 24)
         }
-        .scaledPadding(.all, 16)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(color.opacity(0.16)))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(color.opacity(0.35), lineWidth: 1))
-        .accessibilityElement(children: .combine)
     }
 }
 
