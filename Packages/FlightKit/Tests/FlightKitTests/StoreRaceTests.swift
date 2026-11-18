@@ -170,17 +170,20 @@ private struct StubCache: FlightListCache {
         f.destinationIcao = "KSFO"
         let store = FlightDetailStore(id: f.id, flights: ScriptedFlights(flight: f, eventsError: .providerUnavailable), airports: FakeAirportService())
         await store.load()
-        #expect(store.error == .providerUnavailable)
+        // The flight loaded: the events' failure is a section's, not the page's (E10).
+        #expect(store.error == nil)
+        #expect(store.sectionErrors[.events] == .providerUnavailable)
         #expect(store.destination == nil)
         #expect(store.flight?.id == f.id)
     }
 
-    @Test func detailAirportFailureSetsError() async {
+    @Test func detailAirportFailureIsASectionError() async {
         let airports = FakeAirportService()
         await airports.setNextError(.rateLimited)
         let store = FlightDetailStore(id: wn4410, flights: FakeFlightService(), airports: airports)
         await store.load()
-        #expect(store.error == .rateLimited)
+        #expect(store.error == nil)
+        #expect(store.sectionErrors.values.contains(.rateLimited))
     }
 
     @Test func deleteAccountFailureIsExposed() async throws {

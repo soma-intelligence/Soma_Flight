@@ -20,6 +20,8 @@ let package = Package(
         .package(path: "../FlightCoreFFI"),
         // Pinned: a new release is taken on purpose, after its changelog is read.
         .package(url: "https://github.com/supabase/supabase-swift", exact: "2.55.5"),
+        // Test only: image snapshots of the shared components (D10). Pinned like Supabase.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.7"),
     ],
     targets: [
         .target(
@@ -54,7 +56,10 @@ let package = Package(
                 "FlightImportKit",
                 // The local-stack smoke test (INTEGRATION=1) signs a user in through the client.
                 .product(name: "Supabase", package: "supabase-swift"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
             ],
+            // The recorded references are read from the source tree by path, never bundled.
+            exclude: ["Snapshots/__Snapshots__"],
             resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),

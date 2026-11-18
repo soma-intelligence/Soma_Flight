@@ -383,11 +383,11 @@ extension AirportFacts {
     /// The issues card's line on the cause, nil without weather.
     static func causeLine(_ cause: DelayCause) -> String? {
         switch cause {
-        case .weather(let i): "Likely weather related. \(i.reason)."
+        case .weather(let i): Format.words("Likely weather related. \(i.reason).")
         case .notWeather(let i):
-            i.level == .minor ? "Weather is not the main cause: only \(OpsReport.labels(i)) here."
-                : "The weather is fine, so the delays have another cause."
-        case .weatherAhead(let i): "Weather to watch. \(i.reason)."
+            i.level == .minor ? Format.words("Weather is not the main cause: only \(OpsReport.labels(i)) here.")
+                : Format.words("The weather is fine, so the delays have another cause.")
+        case .weatherAhead(let i): Format.words("Weather to watch. \(i.reason).")
         case .normal: nil
         }
     }
@@ -395,7 +395,7 @@ extension AirportFacts {
     /// The issues card's weather row: sky and temperature, then whether the weather explains the delays.
     static func issuesWeatherLine(_ w: Weather, departures: DelayStats, arrivals: DelayStats) -> String {
         let temp = w.tempC.map { ", \(Int($0.rounded()))°C" } ?? ""
-        let sky = "\(Sky(metar: w.metarRaw).description)\(temp)."
+        let sky = "\(UIText.localized(Sky(metar: w.metarRaw).description))\(temp)."
         let cause = DelayCause.of(departures: departures, arrivals: arrivals, weather: w)
         return [sky, causeLine(cause)].compactMap { $0 }.joined(separator: " ")
     }

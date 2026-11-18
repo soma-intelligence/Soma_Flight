@@ -24,7 +24,9 @@ struct AcknowledgementsTests {
         let blocks = AcknowledgementsView.thirdPartyBlocks
         #expect(blocks.count > 1)
         let applies = blocks.dropFirst().filter { $0.hasPrefix("Applies to:") }
-        for pin in pins {
+        // Linked by the test target only (image snapshots, D10): never shipped, so no licence in the app.
+        let testOnly: Set<String> = ["swift-snapshot-testing", "swift-custom-dump", "swift-syntax"]
+        for pin in pins where !testOnly.contains(pin.identity) {
             #expect(applies.contains { $0.prefix(while: { $0 != "\n" }).contains("\(pin.identity) \(pin.state.version)") },
                     "no licence text for \(pin.identity) \(pin.state.version)")
         }

@@ -24,6 +24,14 @@ public struct FlightDetailView: View {
     @Environment(\.flightSharing) private var sharingService
     @Environment(\.flightTexts) private var flightTexts
     @Environment(\.travelJournal) private var travelJournal
+    @Environment(\.requestSignIn) private var requestSignIn
+    @Environment(\.stopFollowing) private var stopFollowing
+    @Environment(\.scenePhase) private var scenePhase
+    /// "Stop following AF 84?" when no Undo is on offer (`stopFollowing` not wired or the flight not listed).
+    @State private var confirmingStop = false
+    /// The system drops this app's alerts (E5): the bell shows off and opens Settings.
+    @State private var alertsDenied = false
+    @State private var askingSettings = false
     /// The flight's live link (made on Share, stopped from the menu); nil for Passport flights.
     @State private var sharing: FlightShareModel?
     /// The route-derived cards (sun, landmarks, window side), worked out once per route and seat rather than on
@@ -52,7 +60,13 @@ public struct FlightDetailView: View {
     public var body: some View {
         ClockView(fixed: fixedNow) { now in
             VStack(spacing: 0) {
-                if let flight = store.flight {
+                if store.isGone, !store.isArchived {
+                    // The server no longer has this flight (I7): nothing to retry, only Close.
+                    if let onClose {
+                        HStack { Spacer(); CloseButton(action: onClose) }
+                    }
+                    FlightGoneState(onClose: onClose)
+                } else if let flight = store.flight {
                     DetailHeader(flight: flight, origin: store.origin, destination: plannedDestination(flight),
                                  airline: airline(flight), onClose: onClose,
                                  actions: Self.barInHeader ? AnyView(bottomBar(flight)) : nil)
@@ -68,8 +82,8 @@ public struct FlightDetailView: View {
                         HStack { Spacer(); CloseButton(action: onClose) }
                     }
                     if let error = store.error {
-                        ErrorBanner(error: error, retry: reload)
-                            .scaledPadding(.all, 16)
+                        ErrorBanner(error: error, hasContent: false, retry: reload, signIn: signIn)
+                            .scaledPadding(.all, Theme.Space.md)
                         Spacer(minLength: 0)
                     } else {
                         ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,13 +111,24 @@ public struct FlightDetailView: View {
             }
             .environment(\.units, units)
         }
-        .alert("Could Not Delete Flight", isPresented: Binding(
-            get: { store.trackingError != nil },
-            set: { if !$0 { store.clearTrackingError() } })) {
-            Button("OK", role: .cancel) { store.clearTrackingError() }
+        .failureAlert(Binding(get: { store.trackingError }, set: { if $0 == nil { store.clearTrackingError() } }),
+                      title: "Couldn't Stop Following", retry: { stopTracking() })
+        // The Alerts switch went back (I4): its own alert, whose Try Again sends the switch again.
+        .failureAlert(Binding(get: { store.notifyError }, set: { if $0 == nil { store.clearNotifyError() } }),
+                      title: "Couldn't Change Alerts", retry: { Task { await store.retryNotify() } })
+        .confirmDestructive(isPresented: $confirmingStop,
+                            title: store.flight.map { String(localized: "Stop following \(Format.ident($0.ident))?",
+                                                             bundle: .main) } ?? "",
+                            message: DetailFacts.stopFollowingMessage,
+                            actionTitle: "Stop Following") { stopTracking() }
+        .alert(Text(ui: "Notifications Are Off"), isPresented: $askingSettings) {
+            Button("Open Settings") { openNotificationSettings() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text(store.trackingError?.message ?? "")
+            Text(ui: DetailFacts.alertsDeniedMessage)
         }
+        // Read again when the app comes back: the user may have turned alerts on in Settings.
+        .task(id: scenePhase) { await readAlertPermission() }
         .sensoryFeedback(.error, trigger: pasteFailures)
         .task(id: store.flight?.id) {
             if store.flight != nil { await store.loadExtras(now: fixedNow ?? .now) }
@@ -118,6 +143,25 @@ public struct FlightDetailView: View {
     }
 
     private func reload() { Task { await store.load() } }
+
+    /// Sign In instead of Retry when the session is gone (E3); nil where the shell gives no sign-in sheet.
+    private var signIn: (() -> Void)? {
+        requestSignIn.map { action in { action() } }
+    }
+
+    /// True when the system drops this app's alerts. iOS only, and never for previews or tests (`now` fixed).
+    private func readAlertPermission() async {
+        #if os(iOS)
+        guard fixedNow == nil, store.isFollowed else { return }
+        alertsDenied = await SystemNotificationAuthorizer().status() == .denied
+        #endif
+    }
+
+    private func openNotificationSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+        #endif
+    }
 
     /// False once the sheet is pulled down to its header, so the floating bar leaves.
     @State private var barShown = true
@@ -198,16 +242,18 @@ public struct FlightDetailView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 // A failed refresh keeps the last known flight on screen under one inline card (R8).
                 if let error = store.error {
-                    RefreshErrorCard(error: error, updatedAt: flight.updatedAt, now: now, retry: reload)
+                    RefreshErrorCard(error: error, updatedAt: flight.updatedAt, now: now, retry: reload, signIn: signIn)
                 }
                 if let error = store.detailsError {
-                    ErrorBanner(error: error)
+                    ErrorBanner(error: error, signIn: signIn)
                 }
                 // The hero (R3): status, progress and the key facts in one card, coloured like the home row.
                 DetailHeroCard(facts: heroFacts(flight, now: now), flight: flight, origin: store.origin,
                                aircraft: flight.aircraftType.flatMap { reference.type($0) },
                                pass: store.boardingPass, predictedGate: store.gatePrediction,
-                               stamp: store.error == nil ? nil : HeroFacts.age(since: flight.updatedAt, now: now),
+                               // "Updated 12 min. ago" once older than its TTL (E9); the error card says it otherwise.
+                               freshness: store.isArchived || store.error != nil
+                                   ? nil : (flight.updatedAt, Self.ttl(flight)),
                                now: now)
                     // Reloads a stale flight; drawn as a background so it adds no stack spacing.
                     .background {
@@ -229,6 +275,10 @@ public struct FlightDetailView: View {
                              onAirport: onAirport, predictedGate: store.gatePrediction,
                              lateTone: Self.lateTone(heroFacts(flight, now: now).level))
                     .scaledPadding(.top, 16)
+                // An airport that did not load (E10): a quiet note, the flight itself is fine.
+                if store.sectionErrors[.origin] != nil || store.sectionErrors[.destination] != nil {
+                    SectionNote(text: DetailFacts.airportsNote)
+                }
                 if let details = store.details {
                     DetailTiles(details: details, onEdit: { if !store.isArchived { editing = $0 } },
                                 onPaste: pasteAction, hint: pasteHint,
@@ -325,6 +375,9 @@ public struct FlightDetailView: View {
                     RouteHistoryCard(history: history, from: flight.originCode, to: flight.destinationCode)
                 }
                 UpdatesCard(events: store.events, timeZone: store.origin?.timeZone ?? .current)
+                if store.sectionErrors[.events] != nil, store.events.isEmpty {
+                    SectionNote(text: DetailFacts.updatesNote)
+                }
                 if flight.status == .diverted, let diverted = store.destination, diverted.id != flight.destinationIcao {
                     DetailCard {
                         AirportLinkRow(role: "Diverted to", code: diverted.id, airport: diverted, tag: "Diverted") {
@@ -346,7 +399,14 @@ public struct FlightDetailView: View {
                         .id("emissions")
                 }
                 ReportLink(url: DetailFacts.reportURL(flight, origin: store.origin?.timeZone ?? .gmt))
-                    .scaledPadding(.top, 24)
+                    .scaledPadding(.top, Theme.Space.lg)
+                // Where the status comes from and how old it is (E9, D4); a Passport flight is the user's record.
+                if !store.isArchived {
+                    StaleBadge(fetchedAt: flight.updatedAt, ttl: Self.ttl(flight), now: fixedNow,
+                               source: DetailFacts.dataSource)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                }
             }
             .scaledPadding(.horizontal, Theme.gutter)
         }
@@ -364,15 +424,23 @@ public struct FlightDetailView: View {
         #endif
     }
 
-    /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts).
+    /// Alerts on or off; nil hides the bell (the flight is not followed or sends no more alerts). Off while
+    /// the system drops this app's alerts (E5), whatever the server holds.
     private func notify(_ flight: Flight) -> Bool? {
-        DetailFacts.takesAlerts(flight) && !store.isArchived ? store.notify : nil
+        guard DetailFacts.takesAlerts(flight), !store.isArchived, let on = store.notify else { return nil }
+        return alertsDenied ? false : on
+    }
+
+    /// The bell: turns alerts on or off, or, when the system drops them, offers Settings.
+    private func toggleNotify(_ on: Bool) {
+        if alertsDenied { askingSettings = true; return }
+        Task { await store.setNotify(on) }
     }
 
     /// The Mac panel's share, bell and menu, as small circles in the header.
     private func bottomBar(_ flight: Flight) -> some View {
         DetailBottomBar(share: shareItem(flight), notify: notify(flight),
-                        onNotify: { on in Task { await store.setNotify(on) } }, compact: true) {
+                        onNotify: toggleNotify, compact: true) {
             moreMenu(flight)
         }
     }
@@ -382,22 +450,23 @@ public struct FlightDetailView: View {
     private func actionBar(_ flight: Flight) -> some View {
         let notify = notify(flight)
         let share = shareItem(flight)
-        return DetailActionBar(count: notify == nil ? 2 : 3) {
-            Menu { moreMenu(flight) } label: { DetailActionLabel(title: "More", systemImage: "ellipsis.circle") }
+        return GlassActionBarContainer(count: notify == nil ? 2 : 3) {
+            Menu { moreMenu(flight) } label: { GlassActionLabel(title: "More", systemImage: "ellipsis.circle") }
                 .menuIndicator(.hidden)
                 // Share stays on top even when the menu opens upward from the bar.
                 .menuOrder(.fixed)
                 .accessibilityLabel("More")
             if let notify {
-                Button { Task { await store.setNotify(!notify) } } label: {
-                    DetailActionLabel(title: "Alerts", systemImage: notify ? "bell.fill" : "bell.slash",
-                                      tint: notify ? Theme.accent : nil)
+                Button { toggleNotify(!notify) } label: {
+                    GlassActionLabel(title: "Alerts", systemImage: notify ? "bell.fill" : "bell.slash",
+                                     tint: notify ? Theme.accent : nil)
                 }
                 .accessibilityLabel(notify ? "Turn Off Alerts" : "Turn On Alerts")
                 .accessibilityValue(notify ? "On" : "Off")
+                .accessibilityHint(alertsDenied ? "Notifications are off in Settings" : "")
             }
             ShareLink(item: share, preview: SharePreview(share.title)) {
-                DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                GlassActionLabel(title: "Share", systemImage: "square.and.arrow.up")
             }
             .accessibilityLabel("Share Flight")
         }
@@ -449,7 +518,8 @@ public struct FlightDetailView: View {
         }
         if store.isFollowed { FlightTextsMenuItem(model: flightTexts) }
         if store.isFollowed {
-            Button("Delete Flight", systemImage: "trash", role: .destructive) { stopTracking() }
+            // A reversible unfollow (D3): "Stop Following", with Undo, or a confirmation when Undo is not on offer.
+            Button("Stop Following", systemImage: "bell.slash", role: .destructive) { stopFollowingTapped(flight) }
         }
     }
 
@@ -457,6 +527,17 @@ public struct FlightDetailView: View {
     private func shareItem(_ flight: Flight) -> FlightShareItem {
         FlightSharing.item(flight, origin: store.origin, destination: plannedDestination(flight),
                            clock: units.clock, model: store.isFollowed ? sharing : nil)
+    }
+
+    /// Stop Following (I1): through the shell's Undo toast when it takes the flight (the sheet closes at once,
+    /// booking code, seat and notes come back with Undo); otherwise after a confirmation, since the server
+    /// then drops them for good.
+    private func stopFollowingTapped(_ flight: Flight) {
+        if let stopFollowing, stopFollowing(flight) {
+            onClose?()
+        } else {
+            confirmingStop = true
+        }
     }
 
     private func stopTracking() {
@@ -531,6 +612,81 @@ public struct FlightDetailView: View {
 }
 
 // MARK: - Pieces
+
+/// Removes a followed flight with Undo (I1): the shell sets it to `HomeModel.unfollowWithUndo` and returns
+/// true when it took the flight; false (or no action) makes the sheet confirm and unfollow at once.
+public struct StopFollowingAction {
+    let run: @MainActor (Flight) -> Bool
+
+    public init(_ run: @escaping @MainActor (Flight) -> Bool) { self.run = run }
+
+    @MainActor public func callAsFunction(_ flight: Flight) -> Bool { run(flight) }
+}
+
+public extension EnvironmentValues {
+    /// Set by the shell; nil makes the flight sheet confirm before it unfollows.
+    @Entry var stopFollowing: StopFollowingAction? = nil
+}
+
+public extension View {
+    /// What the flight sheet's Stop Following does: return true once the flight is hidden with an Undo toast.
+    func onStopFollowing(_ action: @escaping @MainActor (Flight) -> Bool) -> some View {
+        environment(\.stopFollowing, StopFollowingAction(action))
+    }
+}
+
+/// The flight sheet when the server no longer has the flight (I7): what happened and Close, no Retry.
+struct FlightGoneState: View {
+    var onClose: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: Theme.Space.sm) {
+            Spacer(minLength: 0)
+            Image(systemName: "airplane.circle")
+                .scaledFont(44, weight: .regular)
+                .foregroundStyle(Theme.secondary)
+                .accessibilityHidden(true)
+            Text(ui: "This flight is no longer available")
+                .themeFont(.sectionTitle)
+                .foregroundStyle(Theme.primary)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text(ui: "The airline may have removed or renumbered it. Search for it again to follow the new one.")
+                .scaledFont(15)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            if let onClose {
+                Button(action: onClose) {
+                    Text(ui: "Close")
+                        .scaledFont(17, weight: .semibold)
+                        .scaledPadding(.horizontal, Theme.Space.lg)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(Theme.accent)
+                .scaledPadding(.top, Theme.Space.xs)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scaledPadding(.horizontal, Theme.Space.xl)
+    }
+}
+
+/// A quiet line where a section's data did not load (E10): never "Couldn't refresh", the flight is fine.
+struct SectionNote: View {
+    var text: String
+
+    var body: some View {
+        Label { Text(ui: text) } icon: { Image(systemName: "info.circle") }
+            .scaledFont(13)
+            .foregroundStyle(Theme.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
 
 /// Pads the sheet's content to end above the glass action bar: `refinedActionBarInset()` on the phone, a
 /// plain 24 pt on the Mac, whose actions sit in the header.
@@ -746,6 +902,16 @@ struct ReportLink: View {
 
 enum DetailFacts {
     static let reportLabel = "Report a Data Issue"
+    /// Where the flight status comes from, named at the foot of the sheet (D4).
+    static let dataSource = "FlightAware"
+    /// Under "Stop following AF 84?" when no Undo is on offer.
+    static let stopFollowingMessage = "Its booking code, seat and notes will be removed."
+    /// The bell while the system drops this app's alerts (E5).
+    static let alertsDeniedMessage = "Soma Flight can't alert you about this flight. Turn notifications on in Settings."
+    /// An airport that did not load while the flight did (E10).
+    static let airportsNote = "Some airport details couldn't load. They'll come back on the next refresh."
+    /// The updates list that did not load (E10).
+    static let updatesNote = "This flight's updates couldn't load. They'll come back on the next refresh."
     static let supportAddress = "support@somalabs.me"
     /// Shown when no mail app opened the report.
     static let reportCopied = "No mail app found. We copied support@somalabs.me for you."

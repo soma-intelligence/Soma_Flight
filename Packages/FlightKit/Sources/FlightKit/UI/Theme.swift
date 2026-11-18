@@ -19,8 +19,10 @@ public enum Theme {
     public static let issues = Color(light: 0xFBE4E6, dark: 0x3E1620)
     public static let issuesRim = Color(light: 0xF0B9BE, dark: 0x5A3841)
     /// Chart grid lines and hairlines.
-    public static let grid = Color(light: 0xD8D8DD, dark: 0x373738)
-    public static let separator = Color(light: 0xC6C6C8, dark: 0x2E2E31)
+    /// Increase Contrast darkens it in light and lifts it in dark (A4).
+    public static let grid = Color(light: 0xD8D8DD, dark: 0x373738, highContrastLight: 0xA0A0A6, highContrastDark: 0x5E5E62)
+    public static let separator = Color(light: 0xC6C6C8, dark: 0x2E2E31,
+                                        highContrastLight: 0x8E8E93, highContrastDark: 0x5A5A5F)
     /// Selected segment and filter pills.
     public static let pill = Color(light: 0xE3E3E8, dark: 0x2C2C2F)
     /// Inactive ticks on wind bars.
@@ -28,7 +30,9 @@ public enum Theme {
 
     // MARK: Text
     public static let primary = Color(light: 0x000000, dark: 0xFFFFFF)
-    public static let secondary = Color(light: 0x6C6C72, dark: 0x96969D)
+    /// 5.22:1 on #FFFFFF, 4.67:1 on #F2F2F7, 5.53:1 on #202023. Increase Contrast: #4A4A50 (8.80, 7.89) and
+    /// #B8B8BF (8.24 on #202023).
+    public static let secondary = Color(light: 0x6C6C72, dark: 0x96969D, highContrastLight: 0x4A4A50, highContrastDark: 0xB8B8BF)
     public static let accent = Color(light: 0x007AFF, dark: 0x0A84FF)
 
     // MARK: Delay levels (board dots, map routes, per-hour chart)
@@ -39,6 +43,39 @@ public enum Theme {
     public static let diverted = Color(light: 0x9C3DD6, dark: 0xBF5AF2)
     /// Friends' arcs and planes on the globe, and their avatars: a teal no delay colour uses.
     public static let friend = Color(light: 0x0F9BAE, dark: 0x3CD3E6)
+
+    // MARK: Text tokens for the delay hues (A3)
+    // The hues above stay for dots, bars, arcs and fills. Words written in a delay colour use these: the
+    // light values are darker so they reach WCAG AA (4.5:1) on both light surfaces, the card #FFFFFF and the
+    // page #F2F2F7; the dark values already pass on the dark card #202023 and page #18181A, except accent,
+    // lifted here. Increase Contrast (A4) pushes each one past 7:1 on the card.
+    // Ratios: light on #FFFFFF / #F2F2F7, dark on #202023 / #18181A, then the high-contrast pair.
+    //
+    // | token        | light   | W    | BG   | dark    | DC    | DB    | HC light | W    | HC dark | DC    |
+    // |--------------|---------|------|------|---------|-------|-------|----------|------|---------|-------|
+    // | lateText     | #8F6000 | 5.47 | 4.90 | #FDB022 | 8.83  | 9.63  | #7A5200  | 6.92 | #FFC54D | 10.33 |
+    // | onTimeText   | #0B7A45 | 5.41 | 4.85 | #12B76A | 6.20  | 6.76  | #075E35  | 7.89 | #3DD68C | 8.66  |
+    // | veryLateText | #C4281E | 5.72 | 5.13 | #FF6961 | 5.76  | 6.29  | #9E1D15  | 7.95 | #FF8A84 | 7.14  |
+    // | canceledText | #636369 | 5.97 | 5.35 | #FFFFFF | 16.25 | 17.73 | #48484D  | 9.09 | #FFFFFF | 16.25 |
+    // | divertedText | #8A2BC2 | 6.55 | 5.87 | #C97AF5 | 5.87  | 6.40  | #6E1FA0  | 8.87 | #D89BF8 | 7.71  |
+    // | friendText   | #0A7381 | 5.55 | 4.98 | #3CD3E6 | 9.02  | 9.84  | #065A65  | 7.90 | #7BE3F0 | 10.90 |
+    // | accentText   | #0066D6 | 5.42 | 4.86 | #3D9BFF | 5.67  | 6.19  | #004FA8  | 7.82 | #6CB4FF | 7.44  |
+    //
+    // Before (the hues as text): late 2.35 / 2.10, canceled 3.26 / 2.92, friend 3.32 / 2.98, onTime 3.43 / 3.07,
+    // accent 4.02 / 3.60, veryLate 4.27 / 3.83 on #FFFFFF / #F2F2F7.
+    public static let lateText = Color(light: 0x8F6000, dark: 0xFDB022, highContrastLight: 0x7A5200, highContrastDark: 0xFFC54D)
+    public static let onTimeText = Color(light: 0x0B7A45, dark: 0x12B76A, highContrastLight: 0x075E35, highContrastDark: 0x3DD68C)
+    public static let veryLateText = Color(light: 0xC4281E, dark: 0xFF6961, highContrastLight: 0x9E1D15, highContrastDark: 0xFF8A84)
+    public static let canceledText = Color(light: 0x636369, dark: 0xFFFFFF, highContrastLight: 0x48484D, highContrastDark: 0xFFFFFF)
+    public static let divertedText = Color(light: 0x8A2BC2, dark: 0xC97AF5, highContrastLight: 0x6E1FA0, highContrastDark: 0xD89BF8)
+    public static let friendText = Color(light: 0x0A7381, dark: 0x3CD3E6, highContrastLight: 0x065A65, highContrastDark: 0x7BE3F0)
+    /// Links and text buttons in the accent hue.
+    public static let accentText = Color(light: 0x0066D6, dark: 0x3D9BFF, highContrastLight: 0x004FA8, highContrastDark: 0x6CB4FF)
+
+    /// Fills behind a destructive action (the swipe's trash, an over-limit meter), with white on top.
+    public static let destructive = Color(light: 0xE5372C, dark: 0xFF453A, highContrastLight: 0xC4281E, highContrastDark: 0xFF6961)
+    /// Words of a destructive action outside a system button role (same values as `veryLateText`).
+    public static let destructiveText = veryLateText
 
     // MARK: Performance split and delay trend (softer, as in the airport sheet)
     public static let splitGreen = Color(light: 0x34A15A, dark: 0x54B471)
@@ -159,26 +196,81 @@ public enum Theme {
             }
         }
     }
-    public static let cardRadius: CGFloat = 14
-    public static let sheetRadius: CGFloat = 38
+    public static let cardRadius: CGFloat = Radius.card
+    public static let sheetRadius: CGFloat = Radius.sheet
+
+    // MARK: Spacing, radii, shadows (D8)
+
+    /// The spacing scale, in reference points. Pass through `scaledPadding` or `Theme.metric` so the Mac
+    /// panel scales it. New code picks one of these instead of a literal.
+    public enum Space {
+        /// 4: an icon and its label, stacked lines of one fact.
+        public static let xxs: CGFloat = 4
+        /// 8: items inside a row, chips in a group.
+        public static let xs: CGFloat = 8
+        /// 12: rows in a card, a card's icon and text.
+        public static let sm: CGFloat = 12
+        /// 16: a card's inner padding, cards in a stack.
+        public static let md: CGFloat = 16
+        /// 24: between sections.
+        public static let lg: CGFloat = 24
+        /// 32: above a page's first section, around an empty state.
+        public static let xl: CGFloat = 32
+    }
+
+    /// Corner radii, in reference points (scale with `Theme.metric`). Always `style: .continuous`.
+    public enum Radius {
+        /// Buttons, fields and chips that are not capsules.
+        public static let control: CGFloat = 12
+        /// Every card and inline banner (`RefinedCard`, `ErrorBanner`, `OfflineBanner`).
+        public static let card: CGFloat = 14
+        /// The sheet's top corners.
+        public static let sheet: CGFloat = 38
+    }
+
+    /// A drop shadow token. Apply with `themeShadow(_:)`.
+    public struct Shadow: Sendable {
+        public var opacity: Double
+        public var radius: CGFloat
+        public var y: CGFloat
+
+        /// Cards that sit on the map or on a photo, where a flat card would vanish.
+        public static let card = Shadow(opacity: 0.08, radius: 8, y: 2)
+        /// Floating chrome off the glass path: toasts, a dragged row, a popover.
+        public static let floating = Shadow(opacity: 0.18, radius: 20, y: 8)
+    }
 }
 
 public extension Color {
     /// A colour that follows the appearance: `dark` in dark mode, `light` otherwise. Hex is 0xRRGGBB.
-    init(light: UInt32, dark: UInt32) {
-        self.init(light: light, lightOpacity: 1, dark: dark, darkOpacity: 1)
+    /// With Increase Contrast on (`accessibilityContrast == .high` on iOS, a high-contrast appearance on the
+    /// Mac) the `highContrast` variant of the scheme is used when given (A4).
+    init(light: UInt32, dark: UInt32, highContrastLight: UInt32? = nil, highContrastDark: UInt32? = nil) {
+        self.init(light: light, lightOpacity: 1, dark: dark, darkOpacity: 1,
+                  highContrastLight: highContrastLight, highContrastDark: highContrastDark)
     }
 
     /// `init(light:dark:)` with an opacity for each scheme (a translucent token such as `glassControl`).
-    init(light: UInt32, lightOpacity: CGFloat, dark: UInt32, darkOpacity: CGFloat) {
+    init(light: UInt32, lightOpacity: CGFloat, dark: UInt32, darkOpacity: CGFloat,
+         highContrastLight: UInt32? = nil, highContrastDark: UInt32? = nil) {
         #if canImport(UIKit)
-        self.init(uiColor: UIColor {
-            $0.userInterfaceStyle == .dark ? UIColor(hex: dark, alpha: darkOpacity) : UIColor(hex: light, alpha: lightOpacity)
+        self.init(uiColor: UIColor { traits in
+            let high = traits.accessibilityContrast == .high
+            if traits.userInterfaceStyle == .dark {
+                return UIColor(hex: high ? (highContrastDark ?? dark) : dark, alpha: darkOpacity)
+            }
+            return UIColor(hex: high ? (highContrastLight ?? light) : light, alpha: lightOpacity)
         })
         #else
         self.init(nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(hex: dark, alpha: darkOpacity) : NSColor(hex: light, alpha: lightOpacity)
+            let match = appearance.bestMatch(from: [.aqua, .darkAqua, .accessibilityHighContrastAqua,
+                                                    .accessibilityHighContrastDarkAqua])
+            switch match {
+            case .darkAqua: return NSColor(hex: dark, alpha: darkOpacity)
+            case .accessibilityHighContrastDarkAqua: return NSColor(hex: highContrastDark ?? dark, alpha: darkOpacity)
+            case .accessibilityHighContrastAqua: return NSColor(hex: highContrastLight ?? light, alpha: lightOpacity)
+            default: return NSColor(hex: light, alpha: lightOpacity)
+            }
         })
         #endif
     }
@@ -278,6 +370,11 @@ public extension View {
     func scaledPadding(_ edges: Edge.Set = .all, _ length: CGFloat) -> some View {
         modifier(ScaledPadding(edges: edges, length: length))
     }
+
+    /// A `Theme.Shadow` token, black at the token's opacity.
+    func themeShadow(_ token: Theme.Shadow) -> some View {
+        shadow(color: .black.opacity(token.opacity), radius: token.radius, x: 0, y: token.y)
+    }
 }
 
 extension View {
@@ -295,6 +392,8 @@ public struct SectionHeader: View {
     var large: Bool
     var info: Bool
     @Environment(\.metricsScale) private var scale
+    /// The (i) glyph follows Dynamic Type like the caption it sits beside (A16).
+    @ScaledMetric(relativeTo: .caption2) private var glyphSize: CGFloat = 11
 
     /// - Parameter info: adds a small (i) glyph after the subtitle (or the title when there is none).
     public init(_ title: String, subtitle: String? = nil, large: Bool = false, info: Bool = false) {
@@ -302,7 +401,7 @@ public struct SectionHeader: View {
     }
 
     private var glyph: Text {
-        Text(Image(systemName: "info.circle")).font(.system(size: Theme.fontSize(11, scale), weight: .regular))
+        Text(Image(systemName: "info.circle")).font(.system(size: Theme.fontSize(glyphSize, scale), weight: .regular))
     }
 
     public var body: some View {

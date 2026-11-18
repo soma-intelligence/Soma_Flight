@@ -35,7 +35,12 @@ enum SearchChipText {
         guard let date = cal.date(from: DateComponents(year: d.year, month: d.month, day: d.day, hour: 12)) else {
             return d.description
         }
-        return dayFormatter.string(from: date)
+        guard FlightActivityDisplay.uiLocale.language.languageCode?.identifier != "en" else {
+            return dayFormatter.string(from: date)
+        }
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: .gmt)
+        style = style.weekday(.abbreviated).day().month(.abbreviated)
+        return date.formatted(style)  // "ven. 7 nov." in French
     }
 
     /// The named times of day by their words, any other minute as a clock time in the user's style.

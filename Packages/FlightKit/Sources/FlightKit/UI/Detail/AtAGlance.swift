@@ -67,7 +67,10 @@ enum GlanceFacts {
         let label = "Boarding"
         if hasLeft(f) {
             return Cell(label: label, value: "Closed",
-                        caption: f.actualOut.map { "Left at \(Format.clock($0, tz, clock))" }, kind: .known)
+                        caption: f.actualOut.map { out in
+                            let time = Format.clock(out, tz, clock)
+                            return Format.words("Left at \(time)")
+                        }, kind: .known)
         }
         if let t = pass?.boardingTime {
             return Cell(label: label, value: Format.clock(t, tz, clock), caption: "On your pass", kind: .known)
@@ -83,7 +86,7 @@ enum GlanceFacts {
 
     // MARK: Gates and belt
 
-    private static func terminal(_ t: String?) -> String? { t.map { "Terminal \($0)" } }
+    private static func terminal(_ t: String?) -> String? { t.map { Format.words("Terminal \($0)") } }
 
     /// The departure gate: the airline's, else the likely one from the gate history marked "Predicted",
     /// else "Gate soon" (or "Not posted" once the plane left without one), with the terminal when known.
@@ -98,12 +101,12 @@ enum GlanceFacts {
         if let p = predicted {
             let where_ = terminal(f.terminalOrigin ?? p.terminal)
             if let badge = p.badge {
-                return Cell(label: label, value: badge, caption: (["Predicted"] + [where_].compactMap { $0 })
+                return Cell(label: label, value: badge, caption: ([UIText.localized("Predicted")] + [where_].compactMap { $0 })
                                 .joined(separator: " · "), kind: .predicted)
             }
             if let t = f.terminalOrigin ?? p.terminal {
                 return Cell(label: label, value: gateSoon,
-                            caption: f.terminalOrigin == nil ? "Likely terminal \(t)" : "Terminal \(t)",
+                            caption: f.terminalOrigin == nil ? Format.words("Likely terminal \(t)") : Format.words("Terminal \(t)"),
                             kind: .placeholder)
             }
         }
@@ -137,9 +140,21 @@ enum GlanceFacts {
 
     // MARK: Outlook
 
-    /// "12m late", "5m early".
-    private static func off(_ m: Int) -> String {
-        m >= 1 ? "\(DetailFacts.span(minutes: m)) late" : "\(DetailFacts.span(minutes: -m)) early"
+    /// What an outlook title says the flight does.
+    private enum Move { case arrived, landing, leaving }
+
+    /// "Arrived 12m late", "Landing 5m early", "Leaving 20m late": one catalog key per verb and side, so each
+    /// language orders the words its own way (A1).
+    private static func title(_ move: Move, _ m: Int) -> String {
+        let span = DetailFacts.span(minutes: abs(m))
+        return switch (move, m >= 1) {
+        case (.arrived, true): Format.words("Arrived \(span) late")
+        case (.arrived, false): Format.words("Arrived \(span) early")
+        case (.landing, true): Format.words("Landing \(span) late")
+        case (.landing, false): Format.words("Landing \(span) early")
+        case (.leaving, true): Format.words("Leaving \(span) late")
+        case (.leaving, false): Format.words("Leaving \(span) early")
+        }
     }
 
     /// The top line. Landed: how the arrival went. In the air: the landing against its schedule. Before
@@ -152,27 +167,32 @@ enum GlanceFacts {
         case .landed, .arrived:
             guard let m = DetailFacts.offsetMinutes(scheduled: f.scheduledIn, estimated: f.estimatedIn,
                                                     actual: f.actualIn ?? f.actualOn) else {
-                return Outlook(title: "Landed", text: "Arrival time not posted", tone: .neutral)
+                return Outlook(title: Format.words("Landed"), text: Format.words("Arrival time not posted"), tone: .neutral)
             }
-            if m == 0 { return Outlook(title: "Arrived on time", text: "Against the schedule", tone: .good) }
-            return Outlook(title: "Arrived \(off(m))", text: "Against the schedule", tone: m >= 1 ? .veryLate : .good)
+            let against = Format.words("Against the schedule")
+            if m == 0 { return Outlook(title: Format.words("Arrived on time"), text: against, tone: .good) }
+            return Outlook(title: title(.arrived, m), text: against, tone: m >= 1 ? .veryLate : .good)
         case .departed, .enRoute:
             guard let m = DetailFacts.offsetMinutes(scheduled: f.scheduledIn, estimated: f.estimatedIn,
                                                     actual: nil) else {
-                return Outlook(title: "In the air", text: "Landing time not posted", tone: .neutral)
+                return Outlook(title: Format.words("In the air"), text: Format.words("Landing time not posted"),
+                               tone: .neutral)
             }
-            if m == 0 { return Outlook(title: "Landing on time", text: "Airline estimate", tone: .good) }
-            return Outlook(title: "Landing \(off(m))", text: "Airline estimate", tone: m >= 1 ? .veryLate : .good)
+            let estimate = Format.words("Airline estimate")
+            if m == 0 { return Outlook(title: Format.words("Landing on time"), text: estimate, tone: .good) }
+            return Outlook(title: title(.landing, m), text: estimate, tone: m >= 1 ? .veryLate : .good)
         case .scheduled, .unknown:
             if let m = DetailFacts.offsetMinutes(scheduled: f.scheduledOut, estimated: f.estimatedOut, actual: nil),
                m != 0 {
-                return Outlook(title: "Leaving \(off(m))", text: "Airline estimate", tone: m >= 1 ? .veryLate : .good)
+                return Outlook(title: title(.leaving, m), text: Format.words("Airline estimate"),
+                               tone: m >= 1 ? .veryLate : .good)
             }
             if let p = prediction {
-                return Outlook(title: p.headline, text: "Predicted. \(p.cause) \(p.confidence.title).",
+                let cause = UIText.localized(p.cause), sure = UIText.localized(p.confidence.title)
+                return Outlook(title: UIText.localized(p.headline), text: Format.words("Predicted. \(cause) \(sure)."),
                                tone: p.confidence == .low ? .neutral : .late)
             }
-            return Outlook(title: "On time so far", text: "No sign of a delay yet", tone: .good)
+            return Outlook(title: Format.words("On time so far"), text: Format.words("No sign of a delay yet"), tone: .good)
         }
     }
 }

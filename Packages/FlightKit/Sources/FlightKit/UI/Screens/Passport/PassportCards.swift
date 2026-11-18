@@ -12,7 +12,7 @@ struct PassportCard: View {
 
     var body: some View {
         Button(action: onOpen) { face() }
-            .buttonStyle(CardPressStyle())
+            .buttonStyle(CardPressStyle(cornerRadius: 20))
             .accessibilityLabel("Soma Flight Passport, all flight stats")
             .accessibilityValue("\(stats.flights) flights, \(TravelFacts.distance(stats.distanceKm, units.distance))")
     }
@@ -25,11 +25,10 @@ struct PassportCard: View {
     func face(row: Bool = true, framed: Bool = true) -> some View {
         let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
-            Text("\(year.map(String.init) ?? "All-Time") Soma Flight Passport".uppercased())
+            Text(String(localized: "\(year.map(String.init) ?? UIText.localized("All-Time")) Soma Flight Passport", bundle: .main).uppercased())
                 .scaledFont(20, weight: .medium)
                 .foregroundStyle(Self.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .modifier(PassportTitleWrap())
             HStack(spacing: 6) {
                 Image(systemName: "person.text.rectangle").scaledFont(11, weight: .semibold)
                 Text("TRAVEL RECORD").scaledFont(12, weight: .semibold)
@@ -81,7 +80,7 @@ struct PassportCard: View {
     }
 
     private var flightsStat: some View {
-        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? "\(stats.longHaul) long haul" : nil,
+        stat("Flights", "\(stats.flights)", big: true, caption: stats.longHaul > 0 ? String(localized: "\(stats.longHaul) long haul", bundle: .main) : nil,
              value: Double(stats.flights))
     }
 
@@ -127,6 +126,17 @@ struct PassportCard: View {
 
 /// The red card: time lost to delays and how late the delayed flights were. The whole card opens the
 /// delay stats page.
+/// One line at standard sizes; wraps at accessibility sizes instead of "ALL-TIME SOMA F...".
+private struct PassportTitleWrap: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    func body(content: Content) -> some View {
+        content
+            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
+    }
+}
+
 struct DelaysCard: View {
     /// The Delay Report's figures, so the card and the report page agree (any minute after schedule is late).
     var report: DelayReport
@@ -137,7 +147,7 @@ struct DelaysCard: View {
     var body: some View {
         let lost = TravelFacts.delayLost(.seconds(Int64(report.lostMinutes) * 60))
         Button(action: onOpen) { face() }
-            .buttonStyle(CardPressStyle())
+            .buttonStyle(CardPressStyle(cornerRadius: 20))
             .accessibilityLabel("Delays, all delay stats")
             .accessibilityValue("\(lost.value) \(lost.caption)")
     }
@@ -199,7 +209,7 @@ struct AircraftCard: View {
 
     var body: some View {
         Button(action: onOpen) { face() }
-            .buttonStyle(CardPressStyle())
+            .buttonStyle(CardPressStyle(cornerRadius: 20))
             .accessibilityLabel("Most flown aircraft, all aircraft stats")
             .accessibilityValue("\(name), \(flightsText)")
     }
@@ -264,17 +274,6 @@ struct CardRow: View {
         .scaledPadding(.horizontal, 14)
         .frame(minHeight: 44)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(fill))
-    }
-}
-
-/// A Passport card as a button: it dims and sinks a little while pressed.
-struct CardPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .brightness(configuration.isPressed ? -0.06 : 0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -416,6 +415,8 @@ struct PastFlightAddMenu: View {
         .menuStyle(.button)
         .buttonStyle(.plain)
         .roundGlass()
+        // The glass stays 34 pt; the tap area is 44 pt (I8).
+        .minTapTarget(shape: Circle())
         .menuIndicator(.hidden)
         .accessibilityLabel("Add past flights")
     }

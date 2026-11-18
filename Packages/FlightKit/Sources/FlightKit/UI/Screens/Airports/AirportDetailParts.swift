@@ -408,7 +408,9 @@ struct AirportHistorySection: View {
             if let last = history.last {
                 let other = last.originIcao == lookup(code)?.id ?? "" ? last.destinationIcao : last.originIcao
                 let from = last.destinationIcao != other
-                Text("Last time: \(Format.ident(last.ident)) \(from ? "to" : "from") \(lookup(other)?.city ?? other), \(last.date.formatted(.dateTime.month(.abbreviated).day().year()))")
+                let ident = Format.ident(last.ident), city = lookup(other)?.city ?? other
+                let day = last.date.formatted(.dateTime.month(.abbreviated).day().year())
+                Text(from ? "Last time: \(ident) to \(city), \(day)" : "Last time: \(ident) from \(city), \(day)")
                     .scaledFont(14).foregroundStyle(Theme.secondary)
                     .scaledPadding(.top, 14)
             }
@@ -474,7 +476,10 @@ struct AirportBottomBar: View {
                         label("Share", "square.and.arrow.up", tint: nil)
                     }
                 } else {
-                    label("Share", "square.and.arrow.up", tint: nil).opacity(0.4)
+                    // A8: announced as dimmed while the picture renders, not as a live button.
+                    Button {} label: { label("Share", "square.and.arrow.up", tint: nil) }
+                        .disabled(true)
+                        .opacity(0.4)
                 }
             }
             .buttonStyle(.plain)

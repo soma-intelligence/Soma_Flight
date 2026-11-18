@@ -43,7 +43,13 @@ public struct FlightProgressBar: View {
         .frame(height: frameH)
         .accessibilityElement()
         .accessibilityLabel("Flight progress")
-        .accessibilityValue("\(Int((progress * 100).rounded())) percent")
+        .accessibilityValue(Self.spokenProgress(progress))
+    }
+
+    /// "45%" in the app's language ("45 %" in French), for VoiceOver (A11).
+    static func spokenProgress(_ progress: Double) -> String {
+        min(1, max(0, progress.isFinite ? progress : 0))
+            .formatted(.percent.precision(.fractionLength(0)).locale(FlightActivityDisplay.uiLocale))
     }
 }
 

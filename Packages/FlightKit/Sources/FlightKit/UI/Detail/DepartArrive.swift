@@ -55,6 +55,16 @@ extension DetailFacts {
         return "On Time"
     }
 
+    /// "16m late", "5m early", "On time" in the app's language (`offsetWord` in sentence case, through the
+    /// catalog); nil while only the schedule is known.
+    static func offsetPhrase(_ minutes: Int?) -> String? {
+        guard let minutes else { return nil }
+        let span = span(minutes: abs(minutes))
+        if minutes >= 1 { return Format.words("\(span) late") }
+        if minutes <= -1 { return Format.words("\(span) early") }
+        return Format.words("On time")
+    }
+
     /// "16m Late" as "16m late", "On Time" as "On time": every word after the first in lower case.
     static func sentenceCase(_ s: String) -> String {
         guard let first = s.first else { return s }
@@ -182,7 +192,7 @@ struct DepartArrive: View {
         default: Theme.onTime
         }
         // "16m late", "On time": sentence case, as on the hero and the home row.
-        let status = DetailFacts.offsetWord(offset).map { DetailFacts.sentenceCase($0) } ?? word
+        let status = DetailFacts.offsetPhrase(offset) ?? word
         let statusTone = offset == nil ? Theme.secondary : tone
         // The schedule, struck through beside the time, once the best time moved off it.
         let struck: String? = if let scheduled, let offset, offset != 0 {
@@ -306,7 +316,7 @@ struct GateBadge: View {
     var arriving: Bool
 
     /// The badge's yellow and the ink on it, the same in both schemes.
-    static let yellow = Color(red: 0xF4 / 255, green: 0xC4 / 255, blue: 0x30 / 255)
+    static let yellow = Theme.gateBadge
 
     var body: some View {
         Group {

@@ -76,7 +76,9 @@ struct AppIconPicker: View {
                 Text(ui: choice.label)
                     .scaledFont(12, weight: selected ? .semibold : .regular)
                     .foregroundStyle(selected ? Theme.primary : Theme.secondary)
-                    .lineLimit(2)
+                    // One word never splits ("Aut / o"): it shrinks to fit. Several words wrap between words (A12).
+                    .lineLimit(UIText.localized(choice.label).contains(" ") ? 2 : 1)
+                    .minimumScaleFactor(0.5)
                     .multilineTextAlignment(.center)
                     .frame(width: 76)
             }

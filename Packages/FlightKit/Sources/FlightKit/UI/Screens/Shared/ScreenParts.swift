@@ -124,6 +124,7 @@ struct ScreenScroll<Content: View>: View {
     var refresh: (() async -> Void)?
     @ViewBuilder var content: Content
     @Environment(\.sheetDetent) private var detent
+    @Environment(\.scrollToTopSignal) private var scrollToTop
     @State private var position = ScrollPosition(edge: .top)
 
     private var locked: Bool { detent == .collapsed }
@@ -146,6 +147,8 @@ struct ScreenScroll<Content: View>: View {
             .onChange(of: locked) { _, now in
                 if now { withAnimation(.smooth) { position.scrollTo(edge: .top) } }
             }
+            // The selected tab tapped again (I10).
+            .onChange(of: scrollToTop) { withAnimation(.smooth) { position.scrollTo(edge: .top) } }
         } else {
             VStack(spacing: 0) { content; Spacer(minLength: 0) }
         }
@@ -169,8 +172,8 @@ struct ClockView<Content: View>: View {
 // MARK: - Formatting shared by the screens
 
 enum ScreenFormat {
-    /// "Paris to San Francisco" with codes as fallback.
-    static func route(_ from: String, _ to: String) -> String { "\(from) to \(to)" }
+    /// "Paris to San Francisco" with codes as fallback, "Paris \u{2192} San Francisco" in French (A14).
+    static func route(_ from: String, _ to: String) -> String { String(localized: "\(from) to \(to)", bundle: .main) }
 
     /// Hours and minutes until or since `date`: "2h 14m". Under a minute reads `floor` ("under a minute")
     /// instead of "0m".
@@ -179,7 +182,7 @@ enum ScreenFormat {
         return m < 1 ? floor : Format.minutes(m)
     }
 
-    /// "Apr 25, 2026" in `tz`, in English like the rest of the app (v1 strings are English, so no partial localisation).
+    /// "Apr 25, 2026" in `tz`, in the app's language.
     static func day(_ date: Date, _ tz: TimeZone) -> String {
         var style = mediumDay
         style.timeZone = tz
@@ -193,8 +196,13 @@ enum ScreenFormat {
         return date.formatted(style)
     }
 
-    private static let mediumDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).month(.abbreviated).day().year()
-    private static let shortDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.abbreviated).month(.abbreviated).day()
+    /// In the language the app's text is shown in (`uiLocale`): "Fri, Oct 23", "ven. 23 oct.".
+    private static var mediumDay: Date.FormatStyle {
+        Date.FormatStyle(locale: FlightActivityDisplay.uiLocale).month(.abbreviated).day().year()
+    }
+    private static var shortDay: Date.FormatStyle {
+        Date.FormatStyle(locale: FlightActivityDisplay.uiLocale).weekday(.abbreviated).month(.abbreviated).day()
+    }
 }
 
 #if DEBUG

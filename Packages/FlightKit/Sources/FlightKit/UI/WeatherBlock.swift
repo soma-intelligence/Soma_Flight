@@ -7,6 +7,7 @@ public struct WeatherBlock: View {
     var timeZone: TimeZone
     var now: Date
     @Environment(\.metricsScale) private var scale
+    @Environment(\.units) private var units
 
     public init(weather: Weather, timeZone: TimeZone = .current, now: Date = .now) {
         self.weather = weather; self.timeZone = timeZone; self.now = now
@@ -39,16 +40,20 @@ public struct WeatherBlock: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 0) {
+                // A11: Fahrenheit with miles, Celsius with kilometres (the Units setting).
+                let temp = WeatherUnits.temperature(weather.tempC, imperial: units.distance == .mi)
                 HStack(alignment: .top, spacing: 2) {
-                    Text(weather.tempC.map { "\(Int($0.rounded()))" } ?? "--")
+                    Text(verbatim: temp.value.map { "\(Int($0.rounded()))" } ?? "--")
                         .scaledFont(67, weight: .regular)
                         .foregroundStyle(Theme.primary)
-                    Text("°C")
+                    Text(verbatim: temp.symbol)
                         .scaledFont(31, weight: .regular)
                         .foregroundStyle(Theme.primary)
                         .scaledPadding(.top, 8)
                 }
                 .scaledPadding(.bottom, -4)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(verbatim: temp.spoken))
                 Text(Sky(metar: weather.metarRaw).description)
                     .scaledFont(16, weight: .semibold)
                     .foregroundStyle(Theme.primary)
@@ -214,6 +219,28 @@ private struct ScaleColumn: View {
     }
 }
 
+/// The weather block's units (A11): Celsius and km/h, or Fahrenheit and mph with miles, through
+/// `Measurement` so the symbols and the spoken words follow the app's language.
+enum WeatherUnits {
+    /// The rounded value in the chosen unit, its symbol ("°C", "°F") and the words for VoiceOver.
+    static func temperature(_ celsius: Double?, imperial: Bool) -> (value: Double?, symbol: String, spoken: String) {
+        let unit: UnitTemperature = imperial ? .fahrenheit : .celsius
+        let symbol = unit.symbol
+        guard let celsius else { return (nil, symbol, "--") }
+        let m = Measurement(value: celsius, unit: UnitTemperature.celsius).converted(to: unit)
+        let spoken = Measurement(value: m.value.rounded(), unit: unit)
+            .formatted(.measurement(width: .wide, usage: .asProvided).locale(FlightActivityDisplay.uiLocale))
+        return (m.value, symbol, spoken)
+    }
+
+    /// The wind in the chosen unit, rounded, with its symbol ("km/h", "mph").
+    static func speed(knots: Int, imperial: Bool) -> (value: Int, symbol: String) {
+        let unit: UnitSpeed = imperial ? .milesPerHour : .kilometersPerHour
+        let value = Measurement(value: Double(knots), unit: UnitSpeed.knots).converted(to: unit).value
+        return (Int(value.rounded()), unit.symbol)
+    }
+}
+
 private struct WindColumn: View {
     var label: String
     var knots: Int?
@@ -222,8 +249,13 @@ private struct WindColumn: View {
     @ScaledMetric(relativeTo: .body) private var valueSize: CGFloat = 17
     @ScaledMetric(relativeTo: .subheadline) private var unitSize: CGFloat = 14
     @Environment(\.metricsScale) private var scale
+    @Environment(\.units) private var units
 
+    /// The tick scale stays in km/h: 100 km/h lights every tick, whatever unit is shown.
     private var kmh: Int? { knots.map { Int((Double($0) * 1.852).rounded()) } }
+    private var shown: (value: Int, symbol: String)? {
+        knots.map { WeatherUnits.speed(knots: $0, imperial: units.distance == .mi) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -234,8 +266,8 @@ private struct WindColumn: View {
                         Text(ui: label).scaledFont(13.5)
                     }
                     .foregroundStyle(Theme.secondary)
-                    if let kmh {
-                        Text("\(Text("\(kmh) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text("KM/H").font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
+                    if let shown {
+                        Text("\(Text(verbatim: "\(shown.value) ").font(.system(size: Theme.fontSize(valueSize, scale), weight: .semibold)))\(Text(verbatim: shown.symbol).font(.system(size: Theme.fontSize(unitSize, scale), weight: .semibold)))")
                             .foregroundStyle(Theme.primary)
                     } else {
                         Text("None").scaledFont(17, weight: .semibold).foregroundStyle(Theme.primary)

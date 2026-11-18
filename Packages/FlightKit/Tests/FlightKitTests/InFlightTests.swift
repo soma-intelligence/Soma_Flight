@@ -128,7 +128,8 @@ import Testing
 
     @Test func textMeTooWalksFromNumberToCodeToSwitches() async {
         let service = FakeTextAlertsService()
-        let store = TextAlertsStore(service: service)
+        // A US number typed without +1: the store sends it in E.164 with the device's region (I12).
+        let store = TextAlertsStore(service: service, region: "US")
         await store.load()
         #expect(store.step == .number)
         store.phoneDraft = "(415) 555-0100"

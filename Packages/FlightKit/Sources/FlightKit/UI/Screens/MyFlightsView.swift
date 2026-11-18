@@ -19,9 +19,13 @@ public struct MyFlightsView: View {
     var planned: [UpcomingFlight]
     var onRemovePlanned: (UpcomingFlight.ID) -> Void
     var onImport: (() -> Void)?
+    var onUnfollow: ((Flight) -> Void)?
     @Environment(\.reference) private var reference
     @Environment(\.connectivity) private var connectivity
     @Environment(\.sheetDetentActions) private var detentActions
+    @Environment(\.requestSignIn) private var requestSignIn
+    /// The planned flight whose options are up (I9): a tap, the swipe or the menu asks before removing it.
+    @State private var plannedToRemove: UpcomingFlight?
 
     /// - Parameters:
     ///   - onSearch: opens the search sheet from the empty state; nil hides the button.
@@ -31,21 +35,25 @@ public struct MyFlightsView: View {
     ///     Upcoming with a "PLANNED" row; they have no detail screen, so tapping one does nothing.
     ///   - onRemovePlanned: deletes a planned flight by its id (swipe or the long-press menu).
     ///   - onImport: opens Import from the empty state's second button; nil leaves the button out.
+    ///   - onUnfollow: stops following a flight from the swipe or the menu. Shells pass
+    ///     `HomeModel.unfollowWithUndo`, which hides the row at once and offers Undo (I1, E15); nil asks the
+    ///     store straight away.
     public init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)? = nil,
                 lookup: @escaping (String) -> Airport? = { _ in nil }, now: Date? = nil,
                 planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in },
-                onImport: (() -> Void)? = nil) {
+                onImport: (() -> Void)? = nil, onUnfollow: ((Flight) -> Void)? = nil) {
         self.init(store: store, onSelect: onSelect, onSearch: onSearch, lookup: lookup, now: now, scrolls: true,
-                  planned: planned, onRemovePlanned: onRemovePlanned, onImport: onImport)
+                  planned: planned, onRemovePlanned: onRemovePlanned, onImport: onImport, onUnfollow: onUnfollow)
     }
 
     init(store: MyFlightsStore, onSelect: @escaping (Flight) -> Void, onSearch: (() -> Void)?,
          lookup: @escaping (String) -> Airport?, now: Date?, scrolls: Bool,
          planned: [UpcomingFlight] = [], onRemovePlanned: @escaping (UpcomingFlight.ID) -> Void = { _ in },
-         onImport: (() -> Void)? = nil) {
+         onImport: (() -> Void)? = nil, onUnfollow: ((Flight) -> Void)? = nil) {
         self.store = store; self.onSelect = onSelect; self.onSearch = onSearch
         self.lookup = lookup; self.fixedNow = now; self.scrolls = scrolls
         self.planned = planned; self.onRemovePlanned = onRemovePlanned; self.onImport = onImport
+        self.onUnfollow = onUnfollow
     }
 
     /// One row of a group: a followed flight or a planned one, with the time it leaves for ordering.
@@ -67,6 +75,27 @@ public struct MyFlightsView: View {
             }
         }
         .background(Theme.background)
+        .confirmDestructive(item: $plannedToRemove, title: Self.removePlannedTitle,
+                            message: { Self.removePlannedMessage($0) }, actionTitle: Self.removePlannedAction) {
+            deletePlanned($0)
+        }
+    }
+
+    /// The planned flight's removal (I9). A planned flight lives only on this device, so its removal cannot
+    /// be undone: it asks first (`.confirmDestructive`).
+    static let removePlannedTitle = "Remove this planned flight?"
+    static let removePlannedAction = "Remove Planned Flight"
+    static func removePlannedMessage(_ u: UpcomingFlight) -> String {
+        let ident = Format.ident(u.ident), day = PlannedFlight.day(u)
+        return String(localized: "\(ident) on \(day) leaves My Flights. This can't be undone.", bundle: .main)
+    }
+
+    /// The menu's and the swipe's word for a followed flight (D3): following can be undone, so it is
+    /// "Stop Following", never "Delete".
+    static let stopFollowing = "Stop Following"
+    static func stopFollowingLabel(_ f: Flight) -> String {
+        let ident = Format.ident(f.ident)
+        return String(localized: "Stop Following \(ident)", bundle: .main)
     }
 
     /// No connection, by the store (its last load failed offline) or by the system's path monitor.
@@ -124,25 +153,37 @@ public struct MyFlightsView: View {
     @ViewBuilder private func content(now: Date) -> some View {
         let groups = self.groups(now: now)
         VStack(alignment: .leading, spacing: 0) {
-            // Offline is not an error here: the saved list keeps working, so only a small pill says so (R8).
-            // With nothing saved the calm banner explains the empty list instead.
+            // Offline is not an error here: the saved list keeps working, so only a small pill says so, with
+            // the list's age (R8, E2). With nothing saved the calm banner explains the empty list instead (E8).
             if isOffline {
                 if groups.isEmpty {
-                    OfflineBanner(retry: reload)
+                    OfflineBanner(OfflineBanner.text(hasContent: false), retry: reload)
                         .scaledPadding(.bottom, 10)
                 } else {
-                    OfflineBanner.Pill(retry: reload)
+                    OfflineBanner.Pill(retry: reload, fetchedAt: store.fetchedAt, now: fixedNow)
                         .scaledPadding(.bottom, 14)
                 }
             } else {
                 if let error = store.error {
-                    ErrorBanner(error: error, retry: reload)
+                    ErrorBanner(error: error, hasContent: !groups.isEmpty, retry: reload, signIn: signIn)
                         .scaledPadding(.bottom, 14)
+                } else if let fetchedAt = store.fetchedAt, !groups.isEmpty, !store.isLiveSynced {
+                    // The saved copy while the network answers, or a list past its TTL (E1, E2).
+                    StaleBadge(fetchedAt: fetchedAt, ttl: Self.ttl, now: fixedNow,
+                               hidesWhileFresh: !store.isShowingCache)
+                        .scaledPadding(.bottom, 12)
                 }
-                // A live subscription that is healthy keeps the list current even when nothing changes.
-                if !groups.isEmpty, !store.isLiveSynced {
-                    SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
-                }
+            }
+            // A failed action (a removal from the flight sheet) with its own Retry, apart from the load (E6).
+            if let failure = store.actionError {
+                ErrorBanner(error: failure.error, hasContent: !groups.isEmpty,
+                            retry: { Task { await failure.retry() } }, signIn: signIn)
+                    .scaledPadding(.bottom, 14)
+            }
+            // A live subscription that is healthy keeps the list current even when nothing changes. Offline
+            // too, so the list reloads by itself once it is stale and the connection is back (E2).
+            if !groups.isEmpty, !store.isLiveSynced {
+                SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
             }
             if groups.isEmpty {
                 if !store.hasLoaded || (store.error != nil && store.isLoading) {
@@ -162,7 +203,7 @@ public struct MyFlightsView: View {
                     .scaledPadding(.bottom, 14)
                 #endif
                 ForEach(groups, id: \.title) { group in
-                    CapsHeader(group.title, trailing: group.rows.count == 1 ? "1 flight" : "\(group.rows.count) flights")
+                    CapsHeader(group.title, trailing: group.rows.count == 1 ? "1 flight" : String(localized: "\(group.rows.count) flights", bundle: .main))
                         .scaledPadding(.top, 6)
                         .scaledPadding(.bottom, 10)
                     ForEach(group.rows) { row in
@@ -186,31 +227,45 @@ public struct MyFlightsView: View {
                         estimated: isOffline)
         }
         .buttonStyle(.plain)
-        .swipeToDelete("Delete \(Format.ident(flight.ident))") {
-            Task { await store.unfollow(flight) }
-        }
+        .swipeToDelete(Self.stopFollowingLabel(flight)) { unfollow(flight) }
         .contextMenu {
-            Button("Delete Flight", systemImage: "trash", role: .destructive) {
-                Task { await store.unfollow(flight) }
+            Button(role: .destructive) { unfollow(flight) } label: {
+                Label { Text(ui: Self.stopFollowing) } icon: { Image(systemName: "minus.circle") }
+            }
+        }
+        .accessibilityAction(named: Text(ui: Self.stopFollowing)) { unfollow(flight) }
+    }
+
+    /// Stops following: through the home's undoable removal when the shell gives one (I1), else the store.
+    private func unfollow(_ flight: Flight) {
+        if let onUnfollow { onUnfollow(flight) } else { Task { await store.unfollow(flight) } }
+    }
+
+    /// A planned flight has no detail screen: a tap opens its options, which remove it after a confirmation
+    /// (I9), as the swipe and the long-press menu do. A small "…" on the row says it can be tapped.
+    private func plannedRow(_ flight: UpcomingFlight, now: Date) -> some View {
+        Button { plannedToRemove = flight } label: {
+            PlannedFlightRow(flight: flight, origin: flight.origin.flatMap(lookup),
+                             destination: flight.destination.flatMap(lookup),
+                             airline: reference.airline(ident: flight.ident), now: now)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(Text(ui: "Shows the options for this planned flight"))
+        .swipeToDelete(UIText.localized(Self.removePlannedAction)) { plannedToRemove = flight }
+        .contextMenu {
+            Button(role: .destructive) { plannedToRemove = flight } label: {
+                Label { Text(ui: Self.removePlannedAction) } icon: { Image(systemName: "trash") }
             }
         }
     }
 
-    /// A planned flight has no detail screen, so the row is not a button: a tap does nothing.
-    private func plannedRow(_ flight: UpcomingFlight, now: Date) -> some View {
-        PlannedFlightRow(flight: flight, origin: flight.origin.flatMap(lookup),
-                         destination: flight.destination.flatMap(lookup),
-                         airline: reference.airline(ident: flight.ident), now: now)
-            .swipeToDelete("Delete \(Format.ident(flight.ident))") { deletePlanned(flight) }
-            .contextMenu {
-                Button("Delete Flight", systemImage: "trash", role: .destructive) { deletePlanned(flight) }
-            }
-    }
-
-    /// What the swipe and the menu's Delete Flight both do for a planned flight.
+    /// What the confirmation's Remove Planned Flight does.
     func deletePlanned(_ flight: UpcomingFlight) { onRemovePlanned(flight.id) }
 
     private func reload() { Task { await store.load() } }
+
+    /// The banners' Sign In: the sign-in sheet over the home (E3), when the shell gives one.
+    private var signIn: (() -> Void)? { requestSignIn.map { open in { open() } } }
 
     private func airline(_ f: Flight) -> Airline? {
         f.operator.flatMap { reference.airline($0) } ?? reference.airline(ident: f.ident)

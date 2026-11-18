@@ -92,7 +92,7 @@ struct DetailTiles: View {
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(value ?? empty)
+                Text(value ?? UIText.localized(empty))
                     .scaledFont(15)
                     .foregroundStyle(value == nil ? Theme.secondary : Theme.primary)
                     .lineLimit(3)
@@ -143,7 +143,7 @@ struct NotesCard: View {
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.vertical, 14)
                 Hairline()
-                Text(notes ?? empty)
+                Text(notes ?? UIText.localized(empty))
                     .scaledFont(17)
                     .foregroundStyle(notes == nil ? Theme.secondary.opacity(0.8) : Theme.primary)
                     .multilineTextAlignment(.leading)
@@ -200,16 +200,24 @@ final class DetailEditModel {
     var text: String
     var error: String?
     private(set) var isSaving = false
+    private let original: FollowDetails
+    private let originalText: String
 
     init(field: DetailField, details: FollowDetails) {
         self.field = field
         draft = details
-        text = switch field {
+        original = details
+        let start = switch field {
         case .bookingCode: details.bookingCode ?? ""
         case .seat: details.seat ?? ""
         case .notes: details.notes ?? ""
         }
+        text = start
+        originalText = start
     }
+
+    /// Something was typed or chosen since the sheet opened (I2): the swipe down is blocked and Cancel asks.
+    var isDirty: Bool { text != originalText || draft != original }
 
     /// The details with `text` put in `field`, or the line to show under the field when it is not valid.
     static func validated(field: DetailField, text: String, draft: FollowDetails) -> Result<FollowDetails, InputError> {
@@ -294,27 +302,41 @@ struct DetailEditSheet: View {
         .onChange(of: model.text) { model.error = nil }
         .onAppear { store.clearDetailsError() }
         #else
+        // I2, I12: the modal header with Cancel and Done, a labelled field, the edits guarded against a swipe down.
         NavigationStack {
-            form
-            .navigationTitle(title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    if model.isSaving {
-                        ProgressView()
-                    } else {
-                        Button("Save") { Task { if await model.save(to: store) { dismiss() } } }.bold()
-                    }
+            VStack(spacing: 0) {
+                EditorHeader(title: title, canSave: model.isDirty, isSaving: model.isSaving) { save() }
+                if model.field == .notes {
+                    ScrollView { notesField.scaledPadding(.all, Theme.Space.md) }
+                        .scrollDismissesKeyboard(.interactively)
+                } else {
+                    form
                 }
             }
-            .interactiveDismissDisabled(model.isSaving)
+            .background(Theme.background)
+            #if os(iOS)
+            .toolbar(.hidden, for: .navigationBar)
+            #endif
+            .keyboardDoneBar()
             .onChange(of: model.text) { model.error = nil }
         }
+        .guardsUnsavedChanges(isDirty: model.isDirty, isSaving: model.isSaving)
         .onAppear { store.clearDetailsError() }
         #endif
+    }
+
+    private func save() {
+        Task { if await model.save(to: store) { dismiss() } }
+    }
+
+    /// The notes as a labelled multi-line field, the count of characters under it.
+    private var notesField: some View {
+        @Bindable var model = model
+        return FormField("Notes", text: $model.text, error: model.error,
+                         footnote: String(localized: "\(model.text.unicodeScalars.count) of \(FollowDetails.maxNotes)",
+                                          bundle: .main),
+                         submitLabel: .return, axis: .vertical)
+            .lineLimit(8...20)
     }
 
     private var form: some View {
@@ -376,8 +398,35 @@ struct DetailEditSheet: View {
     @ViewBuilder private var footer: some View {
         if let error = model.error {
             Text(ui: error)
-                .foregroundStyle(Theme.veryLate)
-                .accessibilityLabel("Error: \(error)")
+                .foregroundStyle(Theme.veryLateText)
+                .accessibilityLabel(Text(ui: error))
         }
+    }
+}
+
+/// The detail editors' modal header (I12): Cancel through the unsaved-changes guard on the left, the title,
+/// and Done on the right, enabled once something changed, with a spinner in its place while it saves.
+struct EditorHeader: View {
+    var title: String
+    var canSave: Bool
+    var isSaving: Bool
+    var onDone: () -> Void
+    @Environment(\.requestCancel) private var requestCancel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        SheetHeader(.modal(title: title, leading: .cancel { cancel() }))
+            .overlay(alignment: .trailing) {
+                Button(action: onDone) {
+                    Text(ui: "Done").scaledFont(17, weight: .semibold)
+                }
+                .loadingButton(isLoading: isSaving, variant: .plain)
+                .disabled(!canSave)
+                .scaledPadding(.trailing, Theme.gutter)
+            }
+    }
+
+    private func cancel() {
+        if let requestCancel { requestCancel() } else { dismiss() }
     }
 }

@@ -162,8 +162,9 @@ import Testing
         #expect(full.height > bare.height)
     }
 
-    /// A stale list reloads by itself and shows no "Last update" badge (owner's call, 2026-11-08).
-    @Test func staleListShowsNoBadgeOnline() async throws {
+    /// A stale list reloads by itself and now says how old it is under the header ("Last update ...", E2 of the
+    /// 2026-11-18 premium audit, which replaces the 2026-11-08 call of no badge online). A fresh one shows none.
+    @Test func staleListShowsItsAgeOnline() async throws {
         let fresh = await MyFlightsPreview.makeStore(.full)
         let stale = await MyFlightsPreview.makeStore(.stale)
         // Same clock for both: the fresh store was fetched after it, the stale one 25 minutes before it.
@@ -172,7 +173,7 @@ import Testing
                                          now: nowForFresh, scrolls: false))
         let b = try render(MyFlightsView(store: stale, onSelect: { _ in }, onSearch: nil, lookup: PreviewData.airport,
                                          now: nowForFresh, scrolls: false))
-        #expect(b.height == a.height)
+        #expect(b.height > a.height)
     }
 
     @Test func loadingAndFailedStatesShowNoInvitation() async throws {

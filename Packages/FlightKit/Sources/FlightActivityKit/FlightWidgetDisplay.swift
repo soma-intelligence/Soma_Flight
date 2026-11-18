@@ -124,7 +124,7 @@ public struct FlightWidgetDisplay: Sendable, Hashable {
     /// "Fri, Oct 30": the day it leaves, in the origin's zone.
     public var day: String? {
         guard let out = flight.bestOut ?? flight.scheduledOut else { return nil }
-        var style = Date.FormatStyle(locale: Locale(identifier: "en_US_POSIX"), timeZone: flight.origin.zone)
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: flight.origin.zone)
         style = style.weekday(.abbreviated).month(.abbreviated).day()
         return out.formatted(style)
     }

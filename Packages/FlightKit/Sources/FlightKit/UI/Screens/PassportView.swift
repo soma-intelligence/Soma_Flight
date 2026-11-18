@@ -24,7 +24,10 @@ public struct PassportView: View {
     @State private var importState: PastFlightImportState?
     /// A delete the server refused: the alert says so, the flight stays.
     @State private var deleteFailure: APIError?
+    /// The flight whose delete failed, for the alert's Try Again (I6).
+    @State private var deleteFailed: PastFlight?
     @Environment(\.units) private var units
+    @Environment(\.requestSignIn) private var requestSignIn
 
     /// The flight the editor sheet opens on: a new one, or one the traveller added.
     enum EditorTarget: Identifiable {
@@ -40,12 +43,17 @@ public struct PassportView: View {
 
     private var actions: PastFlightActions {
         PastFlightActions(add: { editing = .add }, importFile: { choosingFile = true }, importScreen: onImport,
-                          edit: { editing = .edit($0) }, delete: { f in
-                              Task {
-                                  guard !(await store.delete(f.id)) else { return }
-                                  if let onError { onError(Self.deleteFailedToast) } else { deleteFailure = store.writeError ?? .notFound }
-                              }
-                          })
+                          edit: { editing = .edit($0) }, delete: delete)
+    }
+
+    private func delete(_ f: PastFlight) {
+        Task {
+            guard !(await store.delete(f.id)) else { return }
+            if let onError { onError(Self.deleteFailedToast) } else {
+                deleteFailed = f
+                deleteFailure = store.writeError ?? .providerUnavailable
+            }
+        }
     }
 
     /// - Parameters:
@@ -107,19 +115,14 @@ public struct PassportView: View {
                              set: { if $0 == nil { importState = nil } })) { item in
             PastFlightImportSheet(preview: item.preview, store: store, lookup: lookup)
         }
-        .alert("Couldn't Delete This Flight", isPresented: Binding(get: { deleteFailure != nil },
-                                                                  set: { if !$0 { deleteFailure = nil } }),
-               presenting: deleteFailure) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { error in
-            Text(ui: error == .notFound ? "The server kept this flight. Try again later." : error.message)
+        // Both alerts offer Try Again (I6): the same delete, or the file picker again.
+        .failureAlert($deleteFailure, title: "Couldn't Delete This Flight") {
+            if let f = deleteFailed { delete(f) }
         }
-        .alert("Can't Import This File", isPresented: Binding(
-            get: { if case .failed = importState { true } else { false } },
-            set: { if !$0 { importState = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if case .failed(let message) = importState { Text(ui: message) }
+        .failureAlert(Binding(get: { if case .failed(let message) = importState { message } else { nil } },
+                              set: { if $0 == nil { importState = nil } }),
+                      title: "Can't Import This File") {
+            choosingFile = true
         }
     }
 
@@ -134,13 +137,21 @@ public struct PassportView: View {
         let flights = store.flights
         return VStack(alignment: .leading, spacing: 12) {
             if store.isOffline {
-                ErrorBanner(error: .offline, retry: reload)
+                // The home's calm offline pill, not an amber error (E12), and the saved copy's age under it.
+                OfflineBanner(OfflineBanner.text(hasContent: !flights.isEmpty), retry: reload)
+                if !flights.isEmpty, let saved = store.lastUpdated ?? store.fetchedAt {
+                    StaleBadge(fetchedAt: saved, ttl: Self.ttl, now: now)
+                }
             } else {
                 if let error = store.error {
-                    ErrorBanner(error: error, retry: reload)
+                    ErrorBanner(error: error, hasContent: !flights.isEmpty, retry: reload, signIn: requestSignIn)
                 }
                 if !flights.isEmpty {
                     SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
+                    // "Last update ..." once the copy on show is older than the TTL (E12).
+                    if let fetched = store.fetchedAt {
+                        StaleBadge(fetchedAt: fetched, ttl: Self.ttl, now: now, hidesWhileFresh: true)
+                    }
                 }
             }
             if flights.isEmpty {

@@ -25,19 +25,25 @@ public struct SeverityDot: View {
 
 // MARK: - Status line
 
-/// A coloured dot and the words of a status, in the same colour: "Departed 16m late · lands 05:28" (R1).
+/// A coloured dot and the words of a status in the same hue: "Departed 16m late · lands 05:28" (R1). The
+/// dot takes the hue itself, the words its text token (`Theme.lateText`, ...), which reaches 4.5:1 in light
+/// mode (A3).
 /// Penpot: Status line
 public struct StatusLine: View {
     var text: String
     var tone: Color
+    var textTone: Color
 
-    public init(_ text: String, tone: Color) {
-        self.text = text; self.tone = tone
+    /// - Parameters:
+    ///   - tone: the dot's colour.
+    ///   - textTone: the words' colour; `tone` when nil. Pass the matching `Theme.*Text` token.
+    public init(_ text: String, tone: Color, textTone: Color? = nil) {
+        self.text = text; self.tone = tone; self.textTone = textTone ?? tone
     }
 
     /// The line of a `FlightStatusSummary`.
     public init(_ status: FlightStatusSummary) {
-        self.init(status.text, tone: status.tone)
+        self.init(status.text, tone: status.tone, textTone: status.textTone)
     }
 
     public var body: some View {
@@ -45,7 +51,7 @@ public struct StatusLine: View {
             SeverityDot(tone)
             Text(ui: text)
                 .scaledFont(13, weight: .semibold)
-                .foregroundStyle(tone)
+                .foregroundStyle(textTone)
                 .lineLimit(2)
         }
         .accessibilityElement(children: .combine)
@@ -86,11 +92,11 @@ public struct StatusPill: View {
 
 #Preview("Status lines") {
     VStack(alignment: .leading, spacing: 14) {
-        StatusLine("On time · gate B22", tone: Theme.onTime)
-        StatusLine("Departed 16m late · lands 05:28", tone: Theme.late)
-        StatusLine("48m late · lands 06:00", tone: Theme.veryLate)
+        StatusLine("On time · gate B22", tone: Theme.onTime, textTone: Theme.onTimeText)
+        StatusLine("Departed 16m late · lands 05:28", tone: Theme.late, textTone: Theme.lateText)
+        StatusLine("48m late · lands 06:00", tone: Theme.veryLate, textTone: Theme.veryLateText)
         StatusLine(FlightStatusSummary(text: "Canceled", level: .canceled))
-        StatusLine("Diverted to OAK", tone: Theme.diverted)
+        StatusLine("Diverted to OAK", tone: Theme.diverted, textTone: Theme.divertedText)
         HStack(spacing: 8) {
             SeverityDot(Theme.late, diameter: 8)
             Text("Weather in Paris").scaledFont(15)

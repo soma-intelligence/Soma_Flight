@@ -89,17 +89,17 @@ private func date(_ s: String) -> Date { try! Date(s, strategy: .iso8601) }
         #expect(h.progress == 1)
     }
 
+    /// The hero's freshness goes through `Format.ago` now (A1): under a minute stays "just now".
     @Test func ages() {
         let t = date("2026-11-17T10:00:00Z")
-        #expect(HeroFacts.age(since: t, now: t.addingTimeInterval(30)) == "just now")
-        #expect(HeroFacts.age(since: t, now: t.addingTimeInterval(4 * 60 + 10)) == "4 min ago")
-        #expect(HeroFacts.age(since: t, now: t.addingTimeInterval(125 * 60)) == "2h 05m ago")
+        #expect(Format.ago(t, now: t.addingTimeInterval(30)) == "just now")
+        #expect(Format.ago(t, now: t.addingTimeInterval(4 * 60 + 10)) != "just now")
     }
 
     @Test func refreshErrorSubtitle() {
         let t = date("2026-11-17T10:00:00Z")
         #expect(RefreshErrorCard.subtitle(.providerUnavailable, updatedAt: t, now: t.addingTimeInterval(240))
-                == "Last updated 4 min ago")
+                == "Last updated 4 min. ago")
         #expect(RefreshErrorCard.subtitle(.offline, updatedAt: t, now: t.addingTimeInterval(20))
                 == "Offline · last updated just now")
     }

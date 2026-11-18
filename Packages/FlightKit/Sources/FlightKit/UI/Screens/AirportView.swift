@@ -94,35 +94,36 @@ public struct AirportView: View {
         if let favorites, let airport = store.airport {
             let boards = store.departures != nil || store.arrivals != nil
             let favorite = favorites.contains(airport.id)
-            DetailActionBar(count: boards ? 5 : 3) {
+            GlassActionBarContainer(count: boards ? 5 : 3) {
                 if boards {
                     Button { show(.departures, proxy) } label: {
-                        DetailActionLabel(title: "Departures", systemImage: "airplane.departure")
+                        GlassActionLabel(title: "Departures", systemImage: "airplane.departure")
                     }
                     Button { show(.arrivals, proxy) } label: {
-                        DetailActionLabel(title: "Arrivals", systemImage: "airplane.arrival")
+                        GlassActionLabel(title: "Arrivals", systemImage: "airplane.arrival")
                     }
                 }
                 Button { withAnimation(.snappy) { favorites.toggle(airport.id) } } label: {
-                    DetailActionLabel(title: "Favorite", systemImage: favorite ? "star.fill" : "star",
-                                      tint: favorite ? Theme.late : nil)
+                    GlassActionLabel(title: "Favorite", systemImage: favorite ? "star.fill" : "star",
+                                     tint: favorite ? Theme.late : nil)
                 }
                 .accessibilityValue(favorite ? "On" : "Off")
                 Menu {
                     Button("Copy Code", systemImage: "doc.on.doc") { AirportBottomBar.copy(airport.iata ?? airport.id) }
                 } label: {
-                    DetailActionLabel(title: "More", systemImage: "ellipsis.circle")
+                    GlassActionLabel(title: "More", systemImage: "ellipsis.circle")
                 }
                 .menuIndicator(.hidden)
                 .accessibilityLabel("More")
                 if let shareImage {
                     ShareLink(item: shareImage, preview: SharePreview(airport.name, image: shareImage)) {
-                        DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                        GlassActionLabel(title: "Share", systemImage: "square.and.arrow.up")
                     }
                 } else {
-                    DetailActionLabel(title: "Share", systemImage: "square.and.arrow.up")
+                    // A8: announced as dimmed while the picture renders, not as a live button.
+                    Button {} label: { GlassActionLabel(title: "Share", systemImage: "square.and.arrow.up") }
+                        .disabled(true)
                         .opacity(0.4)
-                        .accessibilityAddTraits(.isButton)
                 }
             }
         }
@@ -161,6 +162,7 @@ struct AirportSections: View {
     @State private var totalsCache: (key: TotalsKey, stats: DelayStats)?
     @State private var showingReport = false
     @Environment(\.units) private var units
+    @Environment(\.requestSignIn) private var requestSignIn
 
     /// What the Totals segment depends on, so the core runs once per board refresh.
     struct TotalsKey: Hashable {
@@ -190,7 +192,11 @@ struct AirportSections: View {
     var body: some View {
         MaybeLazyVStack(lazy: lazy) {
             if let error = store.error {
-                ErrorBanner(error: error, retry: { Task { await store.load() } })
+                // E8: no "showing the last update" when nothing loaded; E3: Sign In when the session is gone.
+                ErrorBanner(error: error, hasContent: store.stats != nil || store.overview != nil
+                                || store.departures != nil || store.arrivals != nil,
+                            retry: { Task { await store.load() } },
+                            signIn: requestSignIn.map { action in { action() } })
                     .scaledPadding(.horizontal, Theme.gutter).scaledPadding(.top, 16)
             }
             let faa = FAAFacts.airportRows(programs: store.programs, notams: store.notams, code: code, timeZone: tz,
@@ -277,22 +283,35 @@ struct AirportSections: View {
             guard let s = AirportFacts.scheduled($0, kind) else { return false }
             return s >= now.addingTimeInterval(-4 * 3600) && s < now.addingTimeInterval(4 * 3600)
         }
-        return section {
-            SectionHeader(dep ? "Departure Performance" : "Arrival Performance", subtitle: "Today so far and the hours ahead")
-            freshness(.stats, AirportFacts.boardTTL, top: 8)
-            PerformanceSplit(stats: stats)
-                .scaledPadding(.top, 12)
-            SectionHeader(dep ? "Departure Delay Trend" : "Arrival Delay Trend",
-                          subtitle: "Average gate delay, actual then estimated", info: true)
-                .scaledPadding(.top, 22)
-            if !window.isEmpty {
-                DelayTrendChart(flights: window, kind: kind, timeZone: tz, now: now, binMinutes: 20, windowMinutes: 60)
-                    .scaledPadding(.top, 6)
-            } else if let trend = (dep ? store.liveStats?.departures : store.liveStats?.arrivals)?.trend, !trend.isEmpty {
-                LiveTrendChart(trend: trend, timeZone: tz, now: now)
-                    .scaledPadding(.top, 24)
+        // A section label over a flat RefinedCard, like the status and report cards above it.
+        return VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            SectionLabel(dep ? "Departure Performance" : "Arrival Performance")
+            RefinedCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(ui: "Today so far and the hours ahead")
+                        .themeFont(.sectionSubtitle)
+                        .foregroundStyle(Theme.secondary)
+                    freshness(.stats, AirportFacts.boardTTL, top: Theme.Space.xs)
+                    PerformanceSplit(stats: stats)
+                        .scaledPadding(.top, Theme.Space.sm)
+                    SectionHeader(dep ? "Departure Delay Trend" : "Arrival Delay Trend",
+                                  subtitle: "Average gate delay, actual then estimated", info: true)
+                        .scaledPadding(.top, Theme.Space.lg)
+                    if !window.isEmpty {
+                        DelayTrendChart(flights: window, kind: kind, timeZone: tz, now: now, binMinutes: 20,
+                                        windowMinutes: 60)
+                            .scaledPadding(.top, 6)
+                    } else if let trend = (dep ? store.liveStats?.departures : store.liveStats?.arrivals)?.trend,
+                              !trend.isEmpty {
+                        LiveTrendChart(trend: trend, timeZone: tz, now: now)
+                            .scaledPadding(.top, Theme.Space.lg)
+                    }
+                }
             }
         }
+        .scaledPadding(.horizontal, Theme.gutter)
+        .scaledPadding(.top, Theme.Space.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var daily: some View {
@@ -338,8 +357,15 @@ struct AirportSections: View {
 
     // MARK: Pieces
 
+    /// Reloads a stale part, and says "Last update 12 min. ago" once it is older than its TTL (E9).
+    @ViewBuilder
     private func freshness(_ part: BoardKind, _ ttl: Duration, top: CGFloat = 0, bottom: CGFloat = 0) -> some View {
         SectionFreshness(fetchedAt: store.fetchedAt[part], ttl: ttl, now: now) { await store.load() }
+        if let fetched = store.fetchedAt[part], StaleBadge.isStale(fetchedAt: fetched, ttl: ttl, now: now) {
+            StaleBadge(fetchedAt: fetched, ttl: ttl, now: now)
+                .scaledPadding(.top, top)
+                .scaledPadding(.bottom, bottom)
+        }
     }
 
     private func section<C: View>(@ViewBuilder _ content: () -> C) -> some View {

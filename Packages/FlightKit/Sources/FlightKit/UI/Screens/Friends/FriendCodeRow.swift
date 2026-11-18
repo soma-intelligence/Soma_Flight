@@ -30,24 +30,26 @@ struct FriendCodeRow: View {
     @State private var copied = false
     @State private var resetCopied: Task<Void, Never>?
     @Environment(\.metricsScale) private var scale
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let code = store.me?.friendCode
         RefinedCard(padding: 0) {
-            HStack(spacing: Theme.metric(8, scale)) {
-                FriendCodeLabel(code: code)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
-                Spacer(minLength: 4)
-                icon(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy Friend Code",
-                     tint: copied ? Theme.onTime : Theme.primary, action: copy)
-                    .disabled(code == nil)
-                icon("qrcode", label: "Show QR Code", action: onShowQR)
-                    .disabled(code == nil)
-                InviteShareButton(store: store) { circle("square.and.arrow.up", tint: Theme.primary) }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Share Invitation")
-                menu
+            Group {
+                // At accessibility sizes the code takes the card's full width over the buttons, so it stays
+                // whole and readable (A12).
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: Theme.metric(Theme.Space.sm, scale)) {
+                        label(code)
+                        HStack(spacing: Theme.metric(Theme.Space.xs, scale)) { buttons(code) }
+                    }
+                } else {
+                    HStack(spacing: Theme.metric(8, scale)) {
+                        label(code)
+                        Spacer(minLength: 4)
+                        buttons(code)
+                    }
+                }
             }
             .scaledPadding(.leading, 16)
             .scaledPadding(.trailing, 4)
@@ -56,6 +58,24 @@ struct FriendCodeRow: View {
         .contentShape(Rectangle())
         .contextMenu { options }
         .onDisappear { resetCopied?.cancel(); resetCopied = nil }
+    }
+
+    private func label(_ code: String?) -> some View {
+        FriendCodeLabel(code: code)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(code.map { "Your friend code, \(FriendFacts.spokenCode($0))" } ?? "Your friend code")
+    }
+
+    @ViewBuilder private func buttons(_ code: String?) -> some View {
+        icon(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy Friend Code",
+             tint: copied ? Theme.onTime : Theme.primary, action: copy)
+            .disabled(code == nil)
+        icon("qrcode", label: "Show QR Code", action: onShowQR)
+            .disabled(code == nil)
+        InviteShareButton(store: store) { circle("square.and.arrow.up", tint: Theme.primary) }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Share Invitation")
+        menu
     }
 
     @ViewBuilder private var options: some View {
@@ -77,7 +97,7 @@ struct FriendCodeRow: View {
             Image(systemName: "ellipsis")
                 .scaledFont(15, weight: .semibold)
                 .foregroundStyle(Theme.secondary)
-                .frame(width: Theme.metric(28, scale), height: Theme.metric(44, scale))
+                .frame(width: Theme.metric(44, scale), height: Theme.metric(44, scale))
                 .contentShape(Rectangle())
         }
         .menuIndicator(.hidden)
@@ -131,15 +151,26 @@ struct FriendCodeLabel: View {
                 .scaledFont(12, weight: .medium, relativeTo: .caption)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(1)
-            HStack(spacing: Theme.metric(8, scale)) {
-                group(code?.count == 8 ? code.map { String($0.prefix(4)) } : nil)
-                Circle()
-                    .fill(Theme.primary)
-                    .frame(width: Theme.metric(4, scale), height: Theme.metric(4, scale))
-                group(code?.count == 8 ? code.map { String($0.suffix(4)) } : nil)
+            // The two groups side by side, or one over the other when a large text size leaves no room: never
+            // "K7..." (A12).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Theme.metric(8, scale)) {
+                    first
+                    Circle()
+                        .fill(Theme.primary)
+                        .frame(width: Theme.metric(4, scale), height: Theme.metric(4, scale))
+                    second
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    first
+                    second
+                }
             }
         }
     }
+
+    private var first: some View { group(code?.count == 8 ? code.map { String($0.prefix(4)) } : nil) }
+    private var second: some View { group(code?.count == 8 ? code.map { String($0.suffix(4)) } : nil) }
 
     private func group(_ text: String?) -> some View {
         Text(text ?? "····")
@@ -147,8 +178,7 @@ struct FriendCodeLabel: View {
             .monospacedDigit()
             .tracking(1.5)
             .foregroundStyle(Theme.primary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
+            .fixedSize()
     }
 }
 

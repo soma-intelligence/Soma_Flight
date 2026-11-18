@@ -46,7 +46,9 @@ import Testing
         await flights.setNextError(.providerUnavailable)
         await store.setNotify(false)
         #expect(store.notify == true)
-        #expect(store.error == .providerUnavailable)
+        // Its own error, not the page's "Couldn't refresh" (I4).
+        #expect(store.notifyError == .providerUnavailable)
+        #expect(store.error == nil)
         #expect(!store.isSavingNotify)
         #expect(try await flights.notifies(id) == true)
     }
@@ -55,7 +57,9 @@ import Testing
         let suite = "SettingsReadinessTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        #expect(!SharedSettings.twelveHour(in: defaults))
+        // Never chosen: the region's clock (A11).
+        #expect(!SharedSettings.twelveHour(in: defaults, locale: Locale(identifier: "fr_FR")))
+        #expect(SharedSettings.twelveHour(in: defaults, locale: Locale(identifier: "en_US")))
         defaults.set(false, forKey: SharedSettings.clock24Key)
         #expect(SharedSettings.twelveHour(in: defaults))
         defaults.set(true, forKey: SharedSettings.clock24Key)
@@ -109,9 +113,13 @@ import Testing
         #expect(session.error == .providerUnavailable)
     }
 
+    /// The deletion dialog names everything that goes and what stays (D5 of the 2026-11-18 premium audit).
     @Test func deletionCopyIsTheBriefs() {
-        #expect(SettingsView.deleteTitle + " " + SettingsView.deleteMessage
-            == "Delete your account? Your followed flights and flight history will be removed. This can't be undone.")
+        #expect(SettingsView.deleteTitle == "Delete your account?")
+        for part in ["flights you follow", "flight history", "friends", "travel documents synced", "profile photo",
+                     "Live Activities", "stay on this device", "can't be undone"] {
+            #expect(SettingsView.deleteMessage.contains(part))
+        }
     }
 
     @Test func oldDefaultStoreIsDeletedAndCacheSkipsBackups() async throws {

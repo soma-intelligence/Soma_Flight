@@ -11,10 +11,19 @@ public struct FlightActivityDisplay: Sendable, Hashable {
     /// extension passes the render time, so a card with no news since take-off still advances); nil keeps
     /// the state's own progress.
     public var now: Date?
+    /// The system marked the card outdated (`context.isStale`): no news came in the expected time, so the
+    /// colours go grey and a line says the times may be old (E14).
+    public var isStale: Bool
 
     public init(_ attributes: FlightActivityAttributes, _ state: FlightActivityAttributes.ContentState,
-                twelveHour: Bool = false, now: Date? = nil) {
+                twelveHour: Bool = false, now: Date? = nil, isStale: Bool = false) {
         self.attributes = attributes; self.state = state; self.twelveHour = twelveHour; self.now = now
+        self.isStale = isStale
+    }
+
+    /// The line an outdated card shows; nil while it is current or once the flight is over.
+    public var staleNote: String? {
+        isStale && !state.isFinal ? "Not updated lately. Open Soma Flight for the latest." : nil
     }
 
     public var isAirborne: Bool { [.departed, .enRoute].contains(state.status) }
@@ -71,12 +80,23 @@ public struct FlightActivityDisplay: Sendable, Hashable {
         return m >= 15 ? Self.duration(minutes: m) : nil
     }
 
-    /// "2h 37m", "50m", "2h".
+    /// "2h 37m", "50m", "2h" in English, "2h 37min" in French: `Duration` formatted in narrow hour and
+    /// minute units, in the language the app's strings are shown in (`uiLocale`), so the figure never mixes
+    /// languages with the words around it (A1).
     public static func duration(minutes total: Int) -> String {
-        let m = abs(total)
-        let h = m / 60, r = m % 60
-        if h == 0 { return "\(r)m" }
-        return r == 0 ? "\(h)h" : "\(h)h \(r)m"
+        Duration.seconds(Int64(abs(total)) * 60)
+            .formatted(.units(allowed: [.hours, .minutes], width: .narrow, zeroValueUnits: .hide).locale(uiLocale))
+    }
+
+    /// The locale the app's own text is shown in: the main bundle's first localization (the catalog language
+    /// iOS picked), keeping the device's region when its language matches. Tests run in English.
+    public static var uiLocale: Locale {
+        let language = Bundle.main.preferredLocalizations.first ?? "en"
+        let current = Locale.current
+        if current.language.languageCode?.identifier == Locale(identifier: language).language.languageCode?.identifier {
+            return current
+        }
+        return Locale(identifier: language)
     }
 
     /// "AA 2178", "B6 717", "EJM 444": airline code, space, number.

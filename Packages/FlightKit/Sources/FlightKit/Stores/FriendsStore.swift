@@ -16,7 +16,17 @@ public final class FriendsStore {
     public private(set) var passports: [Friend.ID: FriendPassport] = [:]
     public private(set) var hasLoaded = false
     public private(set) var isLoading = false
+    /// Why the last load failed. Actions report in `actionError` instead (E6).
     public private(set) var error: APIError?
+    /// Why the last action failed (accept, decline, cancel, remove, a switch, the code), with a retry that
+    /// runs that action again (E6). Cleared by `clearActionError()` or by the same action succeeding.
+    public private(set) var actionError: ActionFailure?
+    /// Requests (by request id) and friends (by friend id) whose accept, decline, cancel or remove is on
+    /// its way: their buttons show progress and do nothing on a second tap (E4).
+    public private(set) var pending: Set<UUID> = []
+    /// Asked when the load meets `.unauthorized`: true when the session was renewed and the load is worth
+    /// one more try (E3).
+    @ObservationIgnored public var onUnauthorized: (@MainActor () async -> Bool)?
     /// The last invitation link made, for the share sheet.
     public private(set) var invite: FriendInvite?
     /// The list's filter: everyone, or only friends flying within the next 24 hours.
@@ -50,6 +60,23 @@ public final class FriendsStore {
 
     /// Loads everything the tab shows. A failure keeps what was there and sets `error`.
     public func load() async {
+        await load(retryingAuth: true)
+    }
+
+    /// True while an accept, decline, cancel or remove for this request or friend id is on its way (E4).
+    public func isPending(_ id: UUID) -> Bool { pending.contains(id) }
+
+    public func clearActionError() { actionError = nil }
+
+    private func fail(_ kind: ActionFailure.Kind, _ error: any Error, retry: @escaping @MainActor () async -> Void) {
+        actionError = ActionFailure(kind, error as? APIError ?? .providerUnavailable, retry: retry)
+    }
+
+    private func succeeded(_ kind: ActionFailure.Kind) {
+        if actionError?.kind == kind { actionError = nil }
+    }
+
+    private func load(retryingAuth: Bool) async {
         generation += 1
         let gen = generation
         isLoading = true
@@ -71,7 +98,13 @@ public final class FriendsStore {
         } catch {
             _ = try? await m
             guard gen == generation else { return }
-            self.error = error as? APIError ?? .providerUnavailable
+            let e = error as? APIError ?? .providerUnavailable
+            if e == .unauthorized, retryingAuth, let onUnauthorized, await onUnauthorized() {
+                guard gen == generation else { return }
+                await load(retryingAuth: false)
+                return
+            }
+            self.error = e
         }
         hasLoaded = true
     }
@@ -181,10 +214,10 @@ public final class FriendsStore {
         friends[i].settings = next
         do {
             try await service.update(friend, settings: next)
-            error = nil
+            succeeded(.updateFriend)
         } catch {
             if let j = friends.firstIndex(where: { $0.id == friend }) { friends[j].settings = before }
-            self.error = error
+            fail(.updateFriend, error) { [weak self] in await self?.update(friend) { $0 = next } }
         }
     }
 
@@ -194,7 +227,10 @@ public final class FriendsStore {
         let before = m
         m.sharingPaused = paused
         me = m
-        do { try await service.setPaused(paused); error = nil } catch { me = before; self.error = error }
+        do { try await service.setPaused(paused); succeeded(.pauseSharing) } catch {
+            me = before
+            fail(.pauseSharing, error) { [weak self] in await self?.setPaused(paused) }
+        }
     }
 
     /// Saves the name and emoji friends see. Blank values clear. Returns false when it failed.
@@ -205,10 +241,10 @@ public final class FriendsStore {
         do {
             try await service.saveProfile(displayName: name, emoji: mark)
             if me != nil { me?.displayName = name; me?.emoji = mark }
-            error = nil
+            succeeded(.saveProfile)
             return true
         } catch {
-            self.error = error
+            fail(.saveProfile, error) { [weak self] in await self?.saveProfile(displayName: displayName, emoji: emoji) }
             return false
         }
     }
@@ -228,15 +264,18 @@ public final class FriendsStore {
 
     // MARK: Friends and invitations
 
+    /// Removes a friend. A second call while the first is on its way does nothing (E4).
     public func remove(_ friend: Friend.ID) async {
+        guard pending.insert(friend).inserted else { return }
+        defer { pending.remove(friend) }
         do {
             try await service.remove(friend)
             friends.removeAll { $0.id == friend }
             flights.removeAll { $0.friendId == friend }
             passports[friend] = nil
-            error = nil
+            succeeded(.removeFriend)
         } catch {
-            self.error = error
+            fail(.removeFriend, error) { [weak self] in await self?.remove(friend) }
         }
     }
 
@@ -245,10 +284,10 @@ public final class FriendsStore {
         do {
             let i = try await service.invite()
             invite = i
-            error = nil
+            succeeded(.invite)
             return i
         } catch {
-            self.error = error
+            fail(.invite, error) { [weak self] in _ = await self?.makeInvite() }
             return nil
         }
     }
@@ -264,10 +303,10 @@ public final class FriendsStore {
                 do throws(APIError) {
                     let made = try await self.service.invite()
                     self.invite = made
-                    self.error = nil
+                    self.succeeded(.invite)
                     return .success(made)
                 } catch {
-                    self.error = error
+                    self.fail(.invite, error) { [weak self] in _ = try? await self?.shareInviteURL() }
                     return .failure(error)
                 }
             }
@@ -286,22 +325,32 @@ public final class FriendsStore {
         return result
     }
 
+    /// Accepts or declines a request. A second tap while the first is on its way does nothing (E4), so a
+    /// double tap on Accept never ends on an error over a request that went through.
     public func respond(to request: FriendRequest, accept: Bool) async {
+        guard pending.insert(request.id).inserted else { return }
         do {
             try await service.respond(request: request.id, accept: accept)
             requests.removeAll { $0.id == request.id }
+            succeeded(.respond)
+            pending.remove(request.id)
             if accept { await load() }
         } catch {
-            self.error = error
+            pending.remove(request.id)
+            fail(.respond, error) { [weak self] in await self?.respond(to: request, accept: accept) }
         }
     }
 
+    /// Cancels a request the user sent. A second tap while the first is on its way does nothing (E4).
     public func cancel(_ request: FriendRequest) async {
+        guard pending.insert(request.id).inserted else { return }
+        defer { pending.remove(request.id) }
         do {
             try await service.revoke(request.id)
             requests.removeAll { $0.id == request.id }
+            succeeded(.cancelRequest)
         } catch {
-            self.error = error
+            fail(.cancelRequest, error) { [weak self] in await self?.cancel(request) }
         }
     }
 
@@ -309,9 +358,9 @@ public final class FriendsStore {
         do {
             let c = try await service.resetCode()
             me?.friendCode = c
-            error = nil
+            succeeded(.resetCode)
         } catch {
-            self.error = error
+            fail(.resetCode, error) { [weak self] in await self?.resetCode() }
         }
     }
 
@@ -333,7 +382,8 @@ public final class FriendsStore {
         }
     }
 
-    public func clearError() { error = nil }
+    /// Clears both the load error and the action error.
+    public func clearError() { error = nil; actionError = nil }
 
     #if DEBUG
     /// Previews and tests: a state without a load.

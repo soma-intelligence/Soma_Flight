@@ -33,26 +33,64 @@ public struct BoardRow: View {
         airport?.city ?? (isArrival ? flight.originCode : flight.destinationCode)
     }
 
-    private var statusText: String {
+    private static func words(_ value: String.LocalizationValue) -> String {
+        String(localized: value, bundle: .main)
+    }
+
+    /// "On Time", "25m Late", "10m Early", "In the Air", "Canceled": from format keys in the app's catalog,
+    /// so it reads in the user's language (A1).
+    var statusText: String {
         switch level {
-        case .canceled: return "Canceled"
-        case .diverted: return "Diverted"
-        case .late, .veryLate: return "\(Format.minutes(Format.minutes(delay ?? .zero))) Late"
+        case .canceled: return Self.words("Canceled")
+        case .diverted: return Self.words("Diverted")
+        case .late, .veryLate:
+            let span = Format.minutes(Format.minutes(delay ?? .zero))
+            return Self.words("\(span) Late")
         case .onTime:
             switch flight.status {
-            case .landed: return "Landed"
-            case .arrived: return "Arrived"
-            case .departed, .enRoute: return isArrival ? "In the Air" : "Departed"
+            case .landed: return Self.words("Landed")
+            case .arrived: return Self.words("Arrived")
+            case .departed, .enRoute: return isArrival ? Self.words("In the Air") : Self.words("Departed")
             default:
-                if let d = delay, Format.minutes(d) <= -5 { return "\(Format.minutes(Format.minutes(d))) Early" }
-                return "On Time"
+                if let d = delay, Format.minutes(d) <= -5 {
+                    let span = Format.minutes(Format.minutes(d))
+                    return Self.words("\(span) Early")
+                }
+                return Self.words("On Time")
             }
         }
     }
 
     private var gateLine: String? {
-        if isArrival { return flight.baggageBelt.map { "Belt \($0)" } ?? flight.gateDestination }
+        if isArrival { return flight.baggageBelt.map { belt in Self.words("Belt \(belt)") } ?? flight.gateDestination }
         return flight.gateOrigin
+    }
+
+    /// The schedule moved by a minute or more: the scheduled time is struck through and the real one shown.
+    private var changed: Bool {
+        guard let scheduled, let best else { return false }
+        return abs(best.timeIntervalSince(scheduled)) >= 60
+    }
+
+    /// What VoiceOver reads (A10): "AF 84, Paris, 25m Late, scheduled 18:25, now 18:41, gate F11". Says
+    /// which time is the schedule and which the real one, instead of reading two bare times.
+    var spokenText: String {
+        var parts = [Format.ident(flight.ident), place, statusText]
+        if let scheduled {
+            let planned = Format.clock(scheduled, timeZone, units.clock)
+            if changed, let best, level != .canceled {
+                let now = Format.clock(best, timeZone, units.clock)
+                parts.append(Self.words("scheduled \(planned), now \(now)"))
+            } else {
+                parts.append(Self.words("scheduled \(planned)"))
+            }
+        }
+        if isArrival, let belt = flight.baggageBelt {
+            parts.append(Self.words("Belt \(belt)"))
+        } else if let gate = isArrival ? flight.gateDestination : flight.gateOrigin, !gate.isEmpty {
+            parts.append(Self.words("gate \(gate)"))
+        }
+        return parts.joined(separator: ", ")
     }
 
     @ScaledMetric(relativeTo: .body) private var timeColumn: CGFloat = 84
@@ -70,7 +108,7 @@ public struct BoardRow: View {
                     Circle().fill(level.color).frame(width: 8, height: 8)
                     Text(ui: statusText)
                         .scaledFont(14.5)
-                        .foregroundStyle(level == .onTime || level == .canceled ? Theme.secondary : level.color)
+                        .foregroundStyle(level == .onTime || level == .canceled ? Theme.secondary : level.textColor)
                         .lineLimit(1)
                 }
             }
@@ -91,11 +129,11 @@ public struct BoardRow: View {
         .background(striped ? Theme.rowAlt : Theme.background)
         // Three fixed columns: past accessibility2 the row would truncate the city.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: spokenText))
     }
 
     @ViewBuilder private var times: some View {
-        let changed = scheduled != nil && best != nil && abs(best!.timeIntervalSince(scheduled!)) >= 60
         VStack(alignment: .leading, spacing: 2) {
             if let scheduled {
                 Text(Format.clock(scheduled, timeZone, units.clock))
@@ -106,7 +144,7 @@ public struct BoardRow: View {
             if changed, let best, level != .canceled {
                 Text(Format.clock(best, timeZone, units.clock))
                     .scaledFont(15.5, weight: .medium)
-                    .foregroundStyle(level == .onTime ? Theme.onTime : level.color)
+                    .foregroundStyle(level.textColor)
             }
         }
     }

@@ -28,6 +28,24 @@ final class PastFlightEditorModel {
     var saveError: String?
     private(set) var isSaving = false
     private let airport: (String) -> Airport?
+    /// The fields as the sheet opened, to tell whether anything changed (I2).
+    private var initial: Snapshot!
+
+    /// Everything the user can change, compared against `initial`.
+    struct Snapshot: Equatable {
+        var day: Date, origin: String, destination: String, ident: String, airline: String?
+        var aircraftType: String, registration: String, seat: String, seatClass: SeatClass?, reason: TripReason?
+        var seatPosition: SeatPosition?, notes: String, isPrivate: Bool
+    }
+
+    var snapshot: Snapshot {
+        Snapshot(day: day, origin: origin, destination: destination, ident: ident, airline: airline,
+                 aircraftType: aircraftType, registration: registration, seat: seat, seatClass: seatClass,
+                 reason: reason, seatPosition: seatPosition, notes: notes, isPrivate: isPrivate)
+    }
+
+    /// True once a field differs from what the sheet opened with: Cancel and a swipe down ask first (I2).
+    var isDirty: Bool { snapshot != initial }
 
     /// - Parameters:
     ///   - flight: the manual or imported flight to edit; nil to add one.
@@ -58,6 +76,7 @@ final class PastFlightEditorModel {
         seatPosition = flight?.seatPosition
         notes = flight?.notes ?? ""
         isPrivate = flight?.isPrivate ?? false
+        initial = snapshot
     }
 
     var isEditing: Bool { original != nil }
@@ -189,10 +208,19 @@ struct PastFlightEditorSheet: View {
     @State private var model: PastFlightEditorModel
     @State private var picking: Picking?
     @State private var confirmDelete = false
+    @FocusState private var focus: Field?
+    /// Bumped by a refused save: the sheet scrolls to the first field in error (I13).
+    @State private var invalidTick = 0
     @Environment(\.dismiss) private var dismiss
     @Environment(\.reference) private var reference
 
     enum Picking: String, Identifiable { case origin, destination, airline; var id: String { rawValue } }
+
+    /// The typed fields, in the order Return moves through them (I12).
+    enum Field: Hashable { case ident, aircraftType, registration, seat, notes }
+
+    /// Scroll anchors: the top (the save error) and each field that can be in error.
+    private enum Anchor: Hashable { case top, problem(PastFlightRules.Problem) }
 
     init(store: PassportStore, flight: PastFlight? = nil) {
         self.store = store
@@ -205,32 +233,34 @@ struct PastFlightEditorSheet: View {
         #if os(macOS)
         VStack(alignment: .leading, spacing: 0) {
             Text(ui: title).scaledFont(15, weight: .semibold).scaledPadding(.horizontal, 20).scaledPadding(.top, 16)
-            ScrollView { content.scaledPadding(.all, 20) }
+            scroller { content.scaledPadding(.all, 20) }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                CancelButton().keyboardShortcut(.cancelAction)
                 save.keyboardShortcut(.defaultAction)
             }
             .scaledPadding(.horizontal, 20)
             .scaledPadding(.bottom, 16)
         }
         .frame(width: 480, height: 640)
+        .guardsUnsavedChanges(isDirty: model.isDirty, isSaving: model.isSaving)
         .onAppear { store.clearWriteError() }
         .sheet(item: $picking) { pickerSheet($0) }
         #else
         NavigationStack {
-            ScrollView { content.scaledPadding(.horizontal, 16).scaledPadding(.top, 8).scaledPadding(.bottom, 24) }
+            scroller { content.scaledPadding(.horizontal, 16).scaledPadding(.top, 8).scaledPadding(.bottom, 24) }
                 .background(Theme.background)
                 .navigationTitle(title)
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { CancelButton() }
                     ToolbarItem(placement: .confirmationAction) { save }
                 }
-                .interactiveDismissDisabled(model.isSaving)
+                .keyboardDoneBar()
         }
+        .guardsUnsavedChanges(isDirty: model.isDirty, isSaving: model.isSaving)
         .onAppear { store.clearWriteError() }
         .sheet(item: $picking) { pickerSheet($0) }
         #endif
@@ -240,7 +270,34 @@ struct PastFlightEditorSheet: View {
         if model.isSaving {
             ProgressView()
         } else {
-            Button("Save") { Task { if await model.save(to: store, reference: reference) { dismiss() } } }.bold()
+            Button("Save", action: submit).bold()
+        }
+    }
+
+    private func submit() {
+        focus = nil
+        Task {
+            if await model.save(to: store, reference: reference) { dismiss() } else { invalidTick += 1 }
+        }
+    }
+
+    /// The scroll view, which moves to the first field in error after a refused save and reads its message
+    /// out for VoiceOver (I13).
+    private func scroller<C: View>(@ViewBuilder _ inner: () -> C) -> some View {
+        let body = inner()
+        return ScrollViewReader { proxy in
+            ScrollView { body }
+                .onChange(of: invalidTick) {
+                    let first = PastFlightEditorModel.order.first { model.errors[$0] != nil }
+                    let target: Anchor = first.map(Anchor.problem) ?? .top
+                    withAnimation(.snappy) { proxy.scrollTo(target, anchor: .top) }
+                    let message = first.flatMap { model.errors[$0] } ?? model.saveError
+                    #if os(iOS)
+                    if let message { AccessibilityNotification.Announcement(UIText.localized(message)).post() }
+                    #else
+                    _ = message
+                    #endif
+                }
         }
     }
 
@@ -260,14 +317,16 @@ struct PastFlightEditorSheet: View {
     private var content: some View {
         @Bindable var model = model
         return VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 0).id(Anchor.top)
             if let error = model.saveError {
                 Text(ui: error)
                     .scaledFont(15, weight: .medium)
-                    .foregroundStyle(Theme.veryLate)
+                    .foregroundStyle(Theme.veryLateText)
+                    .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.bottom, 16)
                     .accessibilityLabel("Error: \(error)")
             }
-            heading("Date")
+            heading("Date").id(Anchor.problem(.date))
             DatePicker("Day", selection: $model.day, in: ...Date.now, displayedComponents: .date)
                 .labelsHidden()
                 .datePickerStyle(.compact)
@@ -276,6 +335,7 @@ struct PastFlightEditorSheet: View {
             errorLine(.date)
 
             heading("Route").scaledPadding(.top, 24)
+                .id(Anchor.problem(.origin))
             HStack(spacing: 10) {
                 airportPill(model.origin, placeholder: "From", which: .origin)
                 Image(systemName: "arrow.right").foregroundStyle(Theme.secondary).accessibilityHidden(true)
@@ -286,6 +346,7 @@ struct PastFlightEditorSheet: View {
             errorLine(.sameAirports)
 
             heading("Flight").scaledPadding(.top, 24)
+                .id(Anchor.problem(.ident))
             ChipFlow {
                 Chip(title: "Airline flight", symbol: "building.2", selected: !model.isPrivate) {
                     model.isPrivate = false
@@ -302,21 +363,25 @@ struct PastFlightEditorSheet: View {
                     .foregroundStyle(Theme.secondary)
                     .scaledPadding(.leading, 4)
             } else {
-                field(icon: "number", placeholder: "Flight number (optional)", text: $model.ident, problem: .ident)
+                field("Flight number (optional)", prompt: "AF 84", text: $model.ident, problem: .ident,
+                      field: .ident, next: .aircraftType)
                 pill(icon: "building.2", text: airlineName, placeholder: "Airline (optional)") { picking = .airline }
                     .scaledPadding(.top, 10)
+                    .id(Anchor.problem(.airline))
             }
 
             heading("Aircraft").scaledPadding(.top, 24)
-            field(icon: "airplane", placeholder: "Type, like B738 (optional)", text: $model.aircraftType, problem: .aircraftType)
-            if let name = reference.type(model.aircraftType)?.name {
-                Text(ui: name).scaledFont(14).foregroundStyle(Theme.secondary).scaledPadding(.leading, 4).scaledPadding(.top, 4)
-            }
-            field(icon: "tag", placeholder: "Registration (optional)", text: $model.registration, problem: .registration)
+                .id(Anchor.problem(.aircraftType))
+            field("Type (optional)", prompt: "B738", text: $model.aircraftType, problem: .aircraftType,
+                  footnote: reference.type(model.aircraftType)?.name, field: .aircraftType, next: .registration)
+            field("Registration (optional)", prompt: "F-GSQA", text: $model.registration, problem: .registration,
+                  field: .registration, next: .seat)
                 .scaledPadding(.top, 10)
+                .id(Anchor.problem(.registration))
 
             heading("Seat").scaledPadding(.top, 24)
-            field(icon: "carseat.right", placeholder: "23A", text: $model.seat, problem: .seat)
+                .id(Anchor.problem(.seat))
+            field("Seat", prompt: "23A", text: $model.seat, problem: .seat, field: .seat, next: .notes)
             ChipFlow {
                 ForEach(SeatPosition.allCases, id: \.self) { p in
                     Chip(title: p.title, symbol: BookingDetailsSheet.positionSymbol(p), selected: model.seatPosition == p) {
@@ -346,21 +411,19 @@ struct PastFlightEditorSheet: View {
             }
 
             heading("Notes").scaledPadding(.top, 24)
-            TextField("Anything to remember", text: $model.notes, axis: .vertical)
-                .scaledFont(17)
+                .id(Anchor.problem(.notes))
+            FormField("Notes", text: $model.notes, prompt: "Anything to remember", error: model.errors[.notes],
+                      capitalization: .sentences, submitLabel: .return, axis: .vertical,
+                      focus: $focus, field: .notes)
                 .lineLimit(3...8)
-                .scaledPadding(.all, 16)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.pill))
                 .onChange(of: model.notes) { model.errors[.notes] = nil }
-                .accessibilityLabel("Notes")
-            errorLine(.notes)
 
             if model.isEditing {
                 Button(role: .destructive) { confirmDelete = true } label: {
                     Text("Delete Flight").scaledFont(17, weight: .semibold).frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Theme.veryLate)
+                .foregroundStyle(Theme.veryLateText)
                 .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.pill))
                 .scaledPadding(.top, 32)
                 .disabled(model.isSaving)
@@ -418,36 +481,22 @@ struct PastFlightEditorSheet: View {
         if let error = model.errors[problem] {
             Text(ui: error)
                 .scaledFont(14)
-                .foregroundStyle(Theme.veryLate)
+                .foregroundStyle(Theme.veryLateText)
+                .fixedSize(horizontal: false, vertical: true)
                 .scaledPadding(.leading, 4)
                 .scaledPadding(.top, 6)
                 .accessibilityLabel("Error: \(error)")
         }
     }
 
-    private func field(icon: String, placeholder: String, text: Binding<String>,
-                       problem: PastFlightRules.Problem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .scaledFont(18, weight: .medium)
-                    .foregroundStyle(Theme.secondary)
-                    .accessibilityHidden(true)
-                TextField(placeholder, text: text)
-                    .scaledFont(20)
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.characters)
-                    #endif
-                    .submitLabel(.done)
-                    .accessibilityLabel(placeholder)
-            }
-            .scaledPadding(.horizontal, 16)
-            .frame(minHeight: 56)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.pill))
+    /// A code field (flight number, type, registration, seat): a persistent label, an example prompt, the
+    /// error under it, capitals and no autocorrection, Return to the next field (I12).
+    private func field(_ label: String, prompt: String, text: Binding<String>, problem: PastFlightRules.Problem,
+                       footnote: String? = nil, field: Field, next: Field?) -> some View {
+        FormField(label, text: text, prompt: prompt, error: model.errors[problem], footnote: footnote,
+                  keyboard: .ascii, capitalization: .characters, autocorrect: false,
+                  submitLabel: next == nil ? .done : .next, focus: $focus, field: field, next: next)
             .onChange(of: text.wrappedValue) { model.errors[problem] = nil }
-            errorLine(problem)
-        }
     }
 }
 

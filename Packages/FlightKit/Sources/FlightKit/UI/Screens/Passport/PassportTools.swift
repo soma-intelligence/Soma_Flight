@@ -92,6 +92,8 @@ struct StatusProgramEditor: View {
                     }
                 }
             }
+            // The goals use number pads, which have no Return key (I12).
+            .keyboardDoneBar()
             .navigationTitle(Text(program == nil ? "New Status Goal" : "Status Goal"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

@@ -45,10 +45,13 @@ public struct SearchView: View {
     /// Planned flights added from this screen, before `planned` hears of them.
     @State private var plannedHere: Set<UpcomingFlight.ID> = []
     @State private var pending: Set<Flight.ID> = []
+    /// The flight whose follow failed last: the banner's Retry follows it again (E6).
+    @State private var failedFollow: Flight?
     @State private var choosingDay = false
     @FocusState private var focused: Bool
     @Environment(\.airportStaticControls) private var staticControls
     @Environment(\.units) private var units
+    @Environment(\.requestSignIn) private var requestSignIn
 
     /// - Parameters:
     ///   - lookup: airport by ICAO or IATA, for city names and local times in the results.
@@ -214,10 +217,25 @@ public struct SearchView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let error = store.error {
-                ErrorBanner(error: error, retry: retryAction(error))
+            // A follow that failed, with a Retry that follows the same flight again (E6).
+            if let failure = store.followError {
+                ErrorBanner(error: failure.error, hasContent: !store.items.isEmpty,
+                            retry: failedFollow.map { flight in { retryFollow(flight) } },
+                            signIn: signIn)
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.vertical, 8)
+            }
+            if let error = store.error {
+                if error == .notFound {
+                    // Nothing found is not an error (D6): a neutral note worded for what was searched.
+                    SearchEmptyState(intent: store.intent)
+                } else {
+                    // Nothing shows under a failed search (E8): the copy promises no "last update".
+                    ErrorBanner(error: error, hasContent: !store.items.isEmpty, retry: retryAction(error),
+                                signIn: signIn)
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.vertical, 8)
+                }
             }
             if isBlank {
                 if store.items.isEmpty { suggestions } else { results }
@@ -272,7 +290,7 @@ public struct SearchView: View {
     private var results: some View {
         VStack(alignment: .leading, spacing: 0) {
             let count = store.items.count
-            CapsHeader("Results", trailing: count == 1 ? "1 flight" : "\(count) flights")
+            CapsHeader("Results", trailing: count == 1 ? "1 flight" : String(localized: "\(count) flights", bundle: .main))
                 .scaledPadding(.horizontal, 16)
                 .scaledPadding(.top, 8)
                 .scaledPadding(.bottom, 2)
@@ -402,10 +420,22 @@ public struct SearchView: View {
             pending.remove(flight.id)
             if ok {
                 followed.insert(flight.id)
+                if failedFollow?.id == flight.id { failedFollow = nil }
                 onFollowed(flight)
+            } else {
+                failedFollow = flight
             }
         }
     }
+
+    /// The follow banner's Retry: the same flight, through the same path, so My Flights hears of it (E6).
+    private func retryFollow(_ flight: Flight) {
+        store.clearFollowError()
+        follow(flight)
+    }
+
+    /// The banners' Sign In, when the shell gives one (E3).
+    private var signIn: (() -> Void)? { requestSignIn.map { open in { open() } } }
 
     /// A recent search's icon, by the first piece it reads as: a plane for a flight or an airline, the
     /// route curve for two places, a building for one, a calendar for a day or a time alone.
@@ -445,9 +475,9 @@ struct OptionRow: View {
                     .frame(width: glyph, height: glyph)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
+                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimitUnlessLargeText(1)
                     if let subtitle {
-                        Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                        Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimitUnlessLargeText(1)
                     }
                 }
                 Spacer(minLength: 0)
@@ -472,8 +502,8 @@ struct FrequentRow<Icon: View>: View {
             HStack(spacing: 14) {
                 icon
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimit(1)
-                    Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(ui: title).scaledFont(16).foregroundStyle(Theme.primary).lineLimitUnlessLargeText(1)
+                    Text(ui: subtitle).scaledFont(14).foregroundStyle(Theme.secondary).lineLimitUnlessLargeText(1)
                 }
                 Spacer(minLength: 0)
             }
@@ -559,12 +589,13 @@ struct ResultRow: View {
                     Text(Format.ident(result.ident)).scaledFont(16, weight: .semibold).foregroundStyle(Theme.primary)
                     Text("\(originCode) \u{2192} \(destinationCode)").scaledFont(16).foregroundStyle(Theme.primary)
                 }
-                .lineLimit(1)
+                .lineLimitUnlessLargeText(1)
                 HStack(spacing: 5) {
                     if case .live(let f) = result {
                         Circle().fill(f.level.color).frame(width: 7, height: 7)
                     }
-                    Text(ui: times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit().lineLimit(1)
+                    Text(ui: times).scaledFont(13).foregroundStyle(Theme.secondary).monospacedDigit()
+                        .lineLimitUnlessLargeText(1)
                 }
             }
             Spacer(minLength: 8)
@@ -619,6 +650,26 @@ struct ResultRow: View {
         .disabled(state != .idle)
         .accessibilityLabel(Self.accessibility(state, ident: result.ident))
     }
+}
+
+/// One line at the usual text sizes; as many as the words need at the accessibility sizes, where one line
+/// would cut a flight number or a city off (A12).
+struct LineLimitUnlessLargeText: ViewModifier {
+    var lines: Int
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        if typeSize.isAccessibilitySize {
+            content.lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+        } else {
+            content.lineLimit(lines)
+        }
+    }
+}
+
+extension View {
+    /// `lineLimit(lines)` except at the accessibility text sizes, where the text wraps (A12).
+    func lineLimitUnlessLargeText(_ lines: Int) -> some View { modifier(LineLimitUnlessLargeText(lines: lines)) }
 }
 
 /// "Paris to San Francisco" with the cities bold.

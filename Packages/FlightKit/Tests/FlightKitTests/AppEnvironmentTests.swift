@@ -127,9 +127,12 @@ import Testing
         try await waitUntil { session.session != nil }
         await cache.save(flights: try await FakeFlightService().followed())
         #expect(!(await cache.flights()).isEmpty)
-        // Signed out elsewhere (expired token): the stream goes nil without signOut() here.
+        // Signed out elsewhere (expired token): the stream goes nil without signOut() here. The account's
+        // data stays while sign-in shows over the open screens (E3); giving up on it clears the cache.
         await auth.signOut()
-        try await waitUntil { session.session == nil }
+        try await waitUntil { session.session == nil && session.isSessionExpired }
+        #expect(!(await cache.flights()).isEmpty)
+        session.clearSessionExpired()
         try await waitUntil { await cache.flights().isEmpty }
     }
 

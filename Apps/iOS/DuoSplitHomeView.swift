@@ -17,7 +17,11 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
     var mapScope: Namespace.ID
     var onSearch: () -> Void
     var onSettings: () -> Void
-    var tabScreen: TabScreen
+    var tabScreen: (HomeTab) -> TabScreen
+    /// The selected tab tapped again (I10).
+    var onReselect: () -> Void
+    /// Per tab, a counter whose change scrolls that tab's list to its top (I10).
+    var scrollSignals: [HomeTab: Int]
     var mapControls: MapControls
     /// The screen's height and safe areas, measured on a background that ignores them (as in `RootTabView`).
     @State private var metrics = Metrics()
@@ -29,10 +33,12 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
 
     init(home: HomeModel, selection: Binding<GlobeSelection?>, labels: Bool, threeD: Bool, mapScope: Namespace.ID,
          onSearch: @escaping () -> Void, onSettings: @escaping () -> Void,
-         @ViewBuilder tabScreen: () -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
+         onReselect: @escaping () -> Void = {}, scrollSignals: [HomeTab: Int] = [:],
+         @ViewBuilder tabScreen: @escaping (HomeTab) -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
         self.home = home; _selection = selection; self.labels = labels; self.threeD = threeD
         self.mapScope = mapScope; self.onSearch = onSearch; self.onSettings = onSettings
-        self.tabScreen = tabScreen(); self.mapControls = mapControls()
+        self.tabScreen = tabScreen; self.mapControls = mapControls()
+        self.onReselect = onReselect; self.scrollSignals = scrollSignals
     }
 
     /// The pane's height, with the bottom safe area inside it so the tab pill clears the home indicator.
@@ -86,7 +92,8 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
 
     private var root: some View {
         // The list ends above the pill and fades out there, as in the iPhone sheet: no row draws under the glass.
-        tabScreen
+        // Each tab keeps its screen and scroll position (I10).
+        TabPager(tab: home.tab, scrollSignals: scrollSignals, content: tabScreen)
             .frame(maxHeight: .infinity, alignment: .top)
             .pillFade(pillHeight: pillHeight)
             .overlay(alignment: .topTrailing) {
@@ -97,9 +104,9 @@ struct DuoSplitHomeView<TabScreen: View, MapControls: View>: View {
             .overlay(alignment: .bottom) {
                 // `$home` is not available outside `body`, so the pill gets an explicit binding.
                 VStack(spacing: 12) {
-                    ToastSlot(text: home.toast, isError: home.toastIsError)
+                    ToastSlot(home: home)
                     HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
-                                onSearch: onSearch)
+                                onSearch: onSearch, onReselect: onReselect)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
                 }
             }
@@ -123,7 +130,7 @@ private struct DuoSplitHomePreview: View {
         Group {
             if let home {
                 DuoSplitHomeView(home: home, selection: $selection, labels: true, threeD: false, mapScope: scope,
-                                 onSearch: {}, onSettings: {}, tabScreen: { Color.clear }, mapControls: { EmptyView() })
+                                 onSearch: {}, onSettings: {}, tabScreen: { _ in Color.clear }, mapControls: { EmptyView() })
             } else {
                 Color.black
             }

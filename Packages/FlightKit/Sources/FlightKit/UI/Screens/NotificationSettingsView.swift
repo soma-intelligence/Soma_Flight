@@ -8,17 +8,34 @@ public struct NotificationSettingsView: View {
     var store: NotificationSettingsStore
     var onDone: (() -> Void)?
     var scrolls: Bool
+    /// The permission to show, for previews and snapshots; nil reads the system's (E5).
+    var fixedPermission: NotificationPermission?
 
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var permission: NotificationPermission?
 
-    /// - Parameter onDone: shows a Done button in the header row; nil leaves it out.
-    public init(store: NotificationSettingsStore, onDone: (() -> Void)? = nil) {
+    /// - Parameters:
+    ///   - onDone: shows a Done button in the header row; nil leaves it out.
+    ///   - permission: the system permission to show; nil reads it from the system (and again when the app
+    ///     comes back from Settings).
+    public init(store: NotificationSettingsStore, onDone: (() -> Void)? = nil, permission: NotificationPermission? = nil) {
         self.init(store: store, onDone: onDone, scrolls: true)
+        self.fixedPermission = permission
     }
 
     init(store: NotificationSettingsStore, onDone: (() -> Void)?, scrolls: Bool) {
         self.store = store; self.onDone = onDone; self.scrolls = scrolls
     }
+
+    /// Notifications are off for the app in the system settings: the switches can't do anything yet (E5).
+    private var denied: Bool { (fixedPermission ?? permission) == .denied }
+
+    /// The switches show the account's real choices: loaded and allowed (E5, E11).
+    private var switchesLive: Bool { store.hasPreferences && !denied }
+
+    static let deniedTitle = "Notifications Are Off"
+    static let deniedText = "Allow notifications for Soma Flight in Settings to get the alerts you pick here."
 
     static let alertCategories: [NotificationPreferences.Category] = [
         .delays, .gates, .takeoffLanding, .boarding, .aircraft, .baggage, .cancellations,
@@ -47,11 +64,37 @@ public struct NotificationSettingsView: View {
         }
         .background(Theme.background)
         .task { if !store.hasPreferences { await store.load() } }
+        .task { await readPermission() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await readPermission() } } }
+    }
+
+    /// Reads the system permission without prompting. Skipped outside an app bundle (tests, snapshots).
+    private func readPermission() async {
+        guard fixedPermission == nil, Bundle.main.bundleURL.pathExtension == "app" else { return }
+        permission = await SystemNotificationAuthorizer().status()
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let error = store.error {
+            if denied {
+                // Same card as Calendar's denied access: what is off and the way to Settings (E5).
+                SettingsSection {
+                    SettingsRow(icon: "bell.slash.fill", title: Self.deniedTitle, subtitle: Self.deniedText,
+                                tone: .neutral, last: true, action: openSystemSettings) {
+                        Text("Open Settings")
+                            .scaledFont(15, weight: .semibold)
+                            .foregroundStyle(Theme.accentText)
+                            .fixedSize()
+                    }
+                }
+                .scaledPadding(.bottom, 12)
+            }
+            if store.loadFailed, let error = store.error {
+                // The switches show defaults, not the account's choices, until a load works (E11).
+                ErrorBanner(error: error, hasContent: false, retry: { Task { await store.retry() } })
+                    .scaledPadding(.horizontal, 16)
+                    .scaledPadding(.bottom, 12)
+            } else if let error = store.error {
                 ErrorBanner(error: error)
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.bottom, 12)
@@ -100,7 +143,9 @@ public struct NotificationSettingsView: View {
                                                          set: { store.setLandmarkAlerts($0) }))
                     .labelsHidden()
                     .tint(Theme.accent)
+                    .disabled(denied)
             }
+            .opacity(denied ? 0.45 : 1)
             .accessibilityElement(children: .combine)
         }
     }
@@ -117,8 +162,10 @@ public struct NotificationSettingsView: View {
                                           set: { on in Task { await store.set(c, on) } }))
                 .labelsHidden()
                 .tint(Theme.accent)
-                .disabled(!store.hasLoaded)
+                .disabled(!switchesLive)
         }
+        // Dimmed while the switches are not the account's real choices (denied, or not loaded).
+        .opacity(switchesLive ? 1 : 0.45)
         .accessibilityElement(children: .combine)
     }
 
@@ -137,11 +184,14 @@ public struct NotificationSettingsView: View {
 struct NotificationSettingsPreview: View {
     var preferences = NotificationPreferences(baggage: false)
     var error: APIError?
+    var denied = false
     @State private var store: NotificationSettingsStore?
 
     var body: some View {
         Group {
-            if let store { NotificationSettingsView(store: store, onDone: {}) } else { ProgressView() }
+            if let store {
+                NotificationSettingsView(store: store, onDone: {}, permission: denied ? .denied : .authorized)
+            } else { ProgressView() }
         }
         .task {
             let s = NotificationSettingsStore(service: FakeNotificationPreferencesService(preferences))
@@ -154,5 +204,8 @@ struct NotificationSettingsPreview: View {
 #Preview("Notifications, dark") { NotificationSettingsPreview().preferredColorScheme(.dark) }
 #Preview("Notifications, light, error") {
     NotificationSettingsPreview(error: .offline).preferredColorScheme(.light)
+}
+#Preview("Notifications, denied") {
+    NotificationSettingsPreview(denied: true).preferredColorScheme(.dark)
 }
 #endif

@@ -5,22 +5,37 @@ import SwiftUI
 /// A flat card (R6): `Theme.card` fill, `Theme.cardRadius` corners, no stroke, no coloured top. An optional
 /// 4 pt severity bar runs down its leading edge (R3, R7).
 /// Penpot: Card (Card/Status with a severity bar)
+///
+/// Tappable cards pass `action`: the card becomes a button with `CardPressStyle` (I15). Never wrap a
+/// `RefinedCard` in a `Button` with `.plain`.
 public struct RefinedCard<Content: View>: View {
     var severity: Color?
     var padding: CGFloat
+    var action: (() -> Void)?
     var content: Content
     @Environment(\.metricsScale) private var scale
 
     /// - Parameters:
     ///   - severity: the leading bar's colour; no bar when nil.
     ///   - padding: inner padding in reference points.
-    public init(severity: Color? = nil, padding: CGFloat = 16, @ViewBuilder content: () -> Content) {
-        self.severity = severity; self.padding = padding; self.content = content()
+    ///   - action: makes the whole card a button that presses in (`CardPressStyle`); a still card when nil.
+    public init(severity: Color? = nil, padding: CGFloat = 16, action: (() -> Void)? = nil,
+                @ViewBuilder content: () -> Content) {
+        self.severity = severity; self.padding = padding; self.action = action; self.content = content()
     }
 
     public var body: some View {
+        if let action {
+            Button(action: action) { card }
+                .buttonStyle(CardPressStyle(cornerRadius: Theme.Radius.card))
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         let shape = RoundedRectangle(cornerRadius: Theme.metric(Theme.cardRadius, scale), style: .continuous)
-        content
+        return content
             .scaledPadding(.all, padding)
             .scaledPadding(.leading, severity == nil ? 0 : 4)
             .frame(maxWidth: .infinity, alignment: .leading)

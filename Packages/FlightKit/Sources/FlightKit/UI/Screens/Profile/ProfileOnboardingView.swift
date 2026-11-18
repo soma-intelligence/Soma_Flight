@@ -22,6 +22,8 @@ public struct ProfileOnboardingView: View {
     @State private var showCamera = false
     @State private var loaded = false
     @State private var failed = false
+    /// The name and emoji as the editor opened, to tell a change apart (I2).
+    @State private var initial: (first: String, last: String, emoji: String) = ("", "", "")
     @FocusState private var focus: Field?
     @Environment(\.airportStaticControls) private var staticControls
     @ScaledMetric(relativeTo: .largeTitle) private var avatarSide: CGFloat = 128
@@ -38,6 +40,12 @@ public struct ProfileOnboardingView: View {
         _first = State(initialValue: draft.firstName)
         _last = State(initialValue: draft.lastName)
         _emoji = State(initialValue: store.profile?.emoji ?? "")
+        _initial = State(initialValue: (draft.firstName, draft.lastName, store.profile?.emoji ?? ""))
+    }
+
+    /// Something typed or picked differs from what the editor opened with: Cancel and a swipe down ask first.
+    private var isDirty: Bool {
+        mode == .edit && (first != initial.first || last != initial.last || emoji != initial.emoji || change != .keep)
     }
 
     /// The picture shown: the one chosen here, else the stored one (none after Remove).
@@ -63,12 +71,13 @@ public struct ProfileOnboardingView: View {
         // Edit mode is a modal (R5): Cancel on the left, Done on the right saves, as the Save button does.
         .safeAreaInset(edge: .top, spacing: 0) {
             if mode == .edit {
-                SheetHeader(.modal(title: "Your profile", leading: .cancel(onDone), onDone: save,
-                                   doneDisabled: !canSave))
+                ProfileEditHeader(onDone: save, doneDisabled: !canSave, fallback: onDone)
                     .scaledPadding(.top, 8)
                     .background(Theme.background)
             }
         }
+        // A changed name or photo is not lost to a swipe or Cancel without asking (I2).
+        .guardsUnsavedChanges(isDirty: isDirty, isSaving: store.saving, onDiscard: onDone)
         .photosPicker(isPresented: $showPicker, selection: $pickerItem, matching: .images, preferredItemEncoding: .compatible)
         .onChange(of: pickerItem) { _, item in
             guard let item else { return }
@@ -407,3 +416,17 @@ struct ProfileOnboardingPreview: View {
 #Preview("Email") { ProfileOnboardingPreview(scenario: .email).preferredColorScheme(.dark) }
 #Preview("Google") { ProfileOnboardingPreview(scenario: .google).preferredColorScheme(.dark) }
 #endif
+
+/// The editor's modal header (R5, I12): Cancel on the left goes through `guardsUnsavedChanges`, which asks
+/// before dropping a change; Done on the right saves.
+private struct ProfileEditHeader: View {
+    var onDone: () -> Void
+    var doneDisabled: Bool
+    var fallback: () -> Void
+    @Environment(\.requestCancel) private var requestCancel
+
+    var body: some View {
+        SheetHeader(.modal(title: "Your profile", leading: .cancel { if let requestCancel { requestCancel() } else { fallback() } },
+                           onDone: onDone, doneDisabled: doneDisabled))
+    }
+}

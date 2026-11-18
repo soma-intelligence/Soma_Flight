@@ -41,9 +41,9 @@ public enum FAAFacts {
         let start = p.startsAt.flatMap { $0 > now ? Format.clock($0, timeZone, clock) : nil }
         let end = p.endsAt.map { Format.clock($0, timeZone, clock) }
         switch (start, end) {
-        case let (s?, e?): return "From \(s) to \(e)"
-        case let (s?, nil): return "From \(s)"
-        case let (nil, e?): return "Until \(e)"
+        case let (s?, e?): return Format.words("From \(s) to \(e)")
+        case let (s?, nil): return Format.words("From \(s)")
+        case let (nil, e?): return Format.words("Until \(e)")
         case (nil, nil): return nil
         }
     }
@@ -51,11 +51,11 @@ public enum FAAFacts {
     /// "Average 31m and rising", "Average 22m and easing", "Average 47m".
     static func average(_ p: AirportProgram) -> String? {
         guard let m = p.averageMinutes, m > 0 else { return nil }
-        let base = "Average \(Format.minutes(m))"
+        let span = Format.minutes(m)
         switch p.trend {
-        case .increasing?: return "\(base) and rising"
-        case .decreasing?: return "\(base) and easing"
-        default: return base
+        case .increasing?: return Format.words("Average \(span) and rising")
+        case .decreasing?: return Format.words("Average \(span) and easing")
+        default: return Format.words("Average \(span)")
         }
     }
 
@@ -63,29 +63,31 @@ public enum FAAFacts {
     /// "Average 47m · Low clouds · Until 20:59". `code` is the airport as the app shows it.
     public static func row(_ p: AirportProgram, code: String, timeZone: TimeZone, clock: TimeStyle = .h24,
                            now: Date) -> (title: String, text: String) {
-        let reason = p.reason.map(capitalized)
+        let reason = p.reason.map { UIText.localized(capitalized($0)) }
         let when = window(p, timeZone: timeZone, clock: clock, now: now)
         func line(_ parts: [String?]) -> String { parts.compactMap { $0 }.joined(separator: " · ") }
         switch p.kind {
         case .groundDelay:
-            return ("Ground delay program at \(code)",
+            return (Format.words("Ground delay program at \(code)"),
                     line([average(p), reason, when]))
         case .groundStop:
             let ext: String? = switch p.extensionChance {
-            case .high?: "Likely to be extended"
-            case .medium?: "May be extended"
+            case .high?: Format.words("Likely to be extended")
+            case .medium?: Format.words("May be extended")
             default: nil
             }
-            return ("Ground stop at \(code)",
-                    line(["Flights to \(code) are held before take-off", reason, when, ext]))
+            return (Format.words("Ground stop at \(code)"),
+                    line([Format.words("Flights to \(code) are held before take-off"), reason, when, ext]))
         case .closure:
-            return ("\(code) is closed", line([when ?? "Until further notice", "Check with your airline"]))
+            return (Format.words("\(code) is closed"),
+                    line([when ?? Format.words("Until further notice"), Format.words("Check with your airline")]))
         case .departureDelay:
-            return ("Departure delays at \(code)", line([average(p), reason]))
+            return (Format.words("Departure delays at \(code)"), line([average(p), reason]))
         case .arrivalDelay:
-            return ("Arrival delays at \(code)", line([average(p), reason]))
+            return (Format.words("Arrival delays at \(code)"), line([average(p), reason]))
         case .deicing:
-            return ("Deicing at \(code)", "Planes are deiced before take-off, which adds a few minutes.")
+            return (Format.words("Deicing at \(code)"),
+                    Format.words("Planes are deiced before take-off, which adds a few minutes."))
         }
     }
 
@@ -95,15 +97,17 @@ public enum FAAFacts {
     public static func notamLine(_ r: NotamReport?, code: String) -> (title: String, text: String)? {
         guard let r else { return nil }
         if let closed = r.notams.first(where: \.closesAirport) {
-            return ("\(code) closed by NOTAM", closed.detail ?? "Check with your airline before you go.")
+            return (Format.words("\(code) closed by NOTAM"),
+                    closed.detail ?? Format.words("Check with your airline before you go."))
         }
         let runways = r.notams.filter(\.closesRunway)
         let ils = r.notams.filter { $0.kind == .ilsOut }
         guard !runways.isEmpty || !ils.isEmpty else { return nil }
         let title: String = if runways.isEmpty {
-            ils.count == 1 ? "ILS out at \(code)" : "\(ils.count) ILS outages at \(code)"
+            ils.count == 1 ? Format.words("ILS out at \(code)") : Format.words("\(ils.count) ILS outages at \(code)")
         } else {
-            runways.count == 1 ? "Runway closure at \(code)" : "\(runways.count) runway closures at \(code)"
+            runways.count == 1 ? Format.words("Runway closure at \(code)")
+                : Format.words("\(runways.count) runway closures at \(code)")
         }
         let items = (runways + ils).prefix(3).map(\.title)
         return (title, items.joined(separator: " · "))
@@ -112,14 +116,18 @@ public enum FAAFacts {
     /// When a notice applies: "Until 13:00", "From 05:00 to 13:00", "Until about 13:00", "Permanent".
     public static func notamWindow(_ n: Notam, timeZone: TimeZone, clock: TimeStyle = .h24, now: Date) -> String {
         let start = n.startsAt.flatMap { $0 > now ? Format.clock($0, timeZone, clock) : nil }
-        guard let end = n.endsAt else { return start.map { "From \($0), until further notice" } ?? "Until further notice" }
-        let e = "\(n.endsEstimated ? "about " : "")\(Format.clock(end, timeZone, clock))"
-        return start.map { "From \($0) to \(e)" } ?? "Until \(e)"
+        guard let end = n.endsAt else {
+            return start.map { Format.words("From \($0), until further notice") } ?? Format.words("Until further notice")
+        }
+        let time = Format.clock(end, timeZone, clock)
+        let e = n.endsEstimated ? Format.words("about \(time)") : time
+        return start.map { Format.words("From \($0) to \(e)") } ?? Format.words("Until \(e)")
     }
 
     /// The source line under the programs.
     public static func programsSource(_ p: AirportPrograms, now: Date) -> String {
-        "FAA NAS status • \(p.isStale ? "last read" : "updated") \(Format.ago(p.fetchedAt, now: now))"
+        let ago = Format.ago(p.fetchedAt, now: now)
+        return p.isStale ? Format.words("FAA NAS status • last read \(ago)") : Format.words("FAA NAS status • updated \(ago)")
     }
 
     /// Where a reason came from, for the report's line under it.
@@ -143,6 +151,8 @@ public enum FAAFacts {
 
     /// The source line under the notices.
     public static func notamSource(_ r: NotamReport, now: Date) -> String {
-        "FAA NOTAM service • \(r.isStale ? "last read" : "updated") \(Format.ago(r.fetchedAt, now: now))"
+        let ago = Format.ago(r.fetchedAt, now: now)
+        return r.isStale ? Format.words("FAA NOTAM service • last read \(ago)")
+            : Format.words("FAA NOTAM service • updated \(ago)")
     }
 }

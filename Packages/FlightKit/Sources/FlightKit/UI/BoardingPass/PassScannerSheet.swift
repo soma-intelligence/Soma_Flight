@@ -6,9 +6,12 @@ import VisionKit
 /// Hands over the first code that reads as a boarding pass; others leave a line saying so and scanning
 /// goes on. Devices without the live scanner (or with the camera refused) say what to do instead.
 struct PassScannerSheet: View {
+    /// Opens the photo picker instead (the camera is refused or missing); nil hides that button.
+    var onChooseScreenshot: (() -> Void)? = nil
     var onPass: (BoardingPass) -> Void
     @State private var hint: String?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -28,12 +31,25 @@ struct PassScannerSheet: View {
                                 .accessibilityAddTraits(.updatesFrequently)
                         }
                 } else {
+                    // E17: the two ways out the text names, as buttons.
                     ContentUnavailableView {
                         Label("Camera Not Available", systemImage: "camera")
                     } description: {
                         Text(DataScannerViewController.isSupported
                              ? "Allow Soma Flight to use the camera in Settings, or choose a screenshot of the pass instead."
                              : "This device cannot scan barcodes with its camera. Choose a screenshot of the pass instead.")
+                    } actions: {
+                        if DataScannerViewController.isSupported {
+                            Button("Open Settings") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Theme.accent)
+                        }
+                        if let onChooseScreenshot {
+                            Button("Choose Screenshot", action: onChooseScreenshot)
+                                .buttonStyle(.bordered)
+                        }
                     }
                 }
             }

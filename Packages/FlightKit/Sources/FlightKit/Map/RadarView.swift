@@ -61,24 +61,32 @@ public struct RadarView: View {
         }
     }
 
+    /// A7: the title on an opaque card, the controls as glass beside it (never glass inside glass), the
+    /// round controls grouped in one `GlassEffectContainer` so they blend as one family.
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .center, spacing: Theme.Space.xs) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                if let note = statusNote { Text(note).font(.caption).foregroundStyle(Theme.secondary) }
+                Text(title).themeFont(.sectionTitle).foregroundStyle(Theme.primary)
+                if let note = statusNote {
+                    Text(note).themeFont(.sectionSubtitle).foregroundStyle(Theme.secondary)
+                }
             }
-            Spacer(minLength: 8)
-            if store.place != nil { airportMenu }
-            Button(action: onClose) {
-                Image(systemName: "xmark").font(.system(size: 14, weight: .semibold)).frame(width: 32, height: 32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .scaledPadding(.horizontal, Theme.Space.md)
+            .scaledPadding(.vertical, Theme.Space.sm - 2)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).fill(Theme.card))
+            .themeShadow(Theme.Shadow.floating)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            GlassEffectContainer(spacing: Theme.Space.xs) {
+                HStack(spacing: Theme.Space.xs) {
+                    if store.place != nil { airportMenu }
+                    CloseButton(inset: false, action: onClose)
+                }
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .accessibilityLabel(Text("Close"))
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 22))
-        .padding(.horizontal, 12).padding(.top, 8)
+        .scaledPadding(.horizontal, Theme.Space.sm)
+        .scaledPadding(.top, Theme.Space.xs)
     }
 
     private var statusNote: LocalizedStringKey? {
@@ -99,11 +107,16 @@ public struct RadarView: View {
             Button("Around Me") { Task { _ = await store.useMyLocation() } }
             ForEach(Self.suggestions, id: \.self) { c in Button(c) { store.choose(code: c) } }
         } label: {
-            Image(systemName: "location.magnifyingglass").font(.system(size: 14, weight: .semibold))
-                .frame(width: 32, height: 32)
+            Image(systemName: "location.magnifyingglass")
+                .scaledFont(16, weight: .semibold)
+                .foregroundStyle(Theme.primary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
-        .glassEffect(.regular.interactive(), in: .circle)
+        .menuIndicator(.hidden)
+        .roundGlass()
         .accessibilityLabel(Text("Change Place"))
+        .accessibilityShowsLargeContentViewer()
     }
 
     static let suggestions = ["SFO", "JFK", "LAX", "LHR", "CDG", "FRA"]
@@ -125,9 +138,11 @@ public struct RadarView: View {
             Button("Show Flights", action: submit).buttonStyle(.borderedProminent).disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
             HStack { ForEach(Self.suggestions.prefix(4), id: \.self) { c in Button(c) { store.choose(code: c) }.buttonStyle(.bordered) } }
         }
-        .padding(24)
-        .glassEffect(.regular, in: .rect(cornerRadius: 24))
-        .padding(.horizontal, 24)
+        .scaledPadding(.all, Theme.Space.lg)
+        // Content on an opaque card (A7): glass stays for the controls.
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).fill(Theme.card))
+        .themeShadow(Theme.Shadow.floating)
+        .scaledPadding(.horizontal, Theme.Space.lg)
     }
 
     private func submit() {
@@ -187,8 +202,12 @@ struct RadarCard: View {
                 Text(flight.ident).font(.title3.weight(.semibold))
                 if let type = flight.type { Text(type).font(.subheadline).foregroundStyle(Theme.secondary) }
                 Spacer()
-                Button(action: dismiss) { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.secondary) }
-                    .buttonStyle(.plain).accessibilityLabel(Text("Close"))
+                Button(action: dismiss) {
+                    Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.plain)
+                .minTapTarget()
+                .accessibilityLabel(Text("Close"))
             }
             if let route = Self.route(flight) { Text(route).font(.headline) }
             HStack(spacing: 18) {
@@ -201,8 +220,10 @@ struct RadarCard: View {
             }
             .buttonStyle(.borderedProminent)
         }
-        .padding(16)
-        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        .scaledPadding(.all, Theme.Space.md)
+        // Content on an opaque card (A7): glass stays for the controls.
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).fill(Theme.card))
+        .themeShadow(Theme.Shadow.floating)
     }
 
     private func stat(_ value: String, _ label: LocalizedStringKey) -> some View {

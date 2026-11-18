@@ -9,6 +9,20 @@ public final class SessionStore {
     /// False until the auth stream has reported once: before that nobody is known to be signed out, so
     /// the shells do not flash Sign In at launch.
     public private(set) var isResolved = false
+    /// The account is still signed in on this device, but the server refused its session and a refresh
+    /// did not renew it (E3). Screens offer Sign In (as a sheet over what is open) instead of Retry; a new
+    /// sign-in or a later successful refresh clears it.
+    public private(set) var isSessionExpired = false
+    /// The account whose session the server ended on its own (a refresh token refused, a sign-out from
+    /// elsewhere) while it was signed in here (E3). `session` is nil, but nothing is handed over yet: the
+    /// device keeps the account's data and the shell keeps what is open, with sign-in as a sheet over it.
+    /// Signing in again as this account picks up where it was; another account, an explicit `signOut()` or
+    /// giving up on the sheet (`clearSessionExpired()`) hands the device over as a sign-out does.
+    public private(set) var expiredUserId: UUID?
+    /// An account deletion is running: the nil the auth stream may report meanwhile is not an expiry.
+    @ObservationIgnored private var deleting = false
+    /// The refresh running now, shared by every store that met `.unauthorized` at the same time.
+    @ObservationIgnored private var refreshTask: Task<Bool, Never>?
     private let auth: any AuthService
     private let onUserChange: (@Sendable (UUID?) async throws -> Void)?
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -56,10 +70,22 @@ public final class SessionStore {
     private func follow(_ s: UserSession?) async {
         retryTask?.cancel()
         defer { isResolved = true }
+        // The server ended the session of the account signed in here, and nobody asked for it: keep the
+        // account's data and the open screens, and ask for sign-in over them (E3).
+        if s == nil, !deleting, let gone = session?.userId ?? expiredUserId {
+            expiredUserId = gone
+            isSessionExpired = true
+            session = nil
+            return
+        }
         if await handOver(to: s?.userId) {
+            // Any session reported again (a sign-in, a refresh) is good until a store meets a refusal.
+            if s != nil { isSessionExpired = false }
+            expiredUserId = nil
             session = s
             return
         }
+        expiredUserId = nil
         session = nil
         guard let s else { return }
         let delays = retryDelays
@@ -82,6 +108,50 @@ public final class SessionStore {
         self.session = session; self.error = error
     }
     #endif
+
+    // MARK: Expired session
+
+    /// A store met `.unauthorized`: tries to renew the session once. True when it was renewed (the store
+    /// retries its call); false sets `isSessionExpired` when the server refused the renewal. A failure
+    /// that is not a refusal (offline) leaves the flag alone. Calls made while a refresh runs share it.
+    @discardableResult
+    public func recoverSession() async -> Bool {
+        if let refreshTask { return await refreshTask.value }
+        let auth = auth
+        let task = Task { @MainActor [weak self] () -> Bool in
+            do throws(APIError) {
+                try await auth.refreshSession()
+                self?.isSessionExpired = false
+                return true
+            } catch {
+                if error == .unauthorized { self?.isSessionExpired = true }
+                return false
+            }
+        }
+        refreshTask = task
+        let renewed = await task.value
+        refreshTask = nil
+        return renewed
+    }
+
+    /// The sign-in sheet was dismissed without signing in, or a test resets the state. When the server had
+    /// already ended the session (`expiredUserId`), this is the user giving up on it: the device is handed
+    /// over as at a sign-out, and the home is rebuilt for nobody.
+    public func clearSessionExpired() {
+        isSessionExpired = false
+        guard expiredUserId != nil, session == nil else { return }
+        Task { await abandonExpiredSession() }
+    }
+
+    /// Ends an expired account's stay on the device: its data is wiped, then `expiredUserId` goes, which
+    /// rebuilds the stores for nobody. When the wipe fails `error` is `.localData` and `expiredUserId` still
+    /// goes: the stores rebuilt for nobody read nothing, and the next sign-in hands the device over again.
+    public func abandonExpiredSession() async {
+        guard expiredUserId != nil, session == nil else { return }
+        isSessionExpired = false
+        await handOver(to: nil)
+        expiredUserId = nil
+    }
 
     // MARK: Signing in
 
@@ -133,6 +203,10 @@ public final class SessionStore {
     /// When the wipe fails the account stays signed in and `error` is `.localData`, so the user can retry.
     public func signOut() async {
         guard await handOver(to: nil) else { return }
+        // Asked for here: the nil the auth stream reports next is a sign-out, not an expiry (E3).
+        expiredUserId = nil
+        isSessionExpired = false
+        session = nil
         await auth.signOut()
     }
 
@@ -142,6 +216,8 @@ public final class SessionStore {
     /// account uses Apple (`UserSession.usesApple`): the server revokes the Apple tokens with it.
     @discardableResult
     public func deleteAccount(appleAuthorizationCode: String? = nil) async -> Bool {
+        deleting = true
+        defer { deleting = false }
         do {
             try await auth.deleteAccount(appleAuthorizationCode: appleAuthorizationCode)
         } catch {
@@ -151,6 +227,8 @@ public final class SessionStore {
         error = nil
         retryTask?.cancel()
         await handOver(to: nil)
+        expiredUserId = nil
+        isSessionExpired = false
         session = nil
         return true
     }

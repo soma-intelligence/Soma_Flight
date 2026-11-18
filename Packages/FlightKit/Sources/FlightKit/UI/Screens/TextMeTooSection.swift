@@ -7,6 +7,7 @@ import SwiftUI
 struct TextMeTooSection: View {
     @Bindable var store: TextAlertsStore
     @FocusState private var focus: Field?
+    @State private var confirmingForget = false
 
     enum Field { case phone, code }
 
@@ -25,7 +26,7 @@ struct TextMeTooSection: View {
             if let error = store.error {
                 Text(ui: error.message)
                     .scaledFont(13)
-                    .foregroundStyle(Theme.veryLate)
+                    .foregroundStyle(Theme.veryLateText)
                     .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.horizontal, 16)
                     .scaledPadding(.top, 8)
@@ -38,6 +39,13 @@ struct TextMeTooSection: View {
                 .scaledPadding(.top, 8)
         }
         .task { if !store.hasLoaded { await store.load() } }
+        // The phone and number pads have no Return key: Done closes them, Send Code stays the way on (I12).
+        .keyboardDoneBar()
+        .confirmDestructive(isPresented: $confirmingForget, title: "Forget your number?",
+                            message: "Texts stop and the number is deleted from your account. To get texts again, you verify it again.",
+                            actionTitle: "Forget My Number") {
+            Task { await store.forget() }
+        }
     }
 
     private var unavailable: some View {
@@ -53,6 +61,7 @@ struct TextMeTooSection: View {
                 EmptyView()
             }
             HStack(spacing: 12) {
+                // No submit label: a phone pad has no Return key, so the explicit Send Code button sends.
                 TextField("+1 415 555 0100", text: $store.phoneDraft)
                     .textContentType(.telephoneNumber)
                     #if os(iOS)
@@ -60,18 +69,35 @@ struct TextMeTooSection: View {
                     #endif
                     .scaledFont(17)
                     .focused($focus, equals: .phone)
-                    .submitLabel(.send)
                     .onSubmit(send)
+                    .onChange(of: store.phoneDraft) { store.phoneEdited() }
                     .accessibilityLabel("Mobile number with country code")
                 Button("Send Code", action: send)
-                    .scaledFont(15, weight: .semibold)
-                    .foregroundStyle(Theme.accent)
-                    .buttonStyle(.plain)
-                    .disabled(store.phoneDraft.trimmingCharacters(in: .whitespaces).isEmpty || store.isWorking)
+                    .loadingButton(isLoading: store.isWorking, variant: .plain)
+                    .minTapTarget()
+                    .fixedSize()
+                    .disabled(store.phoneDraft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .scaledPadding(.leading, 60)
             .scaledPadding(.trailing, 16)
             .frame(minHeight: 50)
+            phoneLine
+        }
+    }
+
+    /// Under the number: why it does not read, or the number the code goes to once it does (normalised to
+    /// E.164 with the device's region), so a missing country code shows before anything is sent.
+    @ViewBuilder private var phoneLine: some View {
+        if store.phoneInvalid {
+            Text("Type the number with its country code, like +1 415 555 0100.")
+                .scaledFont(13).foregroundStyle(Theme.veryLateText)
+                .fixedSize(horizontal: false, vertical: true)
+                .scaledPadding(.leading, 60).scaledPadding(.trailing, 16).scaledPadding(.bottom, 10)
+        } else if let e164 = store.normalizedPhone {
+            Text("The code goes to \(e164)")
+                .scaledFont(13).foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .scaledPadding(.leading, 60).scaledPadding(.trailing, 16).scaledPadding(.bottom, 10)
         }
     }
 
@@ -80,7 +106,9 @@ struct TextMeTooSection: View {
             SettingsRow(icon: "number", title: "Enter the Code",
                         subtitle: "Sent to \(store.status.phone ?? "your number"). It expires in 10 minutes.") {
                 Button("Change", action: store.changeNumber)
-                    .scaledFont(15).foregroundStyle(Theme.accent).buttonStyle(.plain)
+                    .scaledFont(15).foregroundStyle(Theme.accentText).buttonStyle(.plain)
+                    .minTapTarget()
+                    .disabled(store.isWorking)
             }
             HStack(spacing: 12) {
                 TextField("6 digits", text: $store.codeDraft)
@@ -93,17 +121,17 @@ struct TextMeTooSection: View {
                     .onSubmit(check)
                     .accessibilityLabel("Six digit code")
                 Button("Verify", action: check)
-                    .scaledFont(15, weight: .semibold)
-                    .foregroundStyle(Theme.accent)
-                    .buttonStyle(.plain)
-                    .disabled(store.codeDraft.filter(\.isNumber).count != 6 || store.isWorking)
+                    .loadingButton(isLoading: store.isWorking, variant: .plain)
+                    .minTapTarget()
+                    .fixedSize()
+                    .disabled(store.codeDraft.filter(\.isNumber).count != 6)
             }
             .scaledPadding(.leading, 60)
             .scaledPadding(.trailing, 16)
             .frame(minHeight: 50)
             if let message = store.codeMessage {
                 Text(ui: message)
-                    .scaledFont(13).foregroundStyle(Theme.late)
+                    .scaledFont(13).foregroundStyle(Theme.lateText)
                     .scaledPadding(.leading, 60).scaledPadding(.bottom, 10)
             }
         }
@@ -127,7 +155,7 @@ struct TextMeTooSection: View {
             }
             .accessibilityElement(children: .combine)
             SettingsRow(icon: "trash", title: "Forget My Number", tone: .destructive, last: true,
-                        action: { Task { await store.forget() } }) { EmptyView() }
+                        action: { confirmingForget = true }) { EmptyView() }
         }
     }
 

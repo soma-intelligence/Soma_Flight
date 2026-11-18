@@ -49,6 +49,12 @@ struct SomaFlightApp: App {
                     FlightSplash { splashing = false }
                 }
             }
+            #if DEBUG
+            // `-gallery YES`: every shared component in its states, over the app (D10).
+            .overlay {
+                if ComponentGallery.isRequested { ComponentGallery() }
+            }
+            #endif
             .onOpenURL { url in
                 // A widget's `somaflight://flight/<id>` opens that flight the way a tapped notification does:
                 // it waits in the inbox until the home is built and someone is signed in.

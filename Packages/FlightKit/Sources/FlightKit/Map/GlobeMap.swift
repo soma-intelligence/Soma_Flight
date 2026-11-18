@@ -188,6 +188,8 @@ public struct GlobeMap: View {
     /// Where the camera settled last, so the 3D switch tilts the view the user is looking at.
     @State private var settled: MapCamera?
     @State private var viewport = GlobeViewport.phone
+    /// Reduce Motion: the camera jumps to its target instead of flying there (A5).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// - Parameters:
     ///   - focus: moves the camera onto an arc or an airport; back to nil returns to the whole globe.
@@ -383,6 +385,11 @@ public struct GlobeMap: View {
 
     /// The camera's move onto a new visible area (a detent that settled): a spring with no bounce.
     static let refitAnimation = Animation.spring(duration: 0.6, bounce: 0)
+
+    /// `animation` for a camera move, or nil under Reduce Motion so the camera jumps.
+    private func cameraMove(_ animation: Animation) -> Animation? {
+        reduceMotion ? nil : animation
+    }
     /// How long the other flights take to fade out or back in.
     static let fadeDuration = 0.35
 
@@ -428,7 +435,7 @@ public struct GlobeMap: View {
         refitTask = Task { @MainActor in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled, let focus, !position.positionedByUser else { return }
-            withAnimation(Self.refitAnimation) { position = .camera(Self.camera(for: focus, in: viewport)) }
+            withAnimation(cameraMove(Self.refitAnimation)) { position = .camera(Self.camera(for: focus, in: viewport)) }
         }
     }
 
@@ -440,7 +447,7 @@ public struct GlobeMap: View {
             if Task.isCancelled { return }
             let target = focus.map { Self.camera(for: $0, in: viewport) }
                 ?? Self.camera(routes: routes, planes: planes, airports: airports)
-            withAnimation(.smooth(duration: 0.9)) { position = .camera(target) }
+            withAnimation(cameraMove(.smooth(duration: 0.9))) { position = .camera(target) }
         }
     }
 
@@ -542,7 +549,7 @@ public struct GlobeMap: View {
             aimedAt = visible
             if let focus, !position.positionedByUser {
                 let target = GlobeViewport(size: viewport.size, visible: visible, farLimit: viewport.farLimit)
-                withAnimation(Self.refitAnimation) { position = .camera(Self.camera(for: focus, in: target)) }
+                withAnimation(cameraMove(Self.refitAnimation)) { position = .camera(Self.camera(for: focus, in: target)) }
             }
             // Once the glide is over, a visible area that ended elsewhere than aimed gets its own refit.
             refitTask?.cancel()
@@ -556,7 +563,7 @@ public struct GlobeMap: View {
         }
         .onChange(of: threeD) { _, on in
             guard let on, let c = settled else { return }
-            withAnimation(.smooth(duration: 0.8)) {
+            withAnimation(cameraMove(.smooth(duration: 0.8))) {
                 position = .camera(MapCamera(centerCoordinate: c.centerCoordinate, distance: c.distance,
                                              heading: c.heading, pitch: on ? Self.threeDPitch : 0))
             }
@@ -568,8 +575,8 @@ public struct GlobeMap: View {
         .safeAreaPadding(.top, insets?.safeTop ?? 0)
         .safeAreaPadding(.bottom, insets?.safeBottom ?? bottomInset)
         // One spring for both edges, so the safe area's centre (the camera's) never moves as they glide.
-        .animation(Self.refitAnimation, value: insets)
-        .animation(Self.refitAnimation, value: bottomInset)
+        .animation(cameraMove(Self.refitAnimation), value: insets)
+        .animation(cameraMove(Self.refitAnimation), value: bottomInset)
     }
 }
 

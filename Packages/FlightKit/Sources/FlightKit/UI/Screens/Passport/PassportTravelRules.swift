@@ -50,7 +50,7 @@ struct SchengenMeter: View {
             let share = min(Double(used) / Double(Schengen.maxDays), 1)
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.pill)
-                Capsule().fill(used > Schengen.maxDays ? Color.red : Theme.passportAccent)
+                Capsule().fill(used > Schengen.maxDays ? Theme.destructive : Theme.passportAccent)
                     .frame(width: geo.size.width * share)
             }
         }

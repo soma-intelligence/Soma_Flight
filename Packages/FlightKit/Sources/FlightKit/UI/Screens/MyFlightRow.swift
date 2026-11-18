@@ -179,7 +179,20 @@ struct FlightRowEnd: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 6) {
+        // At the largest sizes the struck schedule drops under the time instead of cutting it to "3:45...".
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 6) { lead; trail }
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .center, spacing: 6) { lead }
+                trail
+            }
+        }
+        .scaledFont(17)
+        .monospacedDigit()
+        .lineLimit(1)
+    }
+
+    @ViewBuilder private var lead: some View {
             Image(systemName: icon)
                 .scaledFont(10, weight: .bold)
                 .foregroundStyle(Theme.background)
@@ -199,6 +212,9 @@ struct FlightRowEnd: View {
                         .baselineOffset(8)
                 }
             }
+    }
+
+    @ViewBuilder private var trail: some View {
             if estimated {
                 Text(ui: "est.")
                     .scaledFont(13)
@@ -208,12 +224,8 @@ struct FlightRowEnd: View {
                     .scaledFont(13)
                     .strikethrough(true, color: Theme.secondary)
                     .foregroundStyle(Theme.secondary)
-                    .accessibilityLabel(Text(ui: "scheduled \(Format.clock(was, tz ?? .current, units.clock))"))
+                    .accessibilityLabel(Text("scheduled \(Format.clock(was, tz ?? .current, units.clock))"))
             }
-        }
-        .scaledFont(17)
-        .monospacedDigit()
-        .lineLimit(1)
     }
 }
 
@@ -241,11 +253,13 @@ public struct MyFlightRow: View {
         self.airline = airline; self.now = now; self.estimated = estimated
     }
 
-    /// The row's status: `FlightStatusSummary`, with " est." after an estimated landing time offline.
+    /// The row's status: `FlightStatusSummary`, with " est." after an estimated landing time offline. The
+    /// summary says whether its text ends on the landing time (`showsLandingTime`), so this holds in every
+    /// language (A1).
     static func status(_ f: Flight, now: Date, origin: Airport?, destination: Airport?, clock: TimeStyle,
                        estimated: Bool) -> FlightStatusSummary {
         var s = FlightStatusSummary.make(for: f, now: now, origin: origin, destination: destination, clock: clock)
-        if estimated, s.progress != nil, s.text.contains(" \u{00B7} lands ") { s.text += " est." }
+        if estimated, s.progress != nil, s.showsLandingTime { s.text += " " + UIText.localized("est.") }
         return s
     }
 
@@ -257,10 +271,10 @@ public struct MyFlightRow: View {
         return status.tone
     }
 
-    /// "Fri, Oct 30": the day it leaves as best known (the time shown beside the origin), in the origin's zone.
+    /// "Fri, Oct 30" ("ven. 30 oct." in French): the day it leaves as best known (the time shown beside the origin), in the origin's zone.
     static func day(_ f: Flight, origin: Airport?) -> String? {
         guard let out = DetailFacts.bestOut(f) else { return nil }
-        var style = Date.FormatStyle(locale: Locale(identifier: "en_US_POSIX"), timeZone: origin?.timeZone ?? .current)
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: origin?.timeZone ?? .current)
         style = style.weekday(.abbreviated).month(.abbreviated).day()
         return out.formatted(style)
     }
@@ -336,24 +350,42 @@ public struct MyFlightRow: View {
     }
 
     private func accessibilityText(_ c: (value: String, unit: String), status: FlightStatusSummary) -> String {
-        var parts = [Format.ident(flight.ident),
-                     ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode)]
-        if let day = Self.day(flight, origin: origin) { parts.append(day) }
-        parts.append(c.value.isEmpty ? c.unit.capitalized : "\(c.value) \(c.unit.lowercased())")
-        parts.append(status.text.replacingOccurrences(of: " \u{00B7} ", with: ", "))
+        Self.spoken(flight, origin: origin, destination: destination, countdown: c, status: status)
+    }
+
+    /// VoiceOver's sentence for a row, from localized pieces (A1): "AF 84, Paris to New York, Fri, Oct 30,
+    /// 2h left, Departed 16m late, lands 05:28". Each piece is already in the user's language (the
+    /// countdown's word through the catalog, the status from `FlightStatusSummary.make`), and the status's
+    /// middle dots read as pauses.
+    static func spoken(_ f: Flight, origin: Airport?, destination: Airport?, countdown c: (value: String, unit: String),
+                       status: FlightStatusSummary) -> String {
+        let from = UIText.localized(origin?.city ?? f.originCode)
+        let to = UIText.localized(destination?.city ?? f.destinationCode)
+        var parts = [Format.ident(f.ident), String(localized: "\(from) to \(to)", bundle: .main)]
+        if let day = Self.day(f, origin: origin) { parts.append(day) }
+        let unit = UIText.localized(c.unit)
+        parts.append(c.value.isEmpty ? unit.capitalized : "\(c.value) \(unit.lowercased())")
+        parts.append(status.text.replacingOccurrences(of: FlightStatusSummary.separator, with: ", "))
         return parts.joined(separator: ", ")
     }
 }
 
 // MARK: - Toast
 
-/// A short confirmation in a glass capsule, shown over the tab pill ("Added UA 990").
+/// A short confirmation in a glass capsule, shown over the tab pill ("Added UA 990"). With an action it
+/// carries a button after the text ("Removed AF 84 · Undo", I1).
 public struct AddedToast: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     var text: String
     /// A failure: a red mark instead of the accent check.
     var isError = false
+    /// The button's word ("Undo", "Retry"), nil for none.
+    var actionTitle: String?
+    var onAction: (() -> Void)?
 
-    public init(text: String, isError: Bool = false) { self.text = text; self.isError = isError }
+    public init(text: String, isError: Bool = false, actionTitle: String? = nil, onAction: (() -> Void)? = nil) {
+        self.text = text; self.isError = isError; self.actionTitle = actionTitle; self.onAction = onAction
+    }
 
     public var body: some View {
         HStack(spacing: 8) {
@@ -362,14 +394,26 @@ public struct AddedToast: View {
                 .accessibilityHidden(true)
             Text(ui: text)
                 .foregroundStyle(Theme.primary)
-                .lineLimit(2)
+                // Whole at the largest sizes too (A12): a flight number cut off would name the wrong flight.
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
+            if let actionTitle, let onAction {
+                Button(action: onAction) {
+                    Text(ui: actionTitle)
+                        .foregroundStyle(Theme.accent)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .scaledPadding(.leading, 4)
+            }
         }
         .scaledFont(17, weight: .semibold)
         .scaledPadding(.horizontal, 22)
-        .scaledPadding(.vertical, 13)
+        .scaledPadding(.vertical, actionTitle == nil ? 13 : 2)
         .glassEffect(.regular.tint(HomeTabPill.tint), in: .capsule)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: actionTitle == nil ? .combine : .contain)
         .accessibilityAddTraits(.isStaticText)
     }
 }
@@ -379,14 +423,26 @@ public struct ToastSlot: View {
     var text: String?
     /// The toast reports a failure: red mark and an error haptic as it shows.
     var isError = false
+    /// The toast's button (Undo, Retry) and what tapping it does.
+    var action: ToastAction?
+    var onAction: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(text: String?, isError: Bool = false) { self.text = text; self.isError = isError }
+    public init(text: String?, isError: Bool = false, action: ToastAction? = nil, onAction: (() -> Void)? = nil) {
+        self.text = text; self.isError = isError; self.action = action; self.onAction = onAction
+    }
+
+    /// The home's toast, its error mark and its button (`HomeModel.runToastAction()`).
+    public init(home: HomeModel) {
+        self.init(text: home.toast, isError: home.toastIsError, action: home.toastAction,
+                  onAction: { [weak home] in home?.runToastAction() })
+    }
 
     public var body: some View {
         Group {
             if let text {
-                AddedToast(text: text, isError: isError)
+                AddedToast(text: text, isError: isError, actionTitle: action?.title,
+                           onAction: action == nil ? nil : onAction)
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }

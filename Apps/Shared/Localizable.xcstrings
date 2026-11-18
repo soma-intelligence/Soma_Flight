@@ -2,12 +2,122 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "%.1fx around the world": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f fois le tour du monde"
+          }
+        }
+      }
+    },
+    "%@  LOCAL TIME": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@  HEURE LOCALE"
+          }
+        }
+      }
+    },
+    "%@ Early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ d'avance"
+          }
+        }
+      }
+    },
+    "%@ Late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ de retard"
+          }
+        }
+      }
+    },
     "%@ So Far": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ jusqu'ici"
+          }
+        }
+      }
+    },
+    "%@ Soma Flight Passport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passeport Soma Flight %@"
+          }
+        }
+      }
+    },
+    "%@ airport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aéroport %@"
+          }
+        }
+      }
+    },
+    "%@ average delay": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ de retard moyen"
+          }
+        }
+      }
+    },
+    "%@ closed by NOTAM": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ fermé par NOTAM"
+          }
+        }
+      }
+    },
+    "%@ day": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ jour"
+          }
+        }
+      }
+    },
+    "%@ delay report": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapport de retards %@"
+          }
+        }
+      }
+    },
+    "%@ early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ d'avance"
           }
         }
       }
@@ -32,6 +142,36 @@
         }
       }
     },
+    "%@ is closed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ est fermé"
+          }
+        }
+      }
+    },
+    "%@ is not sharing flights with you right now.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ne partage pas ses vols avec toi pour l'instant."
+          }
+        }
+      }
+    },
+    "%@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ de retard"
+          }
+        }
+      }
+    },
     "%@ of %@ %@": {
       "localizations": {
         "fr": {
@@ -48,6 +188,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ segments sur %2$@"
+          }
+        }
+      }
+    },
+    "%@ on %@ leaves My Flights. This can't be undone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ du %2$@ quitte Mes vols. C'est définitif."
+          }
+        }
+      }
+    },
+    "%@ side view": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, vue latérale"
           }
         }
       }
@@ -77,7 +237,107 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Du %1$@ au %2$@"
+            "value": "%1$@ → %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@ late in all": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@ de retard au total"
+          }
+        }
+      }
+    },
+    "%@ · updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · mis à jour à %2$@"
+          }
+        }
+      }
+    },
+    "%@, %lld delayed, %lld canceled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$lld retardés, %3$lld annulés"
+          }
+        }
+      }
+    },
+    "%@, %lld percent, %lld of %lld": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$lld pour cent, %3$lld sur %4$lld"
+          }
+        }
+      }
+    },
+    "%@, %u visited, %lld percent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$u visités, %3$lld pour cent"
+          }
+        }
+      }
+    },
+    "%@, %u, %lld percent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$u, %3$lld pour cent"
+          }
+        }
+      }
+    },
+    "%@, from my Soma Flight Delay Report": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, extrait de mon rapport de retards Soma Flight"
+          }
+        }
+      }
+    },
+    "%@. About %lld percent of the way from %@ to %@. %@%@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@. Environ %2$lld pour cent du trajet entre %3$@ et %4$@. %5$@%6$@"
+          }
+        }
+      }
+    },
+    "%@: %lld percent, %lld flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ : %2$lld pour cent, %3$lld vols"
+          }
+        }
+      }
+    },
+    "%lld ILS outages at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld pannes d'ILS à %2$@"
           }
         }
       }
@@ -88,6 +348,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld aéroports"
+          }
+        }
+      }
+    },
+    "%lld causes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld causes"
           }
         }
       }
@@ -122,12 +392,52 @@
         }
       }
     },
+    "%lld flights found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld vols trouvés"
+          }
+        }
+      }
+    },
     "%lld flights · %@": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld vols · %2$@"
+          }
+        }
+      }
+    },
+    "%lld flights, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld vols, %2$@"
+          }
+        }
+      }
+    },
+    "%lld h %lld min late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld h %2$lld min de retard"
+          }
+        }
+      }
+    },
+    "%lld h late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld h de retard"
           }
         }
       }
@@ -142,12 +452,42 @@
         }
       }
     },
+    "%lld kt": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld kt"
+          }
+        }
+      }
+    },
+    "%lld long haul": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld long-courriers"
+          }
+        }
+      }
+    },
     "%lld long hauls": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld long-courriers"
+          }
+        }
+      }
+    },
+    "%lld min": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
           }
         }
       }
@@ -172,12 +512,42 @@
         }
       }
     },
+    "%lld of %lld": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld sur %2$lld"
+          }
+        }
+      }
+    },
     "%lld of 90 days used": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld jours utilisés sur 90"
+          }
+        }
+      }
+    },
+    "%lld percent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld pour cent"
+          }
+        }
+      }
+    },
+    "%lld percent of my flights landed late. %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld pour cent de mes vols sont arrivés en retard. %2$@"
           }
         }
       }
@@ -192,6 +562,26 @@
         }
       }
     },
+    "%lld runway closures at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld pistes fermées à %2$@"
+          }
+        }
+      }
+    },
+    "%lld%% on time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld %% à l'heure"
+          }
+        }
+      }
+    },
     "%lld%% on time or early over %lld flights": {
       "localizations": {
         "fr": {
@@ -202,12 +592,52 @@
         }
       }
     },
+    "%lldG%lld kt": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lldG%2$lld kt"
+          }
+        }
+      }
+    },
+    "%lldh": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld h"
+          }
+        }
+      }
+    },
+    "%lldh %lldm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld h %2$lld"
+          }
+        }
+      }
+    },
     "1 airport": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "1 aéroport"
+          }
+        }
+      }
+    },
+    "1 cause": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 cause"
           }
         }
       }
@@ -662,6 +1092,16 @@
         }
       }
     },
+    "A loyalty number has 4 to 20 letters and digits.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un numéro de fidélité compte de 4 à 20 lettres et chiffres."
+          }
+        }
+      }
+    },
     "A passport number has 5 to 12 letters and digits.": {
       "localizations": {
         "fr": {
@@ -792,6 +1232,26 @@
         }
       }
     },
+    "AF or Air France": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AF ou Air France"
+          }
+        }
+      }
+    },
+    "ARRIVING": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EN APPROCHE"
+          }
+        }
+      }
+    },
     "ATC Callsign": {
       "localizations": {
         "fr": {
@@ -898,6 +1358,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ajouter"
+          }
+        }
+      }
+    },
+    "Add %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter %@"
+          }
+        }
+      }
+    },
+    "Add %lld Flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter %lld vols"
           }
         }
       }
@@ -1012,6 +1492,16 @@
         }
       }
     },
+    "Add a flight number or a route to follow it live.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoute un numéro de vol ou un trajet pour le suivre en direct."
+          }
+        }
+      }
+    },
     "Add a flight you're taking by number, route or airport.": {
       "localizations": {
         "fr": {
@@ -1058,6 +1548,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ajouter des vols passés"
+          }
+        }
+      }
+    },
+    "Add the flight number, or where it flies.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoute le numéro du vol, ou sa destination."
           }
         }
       }
@@ -1542,6 +2042,16 @@
         }
       }
     },
+    "Alerts for %@'s Flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alertes pour les vols de %@"
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "fr": {
@@ -1652,6 +2162,26 @@
         }
       }
     },
+    "All-Time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depuis toujours"
+          }
+        }
+      }
+    },
+    "All-time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "depuis toujours"
+          }
+        }
+      }
+    },
     "Alliance": {
       "localizations": {
         "fr": {
@@ -1678,6 +2208,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Autorise l'accès complet pour Soma Flight dans Réglages afin qu'il puisse ajouter et mettre à jour ses événements."
+          }
+        }
+      }
+    },
+    "Allow notifications for Soma Flight in Settings to get the alerts you pick here.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorise les notifications de Soma Flight dans Réglages pour recevoir les alertes choisies ici."
           }
         }
       }
@@ -1972,6 +2512,16 @@
         }
       }
     },
+    "Arrival delays at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retards à l'arrivée à %@"
+          }
+        }
+      }
+    },
     "Arrival forecast": {
       "localizations": {
         "fr": {
@@ -2072,6 +2622,26 @@
         }
       }
     },
+    "Arrived %@ early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrivé avec %@ d'avance"
+          }
+        }
+      }
+    },
+    "Arrived %@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrivé avec %@ de retard"
+          }
+        }
+      }
+    },
     "Arrived at the gate": {
       "localizations": {
         "fr": {
@@ -2102,12 +2672,52 @@
         }
       }
     },
+    "Arrives %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrive %@"
+          }
+        }
+      }
+    },
+    "Arrives in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrive dans %@"
+          }
+        }
+      }
+    },
     "Arriving": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "En arrivée"
+          }
+        }
+      }
+    },
+    "Arriving %@ late on average, %lld of %lld flights held up, %lld canceled.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrivées avec %1$@ de retard en moyenne, %2$lld vols retardés sur %3$lld, %4$lld annulés."
+          }
+        }
+      }
+    },
+    "Arriving %@ late on average, %lld of %lld flights held up.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrivées avec %1$@ de retard en moyenne, %2$lld vols retardés sur %3$lld."
           }
         }
       }
@@ -2182,6 +2792,16 @@
         }
       }
     },
+    "At %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À %@"
+          }
+        }
+      }
+    },
     "At risk": {
       "localizations": {
         "fr": {
@@ -2232,6 +2852,36 @@
         }
       }
     },
+    "Average %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moyenne %@"
+          }
+        }
+      }
+    },
+    "Average %@ and easing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moyenne %@, en baisse"
+          }
+        }
+      }
+    },
+    "Average %@ and rising": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moyenne %@, en hausse"
+          }
+        }
+      }
+    },
     "Average delay": {
       "localizations": {
         "fr": {
@@ -2258,6 +2908,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Retard moyen dans le temps"
+          }
+        }
+      }
+    },
+    "Average distance: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance moyenne : %@"
           }
         }
       }
@@ -2342,6 +3002,16 @@
         }
       }
     },
+    "Baggage belt %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapis à bagages %@"
+          }
+        }
+      }
+    },
     "Be my friend on Soma Flight so we can see each other's flights.": {
       "localizations": {
         "fr": {
@@ -2368,6 +3038,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tapis"
+          }
+        }
+      }
+    },
+    "Belt %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapis %@"
           }
         }
       }
@@ -2592,6 +3272,16 @@
         }
       }
     },
+    "CANCELED": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ANNULÉ"
+          }
+        }
+      }
+    },
     "CO2 emissions": {
       "localizations": {
         "fr": {
@@ -2678,6 +3368,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appelle la compagnie ou change ton vol en ligne"
+          }
+        }
+      }
+    },
+    "Calm": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calme"
           }
         }
       }
@@ -2832,6 +3532,16 @@
         }
       }
     },
+    "Check the number, or try another day.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifie le numéro, ou essaie un autre jour."
+          }
+        }
+      }
+    },
     "Check with your airline": {
       "localizations": {
         "fr": {
@@ -2922,6 +3632,16 @@
         }
       }
     },
+    "Choose File…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir un fichier…"
+          }
+        }
+      }
+    },
     "Choose Photo": {
       "localizations": {
         "fr": {
@@ -2938,6 +3658,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choisir une photo ou une capture d'écran"
+          }
+        }
+      }
+    },
+    "Choose Screenshot": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir une capture d'écran"
           }
         }
       }
@@ -3048,6 +3778,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Plafond nuageux"
+          }
+        }
+      }
+    },
+    "Cockpit": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cockpit"
           }
         }
       }
@@ -3182,12 +3922,32 @@
         }
       }
     },
+    "Copied %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ copié"
+          }
+        }
+      }
+    },
     "Copies stay on this device and are never uploaded.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Les copies restent sur cet appareil et ne sont jamais envoyées."
+          }
+        }
+      }
+    },
+    "Copy %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier %@"
           }
         }
       }
@@ -3292,6 +4052,26 @@
         }
       }
     },
+    "Couldn't Change Alerts": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de modifier les alertes"
+          }
+        }
+      }
+    },
+    "Couldn't Delete This Flight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de supprimer ce vol"
+          }
+        }
+      }
+    },
     "Couldn't Delete Your Account": {
       "localizations": {
         "fr": {
@@ -3302,12 +4082,32 @@
         }
       }
     },
+    "Couldn't Stop Following": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'arrêter le suivi"
+          }
+        }
+      }
+    },
     "Couldn't copy it. Here is your link:": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Impossible de le copier. Voici ton lien :"
+          }
+        }
+      }
+    },
+    "Couldn't finish that": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de terminer"
           }
         }
       }
@@ -3338,6 +4138,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Impossible d'accéder au trousseau. Déverrouille l'appareil et réessaie."
+          }
+        }
+      }
+    },
+    "Couldn't refresh": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualisation impossible"
+          }
+        }
+      }
+    },
+    "Couldn't save on this device. Nothing was changed. Try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer sur cet appareil. Rien n'a été modifié. Réessaie."
           }
         }
       }
@@ -3387,7 +4207,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compté d'après tes vols seulement : les trajets par la route ou par la mer ne sont pas vus. La règle concerne les courts séjours des visiteurs hors UE. Vérifie auprès des autorités aux frontières avant de t'y fier."
+            "value": "Compté d'après tes vols seulement : les voyages par la route ou par la mer ne sont pas vus. La règle concerne les courts séjours des visiteurs hors UE. Vérifie auprès des autorités aux frontières avant de t'y fier."
           }
         }
       }
@@ -3512,6 +4332,46 @@
         }
       }
     },
+    "DAY": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JOUR"
+          }
+        }
+      }
+    },
+    "DAYS": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JOURS"
+          }
+        }
+      }
+    },
+    "DEPARTING": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DÉPART"
+          }
+        }
+      }
+    },
+    "DIVERTED": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DÉROUTÉ"
+          }
+        }
+      }
+    },
     "Daily Performance": {
       "localizations": {
         "fr": {
@@ -3532,6 +4392,16 @@
         }
       }
     },
+    "Date": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        }
+      }
+    },
     "Date is before 1919": {
       "localizations": {
         "fr": {
@@ -3548,6 +4418,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "La date est dans le futur"
+          }
+        }
+      }
+    },
+    "Date, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date, %@"
           }
         }
       }
@@ -3638,6 +4518,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dégivrage"
+          }
+        }
+      }
+    },
+    "Deicing at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dégivrage à %@"
           }
         }
       }
@@ -3842,6 +4732,16 @@
         }
       }
     },
+    "Delete this loyalty number?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer ce numéro de fidélité ?"
+          }
+        }
+      }
+    },
     "Delete this photo from the journal?": {
       "localizations": {
         "fr": {
@@ -3892,6 +4792,16 @@
         }
       }
     },
+    "Departed %@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parti avec %@ de retard"
+          }
+        }
+      }
+    },
     "Departing now": {
       "localizations": {
         "fr": {
@@ -3912,12 +4822,52 @@
         }
       }
     },
+    "Departs %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Part %@"
+          }
+        }
+      }
+    },
     "Departs and arrives at the same airport": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Part et arrive au même aéroport"
+          }
+        }
+      }
+    },
+    "Departs in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Part dans %@"
+          }
+        }
+      }
+    },
+    "Departs in %lld days": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Part dans %lld jours"
+          }
+        }
+      }
+    },
+    "Departs in 1 day": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Part dans 1 jour"
           }
         }
       }
@@ -3992,6 +4942,16 @@
         }
       }
     },
+    "Departure delays at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retards au départ à %@"
+          }
+        }
+      }
+    },
     "Departure gate": {
       "localizations": {
         "fr": {
@@ -4032,6 +4992,16 @@
         }
       }
     },
+    "Detail B · Tail": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Détail B · Queue"
+          }
+        }
+      }
+    },
     "Detailed Timetable": {
       "localizations": {
         "fr": {
@@ -4052,6 +5022,26 @@
         }
       }
     },
+    "Discard Changes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandonner"
+          }
+        }
+      }
+    },
+    "Discard changes?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abandonner les modifications ?"
+          }
+        }
+      }
+    },
     "Dismisses": {
       "localizations": {
         "fr": {
@@ -4068,6 +5058,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Distance"
+          }
+        }
+      }
+    },
+    "Distance and Time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distance et heure"
           }
         }
       }
@@ -4118,6 +5118,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dérouté vers"
+          }
+        }
+      }
+    },
+    "Diverted to %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dérouté vers %@"
           }
         }
       }
@@ -4282,6 +5292,16 @@
         }
       }
     },
+    "Edits the %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifie : %@"
+          }
+        }
+      }
+    },
     "Edits the notes": {
       "localizations": {
         "fr": {
@@ -4348,6 +5368,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Texte de l'e-mail"
+          }
+        }
+      }
+    },
+    "Emoji": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emoji"
           }
         }
       }
@@ -4442,6 +5472,16 @@
         }
       }
     },
+    "Enter the number.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisis le numéro."
+          }
+        }
+      }
+    },
     "Entry and exit days both count. Every 180-day window may hold 90 days at most.": {
       "localizations": {
         "fr": {
@@ -4478,6 +5518,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erreur, liste conservée"
+          }
+        }
+      }
+    },
+    "Error: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erreur : %@"
           }
         }
       }
@@ -4632,6 +5682,16 @@
         }
       }
     },
+    "Examples": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exemples"
+          }
+        }
+      }
+    },
     "Exit passport control": {
       "localizations": {
         "fr": {
@@ -4712,12 +5772,72 @@
         }
       }
     },
+    "Export My History First": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter mon historique d'abord"
+          }
+        }
+      }
+    },
+    "Export Your History": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporter ton historique"
+          }
+        }
+      }
+    },
     "Exported flights": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Vols exportés"
+          }
+        }
+      }
+    },
+    "FAA NAS status • last read %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statut NAS de la FAA • dernière lecture %@"
+          }
+        }
+      }
+    },
+    "FAA NAS status • updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statut NAS de la FAA • mis à jour %@"
+          }
+        }
+      }
+    },
+    "FAA NOTAM service • last read %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service NOTAM de la FAA • dernière lecture %@"
+          }
+        }
+      }
+    },
+    "FAA NOTAM service • updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service NOTAM de la FAA • mis à jour %@"
           }
         }
       }
@@ -4817,7 +5937,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Favoris et trajets du jour"
+            "value": "Favoris et voyages du jour"
           }
         }
       }
@@ -5022,6 +6142,16 @@
         }
       }
     },
+    "Flight data is temporarily unavailable. Try again in a moment.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les données de vol sont momentanément indisponibles. Réessaie dans un instant."
+          }
+        }
+      }
+    },
     "Flight distance": {
       "localizations": {
         "fr": {
@@ -5062,6 +6192,16 @@
         }
       }
     },
+    "Flight progress": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progression du vol"
+          }
+        }
+      }
+    },
     "Flight time": {
       "localizations": {
         "fr": {
@@ -5098,6 +6238,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vol, trajet ou aéroport"
+          }
+        }
+      }
+    },
+    "FlightAware": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FlightAware"
           }
         }
       }
@@ -5172,6 +6322,16 @@
         }
       }
     },
+    "Flights per %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vols par %@"
+          }
+        }
+      }
+    },
     "Flights per hour by delay": {
       "localizations": {
         "fr": {
@@ -5188,6 +6348,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vols qui comptent"
+          }
+        }
+      }
+    },
+    "Flights to %@ are held before take-off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les vols vers %@ sont retenus avant le décollage"
           }
         }
       }
@@ -5362,6 +6532,16 @@
         }
       }
     },
+    "Forget your number?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oublier ton numéro ?"
+          }
+        }
+      }
+    },
     "Found": {
       "localizations": {
         "fr": {
@@ -5482,6 +6662,16 @@
         }
       }
     },
+    "Friends since %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amis depuis %@"
+          }
+        }
+      }
+    },
     "Friends, dark": {
       "localizations": {
         "fr": {
@@ -5508,6 +6698,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "De"
+          }
+        }
+      }
+    },
+    "From %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À partir de %@"
+          }
+        }
+      }
+    },
+    "From %@ to %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De %1$@ à %2$@"
+          }
+        }
+      }
+    },
+    "From %@, until further notice": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À partir de %@, jusqu'à nouvel ordre"
           }
         }
       }
@@ -5618,6 +6838,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Porte"
+          }
+        }
+      }
+    },
+    "Gate %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Porte %@"
           }
         }
       }
@@ -5738,6 +6968,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Porte non attribuée"
+          }
+        }
+      }
+    },
+    "Gate not assigned, likely %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Porte non attribuée, probablement %@"
           }
         }
       }
@@ -5892,12 +7132,32 @@
         }
       }
     },
+    "Ground delay program at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programme de retard au sol à %@"
+          }
+        }
+      }
+    },
     "Ground stop": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Arrêt au sol"
+          }
+        }
+      }
+    },
+    "Ground stop at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêt des départs vers %@"
           }
         }
       }
@@ -5932,6 +7192,16 @@
         }
       }
     },
+    "Group %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Groupe %@"
+          }
+        }
+      }
+    },
     "Group · Zone": {
       "localizations": {
         "fr": {
@@ -5948,6 +7218,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rafales"
+          }
+        }
+      }
+    },
+    "HR": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "H"
+          }
+        }
+      }
+    },
+    "HRS": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "H"
           }
         }
       }
@@ -6102,6 +7392,16 @@
         }
       }
     },
+    "ILS out at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ILS en panne à %@"
+          }
+        }
+      }
+    },
     "IN AIR": {
       "localizations": {
         "fr": {
@@ -6158,6 +7458,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importer des vols"
+          }
+        }
+      }
+    },
+    "Import Flights…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importer des vols…"
           }
         }
       }
@@ -6272,6 +7582,26 @@
         }
       }
     },
+    "Importing %@ of %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import de %1$@ sur %2$@"
+          }
+        }
+      }
+    },
+    "Importing %lld of %lld flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import de %1$lld vols sur %2$lld"
+          }
+        }
+      }
+    },
     "In Each Event": {
       "localizations": {
         "fr": {
@@ -6288,6 +7618,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "En vol"
+          }
+        }
+      }
+    },
+    "In progress": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En cours"
           }
         }
       }
@@ -6402,12 +7742,32 @@
         }
       }
     },
+    "Issuing country": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pays de délivrance"
+          }
+        }
+      }
+    },
     "Issuing country code, FR or US": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Code du pays émetteur, FR ou US"
+          }
+        }
+      }
+    },
+    "It goes from all your devices. This can't be undone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il disparaît de tous tes appareils. C'est définitif."
           }
         }
       }
@@ -6428,6 +7788,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cela correspond aux retards affichés, ils sont donc probablement liés à la météo."
+          }
+        }
+      }
+    },
+    "Its booking code, seat and notes will be removed.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son code de réservation, ton siège et tes notes seront effacés."
           }
         }
       }
@@ -6468,6 +7838,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "juin"
+          }
+        }
+      }
+    },
+    "Keep Editing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuer à modifier"
+          }
+        }
+      }
+    },
+    "Keep a copy of every flight in your history before the account goes. The file is built on this device.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garde une copie de chaque vol de ton historique avant la suppression du compte. Le fichier est créé sur cet appareil."
           }
         }
       }
@@ -6532,6 +7922,26 @@
         }
       }
     },
+    "LANDED": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ATTERRI"
+          }
+        }
+      }
+    },
+    "LEFT": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RESTANT"
+          }
+        }
+      }
+    },
     "Land": {
       "localizations": {
         "fr": {
@@ -6552,6 +7962,26 @@
         }
       }
     },
+    "Landed %@ early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterri avec %@ d'avance"
+          }
+        }
+      }
+    },
+    "Landed %@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterri avec %@ de retard"
+          }
+        }
+      }
+    },
     "Landed just now": {
       "localizations": {
         "fr": {
@@ -6562,12 +7992,42 @@
         }
       }
     },
+    "Landed on time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterri à l'heure"
+          }
+        }
+      }
+    },
     "Landing": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Atterrissage"
+          }
+        }
+      }
+    },
+    "Landing %@ early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterrissage avec %@ d'avance"
+          }
+        }
+      }
+    },
+    "Landing %@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterrissage avec %@ de retard"
           }
         }
       }
@@ -6588,6 +8048,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Atterrissage (prévu)"
+          }
+        }
+      }
+    },
+    "Landing at %@ instead of %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atterrit à %1$@ au lieu de %2$@."
           }
         }
       }
@@ -6668,6 +8138,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nom"
+          }
+        }
+      }
+    },
+    "Last time: %@ from %@, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière fois : %1$@ depuis %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "Last time: %@ to %@, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière fois : %1$@ vers %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "Last update %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière mise à jour %@"
+          }
+        }
+      }
+    },
+    "Last updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mis à jour %@"
           }
         }
       }
@@ -6757,7 +8267,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laisse le numéro vide pour le supprimer."
+            "value": "Laisse le numéro vide pour le retirer."
           }
         }
       }
@@ -6782,12 +8292,62 @@
         }
       }
     },
+    "Leaving %@ early": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Départ avec %@ d'avance"
+          }
+        }
+      }
+    },
+    "Leaving %@ late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Départ avec %@ de retard"
+          }
+        }
+      }
+    },
+    "Leaving %@ late on average, %lld of %lld flights held up, %lld canceled.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Départs avec %1$@ de retard en moyenne, %2$lld vols retardés sur %3$lld, %4$lld annulés."
+          }
+        }
+      }
+    },
+    "Leaving %@ late on average, %lld of %lld flights held up.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Départs avec %1$@ de retard en moyenne, %2$lld vols retardés sur %3$lld."
+          }
+        }
+      }
+    },
     "Leaving now": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Part maintenant"
+          }
+        }
+      }
+    },
+    "Left at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parti à %@"
           }
         }
       }
@@ -6912,12 +8472,32 @@
         }
       }
     },
+    "Likely terminal %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal %@ probable"
+          }
+        }
+      }
+    },
     "Likely to be extended": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Probablement prolongé"
+          }
+        }
+      }
+    },
+    "Likely weather related. %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probablement lié à la météo. %@."
           }
         }
       }
@@ -6998,6 +8578,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chargement"
+          }
+        }
+      }
+    },
+    "Loading airport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement de l'aéroport"
           }
         }
       }
@@ -7132,6 +8722,16 @@
         }
       }
     },
+    "Low clouds": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuages bas"
+          }
+        }
+      }
+    },
     "Low clouds or poor visibility. Expect slower flows.": {
       "localizations": {
         "fr": {
@@ -7182,6 +8782,16 @@
         }
       }
     },
+    "METAR OBSERVED %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "METAR OBSERVÉ %@"
+          }
+        }
+      }
+    },
     "METAR observed": {
       "localizations": {
         "fr": {
@@ -7198,6 +8808,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "METAR, observé maintenant"
+          }
+        }
+      }
+    },
+    "MIN": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIN"
           }
         }
       }
@@ -7228,6 +8848,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fait avec Soma Flight · Page %1$lld sur %2$lld"
+          }
+        }
+      }
+    },
+    "Major": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Majeur"
           }
         }
       }
@@ -7362,6 +8992,16 @@
         }
       }
     },
+    "Middle %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Milieu %@"
+          }
+        }
+      }
+    },
     "Middle East": {
       "localizations": {
         "fr": {
@@ -7418,6 +9058,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Numéro de mobile avec indicatif du pays"
+          }
+        }
+      }
+    },
+    "Moderate": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modéré"
           }
         }
       }
@@ -7552,6 +9202,16 @@
         }
       }
     },
+    "Most flown with %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le plus souvent avec %@"
+          }
+        }
+      }
+    },
     "Most frequent tails": {
       "localizations": {
         "fr": {
@@ -7678,6 +9338,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOTAM"
+          }
+        }
+      }
+    },
+    "NOW": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MAINTENANT"
           }
         }
       }
@@ -7882,6 +9552,16 @@
         }
       }
     },
+    "No airframe twice yet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun avion pris deux fois pour l'instant"
+          }
+        }
+      }
+    },
     "No airline": {
       "localizations": {
         "fr": {
@@ -7958,6 +9638,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pas de connexion. Réessaie quand tu seras de nouveau en ligne."
+          }
+        }
+      }
+    },
+    "No connection. Your flights show here once you're back online.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de connexion. Tes vols s'afficheront ici dès que tu seras de nouveau en ligne."
           }
         }
       }
@@ -8072,6 +9762,16 @@
         }
       }
     },
+    "No flight number or airline. Add the jet's type and registration below.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de numéro de vol ni de compagnie. Ajoute le type de l'avion et son immatriculation ci-dessous."
+          }
+        }
+      }
+    },
     "No flight number to follow": {
       "localizations": {
         "fr": {
@@ -8082,12 +9782,52 @@
         }
       }
     },
+    "No flight with this number": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol avec ce numéro"
+          }
+        }
+      }
+    },
     "No flights": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Aucun vol"
+          }
+        }
+      }
+    },
+    "No flights at this airport": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol dans cet aéroport"
+          }
+        }
+      }
+    },
+    "No flights for this airline": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol pour cette compagnie"
+          }
+        }
+      }
+    },
+    "No flights found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol trouvé"
           }
         }
       }
@@ -8122,6 +9862,16 @@
         }
       }
     },
+    "No flights in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol en %@"
+          }
+        }
+      }
+    },
     "No flights in the air here right now.": {
       "localizations": {
         "fr": {
@@ -8148,6 +9898,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pas encore de vols sur ce tableau."
+          }
+        }
+      }
+    },
+    "No flights on this route": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun vol sur ce trajet"
           }
         }
       }
@@ -8272,6 +10032,16 @@
         }
       }
     },
+    "No routes to draw for this period": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun trajet à tracer sur cette période"
+          }
+        }
+      }
+    },
     "No sign of a delay yet": {
       "localizations": {
         "fr": {
@@ -8308,6 +10078,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aucun vol à venir"
+          }
+        }
+      }
+    },
+    "No weather likely to slow flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune météo susceptible de ralentir les vols"
           }
         }
       }
@@ -8442,6 +10222,16 @@
         }
       }
     },
+    "Not landing at %@. The new airport is not known yet.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "N'atterrit pas à %@. Le nouvel aéroport n'est pas encore connu."
+          }
+        }
+      }
+    },
     "Not noted": {
       "localizations": {
         "fr": {
@@ -8492,6 +10282,26 @@
         }
       }
     },
+    "Not synced yet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas encore synchronisé"
+          }
+        }
+      }
+    },
+    "Not synced yet. The last try didn't go through.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas encore synchronisé. La dernière tentative n'a pas abouti."
+          }
+        }
+      }
+    },
     "Not the latest positions": {
       "localizations": {
         "fr": {
@@ -8508,6 +10318,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noté"
+          }
+        }
+      }
+    },
+    "Notes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes"
           }
         }
       }
@@ -8592,6 +10412,26 @@
         }
       }
     },
+    "Notifications Are Off": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les notifications sont désactivées"
+          }
+        }
+      }
+    },
+    "Notifications are off in Settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les notifications sont désactivées dans Réglages"
+          }
+        }
+      }
+    },
     "Notifications, dark": {
       "localizations": {
         "fr": {
@@ -8638,6 +10478,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Numéro"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -8698,6 +10548,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hors ligne"
+          }
+        }
+      }
+    },
+    "Offline · last updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hors ligne · mis à jour %@"
           }
         }
       }
@@ -9022,6 +10882,16 @@
         }
       }
     },
+    "Opens the %@ license deed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre le résumé de la licence %@"
+          }
+        }
+      }
+    },
     "Opens the airport": {
       "localizations": {
         "fr": {
@@ -9038,6 +10908,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ouvre le rapport d'opérations de l'aéroport"
+          }
+        }
+      }
+    },
+    "Opens the calendar": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre le calendrier"
           }
         }
       }
@@ -9088,6 +10968,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rapport d'opérations"
+          }
+        }
+      }
+    },
+    "Operations report": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapport d'exploitation"
           }
         }
       }
@@ -9148,6 +11038,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "De nuit"
+          }
+        }
+      }
+    },
+    "PLANNED": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PRÉVU"
           }
         }
       }
@@ -9342,6 +11242,16 @@
         }
       }
     },
+    "Performance": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance"
+          }
+        }
+      }
+    },
     "Period": {
       "localizations": {
         "fr": {
@@ -9452,6 +11362,16 @@
         }
       }
     },
+    "Plan · %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan · %@"
+          }
+        }
+      }
+    },
     "Planes are deiced before take-off, which adds a few minutes.": {
       "localizations": {
         "fr": {
@@ -9532,12 +11452,42 @@
         }
       }
     },
+    "Predicted. %@ %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévision. %1$@ %2$@."
+          }
+        }
+      }
+    },
+    "Prediction: %@. %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévision : %1$@. %2$@"
+          }
+        }
+      }
+    },
     "Predictions": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Prévisions"
+          }
+        }
+      }
+    },
+    "Press return to search “%@”": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appuie sur Entrée pour rechercher « %@ »"
           }
         }
       }
@@ -9572,6 +11522,16 @@
         }
       }
     },
+    "Private flight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vol privé"
+          }
+        }
+      }
+    },
     "Probably landed. Times and gates will update when you are back online.": {
       "localizations": {
         "fr": {
@@ -9602,6 +11562,16 @@
         }
       }
     },
+    "Progress %lld percent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progression %lld pour cent"
+          }
+        }
+      }
+    },
     "Public domain": {
       "localizations": {
         "fr": {
@@ -9617,7 +11587,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajoute les vols que tu suis à ton calendrier. Chaque vol est un événement de porte à porte, mis à jour quand ses horaires, sa porte ou son statut changent, et supprimé quand tu arrêtes de le suivre."
+            "value": "Ajoute les vols que tu suis à ton calendrier. Chaque vol est un événement de porte à porte, mis à jour quand ses horaires, sa porte ou son statut changent, et retiré quand tu ne le suis plus."
           }
         }
       }
@@ -9658,6 +11628,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Limite de requêtes atteinte"
+          }
+        }
+      }
+    },
+    "Raw report: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapport brut : %@"
           }
         }
       }
@@ -9892,6 +11872,16 @@
         }
       }
     },
+    "Remove %@?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer %@ ?"
+          }
+        }
+      }
+    },
     "Remove Boarding Pass": {
       "localizations": {
         "fr": {
@@ -9912,12 +11902,32 @@
         }
       }
     },
+    "Remove Number": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer le numéro"
+          }
+        }
+      }
+    },
     "Remove Photo": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Supprimer la photo"
+            "value": "Retirer la photo"
+          }
+        }
+      }
+    },
+    "Remove Planned Flight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer le vol prévu"
           }
         }
       }
@@ -9928,6 +11938,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Retirer cette carte d'embarquement de Soma Flight ?"
+          }
+        }
+      }
+    },
+    "Remove this number?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce numéro ?"
+          }
+        }
+      }
+    },
+    "Remove this planned flight?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce vol prévu ?"
           }
         }
       }
@@ -9978,6 +12008,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reprendre"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        }
+      }
+    },
+    "Retry %@ Flights": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer %@ vols"
           }
         }
       }
@@ -10038,6 +12088,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trajets"
+          }
+        }
+      }
+    },
+    "Row %lld": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ligne %lld"
           }
         }
       }
@@ -10132,6 +12192,16 @@
         }
       }
     },
+    "Runway closure at %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Piste fermée à %@"
+          }
+        }
+      }
+    },
     "Rust crates": {
       "localizations": {
         "fr": {
@@ -10148,6 +12218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Amér. du Sud"
+          }
+        }
+      }
+    },
+    "SCHEDULED": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PRÉVU"
           }
         }
       }
@@ -10198,6 +12278,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enregistré"
+          }
+        }
+      }
+    },
+    "Saves as": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistré sous"
+          }
+        }
+      }
+    },
+    "Saving": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement"
           }
         }
       }
@@ -10278,6 +12378,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prévu"
+          }
+        }
+      }
+    },
+    "Scheduled %@, %@ %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévu %1$@, %2$@ %3$@"
           }
         }
       }
@@ -10368,6 +12478,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Position du siège"
+          }
+        }
+      }
+    },
+    "Seats: window %u, middle %u, aisle %u": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sièges : hublot %1$u, milieu %2$u, couloir %3$u"
           }
         }
       }
@@ -10538,6 +12658,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Partager"
+          }
+        }
+      }
+    },
+    "Share %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager %@"
           }
         }
       }
@@ -10792,6 +12922,16 @@
         }
       }
     },
+    "Shows all %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiche tous les %@"
+          }
+        }
+      }
+    },
     "Shows every security checkpoint": {
       "localizations": {
         "fr": {
@@ -10812,12 +12952,42 @@
         }
       }
     },
+    "Shows the METAR: flight category, ceiling, visibility and wind": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiche le METAR : catégorie de vol, plafond, visibilité et vent"
+          }
+        }
+      }
+    },
     "Shows the boarding pass and its barcode": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Affiche la carte d'embarquement et son code-barres"
+          }
+        }
+      }
+    },
+    "Shows the options for this planned flight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiche les options de ce vol prévu"
+          }
+        }
+      }
+    },
+    "Shows the top %lld %@ only": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affiche seulement les %1$lld premiers %2$@"
           }
         }
       }
@@ -10848,6 +13018,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vues de côté"
+          }
+        }
+      }
+    },
+    "Sign In": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se connecter"
           }
         }
       }
@@ -11092,6 +13272,16 @@
         }
       }
     },
+    "Soma Flight can't alert you about this flight. Turn notifications on in Settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight ne peut pas t'alerter pour ce vol. Active les notifications dans Réglages."
+          }
+        }
+      }
+    },
     "Soma Flight can't read this. Share the airline's confirmation email or its PDF itinerary.": {
       "localizations": {
         "fr": {
@@ -11192,12 +13382,32 @@
         }
       }
     },
+    "Soma Flight: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soma Flight : %@"
+          }
+        }
+      }
+    },
     "Some Delays": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Quelques retards"
+          }
+        }
+      }
+    },
+    "Some airport details couldn't load. They'll come back on the next refresh.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certains détails de l'aéroport n'ont pas pu se charger. Ils reviendront à la prochaine actualisation."
           }
         }
       }
@@ -11392,6 +13602,16 @@
         }
       }
     },
+    "Stop Following %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus suivre %@"
+          }
+        }
+      }
+    },
     "Stop Sharing": {
       "localizations": {
         "fr": {
@@ -11408,6 +13628,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Arrêter les alertes pour cet aéroport"
+          }
+        }
+      }
+    },
+    "Stop following %@?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus suivre %@ ?"
+          }
+        }
+      }
+    },
+    "Stop waiting for %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne plus attendre %@"
           }
         }
       }
@@ -11722,6 +13962,16 @@
         }
       }
     },
+    "Terminal %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal %@"
+          }
+        }
+      }
+    },
     "Terminal change": {
       "localizations": {
         "fr": {
@@ -11788,6 +14038,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les SMS ne sont pas encore disponibles."
+          }
+        }
+      }
+    },
+    "Texts stop and the number is deleted from your account. To get texts again, you verify it again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les SMS s'arrêtent et le numéro est effacé de ton compte. Pour en recevoir à nouveau, tu devras le vérifier une nouvelle fois."
           }
         }
       }
@@ -11912,6 +14172,16 @@
         }
       }
     },
+    "The airline may have removed or renumbered it. Search for it again to follow the new one.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La compagnie l'a peut-être retiré ou renuméroté. Cherche-le à nouveau pour suivre le nouveau."
+          }
+        }
+      }
+    },
     "The belt your bags come out on": {
       "localizations": {
         "fr": {
@@ -11952,6 +14222,16 @@
         }
       }
     },
+    "The code goes to %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le code est envoyé au %@"
+          }
+        }
+      }
+    },
     "The contrail in clear crystal glass.": {
       "localizations": {
         "fr": {
@@ -11978,6 +14258,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les chiffres se remplissent au fil des vols."
+          }
+        }
+      }
+    },
+    "The file couldn't be opened. Choose it again, or save it to Files first.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'ouvrir le fichier. Choisis-le à nouveau, ou enregistre-le d'abord dans Fichiers."
           }
         }
       }
@@ -12052,6 +14342,16 @@
         }
       }
     },
+    "The link still works. %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le lien fonctionne toujours. %@"
+          }
+        }
+      }
+    },
     "The next seven days come with a schedules feed, not switched on yet.": {
       "localizations": {
         "fr": {
@@ -12088,6 +14388,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "L'original reste dans ta photothèque."
+          }
+        }
+      }
+    },
+    "The pasted text hasn't been read yet.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le texte collé n'a pas encore été lu."
           }
         }
       }
@@ -12392,6 +14702,16 @@
         }
       }
     },
+    "This flight is no longer available": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce vol n'est plus disponible"
+          }
+        }
+      }
+    },
     "This flight is no longer in My Flights.": {
       "localizations": {
         "fr": {
@@ -12418,6 +14738,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ce vol a été dérouté."
+          }
+        }
+      }
+    },
+    "This flight's updates couldn't load. They'll come back on the next refresh.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les mises à jour de ce vol n'ont pas pu se charger. Elles reviendront à la prochaine actualisation."
           }
         }
       }
@@ -12467,7 +14797,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ce lien a expiré. Envoies-en un nouveau."
+            "value": "Ce lien a expiré. Envoie-en un nouveau."
           }
         }
       }
@@ -12478,6 +14808,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ce pass n'a pas de code-barres. Montre le pass de la compagnie à la porte."
+          }
+        }
+      }
+    },
+    "This removes the flights you follow, your flight history, your friends, the travel documents synced to your account, your profile photo and your Live Activities. Your app settings stay on this device until you delete the app. This can't be undone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cela supprime les vols que tu suis, ton historique de vols, tes amis, les documents de voyage synchronisés avec ton compte, ta photo de profil et tes Activités en direct. Tes réglages de l'app restent sur cet appareil jusqu'à ce que tu supprimes l'app. C'est définitif."
           }
         }
       }
@@ -12558,6 +14898,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "C'est l'heure de partir"
+          }
+        }
+      }
+    },
+    "Time, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heure, %@"
           }
         }
       }
@@ -12772,6 +15122,16 @@
         }
       }
     },
+    "Total %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total %@"
+          }
+        }
+      }
+    },
     "Total Time": {
       "localizations": {
         "fr": {
@@ -12852,6 +15212,16 @@
         }
       }
     },
+    "Tries to connect again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tente de se reconnecter"
+          }
+        }
+      }
+    },
     "Trip to %@": {
       "localizations": {
         "fr": {
@@ -12872,12 +15242,52 @@
         }
       }
     },
+    "Try Syncing Again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relancer la synchronisation"
+          }
+        }
+      }
+    },
+    "Try a flight number like AF 84, or two cities like Paris Rome.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Essaie un numéro de vol comme AF 84, ou deux villes comme Paris Rome."
+          }
+        }
+      }
+    },
     "Try again": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Réessayer"
+          }
+        }
+      }
+    },
+    "Try another day, or add where you're flying to.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Essaie un autre jour, ou ajoute ta destination."
+          }
+        }
+      }
+    },
+    "Try another day, or search one of the airports for all its flights.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Essaie un autre jour, ou cherche un des aéroports pour voir tous ses vols."
           }
         }
       }
@@ -12918,6 +15328,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activer les alertes"
+          }
+        }
+      }
+    },
+    "Type (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type d'avion (facultatif)"
+          }
+        }
+      }
+    },
+    "Type an airline's code or name, like AF or Air France.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisis le code ou le nom d'une compagnie, par exemple AF ou Air France."
+          }
+        }
+      }
+    },
+    "Type the number with its country code, like +1 415 555 0100.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisis le numéro avec son indicatif pays, par exemple +33 6 12 34 56 78."
           }
         }
       }
@@ -13042,6 +15482,16 @@
         }
       }
     },
+    "Until %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jusqu'à %@"
+          }
+        }
+      }
+    },
     "Until further notice": {
       "localizations": {
         "fr": {
@@ -13078,6 +15528,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vols à venir"
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mis à jour %@"
           }
         }
       }
@@ -13182,6 +15642,16 @@
         }
       }
     },
+    "Version %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@"
+          }
+        }
+      }
+    },
     "Very low clouds or visibility. Delays are likely.": {
       "localizations": {
         "fr": {
@@ -13218,6 +15688,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Règles de vol à vue"
+          }
+        }
+      }
+    },
+    "Volume": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trafic"
           }
         }
       }
@@ -13428,6 +15908,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Météo issue d'aviationweather.gov (NOAA). Programmes et NOTAM de la FAA. Retards issus des tableaux en direct de cette app."
+          }
+        }
+      }
+    },
+    "Weather is not the main cause: only %@ here.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La météo n'est pas la cause principale : seulement %@ ici."
+          }
+        }
+      }
+    },
+    "Weather to watch. %@.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Météo à surveiller. %@."
           }
         }
       }
@@ -13782,6 +16282,16 @@
         }
       }
     },
+    "You do not follow %@ yet. Follow it to keep this boarding pass with the flight.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu ne suis pas encore %@. Suis-le pour garder cette carte d'embarquement avec le vol."
+          }
+        }
+      }
+    },
     "You replied STOP. Verify the number again to get texts.": {
       "localizations": {
         "fr": {
@@ -13848,6 +16358,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tu ne suis aucun vol. Ouvre Soma Flight pour en ajouter un."
+          }
+        }
+      }
+    },
+    "You're offline. Connect to the internet and try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu es hors ligne. Connecte-toi à Internet et réessaie."
           }
         }
       }
@@ -13932,6 +16452,16 @@
         }
       }
     },
+    "Your edits haven't been saved.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tes modifications n'ont pas été enregistrées."
+          }
+        }
+      }
+    },
     "Your email, your name and photo, the flights you follow and your flight history. Your location stays on this device. No contacts, no tracking. Exports are built on this device.": {
       "localizations": {
         "fr": {
@@ -13958,6 +16488,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ton code ami"
+          }
+        }
+      }
+    },
+    "Your friend code, %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton code ami, %@"
           }
         }
       }
@@ -14112,6 +16652,26 @@
         }
       }
     },
+    "about %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vers %@"
+          }
+        }
+      }
+    },
+    "at the gate": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "à la porte"
+          }
+        }
+      }
+    },
     "canceled": {
       "localizations": {
         "fr": {
@@ -14152,12 +16712,32 @@
         }
       }
     },
+    "departs %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "décolle à %@"
+          }
+        }
+      }
+    },
     "departs in": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "décolle dans"
+          }
+        }
+      }
+    },
+    "departs in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "part dans %@"
           }
         }
       }
@@ -14182,6 +16762,16 @@
         }
       }
     },
+    "est.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "estim."
+          }
+        }
+      }
+    },
     "flight": {
       "localizations": {
         "fr": {
@@ -14198,6 +16788,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "vols"
+          }
+        }
+      }
+    },
+    "gate %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "porte %@"
           }
         }
       }
@@ -14222,6 +16822,16 @@
         }
       }
     },
+    "just now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "à l'instant"
+          }
+        }
+      }
+    },
     "landed": {
       "localizations": {
         "fr": {
@@ -14232,12 +16842,52 @@
         }
       }
     },
+    "lands %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "atterrit à %@"
+          }
+        }
+      }
+    },
+    "lands in %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "atterrit dans %@"
+          }
+        }
+      }
+    },
+    "left the gate": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a quitté la porte"
+          }
+        }
+      }
+    },
     "lost to delays": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "perdues en retards"
+          }
+        }
+      }
+    },
+    "median age": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "âge médian"
           }
         }
       }
@@ -14262,12 +16912,62 @@
         }
       }
     },
+    "of my flights landed late": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "de mes vols sont arrivés en retard"
+          }
+        }
+      }
+    },
+    "or": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ou"
+          }
+        }
+      }
+    },
+    "previous day": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "veille"
+          }
+        }
+      }
+    },
     "scheduled": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "prévu"
+          }
+        }
+      }
+    },
+    "scheduled %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prévu à %@"
+          }
+        }
+      }
+    },
+    "scheduled %@, now %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prévu à %1$@, maintenant %2$@"
           }
         }
       }

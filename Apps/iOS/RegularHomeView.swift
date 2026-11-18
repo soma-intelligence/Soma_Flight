@@ -20,7 +20,11 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     var mapScope: Namespace.ID
     var onSearch: () -> Void
     var onSettings: () -> Void
-    var tabScreen: TabScreen
+    var tabScreen: (HomeTab) -> TabScreen
+    /// The selected tab tapped again (I10).
+    var onReselect: () -> Void
+    /// Per tab, a counter whose change scrolls that tab's list to its top (I10).
+    var scrollSignals: [HomeTab: Int]
     var mapControls: MapControls
     /// The tab pill's height, where the list is masked off.
     @State private var pillHeight = SheetGeometry.tabBarHeight
@@ -37,10 +41,12 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
 
     init(home: HomeModel, selection: Binding<GlobeSelection?>, labels: Bool, threeD: Bool, mapScope: Namespace.ID,
          onSearch: @escaping () -> Void, onSettings: @escaping () -> Void,
-         @ViewBuilder tabScreen: () -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
+         onReselect: @escaping () -> Void = {}, scrollSignals: [HomeTab: Int] = [:],
+         @ViewBuilder tabScreen: @escaping (HomeTab) -> TabScreen, @ViewBuilder mapControls: () -> MapControls) {
         self.home = home; _selection = selection; self.labels = labels; self.threeD = threeD
         self.mapScope = mapScope; self.onSearch = onSearch; self.onSettings = onSettings
-        self.tabScreen = tabScreen(); self.mapControls = mapControls()
+        self.tabScreen = tabScreen; self.mapControls = mapControls()
+        self.onReselect = onReselect; self.scrollSignals = scrollSignals
     }
 
     /// A panel and its margin: the part of the globe it covers.
@@ -156,7 +162,9 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
     }
 
     private var listScreen: some View {
-        tabScreen.frame(maxHeight: .infinity, alignment: .top)
+        // Each tab keeps its screen and scroll position (I10).
+        TabPager(tab: home.tab, scrollSignals: scrollSignals, content: tabScreen)
+            .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var profileButton: some View {
@@ -174,9 +182,9 @@ struct RegularHomeView<TabScreen: View, MapControls: View>: View {
             .overlay(alignment: .topTrailing) { profileButton }
             .overlay(alignment: .bottom) {
                 VStack(spacing: 12) {
-                    ToastSlot(text: home.toast, isError: home.toastIsError)
+                    ToastSlot(home: home)
                     HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0 }), bottom: 14,
-                                onSearch: onSearch)
+                                onSearch: onSearch, onReselect: onReselect)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
                 }
             }

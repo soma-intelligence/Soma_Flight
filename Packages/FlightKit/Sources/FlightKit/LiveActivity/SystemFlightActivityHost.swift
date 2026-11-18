@@ -27,7 +27,7 @@ public final class SystemFlightActivityHost: FlightActivityHost {
     }
 
     public func start(attributes: FlightActivityAttributes, state: FlightActivityAttributes.ContentState) throws -> String {
-        let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: state.staleDate),
+        let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: state.staleDate(now: .now)),
                                             pushType: .token)
         watch(activity)
         return activity.id
@@ -46,7 +46,7 @@ public final class SystemFlightActivityHost: FlightActivityHost {
     // crosses an isolation boundary.
     private nonisolated static func update(id: String, state: FlightActivityAttributes.ContentState) async {
         guard let a = Activity<FlightActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
-        await a.update(.init(state: state, staleDate: state.staleDate))
+        await a.update(.init(state: state, staleDate: state.staleDate(now: .now)))
     }
 
     private nonisolated static func end(id: String, state: FlightActivityAttributes.ContentState?, dismissAt: Date?) async {

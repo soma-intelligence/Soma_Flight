@@ -122,13 +122,15 @@ struct ImportReasonRow: View {
 /// The import running: "Importing 120 of 300", a bar that fills a batch at a time.
 struct ImportProgressPanel: View {
     var progress: HistoryImport.Progress
+    /// Reduce Motion: the symbol stays still instead of pulsing in a loop (A5).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 18) {
             Image(systemName: "arrow.down.to.line.circle.fill")
                 .scaledFont(52)
                 .foregroundStyle(Theme.accent)
-                .symbolEffect(.pulse, options: .repeating)
+                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
                 .accessibilityHidden(true)
             VStack(spacing: 6) {
                 Text("Importing \(progress.done.formatted()) of \(progress.total.formatted())")
@@ -274,7 +276,7 @@ struct ImportResultPanel: View {
         var parts: [String] = []
         if !f.ident.isEmpty { parts.append(Format.ident(f.ident)) }
         parts.append("\(o?.iata ?? f.originIcao) \u{2192} \(d?.iata ?? f.destinationIcao)")
-        parts.append(ScreenFormat.day(f.date, o?.timeZone ?? .gmt))
+        parts.append(ImportDates.day(f.date, o?.timeZone ?? .gmt))
         return parts.joined(separator: "  ")
     }
 }

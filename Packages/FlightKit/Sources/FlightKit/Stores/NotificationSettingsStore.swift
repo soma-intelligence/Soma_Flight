@@ -8,9 +8,16 @@ import Observation
 @MainActor @Observable
 public final class NotificationSettingsStore {
     public private(set) var preferences: NotificationPreferences = .allOn
+    /// True once a `load()` has finished, whatever its outcome. Do not read it as "the switches are real":
+    /// that is `hasPreferences` (E11).
     public private(set) var hasLoaded = false
     /// True once the account's row has been read: only then do the switches show the account's own choices.
     public private(set) var hasPreferences = false
+    /// The last load failed and the account's row has never been read: the switches show defaults, not the
+    /// account's choices. The screen dims them and offers `retry()` (E11).
+    public var loadFailed: Bool { hasLoaded && !hasPreferences && error != nil }
+    /// A load is running (the banner's Retry shows progress).
+    public private(set) var isLoading = false
     public private(set) var error: APIError?
     /// Categories whose save is running.
     public private(set) var saving: Set<NotificationPreferences.Category> = []
@@ -29,6 +36,7 @@ public final class NotificationSettingsStore {
     private let service: any NotificationPreferencesService
     /// Bumped by every load and toggle, so a slow answer never overwrites a newer choice.
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var loadsRunning = 0
 
     public init(service: any NotificationPreferencesService, texts: (any TextAlertsService)? = nil,
                 defaults: UserDefaults = .standard) {
@@ -41,6 +49,9 @@ public final class NotificationSettingsStore {
     public func load() async {
         generation += 1
         let gen = generation
+        loadsRunning += 1
+        isLoading = true
+        defer { loadsRunning -= 1; if loadsRunning == 0 { isLoading = false } }
         do {
             let p = try await service.load()
             guard gen == generation else { return }
@@ -55,6 +66,9 @@ public final class NotificationSettingsStore {
             hasLoaded = true
         }
     }
+
+    /// The banner's Retry after a failed load.
+    public func retry() async { await load() }
 
     /// Turns one category on or off and saves the whole row.
     public func set(_ category: NotificationPreferences.Category, _ on: Bool) async {

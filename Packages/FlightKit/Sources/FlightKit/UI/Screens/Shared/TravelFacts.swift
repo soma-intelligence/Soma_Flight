@@ -77,12 +77,13 @@ enum TravelFacts {
     /// The number ("280,017") and the unit ("km") apart, for screens that set them in two sizes.
     static func distanceParts(_ km: Int, _ unit: DistanceUnit) -> (number: String, unit: String) {
         let value = unit == .km ? km : Int((Double(km) / kmPerMile).rounded())
-        return (value.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US"))), unit.rawValue)
+        return (value.formatted(.number.grouping(.automatic).locale(FlightActivityDisplay.uiLocale)), unit.rawValue)
     }
 
     /// "7.0x around the world".
     static func aroundTheWorld(_ km: Int) -> String {
-        String(format: "%.1fx around the world", Double(km) / earthKm)
+        String(format: String(localized: "%.1fx around the world", bundle: .main), locale: FlightActivityDisplay.uiLocale,
+               Double(km) / earthKm)
     }
 
     /// Big number and its caption for the delays card: whole hours from one hour up, else minutes.

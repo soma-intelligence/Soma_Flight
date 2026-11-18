@@ -131,18 +131,30 @@ public final class SupabaseBackend: Sendable {
     }
 
     /// Connectivity failures: the request never got an answer from the server.
-    static let offlineCodes: Set<URLError.Code> = [
-        .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
-        .dnsLookupFailed, .internationalRoamingOff, .dataNotAllowed, .callIsActive,
+    static let offlineCodes: Set<URLError.Code> = deviceOfflineCodes.union(unreachableCodes)
+
+    /// The system says the device itself has no usable connection: always offline.
+    static let deviceOfflineCodes: Set<URLError.Code> = [
+        .notConnectedToInternet, .internationalRoamingOff, .dataNotAllowed, .callIsActive,
     ]
 
-    /// Every failure the client can throw, as the `APIError` the stores understand.
-    static func map(_ error: any Error) -> APIError {
+    /// No answer from the server, whoever is at fault: offline only when the device's path is down too,
+    /// else the server is unreachable and the screen says so instead of "You're offline" (E7).
+    static let unreachableCodes: Set<URLError.Code> = [
+        .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+    ]
+
+    /// Every failure the client can throw, as the `APIError` the stores understand. `deviceOnline` is the
+    /// system path (`Connectivity.devicePathOnline`): a timeout while it says online is `.providerUnavailable`.
+    /// Unknown (nil, no monitor yet) keeps the timeout as `.offline`.
+    static func map(_ error: any Error, deviceOnline: Bool? = Connectivity.devicePathOnline) -> APIError {
         switch error {
         case let e as APIError:
             return e
         case let e as URLError:
-            return offlineCodes.contains(e.code) ? .offline : .providerUnavailable
+            if deviceOfflineCodes.contains(e.code) { return .offline }
+            if unreachableCodes.contains(e.code) { return deviceOnline == true ? .providerUnavailable : .offline }
+            return .providerUnavailable
         case let e as FunctionsError:
             switch e {
             case .httpError(let code, let data): return functionError(status: code, body: data)
@@ -168,7 +180,7 @@ public final class SupabaseBackend: Sendable {
             return .decoding(String(describing: e))
         default:
             let ns = error as NSError
-            if ns.domain == NSURLErrorDomain { return map(URLError(URLError.Code(rawValue: ns.code))) }
+            if ns.domain == NSURLErrorDomain { return map(URLError(URLError.Code(rawValue: ns.code)), deviceOnline: deviceOnline) }
             return .providerUnavailable
         }
     }

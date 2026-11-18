@@ -39,12 +39,13 @@ struct HeroFacts: Equatable, Sendable {
         let headline: String, note: String?
         switch f.status {
         case .canceled:
-            headline = "Canceled"; note = canceledNote
+            headline = Format.words("Canceled"); note = UIText.localized(canceledNote)
         case .diverted:
             headline = summary.text
             let to = actual.flatMap { $0.id == f.destinationIcao ? nil : "\($0.city) (\($0.iata ?? $0.id))" }
-            note = to.map { "Landing at \($0) instead of \(f.destinationCode)." }
-                ?? "Not landing at \(f.destinationCode). The new airport is not known yet."
+            let planned = f.destinationCode
+            note = to.map { Format.words("Landing at \($0) instead of \(planned).") }
+                ?? Format.words("Not landing at \(planned). The new airport is not known yet.")
         default:
             headline = outlook?.title ?? countdown; note = outlook?.text
         }
@@ -62,10 +63,10 @@ struct HeroFacts: Equatable, Sendable {
             }
         case .departed, .enRoute:
             parts.append(stateWord(f.status))
-            if countdown != "In the air" { parts.append(lowerFirst(countdown)) }
+            if countdown != Format.words("In the air") { parts.append(lowerFirst(countdown)) }
         case .scheduled, .unknown:
             parts.append(stateWord(f.status))
-            if countdown != "Scheduled" { parts.append(lowerFirst(countdown)) }
+            if countdown != Format.words("Scheduled") { parts.append(lowerFirst(countdown)) }
         }
 
         let progress: Double? = switch f.status {
@@ -80,7 +81,7 @@ struct HeroFacts: Equatable, Sendable {
 
     /// "in the air", "left the gate", "at the gate": where the flight stands, in the middle of a line.
     static func stateWord(_ s: FlightStatus) -> String {
-        switch s {
+        let word: String = switch s {
         case .scheduled, .unknown: "scheduled"
         case .departed: "left the gate"
         case .enRoute: "in the air"
@@ -89,20 +90,13 @@ struct HeroFacts: Equatable, Sendable {
         case .canceled: "canceled"
         case .diverted: "diverted"
         }
+        return UIText.localized(word)
     }
 
     /// "Departs in 1 day" as "departs in 1 day", for the middle of a line.
     static func lowerFirst(_ s: String) -> String {
         guard let first = s.first else { return s }
         return first.lowercased() + s.dropFirst()
-    }
-
-    /// "4 min ago", "just now": how old the last known data is, for the refresh error and the hero's stamp.
-    static func age(since: Date, now: Date) -> String {
-        let minutes = Int(now.timeIntervalSince(since) / 60)
-        if minutes < 1 { return "just now" }
-        if minutes < 60 { return "\(minutes) min ago" }
-        return "\(DetailFacts.span(minutes: minutes)) ago"
     }
 }
 
@@ -120,8 +114,9 @@ struct DetailHeroCard: View {
     var aircraft: AircraftType?
     var pass: BoardingPass?
     var predictedGate: GatePrediction?
-    /// "4 min ago" beside the headline while a refresh failed (R8); nil hides it.
-    var stamp: String? = nil
+    /// When the flight was fetched and how long it stays fresh: "Last update 12 min. ago" beside the headline
+    /// once older than the TTL (E9); nil hides it (a Passport flight, or the refresh error card says it).
+    var freshness: (fetchedAt: Date, ttl: Duration)? = nil
     var now: Date
     @Environment(\.units) private var units
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -148,16 +143,14 @@ struct DetailHeroCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(ui: facts.headline)
                     .scaledFont(19, weight: .semibold)
-                    .foregroundStyle(facts.tone)
+                    // The words take the text tone (A3); the bar and the progress keep `tone`.
+                    .foregroundStyle(FlightStatusSummary.textTone(for: facts.level))
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                if let stamp {
-                    Label { Text(ui: stamp) } icon: { Image(systemName: "clock") }
-                        .scaledFont(12, weight: .medium)
-                        .foregroundStyle(Theme.secondary)
-                        .lineLimit(1)
-                        .accessibilityLabel("Last updated \(stamp)")
-                }
+            }
+            if let freshness {
+                StaleBadge(fetchedAt: freshness.fetchedAt, ttl: freshness.ttl, now: now, style: .badge,
+                           hidesWhileFresh: true)
             }
             if let subline = facts.subline {
                 Text(ui: subline)
@@ -188,7 +181,7 @@ struct DetailHeroCard: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(flight.originCode) to \(flight.destinationCode)")
-        .accessibilityValue("\(Int((progress * 100).rounded())) percent of the trip")
+        .accessibilityValue(FlightProgressBar.spokenProgress(progress))
     }
 
     @ViewBuilder private var grid: some View {

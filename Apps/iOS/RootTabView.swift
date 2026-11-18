@@ -38,6 +38,8 @@ struct RootTabView: View {
     @State private var windowSize: CGSize = .zero
     /// Search is being presented again (`presentSearch` while it is open): the close in between is not a close.
     @State private var reopeningSearch = false
+    /// Per tab, bumped when the selected tab is tapped again with no card open: that list scrolls to its top (I10).
+    @State private var scrollSignals: [HomeTab: Int] = [:]
 
     init(home: HomeModel) {
         _home = State(initialValue: home)
@@ -115,6 +117,8 @@ struct RootTabView: View {
         }
         // A confirmation email shared to the app from Mail (the share extension's inbox).
         .onChange(of: scenePhase) { _, phase in if phase == .active { home.takeSharedEmails() } }
+        // Another account's search is not brought back (I11).
+        .onChange(of: home.owner) { search.forget() }
         .environment(\.units, units)
         .environment(\.connectivity, home.connectivity)
 }
@@ -125,8 +129,9 @@ struct RootTabView: View {
     /// is up.
     private func regularHome(branch: HomeLayout) -> some View {
         modals(branch: branch, RegularHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                               onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
-            tabScreen
+                               onSearch: { presentSearch() }, onSettings: { showSettings = true },
+                               onReselect: reselectTab, scrollSignals: scrollSignals) { tab in
+            tabScreen(tab)
         } mapControls: {
             panelMapControls
         }
@@ -136,8 +141,9 @@ struct RootTabView: View {
     /// The unfolded Duo held upright: the globe over a fixed pane, the modal sheets hanging from it.
     private var duoUprightHome: some View {
         modals(branch: .duoUpright, DuoSplitHomeView(home: home, selection: $selection, labels: labels, threeD: threeD, mapScope: mapScope,
-                                onSearch: { presentSearch() }, onSettings: { showSettings = true }) {
-            tabScreen
+                                onSearch: { presentSearch() }, onSettings: { showSettings = true },
+                                onReselect: reselectTab, scrollSignals: scrollSignals) { tab in
+            tabScreen(tab)
         } mapControls: {
             panelMapControls
         }
@@ -176,8 +182,9 @@ struct RootTabView: View {
         presentSearch(query: query.isEmpty ? nil : query)
     }
 
-    /// Opens Search on a fresh store. The store is made here, in the action, never in the sheet's closure: the
-    /// closure re-runs while the sheet slides away and after a fold, and must only read the current store.
+    /// Opens Search. The store is picked here, in the action, never in the sheet's closure: the closure re-runs
+    /// while the sheet slides away and after a fold, and must only read the current store. A Search closed a
+    /// few minutes ago comes back with its query and results (I11, `SearchKeeper`); otherwise a fresh store.
     /// When Search is already open its store stays and the sheet is presented again: after a fold SwiftUI can
     /// drop the presentation while `showSearch` stays true, and the button must always bring it back.
     private func presentSearch(query: String? = nil) {
@@ -188,7 +195,7 @@ struct RootTabView: View {
             showSearch = false
             return
         }
-        search.begin(env.makeSearchStore())
+        search.begin { env.makeSearchStore() }
         searchQuery = query
         showSearch = true
     }
@@ -285,8 +292,9 @@ struct RootTabView: View {
 
     private var tabRoot: some View {
         @Bindable var home = home
-        return HomeSheetBody(tab: $home.tab, onSearch: { presentSearch() }) {
-            tabScreen
+        return HomeSheetBody(tab: $home.tab, onSearch: { presentSearch() }, onReselect: reselectTab,
+                             scrollSignals: scrollSignals) { tab in
+            tabScreen(tab)
                 // Only on the tab roots: the modal sheets (Settings, Search) have titles of their own.
                 .environment(\.sheetDetentActions, detentActions)
                 .environment(\.sheetDetent, shell.detent)
@@ -298,17 +306,27 @@ struct RootTabView: View {
                         .padding(.trailing, 16)
                 }
         } toast: {
-            ToastSlot(text: home.toast, isError: home.toastIsError)
+            ToastSlot(home: home)
         }
     }
 
-    @ViewBuilder private var tabScreen: some View {
-        switch home.tab {
+    /// The selected tab tapped again (I10): the open cards close first; with none open, the list scrolls to
+    /// its top.
+    private func reselectTab() {
+        switch TabReselect.action(cardsOpen: !shell.path.isEmpty) {
+        case .popCards: shell.path.removeAll()
+        case .scrollToTop: scrollSignals[home.tab, default: 0] += 1
+        }
+    }
+
+    @ViewBuilder private func tabScreen(_ tab: HomeTab) -> some View {
+        switch tab {
         case .flights:
             MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { presentSearch() },
                           lookup: env.lookup, planned: home.followLater.items,
                           onRemovePlanned: { home.followLater.remove($0) },
-                          onImport: { home.showImport = true })
+                          onImport: { home.showImport = true },
+                          onUnfollow: { home.unfollowWithUndo($0) })
         case .friends:
             FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
         case .passport:
@@ -398,21 +416,26 @@ private struct HomeGlobe: View {
 
 // MARK: - Modal sheets
 
-/// The Search that is open, kept by `RootTabView` so a layout switch does not lose it.
+/// The Search that is open, kept by `RootTabView` so a layout switch does not lose it, and for a few
+/// minutes after it closes so reopening finds the query and results (I11, `SearchKeeper`).
 @MainActor private final class OpenSearch {
+    private let keeper = SearchKeeper()
     /// The store of the Search that is open, or of the last one while it slides away.
-    private(set) var current: SearchStore?
+    var current: SearchStore? { keeper.current }
     private var ranQuery: String?
 
-    /// A new opening: a fresh store, and no query has run yet.
-    func begin(_ store: SearchStore) { current = store; ranQuery = nil }
+    /// A new opening: the kept store when it is recent, else `make()`'s, and no query has run yet.
+    func begin(make: () -> SearchStore) { _ = keeper.open(make: make); ranQuery = nil }
 
     /// The query still to run: not the one that already ran in this open Search.
     func pending(_ query: String?) -> String? { query == ranQuery ? nil : query }
     func ran(_ query: String) { ranQuery = query }
 
-    /// Search closed: only the marker goes. The store stays for the closing sheet; the next opening replaces it.
-    func finish() { ranQuery = nil }
+    /// Search closed: the marker goes, and the store is kept for the closing sheet and a reopening soon after.
+    func finish() { ranQuery = nil; keeper.close() }
+
+    /// An account change: the next opening starts fresh.
+    func forget() { keeper.forget() }
 }
 
 /// Search in its own sheet over the home sheet.

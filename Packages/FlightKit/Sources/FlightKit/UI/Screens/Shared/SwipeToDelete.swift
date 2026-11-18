@@ -57,7 +57,7 @@ struct SwipeToDelete: ViewModifier {
                 .foregroundStyle(.white)
                 .frame(width: max(-offset, 0))
                 .frame(maxHeight: .infinity)
-                .background(Color.red)
+                .background(Theme.destructive)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -96,12 +96,17 @@ struct SwipeToDelete: ViewModifier {
         withAnimation(.easeOut(duration: 0.2)) { offset = -width; resting = -width }
         armed = false
         onDelete()
-        // A delete that fails leaves the row in the list: slide it back rather than leave it gone.
+        // A removal hides the row at once (`HomeModel.unfollowWithUndo`, E15), and Undo or a refused call
+        // brings a fresh row back. A row still here once the slide is over was not removed (a confirmation
+        // dialog is up, or a removal was already on its way): it slides back rather than stay blank.
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: Self.settleBack)
             close()
         }
     }
+
+    /// How long a row that was not removed waits off screen before it slides back.
+    static let settleBack: Duration = .milliseconds(450)
 }
 
 extension View {

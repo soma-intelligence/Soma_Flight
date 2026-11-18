@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 import FlightImportKit
@@ -51,6 +52,17 @@ public struct ImportView: View {
     @State private var step: Step = .sources
     @State private var pasted = ""
     @State private var picker = ImportPicker<Picker>()
+    @State private var confirmingDiscard = false
+
+    private static let log = Logger(subsystem: "me.somalabs.flight", category: "import")
+
+    /// Shown when the file picker hands back an error (D2): what to do, never the system's text.
+    static let pickerFailed = "The file couldn't be opened. Choose it again, or save it to Files first."
+
+    /// Pasted email text not read yet (I2): the swipe down is blocked and Close asks first.
+    private var hasUnreadPaste: Bool {
+        step == .email && store.phase == .idle && !pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     enum Picker: Hashable {
         case flighty, email, csv
@@ -80,6 +92,12 @@ public struct ImportView: View {
             footer
         }
         .background(Theme.background)
+        .interactiveDismissDisabled(hasUnreadPaste)
+        .confirmDestructive(isPresented: $confirmingDiscard, title: "Discard changes?",
+                            message: "The pasted text hasn't been read yet.", actionTitle: "Discard Changes") {
+            pasted = ""
+            onClose()
+        }
         .onAppear { store.isScreenVisible = true }
         .onDisappear { store.isScreenVisible = false }
         // The source stays in `picker` while the picker closes: SwiftUI clears `isPresented` before it calls
@@ -88,7 +106,9 @@ public struct ImportView: View {
             guard let kind = picker.take() else { return }
             switch result {
             case .success(let url): read(url, as: kind)
-            case .failure(let error): store.fail(kind.source, "The file couldn't be opened: \(error.localizedDescription)")
+            case .failure(let error):
+                Self.log.error("File picker failed: \(error.localizedDescription, privacy: .public)")
+                store.fail(kind.source, Self.pickerFailed)
             }
         }
         #if os(macOS)
@@ -156,7 +176,9 @@ public struct ImportView: View {
                 .foregroundStyle(Theme.primary)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
-            RoundButton(systemImage: "xmark", label: "Close", action: onClose)
+            RoundButton(systemImage: "xmark", label: "Close") {
+                if hasUnreadPaste { confirmingDiscard = true } else { onClose() }
+            }
         }
         .scaledPadding(.horizontal, 16)
         .scaledPadding(.top, 16)
@@ -319,8 +341,9 @@ public struct ImportView: View {
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 220)
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.pill))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.pill))
                 .accessibilityLabel("Email text")
+                .keyboardDoneBar()
             HStack(spacing: 12) {
                 Button("Find Flights") { store.readEmail(pasted) }
                     .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(Theme.accent)
@@ -450,13 +473,22 @@ struct CandidateRow: View {
         .accessibilityAddTraits(ticked ? [.isSelected, .isButton] : .isButton)
     }
 
-    /// "AF 84 CDG → SFO, 2027-03-14".
+    /// "AF 84 CDG → SFO 14 Mar 2027".
     static func headline(_ f: ImportedFlight) -> String {
         var parts: [String] = []
         if let ident = f.ident { parts.append(Format.ident(ident)) }
         if let o = f.origin, let d = f.destination { parts.append("\(o) \u{2192} \(d)") }
-        parts.append(f.day.description)
+        parts.append(UpcomingLine.day(f.day))
         return parts.joined(separator: " ")
+    }
+}
+
+/// The Import screen's dates (A11): `Date.FormatStyle` in the app's language, the day and the year.
+enum ImportDates {
+    static func day(_ date: Date, _ tz: TimeZone) -> String {
+        var style = Date.FormatStyle(date: .abbreviated, time: .omitted, locale: FlightActivityDisplay.uiLocale)
+        style.timeZone = tz
+        return date.formatted(style)
     }
 }
 
@@ -475,7 +507,7 @@ private struct PastLine: View {
                 Text("\(o?.iata ?? flight.originIcao) \u{2192} \(d?.iata ?? flight.destinationIcao)")
                     .scaledFont(15).foregroundStyle(Theme.secondary.opacity(0.8))
                 Spacer(minLength: 6)
-                Text(ScreenFormat.day(flight.date, o?.timeZone ?? .gmt))
+                Text(ImportDates.day(flight.date, o?.timeZone ?? .gmt))
                     .scaledFont(15, weight: .medium).monospacedDigit().foregroundStyle(Theme.secondary)
             }
             HStack(spacing: 8) {
@@ -511,10 +543,10 @@ struct UpcomingLine: View {
         }
     }
 
-    /// "14 Mar 2027".
+    /// "14 Mar 2027" ("14 mars 2027" in French).
     static func day(_ d: LocalDay) -> String {
         guard let date = PastFlightRules.noon(year: d.year, month: d.month, day: d.day, in: .gmt) else { return d.description }
-        return ScreenFormat.day(date, .gmt)
+        return ImportDates.day(date, .gmt)
     }
 }
 

@@ -20,6 +20,7 @@ public struct FriendsView: View {
     @State private var removing: Friend?
     @Environment(\.sheetDetent) private var detent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.requestSignIn) private var requestSignIn
 
     /// - Parameters:
     ///   - onOpenFriend: opens a friend's page.
@@ -95,9 +96,13 @@ public struct FriendsView: View {
                     .transition(reduceMotion ? .opacity : .codeReveal)
             }
             if let error = store.error {
-                ErrorBanner(error: error, retry: { Task { await store.load() } })
+                ErrorBanner(error: error, hasContent: !store.friends.isEmpty, retry: { Task { await store.load() } },
+                            signIn: requestSignIn)
                     .scaledPadding(.bottom, 12)
             }
+            // A failed action (accept, remove, a switch) with its own Retry, apart from the load (E6).
+            FriendActionErrorBanner(store: store)
+                .scaledPadding(.bottom, 12)
             if store.me?.sharingPaused == true {
                 HStack(spacing: 8) {
                     Label("Sharing is paused for every friend", systemImage: "pause.circle.fill")
@@ -153,6 +158,7 @@ public struct FriendsView: View {
         Toggle("Alerts for \(friend.name)'s Flights", systemImage: "bell.badge", isOn: binding(friend, \.alerts))
         Divider()
         Button("Remove Friend", systemImage: "person.badge.minus", role: .destructive) { removing = friend }
+            .disabled(store.isPending(friend.id))
     }
 
     private func binding(_ friend: Friend, _ key: WritableKeyPath<FriendSettings, Bool>) -> Binding<Bool> {
@@ -180,9 +186,15 @@ extension AnyTransition {
 }
 
 /// Requests waiting on the tab, as one compact card: each incoming one with Accept and a quiet decline, each
-/// one the user sent with Cancel. Nothing shows without a request.
+/// one the user sent with Cancel. Nothing shows without a request. A request on its way shows progress on the
+/// tapped button and disables the others for that request (E4, I14); every button is at least 44 pt (I8). At
+/// accessibility sizes the buttons move under the name, so "Accept" never breaks (A12).
 struct FriendRequestsBanner: View {
     var store: FriendsStore
+    /// The answer last tapped for each request, so only that button spins.
+    @State private var answers: [UUID: Bool] = [:]
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.metricsScale) private var scale
 
     var body: some View {
         let incoming = store.incoming, outgoing = store.outgoing
@@ -190,46 +202,100 @@ struct FriendRequestsBanner: View {
             VStack(spacing: 0) {
                 ForEach(Array(incoming.enumerated()), id: \.element.id) { i, r in
                     if i > 0 { Hairline().scaledPadding(.leading, 46) }
-                    HStack(spacing: 10) {
-                        FriendAvatar(name: r.displayName, emoji: r.emoji, size: 34, id: r.id)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(r.displayName ?? "Someone")
-                                .scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary).lineLimit(1)
-                            Text("Wants to be friends").scaledFont(13).foregroundStyle(Theme.secondary).lineLimit(1)
-                        }
-                        Spacer(minLength: 6)
-                        Button { Task { await store.respond(to: r, accept: false) } } label: {
-                            Image(systemName: "xmark").scaledFont(13, weight: .bold).foregroundStyle(Theme.secondary)
-                                .frame(width: 32, height: 32).background(Circle().fill(Theme.pill))
-                        }
-                        .accessibilityLabel("Decline")
-                        Button { Task { await store.respond(to: r, accept: true) } } label: {
-                            Text("Accept").scaledFont(14, weight: .semibold).foregroundStyle(.white)
-                                .scaledPadding(.horizontal, 12).scaledPadding(.vertical, 7)
-                                .background(Capsule().fill(Theme.accent))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .scaledPadding(.vertical, 10)
+                    incomingRow(r)
+                        .scaledPadding(.vertical, 10)
                 }
                 ForEach(Array(outgoing.enumerated()), id: \.element.id) { i, r in
                     if i > 0 || !incoming.isEmpty { Hairline().scaledPadding(.leading, 46) }
                     HStack(spacing: 10) {
                         Image(systemName: "paperplane.fill").scaledFont(14).foregroundStyle(Theme.secondary)
                             .frame(width: 34)
+                            .accessibilityHidden(true)
                         Text("Request sent, no answer yet").scaledFont(14).foregroundStyle(Theme.secondary)
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 6)
                         Button("Cancel") { Task { await store.cancel(r) } }
-                            .scaledFont(14, weight: .semibold).foregroundStyle(Theme.primary).buttonStyle(.plain)
+                            .loadingButton(isLoading: store.isPending(r.id), variant: .plain)
+                            .minTapTarget()
+                            .fixedSize()
                     }
-                    .scaledPadding(.vertical, 10)
+                    .scaledPadding(.vertical, 4)
                 }
             }
             .scaledPadding(.horizontal, 12)
             // A flat card (R6): the card colour, the 14 pt corner, no stroke.
-            .background(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).fill(Theme.card))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).fill(Theme.card))
             .scaledPadding(.bottom, 18)
+        }
+    }
+
+    @ViewBuilder private func incomingRow(_ r: FriendRequest) -> some View {
+        let who = HStack(spacing: 10) {
+            FriendAvatar(name: r.displayName, emoji: r.emoji, size: 34, id: r.id)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(r.displayName ?? "Someone")
+                    .scaledFont(15, weight: .semibold).foregroundStyle(Theme.primary)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                Text("Wants to be friends").scaledFont(13).foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Theme.metric(Theme.Space.xs, scale)) {
+                who
+                HStack(spacing: Theme.metric(Theme.Space.xs, scale)) { buttons(r) }
+            }
+        } else {
+            HStack(spacing: 10) {
+                who
+                Spacer(minLength: 6)
+                buttons(r)
+            }
+        }
+    }
+
+    @ViewBuilder private func buttons(_ r: FriendRequest) -> some View {
+        let busy = store.isPending(r.id)
+        Button { answer(r, false) } label: {
+            Image(systemName: "xmark").scaledFont(13, weight: .bold).foregroundStyle(Theme.secondary)
+                .opacity(busy && answers[r.id] == false ? 0 : 1)
+                .overlay { if busy && answers[r.id] == false { ProgressView().controlSize(.small) } }
+                .frame(width: Theme.metric(32, scale), height: Theme.metric(32, scale))
+                .background(Circle().fill(Theme.pill))
+        }
+        .buttonStyle(.plain)
+        .minTapTarget(shape: Circle())
+        .disabled(busy)
+        .accessibilityLabel("Decline")
+        .accessibilityValue(busy && answers[r.id] == false ? Text("In progress") : Text(verbatim: ""))
+        Button("Accept") { answer(r, true) }
+            .buttonStyle(LoadingButtonStyle(isLoading: busy && answers[r.id] == true, variant: .filled))
+            .disabled(busy)
+            // Keeps the word whole: the name beside it gives way, the button grows in height (A12).
+            .fixedSize()
+    }
+
+    private func answer(_ r: FriendRequest, _ accept: Bool) {
+        guard !store.isPending(r.id) else { return }
+        answers[r.id] = accept
+        Task {
+            await store.respond(to: r, accept: accept)
+            answers[r.id] = nil
+        }
+    }
+}
+
+/// A failed Friends action (E6): its message, and Retry that runs the same action again (Sign In when the
+/// session is gone). The load's own banner keeps Retry on `load()`.
+struct FriendActionErrorBanner: View {
+    var store: FriendsStore
+    @Environment(\.requestSignIn) private var requestSignIn
+
+    var body: some View {
+        if let failure = store.actionError {
+            ErrorBanner(error: failure.error, hasContent: false,
+                        retry: { Task { await failure.retry() } },
+                        signIn: requestSignIn.map { action in { store.clearActionError(); action() } })
         }
     }
 }
@@ -366,7 +432,7 @@ struct AddFriendSheet: View {
                             .scaledPadding(.top, 8)
                     }
                 }
-                if let error = store.error { ErrorBanner(error: error) }
+                FriendActionErrorBanner(store: store)
             }
             .scaledPadding(.horizontal, 20)
             .scaledPadding(.vertical, 20)

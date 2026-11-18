@@ -32,6 +32,27 @@ public final class TravelDocumentsStore {
     /// The last Keychain or check failure, for the screen.
     public private(set) var failure: String?
 
+    /// Where the account copy stands (E13). The screen promises "on all your devices" only on `.synced`.
+    public enum SyncState: Sendable, Equatable {
+        /// Sync is off: the documents stay on this device.
+        case off
+        /// The last change reached the account.
+        case synced
+        /// A change has not been sent yet (signed out, or a send is running).
+        case pending
+        /// The last send failed (offline, the server refused); `retrySync()` tries again.
+        case failed
+    }
+
+    /// Where the account copy stands now.
+    public var syncState: SyncState {
+        guard syncsWithICloud else { return .off }
+        return pushState
+    }
+    /// When the account last took the documents, nil before the first success this launch.
+    public private(set) var lastSyncedAt: Date?
+    private var pushState: SyncState = .pending
+
     @ObservationIgnored private let secrets: any SecretStore
     @ObservationIgnored private let check: any DeviceOwnerCheck
     @ObservationIgnored private let defaults: UserDefaults?
@@ -200,7 +221,11 @@ public final class TravelDocumentsStore {
         guard syncsWithICloud, let cloud else { return }
         let empty = profile.isEmpty && identityKinds.isEmpty
         if empty {
-            guard let copy = try? await cloud.load(), let key = try? vaultKey(create: false) else { return }
+            let loaded: TravelVaultCopy?
+            do { loaded = try await cloud.load() } catch { pushState = .failed; return }
+            // Nothing on the account and nothing here: in step.
+            guard let copy = loaded else { pushState = .synced; return }
+            guard let key = try? vaultKey(create: false) else { pushState = .failed; return }
             do {
                 if let box = copy.profile, let kept = try Self.open(box, key), !kept.isEmpty {
                     try secrets.write(kept, account: Self.profileAccount, synchronizable: true)
@@ -209,6 +234,8 @@ public final class TravelDocumentsStore {
                     try secrets.write(id, account: Self.identityAccount, synchronizable: true)
                 }
                 load()
+                pushState = .synced
+                lastSyncedAt = .now
             } catch {
                 // A copy sealed under another key (iCloud Keychain off on the first device) stays unread.
             }
@@ -220,15 +247,25 @@ public final class TravelDocumentsStore {
     /// Seals both Keychain items as they are and sends them. Reads the hidden item without Face ID: it
     /// leaves the device only sealed.
     private func pushToCloud() async {
-        guard syncsWithICloud, let cloud else { return }
+        guard syncsWithICloud else { return }
+        guard let cloud else { pushState = .pending; return }
+        pushState = .pending
         do {
             let key = try vaultKey(create: true)
             let profileBox = try Self.seal(try secrets.read(Self.profileAccount) ?? Data(), key)
             let identityBox = try Self.seal(try secrets.read(Self.identityAccount) ?? Data(), key)
             try await cloud.save(profile: profileBox, identity: identityBox)
+            pushState = .synced
+            lastSyncedAt = .now
         } catch {
-            // Offline or signed out: the next change or launch sends it.
+            // Offline or signed out: the next change or launch sends it, `retrySync()` sooner.
+            pushState = .failed
         }
+    }
+
+    /// Sends the documents to the account again (the "Not synced yet" row's Retry).
+    public func retrySync() async {
+        await syncWithCloud()
     }
 
     /// The sealing key from the iCloud Keychain, made on first use when `create`.

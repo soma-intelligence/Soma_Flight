@@ -10,6 +10,8 @@ struct RootSidebarView: View {
 
     @State private var search: SearchStore
     @State private var showSearch = false
+    /// Per tab, bumped when the selected tab is tapped again: that list scrolls to its top (I10).
+    @State private var scrollSignals: [HomeTab: Int] = [:]
     @State private var selection: GlobeSelection?
     @State private var labels = true
     @StoredUnits private var units: Units
@@ -130,6 +132,15 @@ struct RootSidebarView: View {
             }
     }
 
+    /// The selected tab tapped again (I10): Search or the open cards close first, else the list scrolls up.
+    private func reselectTab() {
+        if showSearch { showSearch = false; return }
+        switch TabReselect.action(cardsOpen: !home.shell.path.isEmpty) {
+        case .popCards: home.shell.path.removeAll()
+        case .scrollToTop: scrollSignals[home.tab, default: 0] += 1
+        }
+    }
+
     private func openAirport(_ code: String) {
         showSearch = false
         home.open(airport: code)
@@ -150,7 +161,8 @@ struct RootSidebarView: View {
                 case .flights:
                     MyFlightsView(store: home.myFlights, onSelect: home.open(flight:), onSearch: { showSearch = true },
                                   lookup: env.lookup, planned: home.followLater.items,
-                                  onRemovePlanned: { home.followLater.remove($0) })
+                                  onRemovePlanned: { home.followLater.remove($0) },
+                                  onUnfollow: { home.unfollowWithUndo($0) })
                 case .friends:
                     FriendsView(store: home.friends, onOpenFriend: home.open(friend:), lookup: env.lookup)
                 case .passport:
@@ -160,6 +172,8 @@ struct RootSidebarView: View {
                 }
             }
         }
+        // The selected tab tapped again scrolls its list to the top (I10).
+        .environment(\.scrollToTopSignal, scrollSignals[home.tab, default: 0])
         .overlay(alignment: .topTrailing) {
             if !showSearch {
                 ProfileButton(profile: home.profile) { openSettings() }
@@ -169,9 +183,9 @@ struct RootSidebarView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 12) {
-                ToastSlot(text: home.toast)
+                ToastSlot(home: home)
                 HomeTabPill(tab: Binding(get: { home.tab }, set: { home.tab = $0; showSearch = false }), bottom: 14,
-                            onSearch: { showSearch = true })
+                            onSearch: { showSearch = true }, onReselect: reselectTab)
             }
         }
     }

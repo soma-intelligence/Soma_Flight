@@ -79,7 +79,7 @@ struct RouteHistoryCard: View {
 
     private var distance: String {
         let value = units.distance == .mi ? Int((Double(history.distanceKm) / 1.609_344).rounded()) : history.distanceKm
-        return "\(value.formatted(.number.locale(Locale(identifier: "en_US")))) \(units.distance.rawValue)"
+        return "\(value.formatted(.number.locale(FlightActivityDisplay.uiLocale))) \(units.distance.rawValue)"
     }
 
     private func figure(_ label: String, symbol: String, value: String) -> some View {

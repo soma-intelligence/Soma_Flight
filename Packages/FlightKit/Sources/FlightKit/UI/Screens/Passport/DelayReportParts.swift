@@ -13,7 +13,8 @@ enum DelayInk {
     /// The sections under the hero.
     static let sections = Color(red: 0.085, green: 0.075, blue: 0.08)
     static let track = Color.white.opacity(0.08)
-    static let late = Color(red: 0.94, green: 0.31, blue: 0.25)
+    /// The report is always dark, so this is the dark `veryLate` (#FF453A).
+    static let late = Theme.veryLate
     static let soft = Color(red: 1.0, green: 0.68, blue: 0.62)
     static let amber = Color(red: 1.0, green: 0.73, blue: 0.22)
     static let flap = Color(red: 0.30, green: 0.05, blue: 0.045)

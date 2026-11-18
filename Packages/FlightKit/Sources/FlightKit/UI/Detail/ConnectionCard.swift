@@ -28,6 +28,8 @@ struct ConnectionSections: View {
     var now: Date
     @Environment(\.units) private var units
     @Environment(\.followedAlternate) private var followedAlternate
+    /// The alternate whose follow failed last, for the alert's Try Again (I6).
+    @State private var lastTried: AlternateFlight?
 
     /// True when there is a card to draw.
     static func isShown(_ store: ConnectionStore, flight: Flight, now: Date) -> Bool {
@@ -44,9 +46,15 @@ struct ConnectionSections: View {
                                      onFollow: follow)
             }
         }
+        // A follow from the "Other flights" card that failed: why, and Try Again on the same flight.
+        .failureAlert(Binding(get: { store.followError.map(ConnectionCopy.followFailed) },
+                              set: { if $0 == nil { store.clearFollowError() } }),
+                      title: "Could Not Follow",
+                      retry: lastTried.map { alt in { follow(alt) } })
     }
 
     private func follow(_ alt: AlternateFlight) {
+        lastTried = alt
         Task {
             guard let f = await store.follow(alt) else { return }
             await followedAlternate?.run(f)
@@ -76,13 +84,6 @@ private struct ConnectionUpdates: ViewModifier {
                 .task(id: flight.id) { await store.run(flight: flight) }
                 .task(id: request) { await store.loadAlternates(request) }
                 .onChange(of: flight) { _, f in store.apply(f) }
-                .alert("Could Not Follow", isPresented: Binding(
-                    get: { store.followError != nil },
-                    set: { if !$0 { store.clearFollowError() } })) {
-                    Button("OK", role: .cancel) { store.clearFollowError() }
-                } message: {
-                    Text(store.followError.map(ConnectionCopy.followFailed) ?? "")
-                }
         } else {
             content
         }

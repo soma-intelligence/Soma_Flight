@@ -94,7 +94,12 @@ public final class SearchStore {
     public private(set) var intent = SearchIntent()
     /// A short line under the field when the search cannot look where the text asks.
     public private(set) var note: String?
+    /// Why the search found nothing to show. A failed follow goes to `followError` instead (E6).
     public private(set) var error: APIError?
+    /// Why the last follow from a result failed, with a retry that follows the same flight again (E6).
+    public private(set) var followError: ActionFailure?
+    /// Flights whose follow is on its way.
+    public private(set) var following: Set<Flight.ID> = []
     public private(set) var isSearching = false
     /// Queries that found something, newest first, at most `recentLimit`.
     public private(set) var recent: [String] = []
@@ -137,6 +142,8 @@ public final class SearchStore {
     @ObservationIgnored private var suggestTask: Task<Void, Never>?
     @ObservationIgnored private var liveTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
+    /// The route the running `search()` asks, so a change of text to another route drops it (D1).
+    @ObservationIgnored private var searchingKey: String?
     /// The route `items` answer, so a change of text drops rows that no longer fit it.
     @ObservationIgnored private var resultsKey: String?
     /// The text `textChanged()` last handled.
@@ -176,6 +183,15 @@ public final class SearchStore {
         let typed = text
         intent = readIntent()
         let route = currentRoute()
+        // A search sent for another route (return, then more typing that starts no search of its own):
+        // its answer must never land under the new text (D1).
+        if let key = searchingKey, route?.key != key {
+            searchTask?.cancel()
+            searchTask = nil
+            searchingKey = nil
+            searchGeneration += 1
+            isSearching = false
+        }
         if route?.key != resultsKey {
             items = []; resultsKey = nil; error = nil; note = nil
         } else if let route {
@@ -525,8 +541,16 @@ public final class SearchStore {
             return
         }
         isSearching = true
+        searchingKey = r.key
+        let typed = text
         let a = await fetch(r)
         guard gen == searchGeneration else { return }
+        searchingKey = nil
+        // The text changed while the answer was on its way: keep it only if it still reads as this route.
+        if text != typed {
+            intent = readIntent()
+            guard currentRoute()?.key == r.key else { isSearching = false; return }
+        }
         if let e = a.error {
             error = e
             if e == .rateLimited { gate.didHitLimit(now: now()) }
@@ -547,17 +571,23 @@ public final class SearchStore {
         answers[key] = a
     }
 
-    /// True when the flight is now followed. Plan and rate limits set `error` and add nothing.
+    /// True when the flight is now followed. A failure (plan and rate limits included) sets `followError`,
+    /// never the search's `error`, so its Retry follows again instead of searching again (E6). A second
+    /// call while the first is on its way returns false and sends nothing.
     public func follow(_ flight: Flight) async -> Bool {
+        guard following.insert(flight.id).inserted else { return false }
+        defer { following.remove(flight.id) }
         do {
             try await flights.follow(flight.id, notify: true)
-            error = nil
+            followError = nil
             return true
         } catch {
-            self.error = error
+            followError = ActionFailure(.follow, error) { [weak self] in _ = await self?.follow(flight) }
             return false
         }
     }
+
+    public func clearFollowError() { followError = nil }
 
     public func clearRecent() {
         recent = []

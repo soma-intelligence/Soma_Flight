@@ -15,6 +15,7 @@ struct HomeEmptyFlights: View {
             Text(ui: "No flights yet")
                 .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             Text(ui: "Add a flight number or a route to follow it live.")
                 .themeFont(.label)
@@ -49,8 +50,11 @@ private struct HomeEmptyButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label { Text(ui: title) } icon: { Image(systemName: systemImage) }
+            // The words wrap at the largest text sizes instead of being cut (A12).
+            Label { Text(ui: title).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: systemImage) }
                 .scaledFont(17, weight: .semibold)
+                .scaledPadding(.horizontal, 16)
+                .scaledPadding(.vertical, 8)
                 // White on the accent fill, as the Add button of a search result (`ResultRow`).
                 .foregroundStyle(prominent ? Color.white : Theme.accent)
                 .frame(maxWidth: .infinity, minHeight: Theme.metric(52, scale))

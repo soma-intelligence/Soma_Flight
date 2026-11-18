@@ -61,7 +61,8 @@ extension View {
 }
 
 extension FlightActivityDisplay {
-    var levelColor: Color { ActivityPalette.color(level) }
+    /// Grey once the card is outdated: an old delay colour must not look like live news (E14).
+    var levelColor: Color { staleNote != nil ? ActivityPalette.secondary : ActivityPalette.color(level) }
     /// Status text: white when on time or canceled, as on the flight card, else the level colour.
     var statusColor: Color { level == .onTime || level == .canceled ? ActivityPalette.primary : levelColor }
     /// The bar: white when on time (the flight card's look), else the level colour.
@@ -104,6 +105,12 @@ public struct FlightActivityLockScreenView: View {
             .activityFont(13, relativeTo: .footnote)
             .foregroundStyle(ActivityPalette.secondary)
             .accessibilityHidden(true) // read with each end
+            if let note = display.staleNote {
+                Label { Text(ui: note) } icon: { Image(systemName: "clock.badge.exclamationmark") }
+                    .activityFont(13, relativeTo: .footnote)
+                    .foregroundStyle(ActivityPalette.secondary)
+                    .lineLimit(2)
+            }
         }
         .padding(16)
     }

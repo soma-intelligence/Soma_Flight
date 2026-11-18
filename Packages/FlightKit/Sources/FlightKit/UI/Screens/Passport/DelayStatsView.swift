@@ -74,7 +74,7 @@ struct DelayReportHero: View {
                     .tracking(2)
                     .foregroundStyle(.white)
                 Spacer(minLength: 8)
-                Text("\(year.map(String.init) ?? "All-time") delay report")
+                Text("\(year.map(String.init) ?? UIText.localized("All-time")) delay report")
                     .scaledFont(15, weight: .semibold)
                     .monospacedDigit()
                     .foregroundStyle(DelayInk.amber)

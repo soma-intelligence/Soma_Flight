@@ -93,8 +93,28 @@ public struct FlightActivityAttributes: Codable, Hashable, Sendable {
         /// The flight is over for the activity: the backend ends it on these too.
         public var isFinal: Bool { status == .arrived || status == .canceled }
 
-        /// When the system greys the card as outdated: an hour after the expected arrival.
+        /// The latest the card can stay current: an hour after the expected arrival.
         public var staleDate: Date? { estimatedIn?.addingTimeInterval(3600) }
+
+        /// How long a card for a flight that is moving (in the air, or leaving within `soonWindow`) stays
+        /// current without news. The backend pushes every few minutes then, so silence this long means the
+        /// pushes stopped and the card must say so (E14).
+        public static let liveStaleAfter: TimeInterval = 20 * 60
+        /// Before departure, the window in which gate and delay news comes often.
+        public static let soonWindow: TimeInterval = 3 * 3600
+
+        /// When the system marks the card outdated (`context.isStale`), for an update sent or applied at
+        /// `now`: `liveStaleAfter` later while the flight is moving, else `staleDate`. Never later than
+        /// `staleDate`.
+        public func staleDate(now: Date) -> Date? {
+            let moving = status == .departed || status == .enRoute
+                || ((status == .scheduled || status == .unknown)
+                    && (estimatedOut.map { $0.timeIntervalSince(now) <= Self.soonWindow } ?? false))
+            guard moving, !isFinal else { return staleDate }
+            let soon = now.addingTimeInterval(Self.liveStaleAfter)
+            guard let latest = staleDate else { return soon }
+            return min(soon, latest)
+        }
 
         /// Same card on screen: equal but for date noise under a second (the ISO round trip keeps
         /// milliseconds) and progress moves under 0.01. Saves updates that would change nothing.

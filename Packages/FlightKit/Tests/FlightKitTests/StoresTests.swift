@@ -77,7 +77,9 @@ private let wn4410 = UUID(uuidString: "20fae9c5-79ee-5ec3-a45a-015ed6c7fd9d")!
         await svc.setNextError(.planLimit)
         #expect(await store.follow(hit) == false)
         #expect(store.text == "AF84")
-        #expect(store.error == .planLimit)
+        // The follow's failure, not the search's (E6).
+        #expect(store.followError?.error == .planLimit)
+        #expect(store.error == nil)
         #expect(try await svc.followed().map(\.id) == before)
     }
 

@@ -6,6 +6,25 @@ enum TravelDocumentsCopy {
     static let syncTitle = "Sync"
     static let syncOff = "This device only"
     static let syncOn = "Encrypted, on all your devices"
+    /// The account has not taken the last change yet (E13).
+    static let syncPending = "Not synced yet"
+    /// The last send failed (E13); the row under it retries.
+    static let syncFailed = "Not synced yet. The last try didn't go through."
+    static let syncRetry = "Try Syncing Again"
+    /// A save that the Keychain or Face ID refused, as opposed to a number that does not read (I3).
+    static let saveFailed = "Couldn't save on this device. Nothing was changed. Try again."
+    static let removeTitle = "Remove this number?"
+    static let removeMessage = "It goes from all your devices. This can't be undone."
+
+    /// The sync row's line for `state` (E13): "on all your devices" only once the account has the documents.
+    static func syncLine(_ state: TravelDocumentsStore.SyncState) -> String {
+        switch state {
+        case .off: syncOff
+        case .synced: syncOn
+        case .pending: syncPending
+        case .failed: syncFailed
+        }
+    }
     static let deleteTitle = "Delete all travel documents?"
     static let deleteMessage = "This removes them from all your devices. It can't be undone."
 
@@ -58,7 +77,7 @@ public struct TravelDocumentsView: View {
         .onChange(of: phase) { _, new in if new != .active { store.hide() } }
         .sheet(item: $editing) { subject in
             TravelDocumentEditor(subject: subject, store: store, onClose: { editing = nil })
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
                 #if os(macOS)
                 .frame(minWidth: 400, minHeight: 420)
                 #endif
@@ -91,7 +110,8 @@ public struct TravelDocumentsView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let failure = store.failure {
-                Text(ui: failure).themeFont(.sectionSubtitle).foregroundStyle(Theme.late)
+                Text(ui: failure).themeFont(.sectionSubtitle).foregroundStyle(Theme.lateText)
+                    .fixedSize(horizontal: false, vertical: true)
                     .scaledPadding(.horizontal, Theme.gutter + 16).scaledPadding(.top, 8)
             }
             group("Loyalty") {
@@ -140,14 +160,18 @@ public struct TravelDocumentsView: View {
             }
             group("Sync") {
                 SettingsRow(icon: "icloud.fill", title: TravelDocumentsCopy.syncTitle,
-                            subtitle: store.syncsWithICloud ? TravelDocumentsCopy.syncOn : TravelDocumentsCopy.syncOff,
-                            last: true) {
+                            subtitle: TravelDocumentsCopy.syncLine(store.syncState),
+                            last: store.syncState != .failed) {
                     Toggle(TravelDocumentsCopy.syncTitle,
                            isOn: Binding(get: { store.syncsWithICloud }, set: { on in Task { await store.setSync(on) } }))
                         .labelsHidden()
                         .tint(Theme.accent)
                 }
                 .accessibilityElement(children: .combine)
+                if store.syncState == .failed {
+                    SettingsRow(icon: "arrow.clockwise", title: TravelDocumentsCopy.syncRetry, last: true,
+                                actionTitle: true, action: { Task { await store.retrySync() } }) { EmptyView() }
+                }
             }
             if !store.profile.isEmpty || !store.identityKinds.isEmpty {
                 group("Remove") {
@@ -212,8 +236,122 @@ public struct TravelDocumentsView: View {
     }
 }
 
+/// What saving an editor did (I3): stored, a number that does not read, a write the device refused, or an
+/// empty number that would remove a kept one and needs a yes first.
+enum TravelDocumentSaveOutcome: Equatable {
+    case saved, invalid, failed, confirmRemove
+}
+
+/// The editor's fields and its save, apart from the view so the tests can drive it (I3).
+@MainActor @Observable
+final class TravelDocumentEditorModel {
+    let subject: TravelDocumentEditor.Subject
+    var number = "" { didSet { if number != oldValue { error = nil } } }
+    var airline = "" { didSet { if airline != oldValue { error = nil } } }
+    var programme = ""
+    /// ISO 3166 code, "" for none.
+    var country = ""
+    var expires = Date.now
+    var hasExpiry = false
+    /// Why the last save did not go through; cleared as soon as the user types (I3).
+    private(set) var error: TravelDocumentSaveOutcome?
+    private(set) var saving = false
+    /// The hidden number was read (Face ID passed), so an empty field really means "remove it".
+    private(set) var numberLoaded = false
+    private var initial: Snapshot?
+
+    struct Snapshot: Equatable {
+        var number: String, airline: String, programme: String, country: String, expires: Date?
+    }
+
+    init(subject: TravelDocumentEditor.Subject) { self.subject = subject }
+
+    var kind: TravelDocumentKind {
+        switch subject {
+        case .loyalty: .loyalty
+        case .passport: .passport
+        case .knownTraveler: .knownTraveler
+        case .redress: .redress
+        }
+    }
+
+    private var snapshot: Snapshot {
+        Snapshot(number: number, airline: airline, programme: programme, country: country,
+                 expires: hasExpiry ? expires : nil)
+    }
+
+    /// Something changed since the editor filled in (I2).
+    var isDirty: Bool { initial.map { $0 != snapshot } ?? false }
+
+    /// The number as it will be stored ("ab 123-456" saves as "AB123456"), shown before saving when it
+    /// differs from what was typed; nil when it already reads the same or does not read at all.
+    var normalizedPreview: String? {
+        let typed = number.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty, let v = TravelDocumentRules.validated(typed, as: kind), v != typed else { return nil }
+        return v
+    }
+
+    /// Fills the fields from the store: the hidden number only after Face ID.
+    func prefill(from store: TravelDocumentsStore) async {
+        switch subject {
+        case .loyalty(let n?):
+            airline = n.airline; number = n.number; programme = n.programme ?? ""; numberLoaded = true
+        case .loyalty(nil):
+            numberLoaded = true
+        case .passport:
+            country = store.profile.passportCountry ?? ""
+            if let d = TravelDocumentRules.day(store.profile.passportExpires) { expires = d; hasExpiry = true }
+            await loadHidden(.passport, from: store)
+        case .knownTraveler, .redress:
+            await loadHidden(kind, from: store)
+        }
+        initial = snapshot
+        error = nil
+    }
+
+    private func loadHidden(_ kind: TravelDocumentKind, from store: TravelDocumentsStore) async {
+        if !store.identityKinds.contains(kind) { numberLoaded = true; return }
+        if await store.reveal() { number = store.display(kind) ?? ""; numberLoaded = true }
+    }
+
+    /// Saves to `store`. `airlineID` is the airline the typed text names (loyalty only). An empty number that
+    /// would remove a kept one returns `.confirmRemove` until `confirmedRemove` is true.
+    func save(to store: TravelDocumentsStore, airlineID: String?, confirmedRemove: Bool = false) async
+        -> TravelDocumentSaveOutcome {
+        guard !saving else { return .failed }
+        let typed = number.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A number that does not read never reaches the store: that is `.invalid`, not a failure.
+        if !typed.isEmpty, TravelDocumentRules.validated(typed, as: kind) == nil { return finish(.invalid) }
+        if kind == .loyalty, airlineID == nil || typed.isEmpty { return finish(.invalid) }
+        let removes = kind != .loyalty && typed.isEmpty && numberLoaded && store.identityKinds.contains(kind)
+        if removes, !confirmedRemove { return .confirmRemove }
+        saving = true
+        defer { saving = false }
+        let ok: Bool
+        switch subject {
+        case .loyalty(let n):
+            ok = store.saveLoyalty(id: n?.id ?? UUID(), airline: airlineID ?? "", number: typed, programme: programme)
+        case .passport:
+            // Face ID refused earlier: the field never showed the number, so an empty one keeps it.
+            let value: String? = typed.isEmpty && !numberLoaded ? nil : typed
+            ok = await store.savePassport(number: value, country: country, expires: hasExpiry ? expires : nil)
+        case .knownTraveler, .redress:
+            if typed.isEmpty, !store.identityKinds.contains(kind) || !numberLoaded { return finish(.saved) }
+            ok = await store.saveHidden(kind, typed)
+        }
+        return finish(ok ? .saved : .failed)
+    }
+
+    private func finish(_ outcome: TravelDocumentSaveOutcome) -> TravelDocumentSaveOutcome {
+        error = outcome == .saved ? nil : outcome
+        return outcome
+    }
+}
+
 /// Adds or edits one travel document: a loyalty number (airline, number, programme name), the passport
-/// (number, country, expiry) or a Known Traveler or Redress number. Saving an invalid number says why.
+/// (number, country, expiry) or a Known Traveler or Redress number. The modal header (R5, I12): Cancel on the
+/// left asks before dropping a change (I2), Done on the right saves. Each field has a persistent label (I5).
+/// A number that does not read says how it should look; a save the device refused says so apart (I3).
 struct TravelDocumentEditor: View {
     enum Subject: Identifiable, Hashable {
         case loyalty(LoyaltyNumber?)
@@ -229,50 +367,66 @@ struct TravelDocumentEditor: View {
         }
     }
 
+    enum Field: Hashable { case airline, number, programme }
+
     var subject: Subject
     var store: TravelDocumentsStore
     var onClose: () -> Void
 
     @Environment(\.reference) private var reference
-    @State private var number = ""
-    @State private var airline = ""
-    @State private var programme = ""
-    @State private var country = ""
-    @State private var expires = Date.now
-    @State private var hasExpiry = false
-    @State private var invalid = false
-    @State private var saving = false
+    @State private var model: TravelDocumentEditorModel
+    @State private var confirmingRemove = false
+    @State private var confirmingDelete = false
+    @FocusState private var focus: Field?
+
+    init(subject: Subject, store: TravelDocumentsStore, onClose: @escaping () -> Void) {
+        self.subject = subject; self.store = store; self.onClose = onClose
+        _model = State(initialValue: TravelDocumentEditorModel(subject: subject))
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                CardTitle(title).scaledPadding(.trailing, 44)
-                fields
-                if invalid {
-                    Text(ui: invalidText).scaledFont(13).foregroundStyle(Theme.late)
+        VStack(spacing: 0) {
+            TravelDocumentEditorHeader(title: title, onDone: { save() }, doneDisabled: model.saving)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.metric(Theme.Space.md, scale)) {
+                    fields
+                    if model.error == .failed {
+                        Label { Text(ui: store.failure ?? TravelDocumentsCopy.saveFailed) } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                        }
+                        .scaledFont(13, weight: .medium)
+                        .foregroundStyle(Theme.lateText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if model.saving {
+                        ProgressView().frame(maxWidth: .infinity).accessibilityLabel("Saving")
+                    }
+                    if case .loyalty(let n?) = subject {
+                        Button("Delete This Number", role: .destructive) { confirmingDelete = true }
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .confirmDestructive(isPresented: $confirmingDelete, title: "Delete this loyalty number?",
+                                                message: TravelDocumentsCopy.removeMessage,
+                                                actionTitle: "Delete This Number") {
+                                store.deleteLoyalty(n.id); onClose()
+                            }
+                    }
                 }
-                Button(action: save) {
-                    Text(saving ? "Saving…" : "Save")
-                        .scaledFont(17, weight: .semibold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .scaledPadding(.vertical, 14)
-                        .background(Capsule().fill(Theme.accent))
-                }
-                .buttonStyle(.plain)
-                .disabled(saving)
-                if case .loyalty(let n?) = subject {
-                    Button("Delete This Number", role: .destructive) { store.deleteLoyalty(n.id); onClose() }
-                        .frame(maxWidth: .infinity)
-                }
+                .scaledPadding(.horizontal, Theme.gutter)
+                .scaledPadding(.vertical, Theme.Space.md)
             }
-            .scaledPadding(.horizontal, Theme.gutter)
-            .scaledPadding(.vertical, 24)
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Theme.background)
-        .overlay(alignment: .topTrailing) { CloseButton(action: onClose) }
-        .task { await prefill() }
+        .keyboardDoneBar()
+        .guardsUnsavedChanges(isDirty: model.isDirty, isSaving: model.saving, onDiscard: onClose)
+        .confirmDestructive(isPresented: $confirmingRemove, title: TravelDocumentsCopy.removeTitle,
+                            message: TravelDocumentsCopy.removeMessage, actionTitle: "Remove Number") {
+            save(confirmedRemove: true)
+        }
+        .task { await model.prefill(from: store) }
     }
+
+    @Environment(\.metricsScale) private var scale
 
     private var title: String {
         switch subject {
@@ -283,98 +437,126 @@ struct TravelDocumentEditor: View {
         }
     }
 
-    private var kind: TravelDocumentKind {
-        switch subject {
-        case .loyalty: .loyalty
-        case .passport: .passport
-        case .knownTraveler: .knownTraveler
-        case .redress: .redress
-        }
-    }
-
     private var invalidText: String {
-        switch kind {
-        case .loyalty: "Pick an airline and enter a number of 4 to 20 letters and digits."
+        switch model.kind {
+        case .loyalty: "A loyalty number has 4 to 20 letters and digits."
         case .passport: "A passport number has 5 to 12 letters and digits."
         case .knownTraveler: "A Known Traveler Number has 8 to 10 letters and digits."
         case .redress: "A Redress Number has 6 to 13 digits."
         }
     }
 
+    /// The error under the number field: only for a number that does not read.
+    private var numberError: String? {
+        guard model.error == .invalid else { return nil }
+        if model.kind == .loyalty, airlineMatch == nil { return nil }
+        return model.number.trimmingCharacters(in: .whitespaces).isEmpty && model.kind == .loyalty
+            ? "Enter the number." : invalidText
+    }
+
+    /// Under the number: the stored form when it differs from what was typed (I3), else a hint.
+    private var numberFootnote: String? {
+        if let v = model.normalizedPreview { return UIText.localized("Saves as") + " " + v }
+        return model.kind == .loyalty ? nil : "Leave the number empty to remove it."
+    }
+
     @ViewBuilder private var fields: some View {
+        @Bindable var model = model
         if case .loyalty = subject {
-            field("Airline code or name", text: $airline)
-            if let match = airlineMatch {
-                Text(ui: match.name).scaledFont(13).foregroundStyle(Theme.secondary)
-            }
-            field("Number", text: $number)
-            field("Programme name (optional)", text: $programme)
+            FormField("Airline", text: $model.airline, prompt: "AF or Air France",
+                      error: model.error == .invalid && airlineMatch == nil
+                        ? "Type an airline's code or name, like AF or Air France." : nil,
+                      footnote: airlineMatch?.name,
+                      capitalization: .words, autocorrect: false,
+                      focus: $focus, field: .airline, next: .number)
+            FormField("Number", text: $model.number, prompt: "1234567890", error: numberError,
+                      footnote: numberFootnote, keyboard: .ascii, capitalization: .characters, autocorrect: false,
+                      focus: $focus, field: .number, next: .programme)
+            FormField("Programme name (optional)", text: $model.programme, prompt: "Flying Blue",
+                      capitalization: .words, submitLabel: .done,
+                      focus: $focus, field: .programme, onSubmit: { save() })
         } else {
-            field(kind == .passport ? "Passport number" : "Number", text: $number, secure: true)
-            if kind == .passport {
-                field("Issuing country code, FR or US", text: $country)
-                Toggle("Expiry date", isOn: $hasExpiry).tint(Theme.accent)
-                if hasExpiry {
-                    DatePicker("Expires", selection: $expires, displayedComponents: .date)
+            FormField(model.kind == .passport ? "Passport number" : "Number", text: $model.number,
+                      prompt: prompt, error: numberError, footnote: numberFootnote,
+                      keyboard: model.kind == .redress ? .number : .ascii,
+                      capitalization: .characters, autocorrect: false, submitLabel: .done,
+                      focus: $focus, field: .number, onSubmit: { save() })
+            if model.kind == .passport {
+                Picker(selection: $model.country) {
+                    Text("None").tag("")
+                    ForEach(TravelDocumentCountries.all, id: \.code) { c in
+                        Text(verbatim: c.name).tag(c.code)
+                    }
+                } label: {
+                    Text("Issuing country")
+                }
+                .pickerStyle(.menu)
+                .tint(Theme.accentText)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                Toggle("Expiry date", isOn: $model.hasExpiry).tint(Theme.accent)
+                if model.hasExpiry {
+                    DatePicker("Expires", selection: $model.expires, displayedComponents: .date)
                 }
             }
-            Text("Leave the number empty to remove it.").scaledFont(13).foregroundStyle(Theme.secondary)
         }
     }
 
-    private func field(_ prompt: String, text: Binding<String>, secure: Bool = false) -> some View {
-        TextField(prompt, text: text)
-            .scaledFont(17)
-            .autocorrectionDisabled()
-            #if os(iOS)
-            .textInputAutocapitalization(.characters)
-            .textContentType(secure ? .oneTimeCode : nil)
-            #endif
-            .scaledPadding(.all, 12)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.card.opacity(0.5)))
+    private var prompt: String {
+        switch model.kind {
+        case .passport: "19AB12345"
+        case .knownTraveler: "TT1234567"
+        case .redress: "1234567"
+        case .loyalty: ""
+        }
     }
 
     /// The airline typed: an ICAO or IATA code, else the first name that starts with the text.
     private var airlineMatch: Airline? {
-        let t = airline.trimmingCharacters(in: .whitespaces)
+        let t = model.airline.trimmingCharacters(in: .whitespaces)
         guard t.count >= 2 else { return nil }
         if let a = reference.airline(t.uppercased()) { return a }
         return reference.airlines.first { $0.name.lowercased().hasPrefix(t.lowercased()) }
     }
 
-    private func prefill() async {
-        switch subject {
-        case .loyalty(let n?):
-            airline = n.airline; number = n.number; programme = n.programme ?? ""
-        case .loyalty(nil):
-            break
-        case .passport:
-            country = store.profile.passportCountry ?? ""
-            if let d = TravelDocumentRules.day(store.profile.passportExpires) { expires = d; hasExpiry = true }
-            if store.identityKinds.contains(.passport), await store.reveal() { number = store.display(.passport) ?? "" }
-        case .knownTraveler, .redress:
-            if store.identityKinds.contains(kind), await store.reveal() { number = store.display(kind) ?? "" }
-        }
-    }
-
-    private func save() {
-        saving = true
+    private func save(confirmedRemove: Bool = false) {
+        focus = nil
         Task {
-            let ok: Bool
-            switch subject {
-            case .loyalty(let n):
-                if let a = airlineMatch {
-                    ok = store.saveLoyalty(id: n?.id ?? UUID(), airline: a.id, number: number, programme: programme)
-                } else { ok = false }
-            case .passport:
-                ok = await store.savePassport(number: number, country: country, expires: hasExpiry ? expires : nil)
-            case .knownTraveler, .redress:
-                ok = await store.saveHidden(kind, number)
+            switch await model.save(to: store, airlineID: airlineMatch?.id, confirmedRemove: confirmedRemove) {
+            case .saved: onClose()
+            case .confirmRemove: confirmingRemove = true
+            case .invalid, .failed: break
             }
-            saving = false
-            if ok { onClose() } else { invalid = true }
         }
     }
+}
+
+/// The editor's modal header: Cancel on the left through `guardsUnsavedChanges`, Done on the right saves.
+private struct TravelDocumentEditorHeader: View {
+    var title: String
+    var onDone: () -> Void
+    var doneDisabled: Bool
+    @Environment(\.requestCancel) private var requestCancel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        SheetHeader(.modal(title: title, leading: .cancel { if let requestCancel { requestCancel() } else { dismiss() } },
+                           onDone: onDone, doneDisabled: doneDisabled))
+            .scaledPadding(.top, 8)
+    }
+}
+
+/// Every region with a two-letter ISO code, named in the app's language, for the passport's country.
+enum TravelDocumentCountries {
+    struct Entry: Hashable { var code: String; var name: String }
+
+    static let all: [Entry] = {
+        let locale = Locale.current
+        return Locale.Region.isoRegions
+            .map(\.identifier)
+            .filter { $0.count == 2 && $0.allSatisfy(\.isLetter) }
+            .compactMap { code in locale.localizedString(forRegionCode: code).map { Entry(code: code.uppercased(), name: $0) } }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }()
 }
 
 #Preview("Travel Documents") {

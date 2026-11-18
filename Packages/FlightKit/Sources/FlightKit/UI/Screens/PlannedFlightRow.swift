@@ -47,7 +47,7 @@ enum PlannedFlight {
         cal.timeZone = .gmt
         guard let date = cal.date(from: DateComponents(year: u.day.year, month: u.day.month, day: u.day.day, hour: 12))
         else { return "" }
-        var style = Date.FormatStyle(locale: Locale(identifier: "en_US_POSIX"), timeZone: .gmt)
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: .gmt)
         style = style.weekday(.abbreviated).month(.abbreviated).day()
         return date.formatted(style)
     }
@@ -57,7 +57,8 @@ enum PlannedFlight {
 
 /// A flight added ahead of time, in My Flights until it comes within reach and is followed: the same
 /// chrome as `MyFlightRow` (`FlightRowChrome`), with "PLANNED" under the countdown. It has no status,
-/// gate or terminal, and no detail screen.
+/// gate or terminal, and no detail screen: a tap opens its options, which a small "…" at the foot of the
+/// row shows (I9).
 struct PlannedFlightRow: View {
     var flight: UpcomingFlight
     var origin: Airport?
@@ -84,6 +85,13 @@ struct PlannedFlightRow: View {
             FlightRowEnd(icon: "arrow.up.right", code: flight.origin ?? "---", time: flight.departure,
                          tz: origin?.timeZone, marker: nil)
             FlightRowEnd(icon: "arrow.down.right", code: flight.destination ?? "---", time: nil, tz: nil, marker: nil)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "ellipsis.circle")
+                .scaledFont(17, weight: .medium)
+                .foregroundStyle(Theme.secondary)
+                .scaledPadding(.bottom, 14)
+                .accessibilityHidden(true)
         }
     }
 
@@ -112,8 +120,13 @@ struct PlannedFlightRow: View {
         }
     }
 
+    /// Built from localized pieces (A1): "AF 84, Paris to Rome, Fri, Oct 30, 3 days, planned".
     private var accessibilityText: String {
-        [Format.ident(flight.ident), ScreenFormat.route(originName, destinationName), PlannedFlight.day(flight),
-         count.value.isEmpty ? "Planned" : "\(count.value) \(count.unit.lowercased()), planned"].joined(separator: ", ")
+        let from = UIText.localized(originName), to = UIText.localized(destinationName)
+        let unit = UIText.localized(count.unit).lowercased()
+        let planned = UIText.localized("Planned")
+        return [Format.ident(flight.ident), String(localized: "\(from) to \(to)", bundle: .main), PlannedFlight.day(flight),
+                count.value.isEmpty ? planned : "\(count.value) \(unit), \(planned.lowercased())"]
+            .joined(separator: ", ")
     }
 }

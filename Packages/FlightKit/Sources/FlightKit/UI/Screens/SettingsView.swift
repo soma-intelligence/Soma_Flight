@@ -57,6 +57,8 @@ public struct SettingsView: View {
     @AppStorage(LeaveTimeSettings.precheckKey) private var precheck = false
     /// The deletion failed and the account is still signed in.
     @State private var deleteFailure: APIError?
+    /// The export sheet offered from the deletion dialog (D5).
+    @State private var exportingFirst = false
 
     private enum Confirmation: Identifiable {
         case signOut, deleteAccount
@@ -65,7 +67,9 @@ public struct SettingsView: View {
 
     /// The deletion dialog's copy.
     static let deleteTitle = "Delete your account?"
-    static let deleteMessage = "Your followed flights and flight history will be removed. This can't be undone."
+    static let deleteMessage = "This removes the flights you follow, your flight history, your friends, the travel documents synced to your account, your profile photo and your Live Activities. Your app settings stay on this device until you delete the app. This can't be undone."
+    /// Offered next to Delete Account when there is a history to export first (D5).
+    static let exportFirstTitle = "Export My History First"
 
     /// - Parameters:
     ///   - onSignIn: shows the sign-in screen from the signed-out account row; nil hides the button.
@@ -317,6 +321,9 @@ public struct SettingsView: View {
                 Button("Sign Out", role: .destructive) { Task { await session.signOut() } }
             case .deleteAccount:
                 Button("Delete Account", role: .destructive) { deleteAccount() }
+                if history != nil {
+                    Button { exportingFirst = true } label: { Text(ui: Self.exportFirstTitle) }
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: { action in
@@ -368,13 +375,20 @@ public struct SettingsView: View {
             }
         }
         #endif
-        .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteFailure != nil },
-                                                                   set: { if !$0 { deleteFailure = nil } }),
-               presenting: deleteFailure) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { error in
-            Text("\(error.message) You're still signed in.")
+        // Try Again runs the deletion again (I6); the account is still signed in until it works.
+        .failureAlert(Binding(get: { deleteFailure.map(Self.deleteFailureText) },
+                              set: { if $0 == nil { deleteFailure = nil } }),
+                      title: "Couldn't Delete Your Account", retry: deleteAccount)
+        .sheet(isPresented: $exportingFirst) {
+            if let history {
+                ExportBeforeDeleteSheet(history: history, onDone: { exportingFirst = false })
+            }
         }
+    }
+
+    /// The failed deletion's message: why, then that the account is still there.
+    static func deleteFailureText(_ error: APIError) -> String {
+        UIText.localized(error.message(hasContent: false)) + " " + UIText.localized("You're still signed in.")
     }
 
     /// Runs the deletion; on success the session ends and the shells show Sign In, on failure the account
@@ -488,8 +502,9 @@ struct SettingsHero: View {
                 Text(ui: title(name))
                     .themeFont(.sectionTitle)
                     .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    // Wraps at large sizes instead of cutting the name (A12).
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(ui: detail)
                     .themeFont(.label)
                     .foregroundStyle(Theme.secondary)
@@ -601,6 +616,45 @@ enum SettingsStyle {
     static let orange = Color(light: 0xE09400, dark: 0xE09400)
     static let red = Color(light: 0xE5372C, dark: 0xE5372C)
     static let slate = Color(light: 0x475569, dark: 0x475569)
+}
+
+/// The two history exports, offered before deleting the account (D5): pick one, share it, then Done goes
+/// back to Settings, where Delete Account waits.
+struct ExportBeforeDeleteSheet: View {
+    var history: any HistoryService
+    var onDone: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Keep a copy of every flight in your history before the account goes. The file is built on this device.")
+                        .scaledFont(15)
+                        .foregroundStyle(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .scaledPadding(.horizontal, 16)
+                        .scaledPadding(.bottom, 8)
+                    SettingsSection {
+                        ExportRow(icon: "curlybraces", title: "Export History as JSON", tint: SettingsStyle.slate,
+                                  format: .json, history: history)
+                        ExportRow(icon: "tablecells.fill", title: "Export History as CSV", tint: SettingsStyle.green,
+                                  format: .csv, history: history, last: true)
+                    }
+                }
+                .scaledPadding(.vertical, 16)
+            }
+            .background(Theme.background)
+            .navigationTitle(Text("Export Your History"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: onDone) } }
+        }
+        .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 320)
+        #endif
+    }
 }
 
 /// A history export row: opens the share sheet with `soma-flight-history-YYYY-MM-DD.<ext>`, built on

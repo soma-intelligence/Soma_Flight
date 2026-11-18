@@ -33,8 +33,9 @@ enum FriendFacts {
         guard let d = delay else { return nil }
         let m = Int(d.components.seconds / 60)
         guard m >= 5 else { return nil }
-        if m < 60 { return "\(m) min late" }
-        return m % 60 == 0 ? "\(m / 60) h late" : "\(m / 60) h \(m % 60) min late"
+        let h = m / 60, rest = m % 60
+        if m < 60 { return Format.words("\(m) min late") }
+        return rest == 0 ? Format.words("\(h) h late") : Format.words("\(h) h \(rest) min late")
     }
 
     private static func unitWord(_ unit: String, _ value: String) -> String {
@@ -53,7 +54,8 @@ enum FriendFacts {
 
     /// "Friends since October 2026".
     static func since(_ d: Date) -> String {
-        "Friends since \(d.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en_US_POSIX"))))"
+        let month = d.formatted(.dateTime.month(.wide).year().locale(FlightActivityDisplay.uiLocale))
+        return Format.words("Friends since \(month)")
     }
 
     /// "AF 84 · Paris → San Francisco": the flight and its cities (codes when an airport is unknown).
@@ -66,17 +68,22 @@ enum FriendFacts {
     /// "in the air · lands in 1h 20m", "departs in 40 min · 25 min late", "landed", "canceled".
     static func when(_ f: Flight, now: Date) -> (text: String, color: Color) {
         switch f.status {
-        case .canceled: return ("canceled", Theme.veryLate)
-        case .diverted: return ("diverted", Theme.diverted)
-        case .landed, .arrived: return ("landed", Theme.secondary)
+        case .canceled: return (UIText.localized("canceled"), Theme.veryLate)
+        case .diverted: return (UIText.localized("diverted"), Theme.diverted)
+        case .landed, .arrived: return (UIText.localized("landed"), Theme.secondary)
         case .departed, .enRoute:
             let lands = DetailFacts.bestIn(f).map { Int($0.timeIntervalSince(now) / 60) }.flatMap { $0 > 0 ? $0 : nil }
-            return (["in the air", lands.map { "lands in \(span($0))" }].compactMap { $0 }.joined(separator: " · "),
+            let landing = lands.map { minutes -> String in
+                let left = span(minutes)
+                return Format.words("lands in \(left)")
+            }
+            return ([UIText.localized("in the air"), landing].compactMap { $0 }.joined(separator: " · "),
                     f.level.color)
         case .scheduled, .unknown:
-            guard let out = DetailFacts.bestOut(f) else { return ("scheduled", f.level.color) }
+            guard let out = DetailFacts.bestOut(f) else { return (UIText.localized("scheduled"), f.level.color) }
             let m = Int(out.timeIntervalSince(now) / 60)
-            let leaves = m <= 0 ? "departing now" : "departs in \(span(m))"
+            let left = span(m)
+            let leaves = m <= 0 ? Format.words("departing now") : Format.words("departs in \(left)")
             return ([leaves, lateText(f)].compactMap { $0 }.joined(separator: " · "), f.level.color)
         }
     }
@@ -84,13 +91,13 @@ enum FriendFacts {
     /// A wait in a few characters: "40 min", "1h 40m" (under 3 hours), "3h", "1 day", "4 days".
     static func span(_ minutes: Int) -> String {
         let m = max(0, minutes)
-        if m < 60 { return "\(m) min" }
+        if m < 60 { return Format.words("\(m) min") }
         if m < 24 * 60 {
             let h = m / 60, rest = m % 60
-            return h < 3 && rest > 0 ? "\(h)h \(rest)m" : "\(h)h"
+            return h < 3 && rest > 0 ? Format.words("\(h)h \(rest)m") : Format.words("\(h)h")
         }
         let d = m / (24 * 60)
-        return d == 1 ? "1 day" : "\(d) days"
+        return d == 1 ? Format.words("1 day") : Format.words("\(d) days")
     }
 
     /// The friend code as VoiceOver reads it, one character at a time in its two groups:

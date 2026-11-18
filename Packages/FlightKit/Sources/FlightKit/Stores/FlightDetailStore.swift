@@ -8,7 +8,26 @@ public final class FlightDetailStore {
     public private(set) var origin: Airport?
     /// The airport the flight actually ended at: the diversion target when diverted.
     public private(set) var destination: Airport?
+    /// Why the flight itself could not be refreshed. Only the flight call sets it (E10): a section that
+    /// failed (events, airports) goes to `sectionErrors`, and an Alerts switch that failed to `notifyError`.
     public private(set) var error: APIError?
+    /// Sections that failed while the flight itself loaded (E10). The sheet may show a quiet note on that
+    /// section; the flight is not "couldn't refresh".
+    public private(set) var sectionErrors: [Section: APIError] = [:]
+    /// Why the last Alerts switch did not stick (I4); the switch went back. Retry with `retryNotify()`.
+    public private(set) var notifyError: APIError?
+    /// The value the failed Alerts switch asked for, for `retryNotify()`.
+    @ObservationIgnored private var failedNotify: Bool?
+
+    /// The parts of the sheet that load on their own after the flight.
+    public enum Section: String, Sendable, Hashable, CaseIterable {
+        case events, origin, destination
+    }
+
+    /// The flight no longer exists on the server (deleted, purged, a stale link): the sheet says so instead
+    /// of the search's "Check the number and date" with a Retry that cannot help (I7).
+    public var isGone: Bool { error == .notFound }
+
     /// Alerts for this flight: true or false while the user follows it, nil when not followed or unknown.
     public private(set) var notify: Bool?
     /// A notify change is on its way to the server.
@@ -140,18 +159,19 @@ public final class FlightDetailStore {
         if self.flight == nil, let flight, flight.id == id { self.flight = flight }
     }
 
-    /// Failures set `error` (first one wins) and keep earlier data. A diverted flight whose events
-    /// failed shows no destination rather than the planned one.
+    /// A failure of the flight call sets `error` and keeps earlier data; a section that fails sets
+    /// `sectionErrors` only (E10). A diverted flight whose events failed shows no destination rather than
+    /// the planned one.
     public func load() async {
-        var firstError: APIError?
-        func note(_ e: APIError) { if firstError == nil { firstError = e } }
+        var failed: [Section: APIError] = [:]
         if isArchived, var f = flight {
-            do { origin = try await airports.airport(f.originIcao) } catch { note(error) }
-            do { destination = try await airports.airport(f.destinationIcao) } catch { note(error) }
+            do { origin = try await airports.airport(f.originIcao) } catch { failed[.origin] = error }
+            do { destination = try await airports.airport(f.destinationIcao) } catch { failed[.destination] = error }
             // The history row keeps ICAO codes only; the airports give the IATA ones the screen shows.
             f.originIata = origin?.iata; f.destinationIata = destination?.iata
             flight = f
-            error = firstError
+            error = nil
+            sectionErrors = failed
             return
         }
         // The boarding pass is on the device: it shows at the gate even with no network.
@@ -185,6 +205,7 @@ public final class FlightDetailStore {
             return
         }
         flight = f
+        error = nil
         // The switch only: a failure hides it rather than covering the flight with an error.
         if !isSavingNotify, let n = try? await flights.notifies(id), !isSavingNotify { notify = n }
         // The tiles likewise: a failure keeps what they show.
@@ -194,7 +215,7 @@ public final class FlightDetailStore {
         }
 
         var eventsFailed = false
-        do { events = try await flights.events(id) } catch { note(error); eventsFailed = true }
+        do { events = try await flights.events(id) } catch { failed[.events] = error; eventsFailed = true }
 
         var destCode: String? = f.destinationIcao
         if f.status == .diverted {
@@ -204,13 +225,13 @@ public final class FlightDetailStore {
                 destCode = nil
             }
         }
-        do { origin = try await airports.airport(f.originIcao) } catch { note(error) }
+        do { origin = try await airports.airport(f.originIcao) } catch { failed[.origin] = error }
         if let destCode {
-            do { destination = try await airports.airport(destCode) } catch { note(error); destination = nil }
+            do { destination = try await airports.airport(destCode) } catch { failed[.destination] = error; destination = nil }
         } else {
             destination = nil
         }
-        error = firstError
+        sectionErrors = failed
         await keepOfflinePack(f, now: .now)
     }
 
@@ -325,19 +346,31 @@ public final class FlightDetailStore {
     }
 
     /// Turns alerts for the followed flight on or off (`follow(_:notify:)`). The switch moves at once and
-    /// goes back, with `error` set, when the server refuses.
+    /// goes back, with `notifyError` set (never the page's `error`, I4), when the server refuses.
     public func setNotify(_ on: Bool) async {
         guard let before = notify, before != on, !isSavingNotify else { return }
         notify = on
+        notifyError = nil
+        failedNotify = nil
         isSavingNotify = true
         defer { isSavingNotify = false }
         do {
             try await flights.follow(id, notify: on)
         } catch {
             notify = before
-            self.error = error
+            notifyError = error
+            failedNotify = on
         }
     }
+
+    /// Sends the Alerts change that failed again (the error toast's Retry).
+    public func retryNotify() async {
+        guard let on = failedNotify else { return }
+        await setNotify(on)
+    }
+
+    /// Forgets the last Alerts error (the toast went away).
+    public func clearNotifyError() { notifyError = nil; failedNotify = nil }
 
     /// Stores the booking code, seat and notes of the followed flight. Each field is normalised first
     /// (`FollowDetails.normalized()`); a value that does not normalise sends nothing and returns false.

@@ -393,7 +393,7 @@ struct OperationsReportRow: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Operations report").themeFont(.body).foregroundStyle(Theme.primary)
-                        Text(impact.map { $0.reason } ?? "Delays and weather, decoded")
+                        Text(ui: impact.map { $0.reason } ?? "Delays and weather, decoded")
                             .themeFont(.sectionSubtitle)
                             .foregroundStyle(impact?.slows == true ? Theme.late : Theme.secondary)
                             .lineLimit(2)

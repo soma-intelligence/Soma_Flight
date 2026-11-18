@@ -130,12 +130,19 @@ public struct HomeDestination: View {
             FlightScreen(env: home.env, id: id, owner: home.owner, seed: home.followed.first { $0.id == id },
                          onAirport: home.open(airport:),
                          onClose: home.shell.close) { id in
-                // Through My Flights so its list drops the flight at once.
-                guard let flight = home.followed.first(where: { $0.id == id }) else {
+                // Through the home's undoable removal (I1, E15): the detail closes at once, the list drops the
+                // flight, and the toast offers Undo before the server hears of it.
+                guard let flight = home.myFlights.flight(id) else {
                     do throws(APIError) { try await home.env.flights.unfollow(id); return nil } catch { return error }
                 }
-                await home.myFlights.unfollow(flight)
-                return home.myFlights.error
+                home.unfollowWithUndo(flight)
+                return nil
+            }
+            // The detail's Stop Following: the home's undoable removal, so the toast offers Undo (I1, E15).
+            .onStopFollowing { flight in
+                guard home.myFlights.contains(flight.id) else { return false }
+                home.unfollowWithUndo(flight)
+                return true
             }
             // A flight followed from the "Other flights" card: My Flights takes it and the sheet shows it.
             .onFollowedAlternate { flight in
@@ -166,6 +173,7 @@ public struct HomeDestination: View {
 public struct HomeTabPill: View {
     @Binding var tab: HomeTab
     var onSearch: () -> Void
+    var onReselect: (() -> Void)?
     var bottom: CGFloat
     @Namespace private var selectionSpace
     @Environment(\.metricsScale) private var scale
@@ -173,9 +181,12 @@ public struct HomeTabPill: View {
     /// Darkens the glass so the cards scrolling under it stay quiet, as in the reference.
     public static let tint = Color(light: 0xFFFFFF, dark: 0x1C1C1E).opacity(0.55)
 
-    /// - Parameter bottom: space under the pill; negative reaches into a home indicator inset.
-    public init(tab: Binding<HomeTab>, bottom: CGFloat = 0, onSearch: @escaping () -> Void) {
-        _tab = tab; self.bottom = bottom; self.onSearch = onSearch
+    /// - Parameters:
+    ///   - bottom: space under the pill; negative reaches into a home indicator inset.
+    ///   - onReselect: the selected tab was tapped again (I10): pop the open cards, else scroll to the top.
+    public init(tab: Binding<HomeTab>, bottom: CGFloat = 0, onSearch: @escaping () -> Void,
+                onReselect: (() -> Void)? = nil) {
+        _tab = tab; self.bottom = bottom; self.onSearch = onSearch; self.onReselect = onReselect
     }
 
     public var body: some View {
@@ -199,6 +210,10 @@ public struct HomeTabPill: View {
             .glassEffect(.regular.tint(Self.tint).interactive(), in: .circle)
             .pointerHighlight(Circle())
             .accessibilityLabel("Search")
+            // Fixed size: a long press at accessibility text sizes shows it large (A6).
+            .accessibilityShowsLargeContentViewer {
+                Label("Search", systemImage: "magnifyingglass")
+            }
         }
         .scaledPadding(.horizontal, 20)
         .scaledPadding(.top, 8)
@@ -208,7 +223,7 @@ public struct HomeTabPill: View {
     private func item(_ value: HomeTab, title: String, systemImage: String) -> some View {
         let selected = tab == value
         return Button {
-            withAnimation(.snappy) { tab = value }
+            if selected { onReselect?() } else { withAnimation(.snappy) { tab = value } }
         } label: {
             VStack(spacing: Theme.metric(2, scale)) {
                 Image(systemName: systemImage)
@@ -232,6 +247,9 @@ public struct HomeTabPill: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityShowsLargeContentViewer {
+            Label { Text(ui: title) } icon: { Image(systemName: systemImage) }
+        }
     }
 }
 
@@ -264,6 +282,9 @@ public struct RoundButton: View {
         .roundGlass(tint: tint)
         .pointerHighlight(Circle())
         .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer {
+            Label { Text(ui: label) } icon: { Image(systemName: systemImage) }
+        }
     }
 }
 
@@ -307,9 +328,15 @@ public struct LaunchPlaceholder: View {
     var failure: String?
     var showsProgress: Bool
     var onRetry: (() -> Void)?
+    /// The black screen has lasted `progressDelay`: the spinner shows (E16).
+    @State private var waited = false
+
+    /// How long the plain black screen lasts before a spinner says the app is still working (E16).
+    public static let progressDelay: Duration = .seconds(1)
 
     /// - Parameters:
-    ///   - showsProgress: a spinner while there is no failure (iOS keeps the plain black screen).
+    ///   - showsProgress: a spinner at once while there is no failure. False (iOS) keeps the black screen
+    ///     for `progressDelay`, then shows the spinner, so a slow launch never looks frozen (E16).
     ///   - onRetry: adds a Try Again button under the failure.
     public init(failure: String?, showsProgress: Bool = false, onRetry: (() -> Void)? = nil) {
         self.failure = failure; self.showsProgress = showsProgress; self.onRetry = onRetry
@@ -339,50 +366,126 @@ public struct LaunchPlaceholder: View {
                     }
                 }
                 .padding(32)
-            } else if showsProgress {
+            } else if showsProgress || waited {
                 ProgressView()
+                    .tint(.white)
+                    .accessibilityLabel(Text(ui: "Loading"))
             }
+        }
+        .task {
+            guard !showsProgress else { return }
+            try? await Task.sleep(for: Self.progressDelay)
+            waited = true
         }
     }
 }
 
-/// Sign In instead of the home while the backend needs an account and nobody is signed in; a blank
-/// launch screen while the stored session is still being read. Starts following the session.
+/// Sign In instead of the home while the backend needs an account and nobody is signed in; a launch
+/// placeholder while the stored session is still being read. Starts following the session.
+///
+/// - Session expired (E3): once the home has shown, an expired session does not swap the whole tree for
+///   Sign In. Sign In opens as a sheet over the current state, so open editors keep their text, and the
+///   banners' "Sign In" (`EnvironmentValues.requestSignIn`) opens the same sheet.
+/// - First launch (E16): the placeholder shows a spinner after a second, and the wait for the profile's
+///   onboarding answer is capped at `profileWaitCap`; the home shows then.
+/// - Background: removals still in their Undo window are sent before the app is suspended (I1).
 public struct SignInGate<Home: View>: View {
     var home: HomeModel
     var showsProgress: Bool
     var content: () -> Home
     @Environment(\.scenePhase) private var scenePhase
+    /// The home has been on screen in this run: an expiry from here on opens a sheet over it.
+    @State private var homeShown = false
+    @State private var signInSheet = false
+    /// The profile's answer took longer than `profileWaitCap`.
+    @State private var profileWaitOver = false
+
+    /// The longest the launch waits for the profile before showing the home (E16).
+    public static var profileWaitCap: Duration { .seconds(5) }
 
     public init(home: HomeModel, showsProgress: Bool = false, @ViewBuilder content: @escaping () -> Home) {
         self.home = home; self.showsProgress = showsProgress; self.content = content
     }
 
+    /// What the gate shows (pure, for tests).
+    public enum Screen: Equatable, Sendable { case signIn, placeholder, onboarding, home }
+
+    public static func screen(needsSignIn: Bool, sessionExpired: Bool, homeShown: Bool, awaitingSession: Bool,
+                              gate: ProfileStore.Gate, profileWaitOver: Bool) -> Screen {
+        // An expiry over a home already shown keeps the home; the sign-in sheet covers it instead.
+        if needsSignIn && !(sessionExpired && homeShown) { return .signIn }
+        if awaitingSession { return .placeholder }
+        switch gate {
+        case .unknown: return profileWaitOver ? .home : .placeholder
+        case .show: return .onboarding
+        case .hidden: return .home
+        }
+    }
+
+    private var screen: Screen {
+        Self.screen(needsSignIn: home.needsSignIn, sessionExpired: home.isSessionExpired, homeShown: homeShown,
+                    awaitingSession: home.awaitingSession, gate: home.profile.gate, profileWaitOver: profileWaitOver)
+    }
+
     public var body: some View {
         Group {
-            if home.needsSignIn {
-                SignInView(session: home.session, onEmail: { await home.session.signInWithEmail($0) },
-                           onGoogle: home.env.googleSignIn ? { await home.session.signInWithGoogle() } : nil)
-            } else if home.awaitingSession || home.profile.gate == .unknown {
+            switch screen {
+            case .signIn:
+                signInView
+            case .placeholder:
                 LaunchPlaceholder(failure: nil, showsProgress: showsProgress)
-            } else if home.profile.gate == .show {
+            case .onboarding:
                 // Once, after the first sign-in: the name and photo friends will see. Later skips it.
                 ProfileOnboardingView(store: home.profile)
                     .transition(CardMotion.transition)
-            } else {
+            case .home:
                 content()
                     .transition(.opacity)
+                    .onAppear { homeShown = true }
             }
         }
         .animation(CardMotion.animation, value: home.profile.gate)
         .environment(\.friendPhotos, home.profile.friendPhotos)
+        .environment(\.requestSignIn, { signInSheet = true })
+        .sheet(isPresented: Binding(get: { signInSheet && screen == .home }, set: { open in
+            signInSheet = open
+            // Closed without signing in: with the account still here the banners keep their Sign In
+            // button for later; with nobody signed in the full Sign In screen takes over.
+            if !open { home.session.clearSessionExpired() }
+        })) {
+            signInView
+                .presentationDetents([.large])
+                .presentationBackground(Theme.background)
+                .presentationCornerRadius(Theme.sheetRadius)
+        }
+        .onChange(of: home.isSessionExpired) { _, expired in
+            // Expired: the sheet rises over what is open. Signed in again: it goes.
+            if expired, homeShown { signInSheet = true }
+            if !expired { signInSheet = false }
+        }
+        .onChange(of: home.needsSignIn) { _, needs in if !needs, !home.isSessionExpired { signInSheet = false } }
         .task { home.session.startIfNeeded() }
         // Each account's profile: whether onboarding shows, the header's avatar.
         .task(id: home.profileOwner) { await home.prepareProfile() }
+        // The profile's answer is waited for at most `profileWaitCap` (E16).
+        .task(id: home.profile.gate == .unknown && !home.awaitingSession) {
+            guard home.profile.gate == .unknown, !home.awaitingSession else { return }
+            profileWaitOver = false
+            try? await Task.sleep(for: Self.profileWaitCap)
+            guard !Task.isCancelled else { return }
+            profileWaitOver = true
+        }
         // Above the gate, so it runs signed out too: an activity can only start in the foreground, and
         // one a previous account left must end even while Sign In is on screen.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await home.reconcileActivities() } }
+            // The Undo timers may not run once suspended: send the waiting removals now (I1).
+            if phase == .background { Task { await home.commitPendingUnfollows() } }
         }
+    }
+
+    private var signInView: some View {
+        SignInView(session: home.session, onEmail: { await home.session.signInWithEmail($0) },
+                   onGoogle: home.env.googleSignIn ? { await home.session.signInWithGoogle() } : nil)
     }
 }

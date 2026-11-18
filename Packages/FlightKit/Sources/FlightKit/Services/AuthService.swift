@@ -27,6 +27,9 @@ public protocol AuthService: Sendable {
     /// Erases the account on the server. An account that signs in with Apple sends the authorization
     /// code of a fresh Apple sign-in, which the server uses to revoke the account's Apple tokens.
     func deleteAccount(appleAuthorizationCode: String?) async throws(APIError)
+    /// Asks the server for a fresh access token with the stored refresh token (a store met `.unauthorized`).
+    /// Throws `.unauthorized` when the session cannot be renewed: the user has to sign in again.
+    func refreshSession() async throws(APIError)
 }
 
 public extension AuthService {
@@ -39,6 +42,9 @@ public extension AuthService {
     }
 
     func signInWithGoogle() async throws(APIError) { throw .providerUnavailable }
+
+    /// Services with nothing to renew (the fakes) report the session as still good.
+    func refreshSession() async throws(APIError) {}
 
     /// Deletion without an Apple authorization (email and Google accounts).
     func deleteAccount() async throws(APIError) {

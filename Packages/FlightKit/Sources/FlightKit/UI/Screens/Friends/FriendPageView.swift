@@ -64,7 +64,7 @@ public struct FriendPageView: View {
             }
             .scaledPadding(.top, 16)
 
-            if let error = store.error { ErrorBanner(error: error) }
+            FriendActionErrorBanner(store: store)
 
             flights(friend, now: now)
 
@@ -92,12 +92,16 @@ public struct FriendPageView: View {
             Button(role: .destructive) { confirmingRemove = true } label: {
                 Label("Remove Friend", systemImage: "person.badge.minus")
                     .scaledFont(17, weight: .semibold)
-                    .foregroundStyle(Theme.veryLate)
-                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(Theme.veryLateText)
+                    .opacity(store.isPending(friend.id) ? 0 : 1)
+                    .overlay { if store.isPending(friend.id) { ProgressView().controlSize(.small) } }
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .scaledPadding(.vertical, 14)
                     .background(Capsule().fill(Theme.veryLate.opacity(0.12)))
             }
             .buttonStyle(.plain)
+            .disabled(store.isPending(friend.id))
+            .accessibilityValue(store.isPending(friend.id) ? Text("In progress") : Text(verbatim: ""))
         }
         .scaledPadding(.horizontal, Theme.gutter)
         .scaledPadding(.bottom, 32)

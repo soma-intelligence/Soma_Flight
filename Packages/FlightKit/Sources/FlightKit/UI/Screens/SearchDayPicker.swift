@@ -15,7 +15,7 @@ struct SearchDayButton: View {
                     .accessibilityHidden(true)
                 Text(ui: Self.title(day))
                     .scaledFont(15, weight: .medium)
-                    .lineLimit(1)
+                    .lineLimitUnlessLargeText(1)
             }
             .foregroundStyle(day == nil ? Theme.primary : Theme.accent)
             .scaledPadding(.horizontal, 12)

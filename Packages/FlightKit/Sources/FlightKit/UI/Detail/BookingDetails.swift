@@ -20,6 +20,11 @@ final class BookingDetailsModel {
         seat = details.seat ?? ""
     }
 
+    /// Something was typed or chosen since the sheet opened (I2): the swipe down is blocked and Cancel asks.
+    var isDirty: Bool {
+        draft != original || code != (original.bookingCode ?? "") || seat != (original.seat ?? "")
+    }
+
     struct Errors: Error, Equatable {
         var code: String?
         var seat: String?
@@ -97,16 +102,25 @@ struct BookingDetailsSheet: View {
         .frame(width: 440)
         .onAppear { store.clearDetailsError() }
         #else
+        // I2, I12: the modal header with Cancel and Done, the edits guarded against a swipe down.
         NavigationStack {
-            ScrollView { content.scaledPadding(.horizontal, 16).scaledPadding(.top, 8).scaledPadding(.bottom, 24) }
-                .background(Theme.background)
-                .navigationTitle("Booking Details")
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar { ToolbarItem(placement: .confirmationAction) { done } }
-                .interactiveDismissDisabled(model.isSaving)
+            VStack(spacing: 0) {
+                EditorHeader(title: "Booking Details", canSave: model.isDirty, isSaving: model.isSaving) { save() }
+                ScrollView {
+                    content
+                        .scaledPadding(.horizontal, Theme.Space.md)
+                        .scaledPadding(.top, Theme.Space.xs)
+                        .scaledPadding(.bottom, Theme.Space.lg)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+            .background(Theme.background)
+            #if os(iOS)
+            .toolbar(.hidden, for: .navigationBar)
+            #endif
+            .keyboardDoneBar()
         }
+        .guardsUnsavedChanges(isDirty: model.isDirty, isSaving: model.isSaving)
         .onAppear {
             store.clearDetailsError()
             focus = initialFocus
@@ -118,33 +132,38 @@ struct BookingDetailsSheet: View {
         if model.isSaving {
             ProgressView()
         } else {
-            Button("Done") { Task { if await model.save(to: store) { dismiss() } } }.bold()
+            Button("Done") { save() }.bold()
         }
+    }
+
+    private func save() {
+        Task { if await model.save(to: store) { dismiss() } }
     }
 
     private var content: some View {
         @Bindable var model = model
         return VStack(alignment: .leading, spacing: 0) {
-            heading("Booking Code")
-            field(icon: "ticket", placeholder: "ABC123", text: $model.code, error: model.codeError, which: .bookingCode) {
-                if model.code.isEmpty {
-                    PasteButton(payloadType: String.self) { strings in
-                        guard let first = strings.first else { return }
-                        Task { @MainActor in model.paste(first) }
-                    }
-                    .labelStyle(.titleOnly)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                    .tint(Theme.secondary)
+            FormField("Booking Code", text: $model.code, prompt: "ABC123", error: model.codeError,
+                      keyboard: .ascii, capitalization: .characters, autocorrect: false,
+                      focus: $focus, field: .bookingCode, next: .seat)
+                .onChange(of: model.code) { model.codeError = nil }
+            if model.code.isEmpty {
+                PasteButton(payloadType: String.self) { strings in
+                    guard let first = strings.first else { return }
+                    Task { @MainActor in model.paste(first) }
                 }
+                .labelStyle(.titleOnly)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(Theme.secondary)
+                .scaledPadding(.top, Theme.Space.xs)
             }
-            .onChange(of: model.code) { model.codeError = nil }
 
-            heading("Seat").scaledPadding(.top, 24)
-            field(icon: "carseat.right", placeholder: "23A", text: $model.seat, error: model.seatError, which: .seat) {
-                EmptyView()
-            }
-            .onChange(of: model.seat) { model.seatError = nil }
+            FormField("Seat", text: $model.seat, prompt: "23A", error: model.seatError,
+                      keyboard: .ascii, capitalization: .characters, autocorrect: false, submitLabel: .done,
+                      focus: $focus, field: .seat)
+                .onChange(of: model.seat) { model.seatError = nil }
+                .scaledPadding(.top, Theme.Space.lg)
             ChipFlow {
                 ForEach(SeatPosition.allCases, id: \.self) { p in
                     Chip(title: p.title, symbol: Self.positionSymbol(p), selected: model.draft.seatPosition == p) {
@@ -212,38 +231,6 @@ struct BookingDetailsSheet: View {
             .foregroundStyle(Theme.primary)
             .scaledPadding(.bottom, 10)
             .accessibilityAddTraits(.isHeader)
-    }
-
-    private func field<Trailing: View>(icon: String, placeholder: String, text: Binding<String>, error: String?,
-                                       which: DetailField, @ViewBuilder trailing: () -> Trailing) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .scaledFont(18, weight: .medium)
-                    .foregroundStyle(Theme.secondary)
-                    .accessibilityHidden(true)
-                TextField(placeholder, text: text)
-                    .scaledFont(20)
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.characters)
-                    #endif
-                    .focused($focus, equals: which)
-                    .submitLabel(.done)
-                    .accessibilityLabel(which == .seat ? "Seat" : "Booking code")
-                trailing()
-            }
-            .scaledPadding(.horizontal, 16)
-            .frame(minHeight: 56)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Theme.pill))
-            if let error {
-                Text(ui: error)
-                    .scaledFont(14)
-                    .foregroundStyle(Theme.veryLate)
-                    .scaledPadding(.leading, 4)
-                    .accessibilityLabel("Error: \(error)")
-            }
-        }
     }
 }
 

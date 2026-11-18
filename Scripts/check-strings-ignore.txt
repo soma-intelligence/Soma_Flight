@@ -1,0 +1,8 @@
+# Strings Scripts/check-strings.py should not ask the catalog for: shown as written in every language.
+# One per line, exactly as the script reports it.
+# Brand and product names.
+Soma Flight
+SOMA FLIGHT
+TSA PreCheck
+# Placeholder that shows the shape of a booking code.
+ABC123

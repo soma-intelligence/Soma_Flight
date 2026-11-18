@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// The three sections of the home panel (the iOS sheet, the Mac sidebar), in the tab pill's order.
 public enum HomeTab: String, Hashable, Sendable, CaseIterable {
@@ -89,6 +94,14 @@ public final class HomeModel {
     public private(set) var toast: String?
     /// The toast on show reports a failure: red mark and an error haptic.
     public private(set) var toastIsError = false
+    /// The toast's button (Undo after a removal, Retry after a failure), nil for a plain toast (I1).
+    public private(set) var toastAction: ToastAction?
+    /// How long a toast with a button stays: long enough to reach for Undo.
+    public static let actionToastDuration: Duration = .seconds(5)
+    /// The Undo window of `unfollowWithUndo`: the server hears of the unfollow only once it is over.
+    public static let undoWindow: Duration = .seconds(5)
+    /// Removals waiting out their Undo window, by flight.
+    @ObservationIgnored private var pendingUnfollows: [Flight.ID: Task<Void, Never>] = [:]
     /// How long the toast stays.
     public static let toastDuration: Duration = .seconds(3)
     /// Waits out the toast; tests replace it to move the clock by hand.
@@ -100,6 +113,7 @@ public final class HomeModel {
     /// A toast waiting for the search sheet to close (iOS covers the tab pill with it).
     public private(set) var pendingToast: String?
     @ObservationIgnored private var pendingIsError = false
+    @ObservationIgnored private var pendingAction: ToastAction?
     /// A search Siri, Shortcuts or a link asked for (`FlightLink.searchURL`): the iOS home opens Search
     /// with it and sets it back to nil.
     public var searchRequest: String?
@@ -110,9 +124,10 @@ public final class HomeModel {
         didSet {
             guard oldValue, !searchOpen, let text = pendingToast else { return }
             pendingToast = nil
-            let isError = pendingIsError
+            let isError = pendingIsError, action = pendingAction
             pendingIsError = false
-            showToast(text, isError: isError)
+            pendingAction = nil
+            showToast(text, isError: isError, action: action)
         }
     }
     /// The account the two stores were built for.
@@ -140,6 +155,7 @@ public final class HomeModel {
     /// The owner and session state the session watch last acted on.
     @ObservationIgnored private var seenOwner: UUID?
     @ObservationIgnored private var seenAwaiting = true
+    @ObservationIgnored private var seenSignedIn = false
 
     public init(env: AppEnvironment) {
         self.env = env
@@ -167,6 +183,11 @@ public final class HomeModel {
             self?.followed.flatMap { [$0.originIcao, $0.destinationIcao] } ?? []
         }
         wireListChange()
+        wireSessionRecovery()
+        // Back online: the home reloads what it showed from the cache or with an error (E2).
+        connectivity.onReconnect { [weak self] in
+            Task { await self?.refreshAfterReconnect() }
+        }
     }
 
     // MARK: Session watch
@@ -176,8 +197,14 @@ public final class HomeModel {
     /// after `start()` runs `userChanged()` (the previous account's Live Activity ends, the token moves);
     /// before it, `start()` builds the stores itself. The stored session being read runs the activity
     /// rules (a signed-out launch ends what a previous account left on the Lock Screen).
+    ///
+    /// It follows `shellOwner`, not `owner` (E3): when the server ends the session on its own, the stores,
+    /// the open cards and their editors stay, and sign-in rises as a sheet over them. Only another account
+    /// signing in, an explicit sign-out or giving up on the sheet rebuilds them; the same account signing
+    /// in again reloads what is on screen.
     private func watchSession() {
         withObservationTracking {
+            _ = shellOwner
             _ = owner
             _ = awaitingSession
         } onChange: { [weak self] in
@@ -187,21 +214,31 @@ public final class HomeModel {
 
     func sessionDidChange() {
         watchSession()
-        let now = owner, awaiting = awaitingSession
+        let now = shellOwner, awaiting = awaitingSession
         let ownerChanged = now != seenOwner, resolved = awaiting != seenAwaiting
+        let signedBackIn = owner != nil && !seenSignedIn
         seenOwner = now
         seenAwaiting = awaiting
+        seenSignedIn = owner != nil
         clearWidgetsIfSignedOut()
-        if ownerChanged, started {
+        if started, ownerChanged || (owner != nil && storesOwner != owner) {
             userChanged()
+        } else if started, signedBackIn {
+            // The same account back after its session expired (E3): what is open stays, the lists reload.
+            Task {
+                await load()
+                await reconcileActivities()
+            }
         } else if ownerChanged || resolved {
             Task { await reconcileActivities() }
         }
     }
 
     /// Whose profile shows: the signed-in account, or with the fakes (no sign-in) the fake account.
+    /// While sign-in shows over an expired session it stays the account's (E3), so the avatar and the
+    /// friends' photos do not blink away.
     public var profileOwner: UUID? {
-        owner ?? (env.requiresSignIn ? nil : FakeProfileService.userId)
+        shellOwner ?? (env.requiresSignIn ? nil : FakeProfileService.userId)
     }
 
     /// Points the profile at the account now signed in and decides whether onboarding shows. After a save
@@ -217,8 +254,25 @@ public final class HomeModel {
     /// The account the stores read and write for.
     public var owner: UUID? { session.session?.userId }
 
+    /// The account the open screens belong to: the one signed in, or while sign-in shows over an expired
+    /// session, the account whose session the server ended (E3). The stores are rebuilt only when it changes.
+    public var shellOwner: UUID? { owner ?? session.expiredUserId }
+
     /// The shells show Sign In instead of the home: the backend needs an account and nobody is signed in.
     public var needsSignIn: Bool { env.requiresSignIn && session.isResolved && session.session == nil }
+
+    /// The account is still signed in here but the server refused its session and a refresh did not renew
+    /// it (E3): the screens offer Sign In (a sheet over what is open, so editors keep their text) instead of
+    /// Retry. Cleared by a new sign-in.
+    public var isSessionExpired: Bool { session.isSessionExpired }
+
+    /// What the system allows for this app's alerts (E5): nil before it is read or where the app sends no
+    /// pushes (the Mac), `.denied` when the user turned them off in Settings.
+    public var notificationPermission: NotificationPermission? { push?.permission }
+
+    /// True when the system drops this app's alerts: the bell shows off, the Notifications screen shows its
+    /// "Notifications are off" card with a Settings button, and its switches are dimmed.
+    public var notificationsDenied: Bool { push?.isDenied ?? false }
 
     /// The backend needs an account and the stored session has not been read yet (a launch placeholder).
     public var awaitingSession: Bool { env.requiresSignIn && !session.isResolved }
@@ -377,7 +431,8 @@ public final class HomeModel {
         Task.detached(priority: .utility) { _ = SearchSuggester.bundled() }
         session.startIfNeeded()
         started = true
-        seenOwner = owner
+        seenOwner = shellOwner
+        seenSignedIn = owner != nil
         if storesOwner != owner { rebuildStores() }
         // A tap that launched the app opens first, without waiting for the lists.
         await processInbox()
@@ -385,6 +440,7 @@ public final class HomeModel {
         // The notification settings call can take long or never answer (seen on simulators): it runs on
         // its own and start never waits for it.
         if let push { Task { await push.refresh() } }
+        startForegroundRefresh()
         await processInbox()
         // A confirmation email shared to the app while it was closed.
         takeSharedEmails()
@@ -441,7 +497,58 @@ public final class HomeModel {
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
         friends = env.makeFriendsStore()
         pendingInvite = nil
+        // The previous account's removals never reach the new account's list.
+        pendingUnfollows.values.forEach { $0.cancel() }
+        pendingUnfollows = [:]
         wireListChange()
+        wireSessionRecovery()
+    }
+
+    /// Points the stores at the session's refresh: a call that meets `.unauthorized` renews the session once
+    /// and retries before anything says "sign in again" (E3).
+    private func wireSessionRecovery() {
+        let recover: @MainActor () async -> Bool = { [weak self] in
+            guard let self, self.owner != nil else { return false }
+            return await self.session.recoverSession()
+        }
+        myFlights.onUnauthorized = recover
+        friends.onUnauthorized = recover
+    }
+
+    // MARK: Freshness
+
+    /// Reloads what is not known to be current when the connection comes back (E2).
+    public func refreshAfterReconnect() async {
+        guard started else { return }
+        await myFlights.refreshIfNeeded()
+        if friends.error != nil { await friends.load() }
+        if notificationSettings.loadFailed { await notificationSettings.load() }
+    }
+
+    /// The app came back to the foreground (E2): reloads a list that is not known to be current and reads
+    /// the notification permission again (E5), since the user may have changed it in Settings. Runs on its
+    /// own from `start()` (`startForegroundRefresh()`); shells may also call it.
+    public func sceneDidBecomeActive() async {
+        guard started else { return }
+        await push?.refreshPermission()
+        await myFlights.refreshIfNeeded()
+    }
+
+    @ObservationIgnored private var foregroundObserver: (any NSObjectProtocol)?
+
+    /// Listens for the app becoming active, once.
+    private func startForegroundRefresh() {
+        guard foregroundObserver == nil else { return }
+        #if canImport(UIKit) && !os(watchOS)
+        let name = UIApplication.didBecomeActiveNotification
+        #elseif canImport(AppKit)
+        let name = NSApplication.didBecomeActiveNotification
+        #endif
+        #if (canImport(UIKit) && !os(watchOS)) || canImport(AppKit)
+        foregroundObserver = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in await self?.sceneDidBecomeActive() }
+        }
+        #endif
     }
 
     // MARK: Friends
@@ -575,7 +682,8 @@ public final class HomeModel {
     /// Signed out, the widgets and the watch show nothing: a later account must never see the previous
     /// one's flights.
     private func clearWidgetsIfSignedOut() {
-        guard !awaitingSession, env.requiresSignIn, owner == nil else { return }
+        // An expired session keeps them: the same account usually signs in again over the open screens (E3).
+        guard !awaitingSession, env.requiresSignIn, shellOwner == nil else { return }
         widgets?.clear()
         watch?.clear()
     }
@@ -588,7 +696,8 @@ public final class HomeModel {
     public func reconcileActivities() async {
         guard let activities, !awaitingSession else { return }
         if env.requiresSignIn, owner == nil {
-            await activities.endAll()
+            // An expired session leaves the flight's activity running until the account is given up (E3).
+            if shellOwner == nil { await activities.endAll() }
             return
         }
         await activities.adopt(owner: owner)
@@ -630,21 +739,109 @@ public final class HomeModel {
     /// Shows `text` over the tab pill for `toastDuration` and has VoiceOver read it; a newer toast replaces
     /// it and restarts the wait. While `searchOpen`, it waits for the sheet to close instead.
     public func showToast(_ text: String, isError: Bool = false) {
+        showToast(text, isError: isError, action: nil)
+    }
+
+    /// A toast with a button (I1): "Removed AF 84" with Undo, "Couldn't remove AF 84" with Retry. It stays
+    /// `actionToastDuration`; tapping the button (`runToastAction()`) runs `action` and closes the toast.
+    public func showToast(_ text: String, action: ToastAction?, isError: Bool = false) {
+        showToast(text, isError: isError, action: action)
+    }
+
+    private func showToast(_ text: String, isError: Bool, action: ToastAction?) {
         if searchOpen {
             pendingToast = text
             pendingIsError = isError
+            pendingAction = action
             return
         }
         toastIsError = isError
+        toastAction = action
         toastSerial += 1
         let serial = toastSerial, sleep = toastSleep
         toast = text
         AccessibilityNotification.Announcement(text).post()
         toastTimer?.cancel()
+        let duration = action == nil ? Self.toastDuration : Self.actionToastDuration
         toastTimer = Task { [weak self] in
-            do { try await sleep(Self.toastDuration) } catch { return }
+            do { try await sleep(duration) } catch { return }
             guard let self, self.toastSerial == serial else { return }
             self.toast = nil
+            self.toastAction = nil
+        }
+    }
+
+    /// The toast's button was tapped: runs its action and closes the toast.
+    public func runToastAction() {
+        guard let action = toastAction else { return }
+        dismissToast()
+        Task { await action.run() }
+    }
+
+    /// Closes the toast on show now.
+    public func dismissToast() {
+        toastTimer?.cancel()
+        toastSerial += 1
+        toast = nil
+        toastAction = nil
+    }
+
+    // MARK: Undoable unfollow
+
+    /// Removes a followed flight with an Undo (I1): the flight leaves the lists at once and a toast offers
+    /// Undo for `undoWindow`; only then does the server hear of it. Undo puts it back as it was, booking
+    /// code, seat and notes included, since the server never unfollowed it. A refused unfollow puts the
+    /// flight back with an error toast whose Retry tries again. A second call for the same flight while one
+    /// waits or runs does nothing (E15).
+    public func unfollowWithUndo(_ flight: Flight) {
+        let id = flight.id
+        guard pendingUnfollows[id] == nil, !myFlights.unfollowing.contains(id), myFlights.contains(id) else { return }
+        myFlights.hide(id)
+        let ident = Format.ident(flight.ident)
+        showToast("Removed \(ident)", action: ToastAction("Undo") { [weak self] in self?.undoUnfollow(id) })
+        let sleep = toastSleep, store = myFlights
+        pendingUnfollows[id] = Task { [weak self] in
+            do { try await sleep(Self.undoWindow) } catch { return }
+            guard let self, !Task.isCancelled, self.pendingUnfollows.removeValue(forKey: id) != nil else { return }
+            await self.commitUnfollow(flight, in: store)
+        }
+    }
+
+    /// True while a removal of this flight waits out its Undo window.
+    public func isUnfollowPending(_ id: Flight.ID) -> Bool { pendingUnfollows[id] != nil }
+
+    /// Undo: the flight comes back and the server is never asked.
+    public func undoUnfollow(_ id: Flight.ID) {
+        guard let task = pendingUnfollows.removeValue(forKey: id) else { return }
+        task.cancel()
+        myFlights.unhide(id)
+        if toastAction != nil { dismissToast() }
+    }
+
+    /// Sends every removal still waiting at once (the app is going to the background, where the timer may
+    /// not run).
+    public func commitPendingUnfollows() async {
+        let waiting = pendingUnfollows
+        pendingUnfollows = [:]
+        for (id, task) in waiting {
+            task.cancel()
+            if let flight = myFlights.flight(id) { await commitUnfollow(flight, in: myFlights) }
+        }
+    }
+
+    private func commitUnfollow(_ flight: Flight, in store: MyFlightsStore) async {
+        // The account changed meanwhile: that list is gone, nothing to send for it.
+        guard store === myFlights else { return }
+        guard let error = await store.unfollow(flight) else { return }
+        store.unhide(flight.id)
+        store.clearActionError()
+        let ident = Format.ident(flight.ident)
+        if error.needsSignIn {
+            showToast("Sign in again to remove \(ident)", isError: true)
+        } else {
+            showToast("Couldn't remove \(ident)", action: ToastAction("Retry") { [weak self] in
+                self?.unfollowWithUndo(flight)
+            }, isError: true)
         }
     }
 
@@ -664,13 +861,23 @@ public final class HomeModel {
         guard canHandlePush else { return }
         if let token = inbox.deviceToken { await push.register(token: token) }
         if inbox.takeForegroundFlight() != nil { await myFlights.load() }
-        if let id = inbox.takePendingFlight(), await open(flightID: id) == .failed {
-            // Offline or a server error: the next start, sign-in or notification tries again.
-            inbox.keepPending(id)
+        if let id = inbox.takePendingFlight() {
+            switch await open(flightID: id) {
+            case .opened: break
+            case .failed:
+                // Offline or a server error: the next start, sign-in or notification tries again.
+                inbox.keepPending(id)
+            case .notFound:
+                // A notification or widget for a flight deleted since: say so instead of doing nothing (I7).
+                showToast(Self.flightGoneText, isError: true)
+            }
         }
     }
 
     public enum FlightOpenResult: Sendable { case opened, notFound, failed }
+
+    /// The toast for a notification or widget whose flight no longer exists (I7).
+    public static let flightGoneText = "This flight is no longer available"
 
     /// Opens a flight's detail. One that is not in My Flights is fetched by id first, so a notification
     /// for a flight this device has not loaded yet still opens. `.notFound` is final; `.failed` is worth
@@ -766,13 +973,25 @@ public final class HomeModel {
 /// Distance and clock units kept in the app's defaults, as one `Units` value for the screens and a
 /// binding for Settings. The iOS app and both Mac scenes read the same keys, so they stay in step. The
 /// clock lives in the App Group's defaults on iOS (`SharedSettings`), where the Live Activity reads it.
+/// A user who never chose gets the device's region: miles and 12 hour in the US, kilometres and 24 hour
+/// in France (A11).
 /// Main actor only: the setter writes through `@AppStorage`, which views read on the main actor.
 @MainActor @propertyWrapper
 public struct StoredUnits: DynamicProperty {
-    @AppStorage("units.distance") private var distance: DistanceUnit = .km
-    @AppStorage(SharedSettings.clock24Key, store: SharedSettings.defaults) private var clock24 = true
+    @AppStorage private var distance: DistanceUnit
+    @AppStorage private var clock24: Bool
 
-    public init() {}
+    public init(locale: Locale = .current) {
+        let d = Self.defaultUnits(locale)
+        _distance = AppStorage(wrappedValue: d.distance, "units.distance")
+        _clock24 = AppStorage(wrappedValue: d.clock == .h24, SharedSettings.clock24Key, store: SharedSettings.defaults)
+    }
+
+    /// The units a user who never opened Settings sees: the region's.
+    public nonisolated static func defaultUnits(_ locale: Locale = .current) -> Units {
+        Units(distance: SharedSettings.localeUsesMiles(locale) ? .mi : .km,
+              clock: SharedSettings.localeUses24Hour(locale) ? .h24 : .h12)
+    }
 
     public var wrappedValue: Units {
         get { Units(distance: distance, clock: clock24 ? .h24 : .h12) }

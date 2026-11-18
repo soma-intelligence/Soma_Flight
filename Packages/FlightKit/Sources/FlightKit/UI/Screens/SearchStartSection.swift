@@ -45,12 +45,12 @@ struct SearchStartRow<Icon: View>: View {
                     Text(ui: title)
                         .themeFont(.body)
                         .foregroundStyle(Theme.primary)
-                        .lineLimit(1)
+                        .lineLimitUnlessLargeText(1)
                     if let subtitle {
                         Text(ui: subtitle)
                             .themeFont(.label)
                             .foregroundStyle(Theme.secondary)
-                            .lineLimit(1)
+                            .lineLimitUnlessLargeText(1)
                     }
                 }
                 Spacer(minLength: 8)

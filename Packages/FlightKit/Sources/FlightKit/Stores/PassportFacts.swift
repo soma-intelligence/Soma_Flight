@@ -90,7 +90,7 @@ enum PassportFacts {
 
     /// "1,234" in the app's number style.
     static func count<T: BinaryInteger>(_ n: T) -> String {
-        Int(n).formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US")))
+        Int(n).formatted(.number.grouping(.automatic).locale(FlightActivityDisplay.uiLocale))
     }
 
     /// Shortest and longest only mean something with two flights or more; one flight is both.
@@ -103,13 +103,11 @@ enum PassportFacts {
         return code + " " + ident.dropFirst(code.count)
     }
 
-    /// "30 Sep 2021" in the time zone given (the origin airport's when known).
+    /// "30 Sep 2021" in the time zone given (the origin airport's when known), "30 sept. 2021" in French.
     static func shortDate(_ seconds: Int64, timeZone: TimeZone) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_GB")
-        f.timeZone = timeZone
-        f.dateFormat = "d MMM yyyy"
-        return f.string(from: Date(timeIntervalSince1970: TimeInterval(seconds)))
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: timeZone)
+        style = style.day().month(.abbreviated).year()
+        return Date(timeIntervalSince1970: TimeInterval(seconds)).formatted(style)
     }
 
     /// Bar labels and counts for the "Flights per" chart, as the core counted them.

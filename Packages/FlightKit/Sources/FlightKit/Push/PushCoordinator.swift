@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import UserNotifications
 
 public enum NotificationPermission: Sendable, Equatable {
@@ -32,15 +33,24 @@ public struct SystemNotificationAuthorizer: NotificationAuthorizer {
 /// Permission and token registration. The prompt comes after the user's first follow, never at launch;
 /// a denial leaves follows working. The alert token is registered every launch while allowed (tokens
 /// rotate) and again after each sign-in (the server moves a token to the account signed in now).
-@MainActor
+@MainActor @Observable
 public final class PushCoordinator {
-    private let push: any PushService
-    private let authorizer: any NotificationAuthorizer
-    private let registerForRemote: @MainActor () -> Void
-    private let enabled: Bool
-    private var owner: UUID?
-    private var hasAccount = false
-    private var lastRegistered: Data?
+    /// What the system allows, as last read (E5): nil until read, `.denied` when the user turned alerts off
+    /// in Settings. The bell, the Notifications screen and its switches read it (through
+    /// `HomeModel.notificationPermission`) so the app never says alerts are on when the system drops them.
+    /// Read again at launch, after a follow and when the app comes back to the foreground (`refreshPermission()`).
+    public private(set) var permission: NotificationPermission?
+
+    /// True when the system drops this app's alerts: the screens show alerts as off and point to Settings.
+    public var isDenied: Bool { permission == .denied }
+
+    @ObservationIgnored private let push: any PushService
+    @ObservationIgnored private let authorizer: any NotificationAuthorizer
+    @ObservationIgnored private let registerForRemote: @MainActor () -> Void
+    @ObservationIgnored private let enabled: Bool
+    @ObservationIgnored private var owner: UUID?
+    @ObservationIgnored private var hasAccount = false
+    @ObservationIgnored private var lastRegistered: Data?
 
     /// - Parameter registerForRemote: asks the OS for a device token (`registerForRemoteNotifications`);
     ///   the token comes back through the app delegate and `PushInbox`.
@@ -66,16 +76,28 @@ public final class PushCoordinator {
     /// At launch: ask for a token only when alerts are already allowed. Never shows the prompt.
     public func refresh() async {
         guard enabled else { return }
-        if await authorizer.status() == .authorized { registerForRemote() }
+        if await refreshPermission() == .authorized { registerForRemote() }
+    }
+
+    /// Reads the system's permission again (the user may have changed it in Settings) and returns it.
+    /// Never shows the prompt. Platforms without pushes report nil.
+    @discardableResult
+    public func refreshPermission() async -> NotificationPermission? {
+        guard enabled else { return nil }
+        let now = await authorizer.status()
+        if permission != now { permission = now }
+        return now
     }
 
     /// After a follow went through: the first one shows the prompt. Later ones only make sure a token is
     /// registered.
     public func didFollow() async {
         guard enabled else { return }
-        switch await authorizer.status() {
+        switch await refreshPermission() ?? .notDetermined {
         case .notDetermined:
-            if await authorizer.request() { registerForRemote() }
+            let allowed = await authorizer.request()
+            permission = allowed ? .authorized : .denied
+            if allowed { registerForRemote() }
         case .authorized:
             registerForRemote()
         case .denied:

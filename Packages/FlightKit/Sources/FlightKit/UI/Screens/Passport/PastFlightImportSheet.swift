@@ -101,10 +101,10 @@ struct PastFlightImportSheet: View {
             if let error {
                 Text(ui: error)
                     .scaledFont(15, weight: .medium)
-                    .foregroundStyle(Theme.veryLate)
+                    .foregroundStyle(Theme.veryLateText)
                     .scaledPadding(.horizontal, 20)
                     .scaledPadding(.top, 12)
-                    .accessibilityLabel("Error: \(error)")
+                    .accessibilityLabel(Text(ui: error))
             }
             if !preview.rows.isEmpty {
                 CapsHeader("To add", trailing: Self.count(preview.rows.count)).scaledPadding(.horizontal, 20).scaledPadding(.top, 20)

@@ -14,6 +14,7 @@ struct AirportHeader: View {
     var actions: AnyView? = nil
     /// Closes the sheet; nil hides the close button.
     var onClose: (() -> Void)? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// "SFO · KSFO · 22:28 PST": the codes and the local time.
     static func overline(_ airport: Airport?, code: String, time: String?) -> String {
@@ -21,28 +22,39 @@ struct AirportHeader: View {
     }
 
     var body: some View {
+        let overline = Self.overline(airport, code: code, time: airport.map { localTime($0.timeZone) })
         VStack(alignment: .leading, spacing: 0) {
-            SheetHeader.detail(
-                overline: Self.overline(airport, code: code, time: airport.map { localTime($0.timeZone) }),
-                title: airport?.name ?? code,
-                onClose: onClose
-            ) {
-                Text(ui: airport?.iata ?? airport?.id ?? code)
-                    .scaledFont(12, weight: .bold)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.pill))
-            } actions: {
-                if let actions { actions }
+            if typeSize.isAccessibilitySize {
+                // A12: the name wraps at accessibility sizes instead of "San Fran...".
+                WrappingDetailHeader(overline: overline, title: airport?.name ?? code, actions: actions,
+                                     onClose: onClose) { mark }
+                place
+                    .scaledPadding(.horizontal, Theme.gutter)
+            } else {
+                SheetHeader.detail(overline: overline, title: airport?.name ?? code, onClose: onClose) {
+                    mark
+                } actions: {
+                    if let actions { actions }
+                }
+                place
+                    // Lined up with the title: the gutter, the 36 pt mark and the 12 pt gap.
+                    .scaledPadding(.leading, Theme.gutter + 36 + 12)
+                    .scaledPadding(.trailing, Theme.gutter)
             }
-            place
-                // Lined up with the title: the gutter, the 36 pt mark and the 12 pt gap.
-                .scaledPadding(.leading, Theme.gutter + 36 + 12)
-                .scaledPadding(.trailing, Theme.gutter)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var mark: some View {
+        Text(ui: airport?.iata ?? airport?.id ?? code)
+            .scaledFont(12, weight: .bold)
+            .foregroundStyle(Theme.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            // The square stays 36 pt, so its code stops growing at xxLarge (the overline repeats it in full).
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.pill))
     }
 
     @ViewBuilder private var place: some View {
@@ -57,7 +69,7 @@ struct AirportHeader: View {
                 Text("\(airport.city), \(AirportFacts.countryName(airport.country))")
                     .scaledFont(13, weight: .medium)
                     .foregroundStyle(Theme.secondary)
-                    .lineLimit(1)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
             .accessibilityElement(children: .combine)
         }
@@ -114,8 +126,8 @@ enum AirportSeverityFacts {
 
     /// "5 causes · updated 22:28", "1 cause".
     static func subline(causes: Int, updated: String?) -> String {
-        let count = "\(causes) \(causes == 1 ? "cause" : "causes")"
-        return updated.map { "\(count) · updated \($0)" } ?? count
+        let count = causes == 1 ? Format.words("1 cause") : Format.words("\(causes) causes")
+        return updated.map { Format.words("\(count) · updated \($0)") } ?? count
     }
 }
 

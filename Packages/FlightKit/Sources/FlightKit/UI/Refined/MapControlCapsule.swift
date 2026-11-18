@@ -93,6 +93,14 @@ private struct ControlAccessibility: ViewModifier {
         content
             .accessibilityLabel(Text(ui: item.label))
             .accessibilityAddTraits(item.isSelected ? .isSelected : [])
+            // The capsule keeps its size at every text size: a long press shows the control large (A6).
+            .accessibilityShowsLargeContentViewer {
+                if let systemImage = item.systemImage {
+                    Label { Text(ui: item.label) } icon: { Image(systemName: systemImage) }
+                } else {
+                    Text(ui: item.label)
+                }
+            }
     }
 }
 

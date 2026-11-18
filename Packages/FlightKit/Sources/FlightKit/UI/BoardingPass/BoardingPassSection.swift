@@ -14,6 +14,8 @@ struct BoardingPassSection: View {
     @State private var importingFile = false
     @State private var working = false
     @State private var problem: String?
+    /// The pass the store failed to keep, for the alert's Try Again (I6); nil for a problem with the pass itself.
+    @State private var failedAttach: (pass: BoardingPass, walletFile: Data?)?
     @Environment(\.reference) private var reference
     @Environment(\.units) private var units
 
@@ -30,7 +32,14 @@ struct BoardingPassSection: View {
         #if os(iOS)
         .fullScreenCover(isPresented: $showPass) { fullPass }
         .sheet(isPresented: $scanning) {
-            PassScannerSheet { pass in
+            PassScannerSheet(onChooseScreenshot: {
+                scanning = false
+                // The picker waits for the scanner sheet to leave: one presentation at a time.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(450))
+                    choosingPhoto = true
+                }
+            }) { pass in
                 scanning = false
                 Task { await attach(pass, walletFile: nil) }
             }
@@ -48,11 +57,9 @@ struct BoardingPassSection: View {
             guard case .success(let url) = result else { return }
             Task { await readFile(url) }
         }
-        .alert("Boarding Pass", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-            Button("OK", role: .cancel) { problem = nil }
-        } message: {
-            Text(problem ?? "")
-        }
+        .failureAlert(Binding(get: { problem }, set: { if $0 == nil { problem = nil } }),
+                      title: "Boarding Pass",
+                      retry: failedAttach.map { tried in { Task { await attach(tried.pass, walletFile: tried.walletFile) } } })
     }
 
     private var fullPass: some View {
@@ -135,10 +142,13 @@ struct BoardingPassSection: View {
     }
 
     private func attach(_ pass: BoardingPass, walletFile: Data?) async {
+        failedAttach = nil
         switch await store.attach(pass, walletFile: walletFile) {
         case .attached: showPass = true
         case .otherFlight(let summary): problem = BoardingPassFacts.otherFlight(summary)
-        case .failed: problem = PassImportFacts.storeFailed
+        case .failed:
+            failedAttach = (pass, walletFile)
+            problem = PassImportFacts.storeFailed
         }
     }
 }

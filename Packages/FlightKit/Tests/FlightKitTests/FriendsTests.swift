@@ -148,7 +148,9 @@ import Testing
         await service.setNextError(.offline)
         await store.update(theo) { $0.sharePassport = true }
         #expect(store.friend(theo)?.settings.sharePassport == false)
-        #expect(store.error == .offline)
+        // An action's failure, apart from the load's (E6).
+        #expect(store.actionError?.error == .offline)
+        #expect(store.error == nil)
     }
 
     @Test func pausingAndRemoving() async {
@@ -324,10 +326,10 @@ import Testing
         let store = await loaded(service)
         await service.setNextError(.offline)
         _ = try? await store.shareInviteURL()
-        #expect(store.error == .offline)
+        #expect(store.actionError?.error == .offline)
         #expect(store.invite == nil)
         #expect((try? await store.shareInviteURL()) != nil, "the next try makes one and clears the error")
-        #expect(store.error == nil)
+        #expect(store.actionError == nil)
     }
 
     @Test func aNearlyExpiredInvitationIsReplaced() async throws {

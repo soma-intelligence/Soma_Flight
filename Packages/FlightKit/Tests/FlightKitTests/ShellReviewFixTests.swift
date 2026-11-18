@@ -168,7 +168,7 @@ import Testing
         #expect(session.error == nil)
         try await waitUntil { session.session == nil }
         // The wipe for nobody ran before the auth call; the stream's nil hands over again (a no-op).
-        #expect(calls.withLock { $0 } == [nil, userA, nil, nil, nil])
+        try await waitUntil { calls.withLock { $0 } == [nil, userA, nil, nil, nil] }
     }
 
     @Test func aFailedWipeFromTheStreamIsSurfaced() async throws {
@@ -179,6 +179,9 @@ import Testing
         try await waitUntil { session.session != nil }
         await auth.signOut()
         try await waitUntil { session.session == nil }
+        // The server ended the session: the device is handed over once the user gives up on signing in
+        // again (E3), and that wipe's failure is surfaced.
+        await session.abandonExpiredSession()
         #expect(session.error == .localData)
     }
 

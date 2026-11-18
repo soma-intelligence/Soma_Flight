@@ -41,7 +41,7 @@ enum AirportFacts {
     }
 
     static func countryName(_ region: String) -> String {
-        Locale(identifier: "en_US").localizedString(forRegionCode: region) ?? region
+        FlightActivityDisplay.uiLocale.localizedString(forRegionCode: region) ?? region
     }
 
     /// Short airline code for display: IATA where known, else the ICAO operator.
@@ -52,8 +52,12 @@ enum AirportFacts {
     }
 
     /// "Friday, October 23" and "Fri 23"; set `timeZone` on a copy before use.
-    static let longDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.wide).month(.wide).day()
-    static let shortDay = Date.FormatStyle(locale: Locale(identifier: "en_US")).weekday(.abbreviated).day()
+    static var longDay: Date.FormatStyle {
+        Date.FormatStyle(locale: FlightActivityDisplay.uiLocale).weekday(.wide).month(.wide).day()
+    }
+    static var shortDay: Date.FormatStyle {
+        Date.FormatStyle(locale: FlightActivityDisplay.uiLocale).weekday(.abbreviated).day()
+    }
 
     static func scheduled(_ f: Flight, _ kind: BoardKind) -> Date? {
         kind == .arrivals ? f.scheduledIn : f.scheduledOut
@@ -120,11 +124,20 @@ enum AirportFacts {
         s == .major ? "Heavy delays today" : "Delays are building"
     }
 
+    /// "Leaving 11m late on average, 53 of 156 flights held up, 3 canceled.": one catalog key per side, with
+    /// and without cancellations, so each language builds the sentence its own way (A1).
+    /// `verb` is "Leaving" or "Arriving".
     static func delayLine(_ s: DelayStats, verb: String) -> String {
         let avg = Format.minutes(Int(s.avgDelayMinutes.rounded()))
-        var line = "\(verb) \(avg) late on average, \(s.delayed15) of \(s.total) flights held up"
-        if s.canceled > 0 { line += ", \(s.canceled) canceled" }
-        return line + "."
+        let held = s.delayed15, total = s.total, canceled = s.canceled
+        return switch (verb == "Arriving" ? "Arriving" : "Leaving", canceled > 0) {
+        case ("Leaving", false): Format.words("Leaving \(avg) late on average, \(held) of \(total) flights held up.")
+        case ("Leaving", true):
+            Format.words("Leaving \(avg) late on average, \(held) of \(total) flights held up, \(canceled) canceled.")
+        case ("Arriving", false): Format.words("Arriving \(avg) late on average, \(held) of \(total) flights held up.")
+        default:
+            Format.words("Arriving \(avg) late on average, \(held) of \(total) flights held up, \(canceled) canceled.")
+        }
     }
 
     static func weatherLine(_ w: Weather) -> String {

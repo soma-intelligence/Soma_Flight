@@ -15,9 +15,13 @@ extension DetailFacts {
         return "\(ident) · \(headerDay(out, origin?.timeZone ?? .current).uppercased())"
     }
 
-    /// "Fri, 30 Oct" in `tz`, in English like the rest of the app.
+    /// "Fri, 30 Oct" in `tz` ("ven. 30 oct." in French), in the app's language.
     static func headerDay(_ date: Date, _ tz: TimeZone) -> String {
-        dayFormatter("EEE, d MMM", tz).string(from: date)
+        let english = FlightActivityDisplay.uiLocale.language.languageCode?.identifier == "en"
+        guard !english else { return dayFormatter("EEE, d MMM", tz).string(from: date) }
+        var style = Date.FormatStyle(locale: FlightActivityDisplay.uiLocale, timeZone: tz)
+        style = style.weekday(.abbreviated).day().month(.abbreviated)
+        return date.formatted(style)
     }
 
     private static func dayFormatter(_ format: String, _ tz: TimeZone) -> DateFormatter {
@@ -31,6 +35,8 @@ extension DetailFacts {
     /// "10h 55m", "3h 05m", "12m": hours and zero-padded minutes, minutes alone under an hour.
     static func span(minutes total: Int) -> String {
         let m = max(total, 0)
+        // Other languages get their own units ("6 h 50 min"), from the same formatter as the rows.
+        guard Format.englishUI else { return Format.minutes(m) }
         let h = m / 60, r = m % 60
         return h == 0 ? "\(r)m" : "\(h)h \(r < 10 ? "0" : "")\(r)m"
     }
@@ -40,38 +46,41 @@ extension DetailFacts {
     static func countdown(_ f: Flight, destination: Airport?, now: Date) -> String {
         switch f.status {
         case .canceled:
-            return "Canceled"
+            return Format.words("Canceled")
         case .diverted:
-            guard let d = destination, d.id != f.destinationIcao else { return "Diverted" }
-            return "Diverted to \(d.iata ?? d.id)"
+            guard let d = destination, d.id != f.destinationIcao else { return Format.words("Diverted") }
+            let code = d.iata ?? d.id
+            return Format.words("Diverted to \(code)")
         case .landed, .arrived:
-            return "Landed"
+            return Format.words("Landed")
         case .departed, .enRoute:
-            guard let end = f.actualIn ?? f.estimatedIn ?? f.scheduledIn else { return "In the air" }
+            guard let end = f.actualIn ?? f.estimatedIn ?? f.scheduledIn else { return Format.words("In the air") }
             let m = Int(end.timeIntervalSince(now) / 60)
-            return m < 1 ? "Arriving now" : "Arrives in \(span(minutes: m))"
+            let left = span(minutes: m)
+            return m < 1 ? Format.words("Arriving now") : Format.words("Arrives in \(left)")
         case .scheduled, .unknown:
-            guard let out = f.actualOut ?? f.estimatedOut ?? f.scheduledOut else { return "Scheduled" }
+            guard let out = f.actualOut ?? f.estimatedOut ?? f.scheduledOut else { return Format.words("Scheduled") }
             let seconds = out.timeIntervalSince(now)
             if seconds >= 86_400 {
                 let days = Int(seconds / 86_400)
-                return "Departs in \(days) \(days == 1 ? "day" : "days")"
+                return days == 1 ? Format.words("Departs in 1 day") : Format.words("Departs in \(days) days")
             }
             let m = Int(seconds / 60)
-            return m < 1 ? "Departing now" : "Departs in \(span(minutes: m))"
+            let left = span(minutes: m)
+            return m < 1 ? Format.words("Departing now") : Format.words("Departs in \(left)")
         }
     }
 
     /// The card's second line: the airline and where the flight stands.
     static func countdownCaption(_ f: Flight, airline: Airline?) -> String {
         let status: String = switch f.status {
-        case .scheduled, .unknown: "Scheduled"
-        case .departed: "Left the gate"
-        case .enRoute: "In the air"
-        case .landed: "Landed"
-        case .arrived: "At the gate"
-        case .canceled: "Canceled"
-        case .diverted: "Diverted"
+        case .scheduled, .unknown: Format.words("Scheduled")
+        case .departed: Format.words("Left the gate")
+        case .enRoute: Format.words("In the air")
+        case .landed: Format.words("Landed")
+        case .arrived: Format.words("At the gate")
+        case .canceled: Format.words("Canceled")
+        case .diverted: Format.words("Diverted")
         }
         guard let name = airline?.name else { return status }
         return "\(name) · \(status)"
@@ -91,7 +100,8 @@ extension DetailFacts {
     static func landedCaption(_ f: Flight, origin: Airport?, destination: Airport?, unit: DistanceUnit) -> String? {
         var parts: [String] = []
         if let out = bestOut(f), let arr = bestIn(f), arr > out {
-            parts.append("Total \(span(minutes: Int(arr.timeIntervalSince(out) / 60)))")
+            let total = span(minutes: Int(arr.timeIntervalSince(out) / 60))
+            parts.append(Format.words("Total \(total)"))
         }
         if let km = distanceKm(origin: origin, destination: destination) { parts.append(TravelFacts.distance(km, unit)) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
@@ -132,18 +142,69 @@ struct DetailHeader: View {
     var onClose: (() -> Void)?
     /// Drawn between the title and the close button (the Mac panel's share, bell and menu).
     var actions: AnyView?
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var overline: String { DetailFacts.headerLine(flight, origin: origin) }
+    private var title: String {
+        ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode)
+    }
 
     var body: some View {
-        SheetHeader.detail(
-            overline: DetailFacts.headerLine(flight, origin: origin),
-            title: ScreenFormat.route(origin?.city ?? flight.originCode, destination?.city ?? flight.destinationCode),
-            onClose: onClose
-        ) {
-            AirlineLogo(airline: airline, code: airline?.iata ?? TravelFacts.airlineCode(ident: flight.ident),
-                        size: 36, decorative: true)
-        } actions: {
-            if let actions { actions }
+        if typeSize.isAccessibilitySize {
+            // A12: at accessibility sizes the route wraps instead of "Paris to S...": the mark, actions and
+            // close sit on their own row above the words.
+            WrappingDetailHeader(overline: overline, title: title, actions: actions, onClose: onClose) { logo }
+        } else {
+            SheetHeader.detail(overline: overline, title: title, onClose: onClose) {
+                logo
+            } actions: {
+                if let actions { actions }
+            }
         }
+    }
+
+    private var logo: some View {
+        AirlineLogo(airline: airline, code: airline?.iata ?? TravelFacts.airlineCode(ident: flight.ident),
+                    size: 36, decorative: true)
+    }
+}
+
+/// The Detail header at accessibility text sizes (A12): the mark, the actions and the close button on one
+/// row, then the overline and the title on as many lines as they need. Shared by the flight and airport sheets.
+struct WrappingDetailHeader<Mark: View>: View {
+    var overline: String
+    var title: String
+    var actions: AnyView?
+    var onClose: (() -> Void)?
+    @ViewBuilder var mark: () -> Mark
+    @Environment(\.metricsScale) private var scale
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.metric(Theme.Space.xs, scale)) {
+            HStack(spacing: Theme.metric(Theme.Space.sm, scale)) {
+                mark()
+                    .frame(width: Theme.metric(36, scale), height: Theme.metric(36, scale))
+                    .accessibilityHidden(true)
+                Spacer(minLength: 8)
+                if let actions { HStack(spacing: Theme.metric(Theme.Space.xs, scale)) { actions } }
+                if let onClose { CloseButton(inset: false, action: onClose) }
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(ui: overline)
+                    .scaledFont(11, weight: .semibold)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(ui: title)
+                    .themeFont(.sheetTitle)
+                    .foregroundStyle(Theme.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
+        .scaledPadding(.horizontal, Theme.gutter)
+        .scaledPadding(.vertical, 6)
     }
 }
 

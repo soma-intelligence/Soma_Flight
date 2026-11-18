@@ -118,6 +118,12 @@ public final class SupabaseAuthService: AuthService {
         return true
     }
 
+    /// Renews the access token with the stored refresh token. A refresh token the server no longer takes
+    /// (revoked, expired, the account gone) throws `.unauthorized`.
+    public func refreshSession() async throws(APIError) {
+        do { _ = try await auth.refreshSession() } catch { throw SupabaseBackend.map(error) }
+    }
+
     static let unregisterLimit = Duration.seconds(4)
 
     /// Removes this device's push tokens (waiting at most `unregisterLimit`), then ends the session here and on the server; a failed server

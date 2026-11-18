@@ -185,7 +185,7 @@ import Testing
         #expect(FAAFacts.notamWindow(r.notams[2], timeZone: Self.la, now: at) == "From 07:00 to 15:00")
         #expect(FAAFacts.notamWindow(r.notams[3], timeZone: Self.la, now: at) == "Until about 15:59")
         #expect(FAAFacts.notamWindow(r.notams[6], timeZone: Self.la, now: at) == "Until further notice")
-        #expect(FAAFacts.notamSource(r, now: at.addingTimeInterval(600)) == "FAA NOTAM service • updated 10 min ago")
+        #expect(FAAFacts.notamSource(r, now: at.addingTimeInterval(600)) == "FAA NOTAM service • updated 10 min. ago")
     }
 
     @Test func goodToKnowAndIssuesRows() throws {

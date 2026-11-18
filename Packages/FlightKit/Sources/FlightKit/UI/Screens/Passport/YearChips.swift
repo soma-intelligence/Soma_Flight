@@ -63,7 +63,7 @@ struct YearChips: View {
     private func chip(_ index: Int, _ year: Int?) -> some View {
         let on = index == selected
         return Button { choose(year) } label: {
-            Text(year.map(String.init) ?? "All-Time")
+            Text(ui: year.map(String.init) ?? "All-Time")
                 .scaledFont(compact ? 15 : 17, weight: .medium)
                 .monospacedDigit()
                 .foregroundStyle(on ? Theme.primary : ink)

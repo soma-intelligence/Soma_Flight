@@ -24,8 +24,24 @@ public enum SharedSettings {
         #endif
     }
 
-    /// Whether times read as "6:25 PM" rather than "18:25".
-    public static func twelveHour(in defaults: UserDefaults = SharedSettings.defaults) -> Bool {
-        (defaults.object(forKey: clock24Key) as? Bool) == false
+    /// Whether times read as "6:25 PM" rather than "18:25": the user's choice in Settings, else the
+    /// device's region (A11).
+    public static func twelveHour(in defaults: UserDefaults = SharedSettings.defaults, locale: Locale = .current) -> Bool {
+        if let clock24 = defaults.object(forKey: clock24Key) as? Bool { return !clock24 }
+        return !localeUses24Hour(locale)
+    }
+
+    /// The device's own clock, for a user who never chose one: 24 hour unless the region writes 12.
+    public static func localeUses24Hour(_ locale: Locale = .current) -> Bool {
+        switch locale.hourCycle {
+        case .oneToTwelve, .zeroToEleven: false
+        default: true
+        }
+    }
+
+    /// The device's own distance unit, for a user who never chose one: miles where the region measures in
+    /// miles (US, UK), else kilometres (A11).
+    public static func localeUsesMiles(_ locale: Locale = .current) -> Bool {
+        locale.measurementSystem == .us || locale.measurementSystem == .uk
     }
 }

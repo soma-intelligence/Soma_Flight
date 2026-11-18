@@ -93,15 +93,14 @@ enum FlightSharing {
 }
 
 extension View {
-    /// Says when Stop Sharing failed (the link still works), until dismissed.
+    /// Says when Stop Sharing failed (the link still works), with Try Again (I6), until dismissed.
     func shareErrorAlert(_ model: FlightShareModel?) -> some View {
-        alert("Could Not Stop Sharing", isPresented: Binding(
-            get: { model?.error != nil },
-            set: { if !$0 { model?.clearError() } })) {
-            Button("OK", role: .cancel) { model?.clearError() }
-        } message: {
-            Text("The link still works. \(model?.error?.message ?? "")")
-        }
+        failureAlert(Binding(get: { model?.error.map { e in
+                                 String(localized: "The link still works. \(UIText.localized(e.message(hasContent: false)))",
+                                        bundle: .main) } },
+                             set: { if $0 == nil { model?.clearError() } }),
+                     title: "Could Not Stop Sharing",
+                     retry: model.map { m in { Task { await m.stop() } } })
     }
 }
 

@@ -37,8 +37,9 @@ import Testing
     @Test(arguments: [URLError.Code.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost,
                       .cannotFindHost, .dataNotAllowed])
     func mapsURLErrorToOffline(code: URLError.Code) {
-        #expect(SupabaseBackend.map(URLError(code)) == .offline)
-        #expect(SupabaseBackend.map(NSError(domain: NSURLErrorDomain, code: code.rawValue)) == .offline)
+        // With the device's path down (or unknown) every code here is offline; E7 covers the online case.
+        #expect(SupabaseBackend.map(URLError(code), deviceOnline: false) == .offline)
+        #expect(SupabaseBackend.map(NSError(domain: NSURLErrorDomain, code: code.rawValue), deviceOnline: nil) == .offline)
     }
 
     @Test func otherURLErrorsAreNotOffline() {
