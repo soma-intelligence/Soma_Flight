@@ -75,7 +75,7 @@ targets:
         # Supabase URL and anon key (from Config.Debug/Release.xcconfig), the somaflight:// sign-in
         # callback and NSSupportsLiveActivities. Debug's plist also allows local networking for the local stack.
         INFOPLIST_FILE: Apps/iOS/Info.plist
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # The launch screen (UILaunchScreen in Info.plist): black with the jet tile; FlightSplash carries on from it.
         # Settings > Calendar (asked when the switch is turned on) and the "Leave by" time (asked from its
         # breakdown, while the app is in use only).
         INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Soma Flight adds the flights you follow to the calendar you pick and keeps them up to date, and finds the flights in your events when you import them. Nothing leaves your device.

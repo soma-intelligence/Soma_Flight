@@ -12,6 +12,8 @@ struct SomaFlightApp: App {
     @State private var pendingURL: URL?
     /// The device's own reminders; the passport one re-plans when the expiry in the travel documents changes.
     @State private var reminders: ReminderScheduler?
+    /// The animated splash of a cold launch (`FlightSplash`), once per process.
+    @State private var splashing = FlightSplash.enabled
 
     /// Live Activities run on the backend. Screenshot runs (`-useFakes`, Debug only) leave the lock screen
     /// alone, unless the Debug-only `-startLiveActivity YES` asks for one (the fake flight in the air).
@@ -40,6 +42,11 @@ struct SomaFlightApp: App {
                         .environment(\.travelDocuments, documents)
                 } else {
                     LaunchPlaceholder(failure: failure)
+                }
+            }
+            .overlay {
+                if splashing {
+                    FlightSplash { splashing = false }
                 }
             }
             .onOpenURL { url in
