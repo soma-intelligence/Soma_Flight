@@ -51,7 +51,8 @@ export async function requireUser(
 
 /**
  * Service role check for internal functions (push-sender, maintenance, usage-alert). Two layers:
- * the bearer token must equal `key` (constant time), and when it is a JWT its `role` claim must
+ * the bearer token must equal `key` or the SERVICE_ROLE_JWT secret (constant time), and when it is a
+ * JWT its `role` claim must
  * be service_role. The gateway's verify_jwt is a third.
  */
 export async function isServiceCaller(
@@ -61,7 +62,14 @@ export async function isServiceCaller(
   const bearer = /^Bearer\s+(\S+)$/i.exec(
     req.headers.get("authorization") ?? "",
   )?.[1];
-  if (!key || !bearer || !(await safeEqual(bearer, key))) return false;
+  if (!bearer) return false;
+  // The hosted runtime now fills SUPABASE_SERVICE_ROLE_KEY with an opaque secret key, while pg_cron's
+  // invoke_edge_function sends the legacy service_role JWT from the vault. SERVICE_ROLE_JWT holds that
+  // JWT so both callers pass; the role claim below still has to be service_role.
+  const accepted = [key, Deno.env.get("SERVICE_ROLE_JWT")].filter((k): k is string => !!k);
+  let match = false;
+  for (const k of accepted) if (await safeEqual(bearer, k)) match = true;
+  if (!match) return false;
   const parts = bearer.split(".");
   if (parts.length !== 3) return true; // opaque secret key (sb_secret_...), no claims to read
   try {
