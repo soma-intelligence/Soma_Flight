@@ -380,6 +380,7 @@ verify_jwt = false
 # Called by aeroapi-webhook with the service role key. The function also checks the role claim.
 [functions.push-sender]
 verify_jwt = true
+static_files = ["./functions/_shared/flightcore/pkg/*"]
 
 [functions.register-push-token]
 verify_jwt = true
@@ -459,6 +460,7 @@ static_files = ["./functions/_shared/brand/resvg/*"]
 # FAA programs (ground stops, delay programs, closures) at US airports; the sweep is service role only.
 [functions.faa-status]
 verify_jwt = true
+static_files = ["./functions/_shared/flightcore/pkg/*"]
 
 # Decoded NOTAMs (FAA NOTAM API); answers configured: false until the FAA key is set.
 [functions.faa-notams]
