@@ -223,7 +223,7 @@ public struct HomeTabPill: View {
     private func item(_ value: HomeTab, title: String, systemImage: String) -> some View {
         let selected = tab == value
         return Button {
-            if selected { onReselect?() } else { withAnimation(.snappy) { tab = value } }
+            if selected { onReselect?() } else { withAnimation(HomeTab.switchAnimation) { tab = value } }
         } label: {
             VStack(spacing: Theme.metric(2, scale)) {
                 Image(systemName: systemImage)

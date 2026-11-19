@@ -105,7 +105,7 @@ public struct MyFlightsView: View {
     /// 44 pt slot keeps the room). VoiceOver's "Expand" and "Collapse" on it move the sheet a detent.
     private var header: some View {
         SheetHeader.root("My Flights") {
-            Color.clear.frame(width: 44, height: 44).accessibilityHidden(true)
+            ShellAvatarSlot()
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
@@ -113,8 +113,8 @@ public struct MyFlightsView: View {
             if let expand = detentActions?.expand { Button("Expand", action: expand) }
             if let collapse = detentActions?.collapse { Button("Collapse", action: collapse) }
         }
-        .scaledPadding(.top, 15)
-        .scaledPadding(.bottom, 4)
+        .scaledPadding(.top, SheetHeader.rootTop)
+        .scaledPadding(.bottom, SheetHeader.rootBottom)
     }
 
     /// The groups in order: in the air, upcoming (followed and planned flights together, by departure),

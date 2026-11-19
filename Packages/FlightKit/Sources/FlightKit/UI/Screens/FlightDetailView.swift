@@ -326,8 +326,11 @@ public struct FlightDetailView: View {
                 }
                 let type = flight.aircraftType.flatMap { reference.type($0) }
                 if insights, PlaneSection.isShown(type: type, inbound: store.inbound) {
+                    let past = PlaneSection.isPast(flight, archived: store.isArchived, now: now)
                     PlaneSection(flight: flight, type: type, airline: airline(flight), inbound: store.inbound,
-                                 tailLine: tailLine(flight))
+                                 tailLine: tailLine(flight), isPast: past,
+                                 sky: PlaneSection.sky(flight, origin: store.origin, destination: plannedDestination(flight),
+                                                       isPast: past, now: now))
                         .id("plane")
                 } else {
                     DetailCard {

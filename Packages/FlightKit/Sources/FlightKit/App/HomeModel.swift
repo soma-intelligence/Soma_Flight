@@ -10,6 +10,11 @@ import AppKit
 /// The three sections of the home panel (the iOS sheet, the Mac sidebar), in the tab pill's order.
 public enum HomeTab: String, Hashable, Sendable, CaseIterable {
     case flights, friends, passport
+
+    /// The one curve of a tab change, shared by the pill's selection and the screens (`TabPager`): a short,
+    /// critically damped spring, so the move settles without a bounce and a quick second tap takes over
+    /// from wherever the first one is.
+    public static let switchAnimation = Animation.spring(response: 0.36, dampingFraction: 1)
 }
 
 /// A Passport page that opens over the whole home (full screen on iOS, a sheet on the Mac) from one of

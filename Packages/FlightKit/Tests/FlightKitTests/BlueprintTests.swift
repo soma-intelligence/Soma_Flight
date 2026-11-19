@@ -111,10 +111,14 @@ struct BlueprintTests {
             let tg = AircraftGeometry.geometry(type: t)
             let toTail = BlueprintTail.transform(tg, size: size)
             let box = BlueprintTail.placard(tg, size: size, registration: "N370DN", floor: 11).box
+            // Checked against what the close-up strokes (its tailplane narrowed clear of the cabin), hull included.
+            var drawn = tg
+            let lines = BlueprintTail.drawing(tg, size: size)
+            drawn.shapes = lines.behind + lines.front
             for shows in [false, true] {
                 let tail = try #require(Bitmap(BlueprintTail(type: t, registration: "N370DN", showsRegistration: shows)
                     .frame(width: size.width, height: size.height).background(Theme.blueprint)))
-                expectPanel(tail, at: try Self.clearHullPoints(tg, toTail, width: size.width, height: size.height, avoid: box),
+                expectPanel(tail, at: try Self.clearHullPoints(drawn, toTail, width: size.width, height: size.height, avoid: box),
                             "\(id) tail")
                 #expect(tail.count(differingFrom: Self.panel) > 500)
             }
@@ -161,6 +165,69 @@ struct BlueprintTests {
             }
             #expect(try inkInside(false) > 0, "\(id): no line crosses the placard's place")
             #expect(try inkInside(true) == 0, "\(id): lines cross the placard")
+        }
+    }
+
+    /// The tail close-up reads as a clean drawing: the low tailplane starts aft of every window and door at its
+    /// height, nothing is cut by the frame's left edge or the placard, no APU tick or barrel joint is stroked, and
+    /// the tailplane is one outline.
+    @Test func tailDrawingIsClean() throws {
+        let reference = ReferenceData.bundled()
+        let types = AircraftFamily.allCases.map { AircraftType(id: "", family: $0, manufacturer: "", name: $0.rawValue) }
+            + ["A320", "A321", "B738", "B38M", "B77W", "A359", "E190", "BCS3", "B789", "A333", "B744", "A388", "B752", "CRJ9", "AT76"]
+                .map { reference.type($0) }
+        let cabin = BlueprintTail.cabinParts
+        for type in types {
+            let g = AircraftGeometry.geometry(type: type)
+            let name = type?.id.isEmpty == false ? type!.id : type?.name ?? "nil"
+            for (size, fits, shows) in [(CGSize(width: 374, height: 208), true, false), (CGSize(width: 360, height: 200), false, true)] {
+                let t = BlueprintTail.transform(g, size: size, fitsFin: fits)
+                let box = shows ? BlueprintTail.placard(g, size: size, registration: "N370DN", floor: 11, fitsFin: fits).box : .null
+                let (behind, front) = BlueprintTail.drawing(g, size: size, fitsFin: fits, avoid: box)
+                #expect(!behind.contains { $0.part == .apu }, "\(name): APU drawn")
+                #expect(!behind.contains { $0.layer == .doors && $0.part == .panelLine }, "\(name): barrel joint drawn")
+                #expect(front.filter { $0.part == .tailplane }.count == 1, "\(name): tailplane outlines")
+                let leftM = -t.tx / t.a
+                for shape in behind where cabin.contains(shape.part) {
+                    let b = shape.path.boundingRect
+                    #expect(b.minX >= leftM, "\(name): \(shape.part) cut by the frame edge")
+                    if shows { #expect(!b.applying(t).intersects(box), "\(name): \(shape.part) under the placard") }
+                }
+                let tp = try #require(front.first { $0.part == .tailplane }).path.boundingRect
+                guard tp.minY < g.fuselageTopM else { continue }
+                for shape in behind where cabin.contains(shape.part) {
+                    let b = shape.path.boundingRect
+                    if b.maxY >= tp.minY && b.minY <= tp.maxY {
+                        #expect(b.maxX < tp.minX, "\(name): \(shape.part) at \(b.minX) under the tailplane from \(tp.minX)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Lines behind the near tailplane (hull outline, fin, doors) are hidden: inside its outline only the elevator
+    /// line is stroked.
+    @Test func tailplaneHidesLinesBehind() throws {
+        let size = CGSize(width: 374, height: 208)
+        for id in ["B738", "B77W", "A388", "CRJ9"] {
+            let type = ReferenceData.bundled().type(id)
+            let g = AircraftGeometry.geometry(type: type)
+            let t = BlueprintTail.transform(g, size: size, fitsFin: true)
+            let front = BlueprintTail.drawing(g, size: size, fitsFin: true).front.map { $0.path.applying(t) }
+            let outline = try #require(front.first)
+            let bitmap = try #require(Bitmap(BlueprintTail(type: type, registration: "N370DN", showsRegistration: false, fitsFin: true)
+                .frame(width: size.width, height: size.height).background(Theme.blueprint)))
+            let strokes = front.map { $0.strokedPath(StrokeStyle(lineWidth: 5)) }
+            var checked = 0
+            for y in Int(outline.boundingRect.minY)..<Int(outline.boundingRect.maxY) {
+                for x in Int(outline.boundingRect.minX)..<Int(outline.boundingRect.maxX) {
+                    let pt = CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)
+                    guard outline.contains(pt), !strokes.contains(where: { $0.contains(pt) }) else { continue }
+                    checked += 1
+                    #expect(Self.close(bitmap.rgb(x, y), Self.panel), "\(id): line behind the tailplane at \(pt)")
+                }
+            }
+            #expect(checked > 10, "\(id): \(checked) points inside the tailplane")
         }
     }
 

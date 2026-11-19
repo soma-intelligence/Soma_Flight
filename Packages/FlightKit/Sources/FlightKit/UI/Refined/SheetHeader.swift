@@ -28,6 +28,11 @@ public struct SheetHeader: View {
 
     public init(_ kind: Kind) { self.kind = kind }
 
+    /// The room above and below a tab's root header (My Flights, Friends, Passport), the same on all three
+    /// so the large title sits at one height and a tab change slides it sideways without a hop.
+    public static let rootTop: CGFloat = 16
+    public static let rootBottom: CGFloat = 6
+
     /// A root header with a trailing avatar or action.
     public static func root<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> SheetHeader {
         SheetHeader(.root(title: title, trailing: AnyView(trailing())))

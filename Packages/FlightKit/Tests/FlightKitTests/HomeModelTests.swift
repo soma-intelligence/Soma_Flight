@@ -13,21 +13,17 @@ import Testing
         return home
     }
 
-    /// Each tab keeps the detent it was left in for the session; a tab seen for the first time opens at medium.
-    @Test func eachTabRemembersItsDetent() async throws {
+    /// The three tabs share one sheet height (owner call 2026-11-18): a tab change never moves the sheet.
+    @Test func theTabsShareOneDetent() async throws {
         let home = HomeModel(env: try await AppEnvironment.fake())
         #expect(home.shell.detent == .medium)
         home.shell.detent = .expanded
         home.tab = .passport
-        #expect(home.shell.detent == .medium)
+        #expect(home.shell.detent == .expanded)
         home.shell.detent = .collapsed
         home.tab = .friends
-        #expect(home.shell.detent == .medium)
-        home.tab = .flights
-        #expect(home.shell.detent == .expanded)
-        home.tab = .passport
         #expect(home.shell.detent == .collapsed)
-        home.tab = .passport
+        home.tab = .flights
         #expect(home.shell.detent == .collapsed)
     }
 

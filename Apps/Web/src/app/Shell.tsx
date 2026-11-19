@@ -24,7 +24,7 @@ const TAB_SCREENS: Record<Tab, () => ReactNode> = {
  * The signed-in app: the globe across the window (its slot, filled by Task 8), and over it the panel
  * (768 px and wider) or the bottom sheet, holding the tab's screen with the open cards over it. A card
  * route keeps the tab it was opened over (router state); Escape closes it, Command or Control K opens
- * Search. The sheet's detent is kept per tab for the session, as ShellModel.showTab does.
+ * Search. The three tabs share one sheet detent, as ShellModel.showTab does: a tab change never resizes it.
  */
 export function Shell() {
   const wide = useWide();
@@ -32,13 +32,6 @@ export function Shell() {
   const { tab, isCard } = nav;
 
   const [detent, setDetent] = useState<Detent>("medium");
-  const tabDetents = useRef<Partial<Record<Tab, Detent>>>({});
-  const [shownTab, setShownTab] = useState(tab);
-  if (shownTab !== tab) {
-    tabDetents.current[shownTab] = detent;
-    setShownTab(tab);
-    setDetent(tabDetents.current[tab] ?? "medium");
-  }
   // A card opening over a collapsed sheet raises it to medium (ShellModel.raiseIfCollapsed).
   const [shownCard, setShownCard] = useState(isCard);
   if (shownCard !== isCard) {

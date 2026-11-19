@@ -71,6 +71,88 @@ public struct BlueprintTail: View {
     /// What the tail drawing strokes.
     static let drawnLayers: Set<AircraftLayer> = [.fuselage, .windows, .doors, .tail]
 
+    /// The close-up's line work in metres, split in two: `behind`, the barrel, its windows and doors and the
+    /// fin, and `front`, the near tailplane (one outline, with a T-tail's bullet fairing merged in) and its
+    /// elevator line, which hides whatever of `behind` it passes in front of. Cleaned up from the side view's
+    /// shapes so it reads at 2.5 times the scale:
+    /// - a low tailplane's root starts aft of the last window and door at its height (the side view puts it
+    ///   over the aft door or the last windows on most types): its chord is narrowed toward the tip, no
+    ///   further than `leastChord` of the side view's, and anything still in its way is left out;
+    /// - windows and doors cut by the frame's left edge or by `avoid` (the placard, in view points) are left
+    ///   out, and a door running past the hull outline stops at it, so every outline drawn is closed;
+    /// - the APU exhaust (a filled dot on the side view, a stray tick in line art) and the barrel's section
+    ///   joints (lines across the window row and doors) are left out.
+    static func drawing(_ g: AircraftGeometry, size: CGSize, fitsFin: Bool = false, avoid: CGRect = .null)
+        -> (behind: [AircraftShape], front: [AircraftShape]) {
+        let t = transform(g, size: size, fitsFin: fitsFin)
+        let leftM = -t.tx / t.a
+        let diameter = g.fuselageTopM - g.fuselageBottomM
+        let margin = 0.08 * diameter
+        let placard = avoid.isNull ? CGRect.null : avoid.insetBy(dx: -2, dy: -2).applying(t.inverted())
+        var shapes = g.shapes.filter { shape in
+            guard drawnLayers.contains(shape.layer), shape.part != .apu else { return false }
+            if shape.layer == .doors && shape.part == .panelLine { return false }
+            if cabinParts.contains(shape.part) {
+                let box = shape.path.boundingRect
+                if box.minX < leftM || box.intersects(placard) { return false }
+            }
+            return true
+        }
+        if let hull = g.parts[.hull] {
+            shapes = shapes.map { shape in
+                guard cabinParts.contains(shape.part) else { return shape }
+                let box = shape.path.boundingRect
+                let corners = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                               CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.maxX, y: box.maxY)]
+                if corners.allSatisfy({ hull.contains($0) }) { return shape }
+                return AircraftShape(layer: shape.layer, part: shape.part, path: shape.path.intersection(hull))
+            }
+        }
+        let tailplane = shapes.filter { $0.part == .tailplane }.map { $0.path.boundingRect }.reduce(CGRect.null) { $0.union($1) }
+        guard !tailplane.isNull else { return (shapes, []) }
+        // The elevator hinge line is the tail panel line lying inside the tailplane's box (the rudder's runs up the fin).
+        func onTailplane(_ s: AircraftShape) -> Bool {
+            s.part == .tailplane || (s.layer == .tail && s.part == .panelLine
+                                     && tailplane.insetBy(dx: -0.05, dy: -0.05).contains(s.path.boundingRect))
+        }
+        // One outline: the largest piece (the tailplane itself) with the front half of any smaller one (a T-tail's
+        // bullet fairing, whose pointed aft end would otherwise poke out past the trailing edge as a stray tick).
+        let pieces = shapes.filter { $0.part == .tailplane }.map(\.path)
+            .sorted { $0.boundingRect.width * $0.boundingRect.height > $1.boundingRect.width * $1.boundingRect.height }
+        let main = pieces[0]
+        let ahead = Path(CGRect(x: tailplane.minX - 1, y: tailplane.minY - 1, width: main.boundingRect.midX - tailplane.minX + 1,
+                                height: tailplane.height + 2))
+        let outline = pieces.dropFirst().reduce(main) { $0.union($1.intersection(ahead)) }
+        var front = [AircraftShape(layer: .tail, part: .tailplane, path: outline)]
+            + shapes.filter { onTailplane($0) && $0.part != .tailplane }
+        shapes.removeAll(where: onTailplane)
+        // A T-tail's tailplane sits on the fin, clear of the cabin.
+        if tailplane.minY < g.fuselageTopM {
+            let band = tailplane.minY...tailplane.maxY
+            func inTheWay(_ box: CGRect) -> Bool {
+                box.maxY >= band.lowerBound && box.minY <= band.upperBound && box.minX < tailplane.maxX
+            }
+            let cabin = shapes.filter { cabinParts.contains($0.part) && inTheWay($0.path.boundingRect) }
+            let wantedLE = (cabin.map { $0.path.boundingRect.maxX }.max() ?? -.infinity) + margin
+            if wantedLE > tailplane.minX {
+                let tip = tailplane.maxX
+                let k = max((tip - wantedLE) / (tip - tailplane.minX), leastChord)
+                let narrow = CGAffineTransform(a: k, b: 0, c: 0, d: 1, tx: tip * (1 - k), ty: 0)
+                front = front.map { AircraftShape(layer: $0.layer, part: $0.part, path: $0.path.applying(narrow)) }
+                let rootLE = tip - (tip - tailplane.minX) * k
+                shapes.removeAll { cabinParts.contains($0.part) && inTheWay($0.path.boundingRect)
+                                   && $0.path.boundingRect.maxX > rootLE - margin }
+            }
+        }
+        return (shapes, front)
+    }
+
+    /// Windows and doors: what the tailplane and the frame edge must not cut.
+    static let cabinParts: Set<AircraftPart> = [.window, .door, .cargoDoor]
+
+    /// The narrowest the tailplane's chord is drawn, as a fraction of the side view's.
+    static let leastChord: CGFloat = 0.6
+
     public init(type: AircraftType?, registration: String, ink: Color = Theme.blueprintInk, showsRegistration: Bool = true,
                 fitsFin: Bool = false) {
         self.type = type; self.registration = registration; self.ink = ink; self.showsRegistration = showsRegistration
@@ -125,9 +207,11 @@ public struct BlueprintTail: View {
         let floor = letterFloor
         Canvas { ctx, size in
             let toView = Self.transform(g, size: size, fitsFin: fitsFin)
+            var placardBox = CGRect.null
             if showsRegistration {
                 // Lettering painted on the skin; the panel beside the drawing carries the registration as text.
                 let (letter, box) = Self.placard(g, size: size, registration: registration, floor: floor, fitsFin: fitsFin)
+                placardBox = box
                 let placard = Path(roundedRect: box, cornerRadius: 2)
                 ctx.stroke(placard, with: .color(ink), lineWidth: 1)
                 ctx.draw(Text(ui: registration).font(.system(size: letter, weight: .medium, design: .monospaced))
@@ -137,11 +221,21 @@ public struct BlueprintTail: View {
                 outside.addPath(placard)
                 ctx.clip(to: outside, style: FillStyle(eoFill: true))
             }
-            // One path, one stroke call. Only the barrel, its windows and doors, and the tail: at this zoom
-            // the wing and engines are cut by the frame's left edge into stray pieces.
-            var lines = Path()
-            for shape in g.shapes where Self.drawnLayers.contains(shape.layer) { lines.addPath(shape.path) }
-            ctx.stroke(lines.applying(toView), with: .color(ink), lineWidth: 1)
+            // Only the barrel, its windows and doors, and the tail: at this zoom the wing and engines are cut by
+            // the frame's left edge into stray pieces. The near tailplane hides the lines behind it.
+            let (behind, front) = Self.drawing(g, size: size, fitsFin: fitsFin, avoid: placardBox)
+            var lines = Path(), tailplane = Path(), cover = Path()
+            for shape in behind { lines.addPath(shape.path) }
+            for shape in front {
+                tailplane.addPath(shape.path)
+                if shape.part == .tailplane { cover.addPath(shape.path) }
+            }
+            ctx.drawLayer { under in
+                // Subtracted rather than even-odd: a T-tail's bullet fairing overlaps its tailplane.
+                under.clip(to: Path(CGRect(origin: .zero, size: size)).subtracting(cover.applying(toView)))
+                under.stroke(lines.applying(toView), with: .color(ink), lineWidth: 1)
+            }
+            ctx.stroke(tailplane.applying(toView), with: .color(ink), lineWidth: 1)
         }
         .accessibilityHidden(true)
     }

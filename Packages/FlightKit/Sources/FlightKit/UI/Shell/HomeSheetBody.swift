@@ -60,10 +60,15 @@ public struct HomeSheetBody<Content: View, Toast: View>: View {
     }
 }
 
-/// The three tab screens side by side, the selected one in view (I10). A tab's screen is built the first
-/// time it is shown and then kept, off to the side, so its scroll position and loaded state survive a
-/// trip to another tab; `.id(tab)` used to rebuild it. Hidden tabs take no taps and are hidden from
-/// VoiceOver. Changing tab slides them sideways in the pill's order, or crossfades under Reduce Motion.
+/// The three tab screens stacked, the selected one in view (I10). A tab's screen is built the first time it
+/// is shown and then kept, so its scroll position and loaded state survive a trip to another tab;
+/// `.id(tab)` used to rebuild it. Hidden tabs take no taps and are hidden from VoiceOver.
+///
+/// A tab change is a short slide and a crossfade in the pill's order: the screen leaving drifts a quarter of
+/// the width away and fades, the one arriving drifts in from that side as it appears. The distance is the
+/// same for a neighbour and for the far tab (My Flights to Passport), so every change looks alike; the sheet
+/// keeps its height (`ShellModel.showTab`) and the headers sit at one height (`SheetHeader.rootTop`).
+/// Reduce Motion keeps the crossfade only.
 public struct TabPager<Content: View>: View {
     var tab: HomeTab
     var scrollSignals: [HomeTab: Int]
@@ -76,11 +81,16 @@ public struct TabPager<Content: View>: View {
         self.tab = tab; self.scrollSignals = scrollSignals; self.content = content
     }
 
-    /// Where a tab sits against the selected one: -1 to its left, 0 in view, 1 to its right.
+    /// Where a tab sits against the selected one: -1 to its left, 0 in view, 1 to its right (the far tab
+    /// counts as one away too, so it travels the same distance).
     static func slot(of t: HomeTab, selected: HomeTab) -> Int {
         let order = HomeTab.allCases
-        return (order.firstIndex(of: t) ?? 0) - (order.firstIndex(of: selected) ?? 0)
+        let gap = (order.firstIndex(of: t) ?? 0) - (order.firstIndex(of: selected) ?? 0)
+        return gap.signum()
     }
+
+    /// How far a screen out of view sits, as a share of the width: a short drift, not a full page turn.
+    static var drift: CGFloat { 0.25 }
 
     public var body: some View {
         ZStack(alignment: .top) {
@@ -89,8 +99,8 @@ public struct TabPager<Content: View>: View {
                     let current = t == tab
                     content(t)
                         .environment(\.scrollToTopSignal, scrollSignals[t, default: 0])
-                        .offset(x: reduceMotion ? 0 : CGFloat(Self.slot(of: t, selected: tab)) * width)
-                        .opacity(current ? 1 : (reduceMotion ? 0 : 1))
+                        .offset(x: reduceMotion ? 0 : CGFloat(Self.slot(of: t, selected: tab)) * width * Self.drift)
+                        .opacity(current ? 1 : 0)
                         .allowsHitTesting(current)
                         .accessibilityHidden(!current)
                         .zIndex(current ? 1 : 0)
@@ -99,7 +109,7 @@ public struct TabPager<Content: View>: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: tab)
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : HomeTab.switchAnimation, value: tab)
         .onChange(of: tab, initial: true) { _, t in shown.insert(t) }
     }
 }

@@ -1272,6 +1272,16 @@
         }
       }
     },
+    "About this plane": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À propos de cet avion"
+          }
+        }
+      }
+    },
     "Accept": {
       "localizations": {
         "fr": {
@@ -1788,6 +1798,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Types d'avions"
+          }
+        }
+      }
+    },
+    "Airframes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareils"
           }
         }
       }
@@ -8898,6 +8918,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Créer un autre lien"
+          }
+        }
+      }
+    },
+    "Makers": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Constructeurs"
           }
         }
       }

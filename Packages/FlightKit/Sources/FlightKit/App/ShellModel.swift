@@ -19,10 +19,9 @@ public enum SheetRoute: Hashable, Sendable {
 @MainActor @Observable
 public final class ShellModel {
     public var path: [SheetRoute] = []
-    /// The sheet's resting height. Each tab keeps its own for the session (`showTab(_:from:)`).
+    /// The sheet's resting height, shared by the three tabs (`showTab(_:from:)`).
     public var detent: SheetDetent = .medium
     /// The detent each tab was left in, this session. A tab not seen yet opens at medium.
-    @ObservationIgnored private var tabDetents: [HomeTab: SheetDetent] = [:]
     /// Bumped when the screen on top is opened again, so the globe comes back onto it.
     public private(set) var recenter = 0
     /// The arc of the open flight, kept so the camera holds it if the flight drops out of the list.
@@ -115,13 +114,10 @@ public final class ShellModel {
         }
     }
 
-    /// Leaving `old` for `new`: remembers the detent `old` was in and puts back the one `new` was left in
-    /// (medium the first time).
-    public func showTab(_ new: HomeTab, from old: HomeTab) {
-        guard new != old else { return }
-        tabDetents[old] = detent
-        detent = tabDetents[new] ?? .medium
-    }
+    /// Leaving `old` for `new`: the sheet keeps its height, so a tab change is one sideways move and never
+    /// a slide plus a resize (owner call 2026-11-18: the tabs read as one surface; each tab used to put back
+    /// the detent it was left in, and the sheet jumped while the screens slid).
+    public func showTab(_ new: HomeTab, from old: HomeTab) {}
 
     /// The full-screen map's bottom safe area: the medium sheet's height, whatever the detent. The globe
     /// (and an open flight's arc) is framed above the medium sheet's top, which is clear of the sheet in

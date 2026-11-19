@@ -188,28 +188,79 @@ struct ClassSeatSection: View {
     }
 }
 
+/// Rounded slices with a gap between them, swept in clockwise the first time the donut shows. A touch on a
+/// slice lifts it, dims the others and puts its label and share in the middle; letting go goes back to the
+/// donut's own title.
 private struct DonutChart: View {
     var donut: AircraftStatsCopy.Donut
     var valueSize: CGFloat
-    var inner: CGFloat = 0.7
+    var inner: CGFloat = 0.64
+    @State private var angle: Int?
+    /// Starts whole, so a still render (a snapshot, Reduce Motion) shows the full donut; `onAppear` folds it
+    /// away and sweeps it back in.
+    @State private var sweep: CGFloat = 1
+    @State private var swept = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var shown: [AircraftStatsCopy.Slice] { donut.slices.filter { $0.count > 0 } }
+
+    /// The slice under a running total of counts, as `chartAngleSelection` reports it.
+    static func slice(at value: Int?, in slices: [AircraftStatsCopy.Slice]) -> AircraftStatsCopy.Slice? {
+        guard let value else { return nil }
+        var total = 0
+        for s in slices where s.count > 0 {
+            total += Int(s.count)
+            if value < total { return s }
+        }
+        return nil
+    }
 
     var body: some View {
-        Chart(donut.slices.filter { $0.count > 0 }) { s in
-            SectorMark(angle: .value("Flights", s.count), innerRadius: .ratio(inner), angularInset: 1.5)
+        let picked = Self.slice(at: angle, in: shown)
+        Chart(shown) { s in
+            let lifted = picked?.id == s.id
+            SectorMark(angle: .value("Flights", s.count),
+                       innerRadius: .ratio(inner),
+                       outerRadius: .ratio(picked == nil || lifted ? 1 : 0.94),
+                       angularInset: 2.5)
+                .cornerRadius(6)
                 .foregroundStyle(s.color)
+                .opacity(picked == nil || lifted ? 1 : 0.35)
         }
         .chartLegend(.hidden)
+        .chartAngleSelection(value: $angle)
+        .animation(.snappy(duration: 0.25), value: picked?.id)
+        .mask {
+            Circle()
+                .trim(from: 0, to: sweep)
+                .stroke(style: StrokeStyle(lineWidth: 400))
+                .rotationEffect(.degrees(-90))
+        }
         .overlay {
             VStack(spacing: 2) {
-                Text(ui: donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
-                Text(ui: donut.centerValue)
+                Text(ui: picked?.label ?? donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text(ui: picked.map { "\($0.percent)%" } ?? donut.centerValue)
                     .scaledFont(valueSize, weight: .semibold)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                    .rollingDigits()
+                    .contentTransition(.numericText())
             }
-            .scaledPadding(.horizontal, 24)
+            .animation(.snappy(duration: 0.25), value: picked?.id)
+            // Inside the hole with room to spare: a long word shrinks before it reaches the ring.
+            .scaledPadding(.horizontal, 32)
+            .allowsHitTesting(false)
+        }
+        .task {
+            guard !swept, !reduceMotion else { return }
+            swept = true
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { sweep = 0 }
+            // One frame folded, so the sweep has a start to animate from.
+            try? await Task.sleep(for: .milliseconds(16))
+            withAnimation(.easeOut(duration: 0.9)) { sweep = 1 }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(donut.centerTitle), \(donut.centerValue)")
@@ -372,16 +423,17 @@ struct AircraftAgeSection: View {
     private var chart: some View {
         let labels = AircraftStatsCopy.decadeLabels(stats.decades)
         return Chart(Array(zip(labels, stats.decades)), id: \.0) { label, d in
-            BarMark(x: .value("Decade", label), y: .value("Aircraft", d.aircraft), width: .ratio(0.25))
-                .foregroundStyle(AircraftStatsCopy.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 3))
+            // Wide rounded bars in a light-to-deep blue, the count on top: no y axis to read across.
+            BarMark(x: .value("Decade", label), y: .value("Aircraft", d.aircraft), width: .ratio(0.55))
+                .foregroundStyle(LinearGradient(colors: [AircraftStatsCopy.business, AircraftStatsCopy.first],
+                                                startPoint: .top, endPoint: .bottom))
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 8, topTrailingRadius: 8, style: .continuous))
+                .annotation(position: .top, spacing: 6) {
+                    Text(PassportFacts.count(d.aircraft)).scaledFont(15, weight: .semibold).monospacedDigit()
+                        .foregroundStyle(Theme.primary)
+                }
         }
-        .chartYAxis {
-            AxisMarks(position: .leading) { _ in
-                AxisGridLine().foregroundStyle(Theme.separator)
-                AxisValueLabel().foregroundStyle(Theme.secondary)
-            }
-        }
+        .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks { _ in AxisValueLabel().foregroundStyle(Theme.primary).font(.subheadline) }
         }

@@ -54,8 +54,8 @@ public struct FriendsView: View {
                         RoundButton(systemImage: "plus", label: UIText.localized("Add a Friend")) { adding = true }
                             .scaledPadding(.trailing, Theme.gutter + 44 + 8)
                     }
-                    .scaledPadding(.top, 18)
-                    .scaledPadding(.bottom, 8)
+                    .scaledPadding(.top, SheetHeader.rootTop)
+                    .scaledPadding(.bottom, SheetHeader.rootBottom)
                 ScreenScroll(scrolls: scrolls, refresh: { await store.load() }) { content(now: now) }
             }
         }

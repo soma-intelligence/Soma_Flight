@@ -107,10 +107,12 @@ enum AircraftStatsCopy {
         var isHidden: Bool { slices.allSatisfy { $0.count == 0 } }
     }
 
-    static let economy = Color(red: 0xBB / 255, green: 0xDB / 255, blue: 0xFA / 255)
-    static let premium = Color(red: 0x99 / 255, green: 0xD5 / 255, blue: 0xF6 / 255)
-    static let business = Color(red: 0x47 / 255, green: 0xA2 / 255, blue: 0xE8 / 255)
-    static let first = Color(red: 0x34 / 255, green: 0x6F / 255, blue: 0xE6 / 255)
+    /// Four even steps of one blue, light to deep, so each class reads apart from its neighbour (Economy and
+    /// Premium Economy used to be two near identical light blues).
+    static let economy = Color(red: 0xB4 / 255, green: 0xD8 / 255, blue: 0xFF / 255)
+    static let premium = Color(red: 0x74 / 255, green: 0xB6 / 255, blue: 0xFA / 255)
+    static let business = Color(red: 0x3F / 255, green: 0x8C / 255, blue: 0xF0 / 255)
+    static let first = Color(red: 0x2A / 255, green: 0x5B / 255, blue: 0xD8 / 255)
     static let green = Color(red: 0x54 / 255, green: 0xB4 / 255, blue: 0x71 / 255)
     static let orange = Color(red: 0xEA / 255, green: 0x99 / 255, blue: 0x3A / 255)
     /// The page's blue: type and age bars, First, Window and Business slices.
@@ -262,20 +264,20 @@ struct AircraftTotalsPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Counts only: the newest and oldest airframes have their own cards in the age section, with their
+    /// picture and delivery day, so the header no longer repeats them (owner call 2026-11-18).
     private var totals: some View {
-        let ages = AircraftStatsCopy.showsAges(stats)
+        let tails = UInt32(stats.tails.count)
+        let makers = UInt32(stats.manufacturers.count)
         return HStack(alignment: .top, spacing: 8) {
-            column("Total aircraft", value: PassportFacts.count(stats.totalTypes), number: Double(stats.totalTypes), sub: nil,
-                   chip: AircraftStatsCopy.makerChip(stats), big: true)
-            if ages, let newest = stats.newest, let oldest = stats.oldest {
-                column("Newest aircraft", value: AircraftStatsCopy.ageCopy(months: newest.ageMonths),
-                       number: Double(newest.ageMonths),
-                       sub: AircraftStatsCopy.deliveryYear(newest.deliveredAt),
-                       chip: AircraftStatsCopy.typeName(newest.icaoType, reference: reference), big: false)
-                column("Oldest aircraft", value: AircraftStatsCopy.ageCopy(months: oldest.ageMonths),
-                       number: Double(oldest.ageMonths),
-                       sub: AircraftStatsCopy.deliveryYear(oldest.deliveredAt),
-                       chip: AircraftStatsCopy.typeName(oldest.icaoType, reference: reference), big: false)
+            column("Aircraft types", value: PassportFacts.count(stats.totalTypes), number: Double(stats.totalTypes),
+                   sub: nil, chip: nil, big: true)
+            if tails > 0 {
+                column("Airframes", value: PassportFacts.count(tails), number: Double(tails), sub: nil, chip: nil, big: true)
+            }
+            if makers > 0 {
+                column("Makers", value: PassportFacts.count(makers), number: Double(makers),
+                       sub: AircraftStatsCopy.makerChip(stats), chip: nil, big: true)
             }
         }
         .scaledPadding(.horizontal, 20)

@@ -85,7 +85,18 @@ import Testing
     @Test func i10TabsSitInThePillsOrder() {
         #expect(TabPager<EmptyView>.slot(of: .flights, selected: .flights) == 0)
         #expect(TabPager<EmptyView>.slot(of: .friends, selected: .flights) == 1)
-        #expect(TabPager<EmptyView>.slot(of: .flights, selected: .passport) == -2)
+        #expect(TabPager<EmptyView>.slot(of: .flights, selected: .passport) == -1,
+                "the far tab drifts as far as a neighbour, so every tab change looks alike")
+    }
+
+    @Test func aTabChangeKeepsTheSheetHeight() {
+        let shell = ShellModel()
+        shell.detent = .expanded
+        shell.showTab(.friends, from: .flights)
+        #expect(shell.detent == .expanded)
+        shell.detent = .collapsed
+        shell.showTab(.flights, from: .friends)
+        #expect(shell.detent == .collapsed, "no per-tab height comes back")
     }
 
     // MARK: E3, E16

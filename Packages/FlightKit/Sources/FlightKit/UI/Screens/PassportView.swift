@@ -91,8 +91,8 @@ public struct PassportView: View {
                 // The root header (R5): the large title, the shell's avatar on the right.
                 SheetHeader.root("Passport") { ShellAvatarSlot() }
                     .rootHeaderAccessibility()
-                    .scaledPadding(.top, 18)
-                    .scaledPadding(.bottom, 6)
+                    .scaledPadding(.top, SheetHeader.rootTop)
+                    .scaledPadding(.bottom, SheetHeader.rootBottom)
                 if !store.years.isEmpty {
                     YearChips(years: store.years, selection: $store.year)
                         .scaledPadding(.bottom, 10)

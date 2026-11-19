@@ -496,8 +496,12 @@ public struct GlobeMap: View {
         .mapStyle(labels ? .hybrid(elevation: .realistic, pointsOfInterest: .excludingAll) : .imagery(elevation: .realistic))
         .onChange(of: routes) {
             // Follow new content unless the user has panned or zoomed the globe, or a focus holds the camera.
+            // The camera glides to the new framing (a tab change swaps My Flights' arcs for Friends' or
+            // Passport's) instead of cutting to it; under Reduce Motion it still jumps.
             if focus == nil, !position.positionedByUser {
-                position = .camera(Self.camera(routes: routes, planes: planes, airports: airports))
+                withAnimation(cameraMove(.smooth(duration: 0.8))) {
+                    position = .camera(Self.camera(routes: routes, planes: planes, airports: airports))
+                }
             }
         }
         .onChange(of: focus) { moveToFocus() }
