@@ -54,7 +54,7 @@ public enum AppIconPlane: String, CaseIterable, Sendable {
 ///   builds every app icon set in the catalog as an alternate icon (`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS`
 ///   in `project.yml`).
 /// - FlightKit's `Resources/AppIconPreviews.xcassets`: one `Preview-<slug>` per icon, with its light and dark
-///   look, which the picker draws (`AppIconChoice.previewName`), and `BrandMark`, the Jet the sign-in screen shows.
+///   look, which the picker draws (`AppIconChoice.previewName`), and `PlaneMark`, the Jet alone the sign-in screen shows (assets/app-icon/plane_mark.py).
 /// - The watch and Mac `AppIcon` sets (white jet on charcoal).
 ///
 /// To add an icon, add it to `family.py`, run it, then add one line to `all` below.

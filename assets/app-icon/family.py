@@ -8,7 +8,7 @@ Builds both jets with build.py's tile, shadow and tinted mapping, then writes ev
   plane on white, paper, grey, charcoal, black, navy, sky, dusk and blue (black plane on the light grounds,
   white on the others; build.BACKGROUNDS) and AppIcon-<plane>-blueprint (blueprint.py, a vector line drawing);
 - FlightKit Resources/AppIconPreviews.xcassets: one Preview-<slug> per icon (light and dark appearance) for the
-  Settings picker, and BrandMark (the Jet, light and dark) for the sign-in screen;
+  Settings picker (the sign-in screen's PlaneMark comes from plane_mark.py);
 - the Watch and Mac AppIcon sets (white jet on charcoal, the Mac in its framed tile).
 """
 import json, pathlib, sys
@@ -134,8 +134,6 @@ if __name__ == "__main__":
     for slug, (lt, dk, tn) in looks.items():
         appicon("AppIcon" if slug == "jet" else f"AppIcon-{slug}", lt, dk, tn)
         preview(f"Preview-{slug}", lt, dk)
-    jet = looks["jet"]
-    preview("BrandMark", jet[0], looks["jet-charcoal"][0])
     looks["jet-charcoal"][0].convert("RGB").save(ROOT / "Apps/Watch/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
                                                 optimize=True)
     mac = B.mac_tile(looks["jet-charcoal"][0])

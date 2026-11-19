@@ -19,7 +19,7 @@ public struct SignInView: View {
     @State private var appleFailed = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.airportStaticControls) private var staticControls
-    @ScaledMetric(relativeTo: .body) private var logo = 92
+    @ScaledMetric(relativeTo: .body) private var logo = 128
     /// The height of every control in the form, as Apple's own sign-in sheets use.
     @ScaledMetric(relativeTo: .body) private var controlHeight: CGFloat = 54
 
@@ -63,19 +63,23 @@ public struct SignInView: View {
         .background { backdrop }
     }
 
-    /// The home's satellite globe, turning slowly, fading into the page below the intro so the form sits on plain
-    /// dark. Snapshots get the plain page (ImageRenderer cannot draw a map).
+    /// A globe turning slowly, fading into the page below the intro so the form sits on the plain page: the
+    /// night satellite globe in dark mode, a daylit globe of our own in light mode (MapKit draws no day globe),
+    /// so the type always sits on its own scheme's ground.
+    /// Snapshots get the plain page (ImageRenderer cannot draw a map).
     @ViewBuilder private var backdrop: some View {
         if staticControls {
             Theme.background.ignoresSafeArea()
         } else {
             ZStack {
-                Color.black
-                SpinningGlobe()
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                LinearGradient(stops: [.init(color: .black.opacity(0.15), location: 0),
-                                       .init(color: .black.opacity(0.55), location: 0.35),
+                Theme.background
+                Group {
+                    if scheme == .dark { SpinningGlobe() } else { DaylitGlobe() }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                LinearGradient(stops: [.init(color: Theme.background.opacity(scheme == .dark ? 0.15 : 0.1), location: 0),
+                                       .init(color: Theme.background.opacity(scheme == .dark ? 0.55 : 0.6), location: 0.35),
                                        .init(color: Theme.background, location: 0.62)],
                                startPoint: .top, endPoint: .bottom)
             }
@@ -85,12 +89,12 @@ public struct SignInView: View {
 
     private var intro: some View {
         VStack(spacing: 14) {
-            Self.appIcon
+            // The jet alone, as the launch screen and the splash show it (no icon tile).
+            Self.plane
                 .resizable()
                 .interpolation(.high)
                 .frame(width: logo, height: logo)
-                .clipShape(RoundedRectangle(cornerRadius: logo * 0.225, style: .continuous))
-                .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.18), radius: 12, y: 8)
                 .accessibilityHidden(true)
             Text("Soma Flight")
                 .scaledFont(34, weight: .bold, relativeTo: .largeTitle)
@@ -104,9 +108,9 @@ public struct SignInView: View {
         .scaledPadding(.horizontal, 28)
     }
 
-    /// The app's own icon (`BrandMark` in Resources/AppIconPreviews.xcassets, built by assets/app-icon/family.py):
-    /// the black jet on white in light mode, the white jet on charcoal in dark, as the Home Screen shows it.
-    static var appIcon: Image { Image("BrandMark", bundle: .module) }
+    /// The jet on its own (`PlaneMark` in Resources/AppIconPreviews.xcassets, built by
+    /// assets/app-icon/plane_mark.py), placed in its square as the app icon places it: black by day, white at night.
+    static var plane: Image { Image("PlaneMark", bundle: .module) }
 
     private var form: some View {
         VStack(spacing: 12) {
@@ -272,7 +276,9 @@ public struct SignInView: View {
             } onCompletion: { result in
                 completeApple(result)
             }
+            // The system button keeps the style it was built with, so a scheme change rebuilds it.
             .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+            .id(scheme)
             // A fixed height: given only a minimum, the system button grows to fill the free space.
             .frame(height: controlHeight)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

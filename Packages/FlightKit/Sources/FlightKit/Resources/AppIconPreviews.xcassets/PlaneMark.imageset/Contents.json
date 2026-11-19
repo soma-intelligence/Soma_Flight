@@ -1,18 +1,18 @@
 {
   "images": [
     {
-      "filename": "brandmark.png",
+      "filename": "planemark.png",
       "idiom": "universal"
     },
     {
+      "filename": "planemark-dark.png",
+      "idiom": "universal",
       "appearances": [
         {
           "appearance": "luminosity",
           "value": "dark"
         }
-      ],
-      "filename": "brandmark-dark.png",
-      "idiom": "universal"
+      ]
     }
   ],
   "info": {

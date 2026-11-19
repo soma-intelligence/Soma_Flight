@@ -27,17 +27,18 @@ import Testing
         let previews = try FileManager.default.contentsOfDirectory(atPath: Self.previews.path())
             .filter { $0.hasSuffix(".imageset") }
             .map { String($0.dropLast(".imageset".count)) }
-        #expect(Set(previews) == Set(AppIcons.all.map(\.previewName) + ["BrandMark"]),
+        #expect(Set(previews) == Set(AppIcons.all.map(\.previewName) + ["PlaneMark"]),
                 "one preview image set per listed icon and the sign-in mark, no strays")
         // The launch screen's mark is the one image the app's catalog must hold: Info.plist's
         // UILaunchScreen reads it before FlightKit loads.
         #expect(try FileManager.default.contentsOfDirectory(atPath: Self.catalog.path())
-                    .filter { $0.hasSuffix(".imageset") } == ["LaunchMark.imageset"],
+                    .filter { $0.hasSuffix(".imageset") } == ["LaunchPlane.imageset"],
                 "the previews live in FlightKit; the app's catalog holds only the launch mark")
         for name in previews {
             let dir = Self.previews.appending(path: "\(name).imageset")
             let json = try Data(contentsOf: dir.appending(path: "Contents.json"))
             let images = try #require((try JSONSerialization.jsonObject(with: json) as? [String: Any])?["images"] as? [[String: Any]])
+            // The sign-in screen is always dark, so its plane has one look.
             #expect(images.count == 2, "\(name) has a light and a dark look")
             for file in images.compactMap({ $0["filename"] as? String }) {
                 #expect(FileManager.default.fileExists(atPath: dir.appending(path: file).path()), "\(name) has its picture")

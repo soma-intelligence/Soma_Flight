@@ -80,7 +80,7 @@
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 		<key>UIImageName</key>
-		<string>LaunchMark</string>
+		<string>LaunchPlane</string>
 		<key>UIImageRespectsSafeAreaInsets</key>
 		<false/>
 	</dict>
