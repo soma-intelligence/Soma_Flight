@@ -108,11 +108,13 @@ public actor FakeFlightService: FlightService {
 
     /// - Parameter now: the clock the seed is shifted to. `FakeSeed.reference` keeps the seed's own times
     ///   (previews and snapshots).
-    public init(now: Date = .now) {
+    /// - Parameter following: false starts with nothing followed (`-fakeEmpty`); the seed's flights can still
+    ///   be found and added.
+    public init(now: Date = .now, following: Bool = true) {
         let s = FakeSeed.shift(now: now)
         let followed = FakeSeed.flights("followed", shift: s)
         for f in followed { pool[f.id] = f }
-        followedIDs = followed.map(\.id)
+        followedIDs = following ? followed.map(\.id) : []
         for b in FakeSeed.boards(shift: s) { for f in b.flights where pool[f.id] == nil { pool[f.id] = f } }
         airports = FakeSeed.load("airports")
     }

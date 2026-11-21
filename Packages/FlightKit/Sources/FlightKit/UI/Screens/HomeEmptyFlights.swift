@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The home with nothing followed (R8): a short message with no illustration, then "Add a flight", which
+/// The home with nothing followed (R8): the climbing jet, a short message, then "Add a flight", which
 /// opens Search, and the quieter "Import flights" (the same entry as Search's "More" row).
 /// Penpot: Proposal · Home empty
 struct HomeEmptyFlights: View {
@@ -12,6 +12,9 @@ struct HomeEmptyFlights: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
+            // Smaller than Passport's: the home sheet opens at half height and the buttons should stay in view.
+            EmptyStateIllustration(variant: .climb, size: 240)
+                .scaledPadding(.bottom, 10)
             Text(ui: "No flights yet")
                 .themeFont(.sheetTitle)
                 .foregroundStyle(Theme.primary)

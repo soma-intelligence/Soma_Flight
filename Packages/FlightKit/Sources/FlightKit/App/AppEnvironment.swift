@@ -115,8 +115,9 @@ public struct AppEnvironment: Sendable {
     /// Seeded fakes over an in-memory cache. `now` is the clock the seed is shifted to.
     /// Async because the SwiftData cache must be built off the main thread.
     /// - Parameter pastLimit: keeps only the newest flights of the past history (`-fakePast <n>`).
-    @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil) async throws -> AppEnvironment {
-        let flights = FakeFlightService(now: now)
+    /// - Parameter empty: nothing followed and no friend (`-fakeEmpty`), for the empty home and Friends.
+    @concurrent public static func fake(now: Date = .now, pastLimit: Int? = nil, empty: Bool = false) async throws -> AppEnvironment {
+        let flights = FakeFlightService(now: now, following: !empty)
         var env = AppEnvironment(flights: flights, airports: FakeAirportService(now: now), auth: FakeAuthService(),
                                  history: FakeHistoryService(limit: pastLimit), push: FakePushService(),
                                  cache: try CacheStore.inMemory(), aircraftFacts: FakeAircraftFactsService(),
@@ -129,7 +130,7 @@ public struct AppEnvironment: Sendable {
             .withSchedules(FakeScheduleService())
         env.nearby = FakeNearbyFlightsService()
         env.sharing = FakeFlightShareService(now: now)
-        env.friends = FakeFriendsService(now: now)
+        env.friends = FakeFriendsService(now: now, seeded: !empty)
         env.airportOverview = FakeAirportOverviewService(now: now)
         env.airportFavoritesPersist = false
         env.flightBrief = FakeFlightBriefService(now: now)
@@ -225,7 +226,8 @@ public struct AppEnvironment: Sendable {
 
     /// The environment an app launch runs on: `-useFakes` on the command line gives the seeded fakes
     /// over an in-memory cache (screenshot runs, DEBUG only), anything else the backend (`live()`). Both
-    /// shells call this. With fakes, `-fakePast <n>` keeps the newest n past flights (a sparse Passport).
+    /// shells call this. With fakes, `-fakePast <n>` keeps the newest n past flights (a sparse Passport) and
+    /// `-fakeEmpty` starts with nothing followed and no friend.
     public static func forLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) async throws -> AppEnvironment {
         HistoryExport.removeTemporaryFiles()
         guard usesFakes(arguments) else { return try await live() }
@@ -233,7 +235,7 @@ public struct AppEnvironment: Sendable {
         let limit = arguments.firstIndex(of: "-fakePast").flatMap { i in
             arguments.indices.contains(i + 1) ? Int(arguments[i + 1]) : nil
         }
-        var env = try await fake(pastLimit: limit)
+        var env = try await fake(pastLimit: limit, empty: arguments.contains("-fakeEmpty"))
         env.fixedConnectivity = !arguments.contains("-fakeOffline")
         if arguments.contains("-fakeConnection") { await env.addFakeConnection() }
         // The Airports screens as a backend without a board provider shows them.

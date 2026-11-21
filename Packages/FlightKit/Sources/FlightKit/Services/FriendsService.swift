@@ -76,7 +76,8 @@ public actor FakeFriendsService: FriendsService {
     private var made = 0
     private let now: Date
 
-    public init(now: Date = .now) {
+    /// - Parameter seeded: false starts with no friend, no request and no shared flight (`-fakeEmpty`).
+    public init(now: Date = .now, seeded: Bool = true) {
         self.now = now
         let s = FakeSeed.shift(now: now)
         let seed = FakeSeed.flights("followed", shift: s)
@@ -105,6 +106,7 @@ public actor FakeFriendsService: FriendsService {
         pending = [FriendRequest(id: Self.samRequest, incoming: true, displayName: "Sam",
                                  createdAt: now.addingTimeInterval(-3600), expiresAt: now.addingTimeInterval(29 * 86_400))]
         me = FriendsMe(friendCode: "K7M2X9QP", displayName: "Quentin", emoji: "✈️")
+        if !seeded { flightList = []; friendList = []; pending = [] }
     }
 
     public func setNextError(_ error: APIError?) { nextError = error }
