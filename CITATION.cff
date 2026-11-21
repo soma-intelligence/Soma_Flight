@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Soma Flight"
+abstract: "Open source flight tracker for iPhone, iPad, Mac and Apple Watch: live flight status and push alerts, a log of every flight with stats, CO2 estimates and a Schengen 90/180 count, with a Rust core and a self-hostable Supabase backend."
+authors:
+  - name: "Soma Labs"
+version: "1.0"
+license: AGPL-3.0
+repository-code: "https://github.com/soma-intelligence/Soma_Flight"
+url: "https://somalabs.me"
+keywords:
+  - flight tracker
+  - flight status
+  - flight log
+  - SwiftUI
+  - Rust
+  - Supabase
+  - watchOS
+  - open source

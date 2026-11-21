@@ -1,0 +1,49 @@
+# Soma Flight
+
+> Soma Flight is an open source (AGPL-3.0) flight tracker for iPhone, iPad, Mac and Apple Watch by Soma Labs. It follows your flights live (times, gates, delays, push alerts, a Live Activity, widgets, Watch complications) and keeps a log of every flight you take (Passport) with a route map, lifetime stats, CO2e estimates and a Schengen 90/180 day count. It is built with SwiftUI, a shared Rust core (flightcore) and a self-hostable Supabase backend (Postgres, Deno Edge Functions). Status: public TestFlight beta, App Store 1.0 pending; the web app in Apps/Web is a first cut.
+
+- License: GNU AGPL-3.0 for the code. Airline names, logos and other third-party marks are not covered (see NOTICE).
+- Platforms: iOS and iPadOS 26+, macOS 26+, watchOS 26+. No Android app.
+- Flight data: FlightAware AeroAPI by default (alert webhooks, no polling); Aviationstack, FlightLabs and OpenSky adapters for testing. Weather from NOAA aviationweather.gov, US airport programs from the FAA. All free tiers checked on 2026-10-31 forbid use in a public app run by a company.
+- Privacy: no ads, no analytics SDK, no tracking. Imports (CSV, calendar, email) are read on the device. Location is used only for the "Leave by" time and never leaves the device.
+- Install: TestFlight public beta https://testflight.apple.com/join/RWVpDdDF, or build from source with Xcode 27 and XcodeGen (`xcodegen generate`). Debug builds run on fakes with `-useFakes YES`.
+- Not affiliated with Flighty, Flightradar24, FlightAware, App in the Air or TripIt. It can import the CSV file Flighty exports.
+
+## Docs
+
+- [README](https://github.com/soma-intelligence/Soma_Flight/blob/main/README.md): overview, features, install, architecture, comparison, FAQ
+- [Backend API contract](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/api-contract.md): every Edge Function, request and answer, push alert rules
+- [Backend operations](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/operations.md): pg_cron jobs, function and vault secrets, AeroAPI daily spend cap, optional features
+- [CO2 method](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/co2-method.md): DESNZ 2025 factors with radiative forcing, haul and seat class rules, examples
+- [Airports](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/airports.md): which airport data is free (METAR, TAF, FAA status) and what needs a paid plan
+- [Data sources](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/data-sources.md): bundled airports, airlines, aircraft, logos, security wait data and their licences
+- [Free and freemium flight data providers](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/free-providers.md): OpenSky, ADS-B Exchange, Aviationstack, FlightLabs, AeroAPI terms and limits
+- [FlightAware AeroAPI pricing and terms](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/provider-check.md): tiers, per-endpoint prices, webhook secret rotation
+- [Gate walk times](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/gate-walk-times.md): the walk from security to the gate used by "Leave by"
+- [AGENTS.md](https://github.com/soma-intelligence/Soma_Flight/blob/main/AGENTS.md): layout, build, test and rules for coding agents
+
+## Guides
+
+- [How to track a flight by flight number or route](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/track-a-flight.md): search syntax, lookup window, what updates and how
+- [Which flight alerts Soma Flight sends](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/flight-alerts.md): every push alert, its trigger and category
+- [When to leave for the airport](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/leave-for-the-airport.md): how the "Leave by" time is computed
+- [Will I make my connection?](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/connection-at-risk.md): minimum connection times and the connection at risk alert
+- [Where is my flight when there is no connection?](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/offline-flight-position.md): the on-device position estimate
+- [How to import past flights](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/import-past-flights.md): Flighty CSV, any CSV, calendar, confirmation email, boarding pass
+- [How to export your flight history](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/export-flight-history.md): JSON and CSV formats and columns
+- [Flight passport and lifetime stats](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/flight-passport-stats.md): what Passport counts, Year in Review, route poster
+- [How to see the CO2 of a flight](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/co2-per-flight.md): per flight and total CO2e
+- [How to count Schengen 90/180 days](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/schengen-day-counter.md): the rule, how stays are read from flights
+- [Airport weather, METAR and FAA status](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/airport-weather-metar.md): METAR, TAF, FAA programs, NOTAMs
+- [Apple Watch app](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/apple-watch-app.md): screens, complications, offline sync
+- [Flight data providers and which are free](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/flight-data-providers.md): provider secrets, webhooks versus polling, free tiers
+- [Self-host the backend on Supabase](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/self-host-supabase-backend.md): local stack, deploy, secrets, pointing the apps at it
+- [Build Soma Flight from source](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/build-from-source.md): Xcode, fakes, tests, Rust core, web app
+- [Open source alternatives to Flighty, Flightradar24 and other trackers](https://github.com/soma-intelligence/Soma_Flight/blob/main/docs/guides/open-source-flight-tracker-alternatives.md): neutral comparison
+
+## Optional
+
+- [Web app README](https://github.com/soma-intelligence/Soma_Flight/blob/main/Apps/Web/README.md): run the Vite and React web app, what the browser keeps
+- [NOTICE](https://github.com/soma-intelligence/Soma_Flight/blob/main/NOTICE): third-party marks and data excluded from the AGPL
+- [LICENSE](https://github.com/soma-intelligence/Soma_Flight/blob/main/LICENSE): GNU AGPL-3.0
+- [CITATION.cff](https://github.com/soma-intelligence/Soma_Flight/blob/main/CITATION.cff): how to cite Soma Flight
