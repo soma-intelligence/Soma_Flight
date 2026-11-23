@@ -11,9 +11,26 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Platforms](https://img.shields.io/badge/iOS%20·%20macOS%20·%20watchOS-26%2B-1D1D2B?logo=apple&logoColor=white)
 
-**[Try it](#try-it)** · **[Features](#features)** · **[Privacy](#privacy)** · **[Build from source](#build-from-source)** · **[FAQ](#faq)** · **[Docs](#documentation)** · **[License](#license)**
+**[Quick start](#quick-start)** · **[Try it](#try-it)** · **[Features](#features)** · **[Privacy](#privacy)** · **[Build from source](#build-from-source)** · **[FAQ](#faq)** · **[Docs](#documentation)** · **[License](#license)**
 
 </div>
+
+## Quick start
+
+1. On your iPhone, join the [public beta on TestFlight](https://testflight.apple.com/join/RWVpDdDF) and install Soma Flight.
+2. Open it and sign in with Apple or an email link.
+3. Search a flight number like "AF 84" and follow it. Its times, gates and delays show up in My Flights and update on their own.
+
+To build it yourself on a Mac with Xcode 27 and XcodeGen:
+
+```bash
+git clone https://github.com/soma-intelligence/Soma_Flight.git
+cd Soma_Flight && xcodegen generate && open SomaFlight.xcodeproj
+```
+
+Then run the `SomaFlight-iOS` scheme on a simulator with the launch argument `-useFakes YES`. Every screen fills with demo data, no account needed.
+
+More in [Try it](#try-it) and [Build from source](#build-from-source).
 
 Soma Flight is an open source flight tracker for iPhone, iPad, Mac and Apple Watch that follows your flights live (times, gates, delays, push alerts, a Live Activity) and keeps a log of every flight you take, with stats, a route map, CO2 estimates and a Schengen 90/180 day count. The code is AGPL-3.0, including the Supabase backend, so you can run your own server. It is in public beta on TestFlight; App Store version 1.0 is on its way, and a web version is an early first cut. It has no ads, no analytics SDK and no tracking.
 
