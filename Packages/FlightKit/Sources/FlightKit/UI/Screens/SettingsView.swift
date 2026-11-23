@@ -59,6 +59,8 @@ public struct SettingsView: View {
     @State private var deleteFailure: APIError?
     /// The export sheet offered from the deletion dialog (D5).
     @State private var exportingFirst = false
+    /// The Suggest a Feature sheet.
+    @State private var suggesting = false
 
     private enum Confirmation: Identifiable {
         case signOut, deleteAccount
@@ -140,6 +142,7 @@ public struct SettingsView: View {
             switch UserDefaults.standard.string(forKey: "settingsPage") {
             case "documents" where documents != nil: showingDocuments = true
             case "profile" where session.session != nil: showingProfile = true
+            case "suggest": suggesting = true
             default: break
             }
         }
@@ -294,6 +297,9 @@ public struct SettingsView: View {
                             action: { openURL(Self.privacyURL) }) { RowLink() }
                 SettingsRow(icon: "questionmark.circle.fill", title: "Help and Feedback", tone: .neutral, tint: SettingsStyle.purple,
                             action: { openURL(Self.supportURL) }) { RowLink() }
+                SettingsRow(icon: "lightbulb.fill", title: SuggestFeatureSheet.title, tone: .neutral, tint: SettingsStyle.orange,
+                            action: { suggesting = true }) { RowChevron() }
+                    .accessibilityHint("Opens a form to send us your idea")
                 SettingsRow(icon: "doc.text.fill", title: "Acknowledgements", tone: .neutral, last: true,
                             action: { showingAcknowledgements = true }) { RowChevron() }
             }
@@ -384,6 +390,7 @@ public struct SettingsView: View {
                 ExportBeforeDeleteSheet(history: history, onDone: { exportingFirst = false })
             }
         }
+        .sheet(isPresented: $suggesting) { SuggestFeatureSheet() }
     }
 
     /// The failed deletion's message: why, then that the account is still there.

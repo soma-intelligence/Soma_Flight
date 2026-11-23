@@ -5322,6 +5322,16 @@
         }
       }
     },
+    "Email (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-mail (facultatif)"
+          }
+        }
+      }
+    },
     "Email Me a Sign-In Link": {
       "localizations": {
         "fr": {
@@ -10732,6 +10742,16 @@
         }
       }
     },
+    "Only if you'd like a reply.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seulement si tu veux une réponse."
+          }
+        }
+      }
+    },
     "Open Flight": {
       "localizations": {
         "fr": {
@@ -10858,6 +10878,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ouvre les documents de voyage"
+          }
+        }
+      }
+    },
+    "Opens a form to send us your idea": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre un formulaire pour nous envoyer ton idée"
           }
         }
       }
@@ -13672,6 +13702,16 @@
         }
       }
     },
+    "Suggest a Feature": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggérer une fonctionnalité"
+          }
+        }
+      }
+    },
     "Sun": {
       "localizations": {
         "fr": {
@@ -14052,6 +14092,16 @@
         }
       }
     },
+    "Thanks, we read every idea.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merci, on lit chaque idée."
+          }
+        }
+      }
+    },
     "That Wallet pass is not a boarding pass.": {
       "localizations": {
         "fr": {
@@ -14128,6 +14178,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ça n'a pas été enregistré. Vérifie ta connexion et réessaie."
+          }
+        }
+      }
+    },
+    "That email address doesn't look right.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette adresse e-mail ne semble pas correcte."
           }
         }
       }
@@ -15028,6 +15088,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Demain"
+          }
+        }
+      }
+    },
+    "Too many ideas in a short time. Try again in an hour.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trop d'idées en peu de temps. Réessaie dans une heure."
           }
         }
       }
@@ -15992,6 +16062,16 @@
         }
       }
     },
+    "What would make the app better for you?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qu'est-ce qui rendrait l'app meilleure pour toi ?"
+          }
+        }
+      }
+    },
     "What you may see from the window": {
       "localizations": {
         "fr": {
@@ -16138,6 +16218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Travail"
+          }
+        }
+      }
+    },
+    "Write at least 3 characters.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écris au moins 3 caractères."
           }
         }
       }
@@ -16528,6 +16618,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ton historique sur ce trajet"
+          }
+        }
+      }
+    },
+    "Your idea": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton idée"
+          }
+        }
+      }
+    },
+    "Your idea didn't go through. Try again in a moment.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton idée n'est pas passée. Réessaie dans un instant."
+          }
+        }
+      }
+    },
+    "Your idea is over 4,000 characters. Shorten it a little.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton idée dépasse 4 000 caractères. Raccourcis-la un peu."
           }
         }
       }
@@ -16968,6 +17088,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "prévu à %1$@, maintenant %2$@"
+          }
+        }
+      }
+    },
+    "you@example.com": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "toi@exemple.com"
           }
         }
       }

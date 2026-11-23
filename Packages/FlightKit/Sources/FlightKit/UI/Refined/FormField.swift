@@ -7,7 +7,7 @@ import UIKit
 // - Name: `FormField` (I5, I12, I13).
 // - Use: every text input in an editor (travel documents, past flight, booking, profile, phone number).
 //   Never a bare `TextField` with its label only in the placeholder.
-// - Variants: single line or multi-line (`axis: .vertical`), secure; a keyboard (`Keyboard`), a content type
+// - Variants: single line or multi-line (`axis: .vertical`, `lines` for its height), secure; a keyboard (`Keyboard`), a content type
 //   (`Content`), a capitalization (`Capitalization`), a submit label; `next` moves focus to the next field
 //   on Return (focus chaining), else `onSubmit` runs.
 // - States: empty (prompt), filled, focused (accent rim), error (red rim and the error text under the
@@ -43,6 +43,8 @@ public struct FormField<Field: Hashable>: View {
     var autocorrect: Bool
     var submitLabel: SubmitLabel
     var axis: Axis
+    /// The lines a multi-line field shows (`axis: .vertical`); nil grows from one line.
+    var lines: ClosedRange<Int>?
     var isSecure: Bool
     var focus: FocusState<Field?>.Binding?
     var field: Field?
@@ -62,11 +64,13 @@ public struct FormField<Field: Hashable>: View {
     public init(_ label: String, text: Binding<String>, prompt: String? = nil, error: String? = nil,
                 footnote: String? = nil, keyboard: Keyboard = .standard, content: Content = .none,
                 capitalization: Capitalization = .sentences, autocorrect: Bool = true,
-                submitLabel: SubmitLabel = .next, axis: Axis = .horizontal, isSecure: Bool = false,
+                submitLabel: SubmitLabel = .next, axis: Axis = .horizontal, lines: ClosedRange<Int>? = nil,
+                isSecure: Bool = false,
                 focus: FocusState<Field?>.Binding, field: Field, next: Field? = nil, onSubmit: (() -> Void)? = nil) {
         self.label = label; _text = text; self.prompt = prompt; self.error = error; self.footnote = footnote
         self.keyboard = keyboard; self.content = content; self.capitalization = capitalization
-        self.autocorrect = autocorrect; self.submitLabel = submitLabel; self.axis = axis; self.isSecure = isSecure
+        self.autocorrect = autocorrect; self.submitLabel = submitLabel; self.axis = axis; self.lines = lines
+        self.isSecure = isSecure
         self.focus = focus; self.field = field; self.next = next; self.onSubmit = onSubmit
     }
 
@@ -125,7 +129,11 @@ public struct FormField<Field: Hashable>: View {
             if isSecure {
                 SecureField(text: $text, prompt: promptText) { Text(ui: label) }
             } else {
-                TextField(text: $text, prompt: promptText, axis: axis) { Text(ui: label) }
+                if let lines {
+                    TextField(text: $text, prompt: promptText, axis: axis) { Text(ui: label) }.lineLimit(lines)
+                } else {
+                    TextField(text: $text, prompt: promptText, axis: axis) { Text(ui: label) }
+                }
             }
         }
         .modifier(FieldFocus(focus: focus, field: field, own: $ownFocus))
@@ -143,11 +151,12 @@ public extension FormField where Field == Never {
     init(_ label: String, text: Binding<String>, prompt: String? = nil, error: String? = nil,
          footnote: String? = nil, keyboard: Keyboard = .standard, content: Content = .none,
          capitalization: Capitalization = .sentences, autocorrect: Bool = true,
-         submitLabel: SubmitLabel = .done, axis: Axis = .horizontal, isSecure: Bool = false,
-         onSubmit: (() -> Void)? = nil) {
+         submitLabel: SubmitLabel = .done, axis: Axis = .horizontal, lines: ClosedRange<Int>? = nil,
+         isSecure: Bool = false, onSubmit: (() -> Void)? = nil) {
         self.label = label; _text = text; self.prompt = prompt; self.error = error; self.footnote = footnote
         self.keyboard = keyboard; self.content = content; self.capitalization = capitalization
-        self.autocorrect = autocorrect; self.submitLabel = submitLabel; self.axis = axis; self.isSecure = isSecure
+        self.autocorrect = autocorrect; self.submitLabel = submitLabel; self.axis = axis; self.lines = lines
+        self.isSecure = isSecure
         self.focus = nil; self.field = nil; self.next = nil; self.onSubmit = onSubmit
     }
 }
