@@ -7,6 +7,8 @@ public enum CacheKey: String, Sendable {
     case flights, past
     /// The offline packs of flights about to leave or in the air (`OfflineFlightPack`).
     case offline
+    /// The Friends tab as last loaded (`FriendsSnapshot`).
+    case friends
     /// The user id the saved payloads belong to; absent while nobody has signed in.
     case owner
 }
@@ -25,7 +27,7 @@ final class CachedBlob {
 
 /// Last known state for offline launches: the followed list and the Passport history.
 @ModelActor
-public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache {
+public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache, FriendsCache {
     /// Bumped by every successful wipe. A `CacheScope` taken before a wipe can no longer write, so a load
     /// still in flight for the previous account cannot put its data back after the wipe. A failed wipe
     /// leaves it alone, so the account that stays signed in keeps a working cache.
@@ -96,6 +98,8 @@ public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache {
     public func pack(for id: Flight.ID) -> OfflineFlightPack? { packs().first { $0.flight.id == id } }
     func packs() -> [OfflineFlightPack] { get(.offline) ?? [] }
     public func flightsSavedAt() -> Date? { savedAt(.flights) }
+    public func save(friends: FriendsSnapshot) { put(friends, as: .friends) }
+    public func friends() -> FriendsSnapshot? { get(.friends) }
     public func pastSavedAt() -> Date? { savedAt(.past) }
 
     /// Drops every saved payload, so the next account on the device starts empty. On failure nothing
@@ -173,6 +177,10 @@ public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache {
     func past(owner: UUID?) -> [PastFlight] { isOwned(by: owner) ? past() : [] }
     func savedAt(_ key: CacheKey, owner: UUID?) -> Date? { isOwned(by: owner) ? savedAt(key) : nil }
     func pack(for id: Flight.ID, owner: UUID?) -> OfflineFlightPack? { isOwned(by: owner) ? pack(for: id) : nil }
+    func friends(owner: UUID?) -> FriendsSnapshot? { isOwned(by: owner) ? friends() : nil }
+    func save(friends: FriendsSnapshot, owner: UUID?, generation g: Int) {
+        if g == generation.withLock({ $0 }), isOwned(by: owner) { save(friends: friends) }
+    }
     func save(pack: OfflineFlightPack, owner: UUID?, generation g: Int) {
         if g == generation.withLock({ $0 }), isOwned(by: owner) { save(pack: pack) }
     }
@@ -209,7 +217,7 @@ public actor CacheStore: FlightListCache, PastFlightCache, OfflinePackCache {
 
 /// The cache as one account's stores see it: empty and read-only while it belongs to someone else,
 /// and closed to writes once it is wiped.
-public struct CacheScope: FlightListCache, PastFlightCache, OfflinePackCache {
+public struct CacheScope: FlightListCache, PastFlightCache, OfflinePackCache, FriendsCache {
     let store: CacheStore
     let owner: UUID?
     let generation: Int
@@ -222,4 +230,6 @@ public struct CacheScope: FlightListCache, PastFlightCache, OfflinePackCache {
     public func pastSavedAt() async -> Date? { await store.savedAt(.past, owner: owner) }
     public func save(pack: OfflineFlightPack) async { await store.save(pack: pack, owner: owner, generation: generation) }
     public func pack(for id: Flight.ID) async -> OfflineFlightPack? { await store.pack(for: id, owner: owner) }
+    public func save(friends: FriendsSnapshot) async { await store.save(friends: friends, owner: owner, generation: generation) }
+    public func friends() async -> FriendsSnapshot? { await store.friends(owner: owner) }
 }

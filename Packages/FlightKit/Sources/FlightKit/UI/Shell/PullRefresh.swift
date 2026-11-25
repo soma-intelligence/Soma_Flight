@@ -69,6 +69,22 @@ struct PullRefreshHeader: View {
     }
 }
 
+/// What a tab shows while its first load runs with nothing saved on the device: the pull to refresh's
+/// departure board, flipping through the traveller's airports, in place of a spinner.
+struct LoadingBoard: View {
+    var label: LocalizedStringKey
+    @State private var since = Date()
+
+    var body: some View {
+        PullRefreshBoard(phase: .refreshing(since: since))
+            .frame(height: PullRefreshHeader.height)
+            .frame(maxWidth: .infinity, minHeight: 200)
+            .accessibilityElement()
+            .accessibilityLabel(Text(label))
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
 // MARK: - Timing
 
 /// Shared easing for the two drawings.

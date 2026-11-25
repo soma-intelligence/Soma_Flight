@@ -147,7 +147,8 @@ public final class MyFlightsStore {
         guard let cache else { return }
         let cached = await cache.flights()
         let savedAt = await cache.flightsSavedAt()
-        guard gen == loadGeneration, all.isEmpty, !cached.isEmpty else { return }
+        // A list saved empty still counts: the account is known to follow nothing, so no loader.
+        guard gen == loadGeneration, all.isEmpty, !cached.isEmpty || savedAt != nil else { return }
         all = Dictionary(cached.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
         lastUpdated = savedAt ?? cached.map(\.updatedAt).max()
         fetchedAt = savedAt

@@ -155,10 +155,8 @@ public struct PassportView: View {
                 }
             }
             if flights.isEmpty {
-                if !store.hasLoaded {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                        .accessibilityLabel("Loading your passport")
+                if !store.hasLoaded && !store.hasCache {
+                    LoadingBoard(label: "Loading your passport")
                 } else if store.error == nil {
                     emptyState
                 }

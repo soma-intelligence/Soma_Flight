@@ -16,6 +16,8 @@ public final class PassportStore {
     public private(set) var hasLoaded = false
     /// When the history was last confirmed: now after a successful load, the cache's save time while offline.
     public internal(set) var fetchedAt: Date?
+    /// The device holds a saved history for this account (maybe empty): the screen shows it, not a loader.
+    public private(set) var hasCache = false
 
     /// The tab's totals for the chosen year (core `computePassport`).
     public private(set) var stats: PassportStats = .empty
@@ -145,7 +147,9 @@ public final class PassportStore {
     public func load() async {
         if all.isEmpty, let cache {
             let cached = await cache.past()
+            let savedAt = await cache.pastSavedAt()
             if all.isEmpty { all = cached }
+            if savedAt != nil || !cached.isEmpty { hasCache = true }
         }
         do {
             all = try await history.pastFlights()

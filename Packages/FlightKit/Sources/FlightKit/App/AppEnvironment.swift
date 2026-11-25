@@ -289,7 +289,9 @@ public struct AppEnvironment: Sendable {
         PassportStore(history: history, cache: cache.scoped(for: owner), reference: reference, facts: aircraftFacts,
                       airports: directory.lookup, journal: journal.journal(for: owner), owner: owner)
     }
-    @MainActor public func makeFriendsStore() -> FriendsStore { FriendsStore(service: friends) }
+    @MainActor public func makeFriendsStore(owner: UUID? = nil) -> FriendsStore {
+        FriendsStore(service: friends, cache: cache.scoped(for: owner))
+    }
     @MainActor public func makeProfileStore() -> ProfileStore {
         ProfileStore(service: profiles, defaults: recentsDefaults)
     }

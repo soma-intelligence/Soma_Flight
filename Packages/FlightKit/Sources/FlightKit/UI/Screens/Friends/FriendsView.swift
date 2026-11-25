@@ -132,8 +132,8 @@ public struct FriendsView: View {
             }
             FriendRequestsBanner(store: store)
             if store.friends.isEmpty {
-                if !store.hasLoaded {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 200).accessibilityLabel("Loading your friends")
+                if !store.hasLoaded && !store.isShowingCache {
+                    LoadingBoard(label: "Loading your friends")
                 } else if store.error == nil {
                     FriendsEmptyState(store: store, compact: detent == .collapsed, onShowQR: { showingQR = true },
                                       onAdd: { adding = true })

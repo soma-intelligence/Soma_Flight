@@ -1,6 +1,34 @@
 import Foundation
 import Observation
 
+/// Offline copy of the Friends tab. `CacheStore` is the SwiftData implementation.
+public protocol FriendsCache: Sendable {
+    func save(friends: FriendsSnapshot) async
+    func friends() async -> FriendsSnapshot?
+}
+
+/// What the Friends tab keeps on the device: friends, requests, their shared flights and the user's own
+/// card, so the tab opens at once and still reads with no connection.
+public struct FriendsSnapshot: Codable, Sendable, Equatable {
+    public struct SharedFlight: Codable, Sendable, Equatable {
+        public var friendId: UUID
+        public var flight: Flight
+    }
+
+    public var friends: [Friend]
+    public var requests: [FriendRequest]
+    public var flights: [SharedFlight]
+    public var me: FriendsMe?
+    public var savedAt: Date
+
+    public init(friends: [Friend], requests: [FriendRequest], flights: [FriendFlight], me: FriendsMe?, savedAt: Date) {
+        self.friends = friends; self.requests = requests; self.me = me; self.savedAt = savedAt
+        self.flights = flights.map { SharedFlight(friendId: $0.friendId, flight: $0.flight) }
+    }
+
+    public var friendFlights: [FriendFlight] { flights.map { FriendFlight(friendId: $0.friendId, flight: $0.flight) } }
+}
+
 /// The Friends tab's state for the signed-in user: their friends, pending requests, every friend's upcoming
 /// and in-air flights, the user's own code and pause, and the invitations. A switch shows at once and saves
 /// in the background; a failed save puts it back and shows the error. Rebuilt on every account change.
@@ -16,6 +44,10 @@ public final class FriendsStore {
     public private(set) var passports: [Friend.ID: FriendPassport] = [:]
     public private(set) var hasLoaded = false
     public private(set) var isLoading = false
+    /// The tab on show is the device's saved copy (read before the network answered, or after it failed).
+    public private(set) var isShowingCache = false
+    /// When the copy on show was saved, while `isShowingCache`.
+    public private(set) var cachedAt: Date?
     /// Why the last load failed. Actions report in `actionError` instead (E6).
     public private(set) var error: APIError?
     /// Why the last action failed (accept, decline, cancel, remove, a switch, the code), with a retry that
@@ -43,13 +75,16 @@ public final class FriendsStore {
     }
 
     private let service: any FriendsService
+    private let cache: (any FriendsCache)?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var pendingInvite: Task<Result<FriendInvite, APIError>, Never>?
     @ObservationIgnored private let clock: @Sendable () -> Date
 
     /// `clock` tells the current time for deciding whether the last invitation is still good.
-    public init(service: any FriendsService, clock: @escaping @Sendable () -> Date = { Date.now }) {
+    public init(service: any FriendsService, cache: (any FriendsCache)? = nil,
+                clock: @escaping @Sendable () -> Date = { Date.now }) {
         self.service = service
+        self.cache = cache
         self.clock = clock
     }
 
@@ -81,6 +116,7 @@ public final class FriendsStore {
         let gen = generation
         isLoading = true
         defer { if gen == generation { isLoading = false } }
+        if !hasLoaded, friends.isEmpty, requests.isEmpty { await showCache(gen: gen) }
         let service = service
         async let f = service.friends()
         async let r = service.requests()
@@ -95,6 +131,9 @@ public final class FriendsStore {
             self.flights = Self.sorted(flights)
             if let me { self.me = me }
             error = nil
+            isShowingCache = false; cachedAt = nil
+            await cache?.save(friends: FriendsSnapshot(friends: friends, requests: requests, flights: self.flights,
+                                                       me: self.me, savedAt: clock()))
         } catch {
             _ = try? await m
             guard gen == generation else { return }
@@ -107,6 +146,18 @@ public final class FriendsStore {
             self.error = e
         }
         hasLoaded = true
+    }
+
+    /// Fills an empty tab from the device's saved copy. Never replaces what is already on show.
+    private func showCache(gen: Int) async {
+        guard let cache, let saved = await cache.friends() else { return }
+        guard gen == generation, friends.isEmpty, requests.isEmpty else { return }
+        friends = saved.friends
+        requests = saved.requests
+        flights = Self.sorted(saved.friendFlights)
+        if me == nil { me = saved.me }
+        cachedAt = saved.savedAt
+        isShowingCache = true
     }
 
     /// Loads the friend's Passport totals when they share them (their page).

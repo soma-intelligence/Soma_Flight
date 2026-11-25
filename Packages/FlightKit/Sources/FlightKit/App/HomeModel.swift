@@ -298,7 +298,7 @@ public final class HomeModel {
         }
         if let globeCache, globeCache.key == key { return globeCache.content }
         let content: GlobeContent = switch key {
-        case .flights(let flights, _): .followed(flights, lookup: env.lookup, online: connectivity.isOnline, now: estimateClock)
+        case .flights(let flights, _): .followed(flights, lookup: env.lookup, online: canReachBackend, now: estimateClock)
         case .friends(let flights): .friends(flights, lookup: env.lookup)
         case .passport(let flights): .past(flights, lookup: env.lookup)
         }
@@ -314,10 +314,15 @@ public final class HomeModel {
 
     @ObservationIgnored private var globeCache: (key: GlobeKey, content: GlobeContent)?
 
+    /// The device has a network path and the last load of the list got through. False on an airline's Wi-Fi
+    /// that has a path but no internet behind its portal (the load times out): the globe then places planes
+    /// from their times, as offline.
+    var canReachBackend: Bool { connectivity.isOnline && myFlights.error == nil }
+
     /// The minute the globe's estimated planes are drawn for, nil while every followed flight is live (so the
     /// globe is not rebuilt for nothing). Reading it starts the minute tick.
     private var estimateTick: Date? {
-        let online = connectivity.isOnline, now = estimateClock
+        let online = canReachBackend, now = estimateClock
         guard followed.contains(where: { $0.estimate(online: online, now: now, lookup: env.lookup) != nil }) else { return nil }
         startEstimateClock()
         return now
@@ -346,7 +351,7 @@ public final class HomeModel {
         case .flight(let id):
             let flight = followed.first { $0.id == id }
             codes = flight.map { [$0.originIcao, $0.destinationIcao] } ?? []
-            plane = flight.flatMap { GlobeContent.plane(for: $0, lookup: env.lookup, online: connectivity.isOnline, now: estimateClock) }
+            plane = flight.flatMap { GlobeContent.plane(for: $0, lookup: env.lookup, online: canReachBackend, now: estimateClock) }
         case .friendFlight(let ff):
             codes = [ff.flight.originIcao, ff.flight.destinationIcao]
             plane = FlightAnnotationModel(flight: ff.flight, isFriend: true)
@@ -500,7 +505,7 @@ public final class HomeModel {
         imports = makeImports()
         showImport = false
         notificationSettings = NotificationSettingsStore(service: env.notificationPreferences, texts: env.textAlerts)
-        friends = env.makeFriendsStore()
+        friends = env.makeFriendsStore(owner: owner)
         pendingInvite = nil
         // The previous account's removals never reach the new account's list.
         pendingUnfollows.values.forEach { $0.cancel() }

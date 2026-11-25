@@ -186,11 +186,9 @@ public struct MyFlightsView: View {
                 SectionFreshness(fetchedAt: store.fetchedAt, ttl: Self.ttl, now: now) { await store.load() }
             }
             if groups.isEmpty {
-                if !store.hasLoaded || (store.error != nil && store.isLoading) {
-                    // First load, or a retry after a failed one with nothing saved.
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                        .accessibilityLabel("Loading your flights")
+                if (!store.hasLoaded && !store.isShowingCache) || (store.error != nil && store.isLoading) {
+                    // First load with nothing saved, or a retry after a failed one.
+                    LoadingBoard(label: "Loading your flights")
                 } else if store.error == nil {
                     HomeEmptyFlights(onAdd: onSearch, onImport: onImport)
                         .frame(maxWidth: .infinity)
