@@ -14,10 +14,14 @@ export type AirportInfo = {
 };
 export type AirportDirectory = (code: string) => AirportInfo | null;
 
-/** Parses the shared reference table (ICAO, IATA, name, city, country, lat, lon, zone; tab separated). */
+/**
+ * Parses the shared reference table (ICAO, IATA, name, city, country, lat, lon, zone, then an optional former
+ * code; tab separated). A former code (an old ident the backend once keyed the airport by) still finds it.
+ */
 export function parseAirportInfo(tsv: string): AirportDirectory {
   const at = new Map<string, AirportInfo>();
   const byIata = new Map<string, AirportInfo>();
+  const former = new Map<string, AirportInfo>();
   for (const line of tsv.split("\n")) {
     const f = line.split("\t");
     if (!f[0]) continue;
@@ -35,12 +39,14 @@ export function parseAirportInfo(tsv: string): AirportDirectory {
       lon: Number.isFinite(lon) ? lon : null,
     };
     at.set(icao, info);
+    const old = f[8]?.trim().toUpperCase();
+    if (old && old.length === 4) former.set(old, info);
     if (info.iata && !byIata.has(info.iata.toUpperCase())) byIata.set(info.iata.toUpperCase(), info);
   }
   // An ICAO code (4 letters) or an IATA code (3), any case.
   return (code) => {
     const k = code.trim().toUpperCase();
-    return at.get(k) ?? byIata.get(k) ?? null;
+    return at.get(k) ?? byIata.get(k) ?? former.get(k) ?? null;
   };
 }
 

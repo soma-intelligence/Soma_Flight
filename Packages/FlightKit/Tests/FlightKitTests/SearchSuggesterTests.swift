@@ -272,6 +272,16 @@ import Testing
         #expect(a[0].iata == "CDG" && a[0].lat == 49.009)
         #expect(a[1].iata == nil && a[1].city == "Qaqortoq Heliport" && a[1].timeZone == .gmt)
     }
+
+    @Test func airportsAreKeyedByTheirRealICAOCodeAndTheFormerIdentStillResolves() {
+        let dir = AirportDirectory.bundled()
+        #expect(dir.airport("SPJC")?.city == "Lima")
+        #expect(dir.airport("SPIM")?.id == "SPJC")
+        #expect(dir.airport("UZTT")?.iata == "TAS")
+        #expect(dir.all.contains { $0.id == "SPIM" } == false)
+        let text = "SPJC\tLIM\tJorge Chávez International Airport\tLima\tPE\t-12.0219\t-77.1143\tAmerica/Lima\tSPIM\n"
+        #expect(AirportDirectory.formerCodes(text) == ["SPIM": "SPJC"])
+    }
 }
 
 /// How often a pause in typing may cost a lookup.

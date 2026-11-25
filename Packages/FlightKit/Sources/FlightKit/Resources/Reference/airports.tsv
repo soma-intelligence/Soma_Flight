@@ -712,7 +712,7 @@ FABL	BFN	Bram Fischer International Airport	Bloemfontein	ZA	-29.0927	26.3024	Afr
 FACT	CPT	Cape Town International Airport	Cape Town	ZA	-33.974	18.6043	Africa/Johannesburg
 FAEL	ELS	King Phalo Airport	East London	ZA	-33.0356	27.8259	Africa/Johannesburg
 FAGG	GRJ	George Airport	George	ZA	-34.0056	22.3789	Africa/Johannesburg
-FAHT	HDS	Eastgate Airport / Air Force Base Hoedspruit	Hoedspruit	ZA	-24.3619	31.0529	Africa/Johannesburg
+FAHS	HDS	Eastgate Airport / Air Force Base Hoedspruit	Hoedspruit	ZA	-24.3619	31.0529	Africa/Johannesburg	FAHT
 FAKM	KIM	Kimberley Airport	Kimberley	ZA	-28.8054	24.7649	Africa/Johannesburg
 FAKN	MQP	Kruger Mpumalanga International Airport	Mbombela	ZA	-25.3833	31.1053	Africa/Johannesburg
 FALA	HLA	Lanseria International Airport	Johannesburg	ZA	-25.939	27.9266	Africa/Johannesburg
@@ -731,16 +731,16 @@ FASS	SIS	Sishen Airport	Sishen	ZA	-27.6486	22.9993	Africa/Johannesburg
 FASZ	SZK	Skukuza Airport	Skukuza	ZA	-24.9609	31.5886	Africa/Johannesburg
 FAUP	UTN	Upington Airport	Upington	ZA	-28.4002	21.2636	Africa/Johannesburg
 FAUT	UTT	K. D. Matanzima Airport	Mthatha	ZA	-31.5464	28.6734	Africa/Johannesburg
-FBFT	FRW	Phillip Gaonwe Matante International Airport	Francistown	BW	-21.1592	27.4688	Africa/Johannesburg
 FBKE	BBK	Kasane International Airport	Kasane	BW	-17.8317	25.1662	Africa/Johannesburg
 FBMN	MUB	Maun International Airport	Maun	BW	-19.9705	23.4314	Africa/Johannesburg
+FBPM	FRW	Phillip Gaonwe Matante International Airport	Francistown	BW	-21.1592	27.4688	Africa/Johannesburg	FBFT
 FBSK	GBE	Sir Seretse Khama International Airport	Gaborone	BW	-24.5552	25.9182	Africa/Johannesburg
 FBSW	SWX	Shakawe Airport	Shakawe	BW	-18.3739	21.8326	Africa/Johannesburg
 FCBB	BZV	Maya-Maya International Airport	Brazzaville	CG	-4.2517	15.253	Africa/Lagos
 FCPP	PNR	Antonio Agostinho-Neto International Airport	Pointe Noire	CG	-4.816	11.8866	Africa/Lagos
 FDSK	SHO	King Mswati III International Airport	Mpaka	SZ	-26.3586	31.7169	Africa/Johannesburg
 FEFF	BGF	Bangui M'Poko International Airport	Bangui	CF	4.3985	18.5188	Africa/Lagos
-FGAB	NBN	Annobón Airport	San Antonio de Palé	GQ	-1.4086	5.6242	Africa/Lagos
+FGAN	NBN	Annobón Airport	San Antonio de Palé	GQ	-1.4086	5.6242	Africa/Lagos	FGAB
 FGBT	BSG	Bata International Airport	Bata	GQ	1.9055	9.8057	Africa/Lagos
 FGMY	GEM	President Obiang Nguema International Airport	Mengomeyén	GQ	1.6764	11.0249	Africa/Lagos
 FGSL	SSG	Malabo International Airport	Malabo	GQ	3.7553	8.7087	Africa/Lagos
@@ -753,9 +753,9 @@ FKKL	MVR	Salak Airport	Maroua	CM	10.4514	14.2574	Africa/Lagos
 FKKN	NGE	N'Gaoundéré Airport	N'Gaoundéré	CM	7.357	13.5592	Africa/Lagos
 FKKR	GOU	Garoua International Airport	Garoua	CM	9.3348	13.3721	Africa/Lagos
 FKYS	NSI	Yaoundé Nsimalen International Airport	Yaoundé	CM	3.7226	11.5533	Africa/Lagos
+FLHN	LVI	Harry Mwanga Nkumbula International Airport	Livingstone	ZM	-17.8215	25.8196	Africa/Johannesburg	FLLI
+FLKK	LUN	Kenneth Kaunda International Airport	Lusaka	ZM	-15.3308	28.4527	Africa/Johannesburg	FLLS
 FLKS	KAA	Kasama Airport	Kasama	ZM	-10.2102	31.123	Africa/Johannesburg
-FLLI	LVI	Harry Mwanga Nkumbula International Airport	Livingstone	ZM	-17.8215	25.8196	Africa/Johannesburg
-FLLS	LUN	Kenneth Kaunda International Airport	Lusaka	ZM	-15.3308	28.4527	Africa/Johannesburg
 FLMF	MFU	Mfuwe International Airport	Mfuwe	ZM	-13.2589	31.9366	Africa/Johannesburg
 FLSK	NLA	Simon Mwansa Kapwepwe International Airport	Ndola	ZM	-12.9651	28.5156	Africa/Johannesburg
 FLSW	SLI	Solwesi Airport	Solwesi	ZM	-12.1737	26.3651	Africa/Johannesburg
@@ -817,10 +817,10 @@ FSAL		Alphonse Airport	Alphonse Island	SC	-7.0048	52.7262	Asia/Dubai
 FSIA	SEZ	Seychelles International Airport	Victoria	SC	-4.6743	55.5218	Asia/Dubai
 FSPP	PRI	Praslin Island Airport	Praslin Island	SC	-4.3193	55.6916	Asia/Dubai
 FTTJ	NDJ	N'Djamena International Airport	N'Djamena	TD	12.1337	15.034	Africa/Ndjamena
-FVBU	BUQ	Joshua Mqabuko Nkomo International Airport	Bulawayo	ZW	-20.0163	28.6229	Africa/Johannesburg
 FVFA	VFA	Victoria Falls International Airport	Victoria Falls	ZW	-18.0974	25.8369	Africa/Johannesburg
-FVHA	HRE	Robert Gabriel Mugabe International Airport	Harare	ZW	-17.9318	31.0928	Africa/Johannesburg
+FVJN	BUQ	Joshua Mqabuko Nkomo International Airport	Bulawayo	ZW	-20.0163	28.6229	Africa/Johannesburg	FVBU
 FVKB	KAB	Kariba Airport	Kariba	ZW	-16.5198	28.885	Africa/Johannesburg
+FVRG	HRE	Robert Gabriel Mugabe International Airport	Harare	ZW	-17.9318	31.0928	Africa/Johannesburg	FVHA
 FWCL	BLZ	Chileka International Airport	Blantyre	MW	-15.6772	34.9723	Africa/Johannesburg
 FWKI	LLW	Kamuzu International Airport	Lumbadzi	MW	-13.7894	33.781	Africa/Johannesburg
 FXMM	MSU	Moshoeshoe I International Airport	Maseru	LS	-29.4563	27.5545	Africa/Johannesburg
@@ -858,7 +858,7 @@ FZVS	PFR	Ilebo Airport	Ilebo	CD	-4.3299	20.5901	Africa/Johannesburg
 FZWA	MJM	Mbuji Mayi Airport	Mbuji Mayi	CD	-6.1212	23.569	Africa/Johannesburg
 GABS	BKO	Modibo Keita International Airport	Bamako	ML	12.5335	-7.9499	Africa/Abidjan
 GAGO	GAQ	Gao International Airport	Gao	ML	16.2485	-0.0054	Africa/Abidjan
-GAKY	KYS	Kayes Dag Dag Airport	Kayes	ML	14.4825	-11.3993	Africa/Abidjan
+GAKD	KYS	Kayes Dag Dag Airport	Kayes	ML	14.4825	-11.3993	Africa/Abidjan	GAKY
 GAMB	MZI	Mopti Airport	Sévaré	ML	14.5128	-4.0796	Africa/Abidjan
 GATB	TOM	Tombouktou Airport	Timbuktu	ML	16.7305	-3.0076	Africa/Abidjan
 GBYD	BJL	Banjul International Airport	Banjul	GM	13.338	-16.6522	Africa/Abidjan
@@ -913,6 +913,7 @@ GVSV	VXE	Cesaria Evora International Airport	São Pedro	CV	16.8334	-25.0553	Atla
 HAAB	ADD	Addis Ababa Bole International Airport	Addis Ababa	ET	8.9779	38.7993	Asia/Riyadh
 HAAM	AMH	Arba Minch Airport	Arba Minch	ET	6.0394	37.5905	Asia/Riyadh
 HAAX	AXU	Axum Airport	Axum	ET	14.1468	38.7728	Asia/Riyadh
+HABC	BCO	Jinka Airport	Jinka	ET	5.7497	36.5602	Asia/Riyadh	HAJK
 HABD	BJR	Bahir Dar Airport	Bahir Dar	ET	11.6081	37.3216	Asia/Riyadh
 HADC	DSE	Kombolcha Airport	Dessie	ET	11.1098	39.7259	Asia/Riyadh
 HADD	DEM	Dembidollo Airport	Dembidollo	ET	8.554	34.858	Asia/Riyadh
@@ -923,7 +924,6 @@ HAGN	GDQ	Gondar Airport	Azezo	ET	12.5199	37.434	Asia/Riyadh
 HAGO	GDE	Gode Airport	Gode	ET	5.9351	43.5786	Asia/Riyadh
 HAHU	HUE	Humera Airport	Akwi	ET	13.8301	36.8824	Asia/Riyadh
 HAJJ	JIJ	Gerad Wilwal International Airport	Jijiga	ET	9.3319	42.9118	Asia/Riyadh
-HAJK	BCO	Jinka Airport	Jinka	ET	5.7497	36.5602	Asia/Riyadh
 HAJM	JIM	Jimma Airport	Jimma	ET	7.6661	36.8166	Asia/Riyadh
 HAKD	ABK	Kebri Dahar Airport	Kebri Dahar	ET	6.7326	44.2413	Asia/Riyadh
 HALA	AWA	Hawassa International Airport	Hawassa	ET	7.1006	38.3965	Asia/Riyadh
@@ -936,18 +936,18 @@ HATP	TIE	Tippi Airport	Tippi	ET	7.2024	35.415	Asia/Riyadh
 HBBA	BJM	Bujumbura Melchior Ndadaye International Airport	Bujumbura	BI	-3.324	29.3185	Africa/Johannesburg
 HBBE	GID	Gitega Airport	Gitega	BI	-3.4172	29.9113	Africa/Johannesburg
 HBBO	KRE	Kirundo Airport	Kirundo	BI	-2.5448	30.0946	Africa/Johannesburg
+HCGR	GGR	Garowe Airport	Garowe	SO	8.4585	48.5681	Asia/Riyadh	HCMW
 HCMF	BSA	Bender Qassim International Airport	Bosaso	SO	11.2752	49.1392	Asia/Riyadh
 HCMH	HGA	Egal International Airport	Hargeisa	SO	9.5141	44.0835	Asia/Riyadh
 HCMI	BBO	Berbera Airport	Berbera	SO	10.385	44.9367	Asia/Riyadh
 HCMM	MGQ	Aden Adde International Airport	Mogadishu	SO	2.0144	45.3047	Asia/Riyadh
 HCMN	BLW	Beledweyne Airport	Beledweyne	SO	4.767	45.2388	Asia/Riyadh
 HCMR	GLK	Galcaio Airport	Galcaio	SO	6.7808	47.4547	Asia/Riyadh
-HCMW	GGR	Garowe Airport	Garowe	SO	8.4585	48.5681	Asia/Riyadh
 HDAM	JIB	Djibouti-Ambouli Airport	Djibouti City	DJ	11.5473	43.1595	Asia/Riyadh
 HEAL	DBB	El Alamein International Airport	El Alamein	EG	30.9243	28.4616	Africa/Cairo
 HEAR	AAC	El Arish International Airport	El Arish	EG	31.0553	33.828	Africa/Cairo
 HEAT	ATZ	Asyut International Airport	Asyut	EG	27.046	31.0128	Africa/Cairo
-HEBA	HBE	Alexandria International Airport	Alexandria	EG	30.9325	29.6964	Africa/Cairo
+HEAX	HBE	Alexandria International Airport	Alexandria	EG	30.9325	29.6964	Africa/Cairo	HEBA
 HEBL	ABS	Abu Simbel Airport	Abu Simbel	EG	22.3759	31.6117	Africa/Cairo
 HECA	CAI	Cairo International Airport	Cairo	EG	30.1115	31.3967	Africa/Cairo
 HECP	CCE	Capital International Airport	New Cairo	EG	30.0647	31.84	Africa/Cairo
@@ -1124,6 +1124,7 @@ KDEN	DEN	Denver International Airport	Denver	US	39.86	-104.6738	America/Denver
 KDFW	DFW	Dallas Fort Worth International Airport	Dallas-Fort Worth	US	32.8968	-97.038	America/Chicago
 KDHN	DHN	Dothan Regional Airport	Dothan	US	31.3213	-85.4496	America/Chicago
 KDIK	DIK	Dickinson Theodore Roosevelt Regional Airport	Dickinson	US	46.7975	-102.8019	America/Denver
+KDJT	DJT	President Donald J. Trump International Airport	West Palm Beach	US	26.6832	-80.0956	America/New_York	KPBI
 KDLH	DLH	Duluth International Airport	Duluth	US	46.8419	-92.1987	America/Chicago
 KDOV	DOV	Dover Civil Air Terminal/Dover Air Force Base	Dover	US	39.1295	-75.466	America/New_York
 KDRO	DRO	Durango La Plata County Airport	Durango	US	37.1515	-107.754	America/Denver
@@ -1325,7 +1326,6 @@ KOXB	OCE	Ocean City Municipal Airport	Ocean City	US	38.3104	-75.124	America/New_
 KPAE	PAE	Seattle Paine Field International Airport	Everett	US	47.9063	-122.282	America/Los_Angeles
 KPAH	PAH	Barkley Regional Airport	Paducah	US	37.0608	-88.7738	America/Chicago
 KPBG	PBG	Plattsburgh International Airport	Plattsburgh	US	44.6509	-73.4681	America/New_York
-KPBI	DJT	President Donald J. Trump International Airport	West Palm Beach	US	26.6832	-80.0956	America/New_York
 KPCW		Erie-Ottawa International Airport	Port Clinton	US	41.5156	-82.8683	America/New_York
 KPDK	PDK	DeKalb Peachtree Airport	Atlanta	US	33.8763	-84.3021	America/New_York
 KPDT	PDT	Eastern Oregon Regional Airport at Pendleton	Pendleton	US	45.6951	-118.841	America/Los_Angeles
@@ -1483,13 +1483,13 @@ LEGR	GRX	F.G.L. Airport Granada-Jaén Airport	Granada	ES	37.1887	-3.7774	Europe/
 LEIB	IBZ	Ibiza Airport	Ibiza	ES	38.8729	1.3731	Europe/Madrid
 LEJR	XRY	Jerez Airport	Jerez de la Frontera	ES	36.7446	-6.0601	Europe/Madrid
 LELN	LEN	León Airport	La Virgen del Camino	ES	42.5907	-5.6534	Europe/Madrid
-LELO	RJL	Logroño-Agoncillo Airport	Logroño	ES	42.461	-2.3222	Europe/Madrid
 LEMD	MAD	Adolfo Suárez Madrid–Barajas Airport	Madrid	ES	40.4934	-3.5722	Europe/Madrid
 LEMG	AGP	Málaga-Costa del Sol Airport	Málaga	ES	36.6782	-4.5002	Europe/Madrid
 LEMH	MAH	Menorca Airport	Mahón	ES	39.8626	4.2187	Europe/Madrid
 LEMI	RMU	Region of Murcia International Airport	Corvera	ES	37.8029	-1.1249	Europe/Madrid
 LEPA	PMI	Palma de Mallorca Airport	Palma de Mallorca	ES	39.5517	2.7388	Europe/Madrid
 LEPP	PNA	Pamplona Airport	Pamplona	ES	42.77	-1.6463	Europe/Madrid
+LERJ	RJL	Logroño-Agoncillo Airport	Logroño	ES	42.461	-2.3222	Europe/Madrid	LELO
 LERS	REU	Reus Airport	Reus	ES	41.1475	1.1684	Europe/Madrid
 LESA	SLM	Salamanca Airport	Salamanca	ES	40.9521	-5.502	Europe/Madrid
 LESO	EAS	San Sebastián Airport	Hondarribia	ES	43.3565	-1.7906	Europe/Madrid
@@ -1782,16 +1782,16 @@ MDSD	SDQ	Las Américas International Airport	Santo Domingo	DO	18.4297	-69.6689	A
 MDST	STI	Cibao International Airport	Santiago	DO	19.4041	-70.6044	America/Santo_Domingo
 MGGT	GUA	La Aurora International Airport	Guatemala City	GT	14.5829	-90.5275	America/Guatemala
 MGHT	HUG	Huehuetenango Airport	Huehuetenango	GT	15.3167	-91.5056	America/Guatemala
+MGMM	FRS	Mundo Maya International Airport	San Benito	GT	16.9137	-89.8661	America/Guatemala	MGTK
 MGPB	PBR	Puerto Barrios Airport	Puerto Barrios	GT	15.7309	-88.5838	America/Guatemala
 MGQZ	AAZ	Quezaltenango Airport	Quezaltenango	GT	14.8656	-91.502	America/Guatemala
 MGRT	RER	Retalhuleu Airport	Retalhuleu	GT	14.5214	-91.697	America/Guatemala
-MGTK	FRS	Mundo Maya International Airport	San Benito	GT	16.9137	-89.8661	America/Guatemala
 MHLC	LCE	Golosón International Airport	La Ceiba	HN	15.7425	-86.853	America/Tegucigalpa
 MHLM	SAP	Ramón Villeda Morales International Airport	San Pedro Sula	HN	15.4526	-87.9236	America/Tegucigalpa
 MHNJ	GJA	La Laguna Airport	Guanaja	HN	16.4454	-85.9066	America/Tegucigalpa
 MHPL	PEU	Puerto Lempira Airport	Puerto Lempira	HN	15.2622	-83.7812	America/Tegucigalpa
+MHPR	XPL	Palmerola International Airport	Palmerola	HN	14.3824	-87.6212	America/Tegucigalpa	MHSC
 MHRO	RTB	Juan Manuel Gálvez International Airport	Coxen Hole	HN	16.3168	-86.523	America/Tegucigalpa
-MHSC	XPL	Palmerola International Airport	Palmerola	HN	14.3824	-87.6212	America/Tegucigalpa
 MHTG	TGU	Toncontín Airport	Tegucigalpa	HN	14.0609	-87.2172	America/Tegucigalpa
 MHUT	UII	Utila Airport	Utila Island	HN	16.1131	-86.8803	America/Tegucigalpa
 MKBS	OCJ	Ian Fleming International Airport	Boscobel	JM	18.4041	-76.9698	America/Jamaica
@@ -1871,8 +1871,8 @@ MPCE	CTD	Alonso Valderrama Airport	Chitré	PA	7.9878	-80.4098	America/Panama
 MPCH	CHX	Changuinola Captain Manuel Niño International Airport	Changuinola	PA	9.459	-82.5151	America/Panama
 MPDA	DAV	Enrique Malek International Airport	David	PA	8.389	-82.4364	America/Panama
 MPEJ	ONX	Enrique Adolfo Jimenez Airport	Colón	PA	9.3566	-79.8674	America/Panama
-MPHO	BLB	Panamá Pacífico International Airport	Panamá City	PA	8.9148	-79.5996	America/Panama
 MPMG	PAC	Marcos A. Gelabert International Airport	Albrook	PA	8.9733	-79.5556	America/Panama
+MPPA	BLB	Panamá Pacífico International Airport	Panamá City	PA	8.9148	-79.5996	America/Panama	MPHO
 MPPD	PDM	Capt. J. Montenegro Airport	Pedasí	PA	7.5348	-80.0433	America/Panama
 MPSM	RIH	Scarlett Martinez International Airport	Río Hato	PA	8.3759	-80.1279	America/Panama
 MPTO	PTY	Tocumen International Airport	Tocumen	PA	9.0714	-79.3835	America/Panama
@@ -2169,8 +2169,8 @@ OPCH	CJL	Chitral Airport	Chitral	PK	35.8862	71.7999	Asia/Karachi
 OPDB	DBA	Dalbandin Airport	Dalbandin	PK	28.8783	64.3998	Asia/Karachi
 OPDG	DEA	Dera Ghazi Khan Airport	Dera Ghazi Khan	PK	29.961	70.4859	Asia/Karachi
 OPFA	LYP	Faisalabad International Airport	Faisalabad	PK	31.3649	72.9953	Asia/Karachi
-OPGD	GWD	New Gwadar International Airport	Gurandani	PK	25.2967	62.4988	Asia/Karachi
 OPGT	GIL	Gilgit Airport	Gilgit	PK	35.9188	74.3336	Asia/Karachi
+OPGW	GWD	New Gwadar International Airport	Gurandani	PK	25.2967	62.4988	Asia/Karachi	OPGD
 OPIS	ISB	Islamabad International Airport	Attock	PK	33.549	72.8257	Asia/Karachi
 OPKC	KHI	Jinnah International Airport	Karachi	PK	24.9065	67.1608	Asia/Karachi
 OPKD	HDD	Hyderabad Airport	Hyderabad	PK	25.3181	68.3661	Asia/Karachi
@@ -2192,7 +2192,7 @@ ORER	EBL	Erbil International Airport	Arbil	IQ	36.236	43.9466	Asia/Baghdad
 ORKK	KIK	Kirkuk International Airport	Kirkuk	IQ	35.4695	44.3489	Asia/Baghdad
 ORMM	BSR	Basra International Airport	Basra	IQ	30.5491	47.6621	Asia/Baghdad
 ORNI	NJF	Al Najaf International Airport	Najaf	IQ	31.9911	44.405	Asia/Baghdad
-ORSU	ISU	Jalal Talabani International Airport	Sulaymaniyah	IQ	35.5605	45.3151	Asia/Baghdad
+ORSJ	ISU	Jalal Talabani International Airport	Sulaymaniyah	IQ	35.5605	45.3151	Asia/Baghdad	ORSU
 OSAP	ALP	Aleppo International Airport	Aleppo	SY	36.1813	37.2269	Asia/Damascus
 OSDI	DAM	Damascus International Airport	Damascus	SY	33.4115	36.5156	Asia/Damascus
 OSKL	KAC	Qamishli International Airport	Qamishli	SY	37.0206	41.1914	Asia/Damascus
@@ -2715,6 +2715,7 @@ SCVD	ZAL	Pichoy Airport	Valdivia	CL	-39.65	-73.0861	America/Santiago
 SCVL		Las Marías Airport	Valdivia	CL	-39.7969	-73.2417	America/Santiago
 SDBW		Banespa República Heliport	São Paulo	BR	-23.5436	-46.6446	America/Sao_Paulo
 SDCO	SOD	Sorocaba Airport	Sorocaba	BR	-23.478	-47.49	America/Sao_Paulo
+SECA	LOH	Ciudad de Catamayo Airport	La Toma	EC	-3.9956	-79.3719	America/Guayaquil	SETM
 SECO	OCC	Francisco De Orellana Airport	Coca	EC	-0.4629	-76.9868	America/Guayaquil
 SECU	CUE	Mariscal Lamar Airport	Cuenca	EC	-2.8895	-78.9844	America/Guayaquil
 SEGS	GPS	Seymour Galapagos Ecological Airport	Isla Baltra	EC	-0.4538	-90.2659	Pacific/Galapagos
@@ -2727,7 +2728,6 @@ SEQM	UIO	Mariscal Sucre International Airport	Quito	EC	-0.1254	-78.3543	America/
 SERO	ETR	Santa Rosa - Artillery Colonel Victor Larrea International Airport	Santa Rosa	EC	-3.442	-79.997	America/Guayaquil
 SESA	SNC	General Ulpiano Paez International Airport	Salinas/La Libertad	EC	-2.2101	-80.9851	America/Guayaquil
 SEST	SCY	San Cristóbal Airport	Puerto Baquerizo Moreno	EC	-0.9102	-89.6174	Pacific/Galapagos
-SETM	LOH	Ciudad de Catamayo Airport	La Toma	EC	-3.9956	-79.3719	America/Guayaquil
 SETN	ESM	Carlos Concha Torres International Airport	Tachina	EC	0.9785	-79.6266	America/Guayaquil
 SETU	TUA	Lieutenant Colonel Luis A. Mantilla International Airport	Tulcán	EC	0.8095	-77.7081	America/Guayaquil
 SFAL	PSY	Port Stanley Airport	Stanley	FK	-51.6857	-57.7776	Atlantic/Stanley
@@ -2823,7 +2823,7 @@ SPEO	CHM	FAP Lieutenant Jaime Andres de Montreuil Morales Airport	Chimbote	PE	-9
 SPHI	CIX	Capitán FAP José A. Quiñones González International Airport	Chiclayo	PE	-6.7892	-79.8283	America/Lima
 SPHO	AYP	Air Force Colonel Alfredo Mendivil Duarte Airport	Ayacucho	PE	-13.1548	-74.2044	America/Lima
 SPHY	ANS	Andahuaylas Airport	Andahuaylas	PE	-13.7064	-73.3504	America/Lima
-SPIM	LIM	Jorge Chávez International Airport	Lima	PE	-12.0219	-77.1143	America/Lima
+SPJC	LIM	Jorge Chávez International Airport	Lima	PE	-12.0219	-77.1143	America/Lima	SPIM
 SPJE	JAE	Shumba Airport	Jaén	PE	-5.5925	-78.774	America/Lima
 SPJJ	JAU	Francisco Carle Airport	Jauja	PE	-11.7831	-75.4734	America/Lima
 SPJL	JUL	Inca Manco Capac International Airport	Juliaca	PE	-15.4677	-70.1565	America/Lima
@@ -2884,7 +2884,7 @@ SWLB	LBR	Lábrea Airport	Lábrea	BR	-7.279	-64.7695	America/Manaus
 SWTP	IRZ	Tapuruquara Airport	Santa Isabel do Rio Negro	BR	-0.3786	-64.9926	America/Manaus
 SWTS	TGQ	Tangará da Serra Airport	Tangará da Serra	BR	-14.662	-57.4437	America/Cuiaba
 SYCJ	GEO	Cheddi Jagan International Airport	Georgetown	GY	6.4985	-58.2541	America/Guyana
-SYGO	OGL	Eugene F. Correia International Airport	Ogle	GY	6.8059	-58.1077	America/Guyana
+SYEC	OGL	Eugene F. Correia International Airport	Ogle	GY	6.8059	-58.1077	America/Guyana	SYGO
 SYKA	KAI	Kaieteur Airport	Kaieteur Falls	GY	5.1773	-59.489	America/Guyana
 SYLT	LTM	Lethem Airport	Lethem	GY	3.3728	-59.7894	America/Guyana
 TAPA	ANU	V. C. Bird International Airport	Osbourn	AG	17.1367	-61.7927	America/Puerto_Rico
@@ -2942,10 +2942,6 @@ UACC	NQZ	Nursultan Nazarbayev International Airport	Astana	KZ	51.027	71.4671	Asi
 UACK	KOV	Kokshetau International Airport	Kokshetau	KZ	53.3291	69.5946	Asia/Almaty
 UACP	PPK	Petropavl International Airport	Petropavl	KZ	54.7756	69.1874	Asia/Almaty
 UADD	DMB	Taraz International Airport	Taraz	KZ	42.8536	71.3036	Asia/Almaty
-UAFI		Razzakov Airport	Isfana	KG	39.8247	69.5688	Asia/Bishkek
-UAFM	BSZ	Manas International Airport	Bishkek	KG	43.0613	74.4776	Asia/Bishkek
-UAFO	OSS	Osh International Airport	Osh	KG	40.609	72.7933	Asia/Bishkek
-UAFP	IKG	Karakol International Airport	Karakol	KG	42.5081	78.4078	Asia/Bishkek
 UAFZ		Kazarman Airport	Kazarman	KG	41.4103	74.0444	Asia/Bishkek
 UAII	CIT	Shymkent International Airport	Shymkent	KZ	42.365	69.4756	Asia/Almaty
 UAIT	HSA	Hazrat Sultan International Airport	Turkıstan	KZ	43.3111	68.5504	Asia/Almaty
@@ -2968,7 +2964,11 @@ UBBL	LLK	Lankaran International Airport	Lankaran	AZ	38.7579	48.807	Asia/Baku
 UBBN	NAJ	Nakhchivan International Airport	Nakhchivan	AZ	39.1888	45.4584	Asia/Baku
 UBBQ	GBB	Gabala International Airport	Gabala	AZ	40.8086	47.7254	Asia/Baku
 UBLC	LHL	Lachin International Airport	Lachin	AZ	39.8838	46.3631	Asia/Baku
+UCFK	IKG	Karakol International Airport	Karakol	KG	42.5081	78.4078	Asia/Bishkek	UAFP
 UCFL	IKU	Issyk-Kul International Airport	Tamchy	KG	42.5856	76.7012	Asia/Bishkek
+UCFM	BSZ	Manas International Airport	Bishkek	KG	43.0613	74.4776	Asia/Bishkek	UAFM
+UCFO	OSS	Osh International Airport	Osh	KG	40.609	72.7933	Asia/Bishkek	UAFO
+UCFR		Razzakov Airport	Isfana	KG	39.8247	69.5688	Asia/Bishkek	UAFI
 UDSG	LWN	Shirak International Airport	Gyumri	AM	40.7504	43.8593	Asia/Yerevan
 UDYZ	EVN	Zvartnots International Airport	Yerevan	AM	40.1489	44.3979	Asia/Yerevan
 UEBB	BQJ	Batagay Airport	Batagay	RU	67.648	134.695	Asia/Vladivostok
@@ -3113,19 +3113,6 @@ UTDD	DYU	Dushanbe International Airport	Dushanbe	TJ	38.5437	68.823	Asia/Dushanbe
 UTDK	TJU	Kulob International Airport	Kulob	TJ	37.9881	69.805	Asia/Dushanbe
 UTDL	LBD	Khujand International Airport	Khujand	TJ	40.2154	69.6947	Asia/Dushanbe
 UTDT	KQT	Bokhtar International Airport	Bokhtar	TJ	37.8663	68.8645	Asia/Dushanbe
-UTFN	NMA	Namangan International Airport	Namangan	UZ	40.9846	71.5578	Asia/Tashkent
-UTKA	AZN	Andijan International Airport	Andijan	UZ	40.7277	72.294	Asia/Tashkent
-UTKF	FEG	Fergana International Airport	Fergana	UZ	40.3588	71.745	Asia/Tashkent
-UTNN	NCU	Nukus International Airport	Nukus	UZ	42.4884	59.6233	Asia/Samarkand
-UTNU	UGC	Urgench International Airport	Urgench	UZ	41.5827	60.6434	Asia/Samarkand
-UTSA	NVI	Navoi International Airport	Navoi	UZ	40.1176	65.1727	Asia/Samarkand
-UTSB	BHK	Bukhara International Airport	Bukhara	UZ	39.7753	64.4823	Asia/Samarkand
-UTSK	KSQ	Karshi Airport	Karshi	UZ	38.8022	65.7731	Asia/Samarkand
-UTSS	SKD	Samarkand International Airport	Samarkand	UZ	39.7018	66.9815	Asia/Samarkand
-UTST	TMJ	Termez Airport	Termez	UZ	37.2873	67.3119	Asia/Samarkand
-UTTP	TVT	Tashkent-Khumo International Airport	Tashkent	UZ	41.3129	69.3955	Asia/Tashkent
-UTTT	TAS	Tashkent International Airport	Tashkent	UZ	41.2579	69.2812	Asia/Tashkent
-UTTZ	OMN	Zomin Airport	Zomin	UZ	40.014	68.411	Asia/Tashkent
 UUBA	KMW	Kostroma Sokerkino Airport	Kostroma	RU	57.7969	41.0194	Europe/Moscow
 UUBI	IWA	Ivanovo South Airport	Ivanovo	RU	56.9394	40.9408	Europe/Moscow
 UUBW	ZIA	Zhukovsky International Airport	Moscow	RU	55.5533	38.15	Europe/Moscow
@@ -3154,22 +3141,32 @@ UWSB	BWO	Balakovo Airport	Balakovo	RU	51.8583	47.7456	Europe/Saratov
 UWSG	GSV	Gagarin International Airport	Saratov	RU	51.7128	46.1711	Europe/Saratov
 UWUU	UFA	Ufa International Airport	Ufa	RU	54.5575	55.8744	Asia/Yekaterinburg
 UWWW	KUF	Kurumoch International Airport	Samara	RU	53.5049	50.1643	Europe/Samara
+UZFA	AZN	Andijan International Airport	Andijan	UZ	40.7277	72.294	Asia/Tashkent	UTKA
+UZFF	FEG	Fergana International Airport	Fergana	UZ	40.3588	71.745	Asia/Tashkent	UTKF
+UZFN	NMA	Namangan International Airport	Namangan	UZ	40.9846	71.5578	Asia/Tashkent	UTFN
+UZNN	NCU	Nukus International Airport	Nukus	UZ	42.4884	59.6233	Asia/Samarkand	UTNN
+UZNU	UGC	Urgench International Airport	Urgench	UZ	41.5827	60.6434	Asia/Samarkand	UTNU
+UZSA	NVI	Navoi International Airport	Navoi	UZ	40.1176	65.1727	Asia/Samarkand	UTSA
+UZSB	BHK	Bukhara International Airport	Bukhara	UZ	39.7753	64.4823	Asia/Samarkand	UTSB
+UZSK	KSQ	Karshi Airport	Karshi	UZ	38.8022	65.7731	Asia/Samarkand	UTSK
+UZSS	SKD	Samarkand International Airport	Samarkand	UZ	39.7018	66.9815	Asia/Samarkand	UTSS
+UZST	TMJ	Termez Airport	Termez	UZ	37.2873	67.3119	Asia/Samarkand	UTST
+UZTP	TVT	Tashkent-Khumo International Airport	Tashkent	UZ	41.3129	69.3955	Asia/Tashkent	UTTP
+UZTT	TAS	Tashkent International Airport	Tashkent	UZ	41.2579	69.2812	Asia/Tashkent	UTTT
+UZTZ	OMN	Zomin Airport	Zomin	UZ	40.014	68.411	Asia/Tashkent	UTTZ
 VAAH	AMD	Sardar Vallabh Patel International Airport	Ahmedabad	IN	23.0772	72.6347	Asia/Kolkata
 VAAU	IXU	Aurangabad Airport	Aurangabad	IN	19.8629	75.3963	Asia/Kolkata
 VABB	BOM	Chhatrapati Shivaji Maharaj International Airport	Mumbai	IN	19.0887	72.8679	Asia/Kolkata
 VABJ	BHJ	Bhuj Airport	Bhuj	IN	23.2878	69.6702	Asia/Kolkata
-VABM	IXG	Belagavi Airport	Belgaum	IN	15.8593	74.6183	Asia/Kolkata
 VABO	BDQ	Vadodara International Airport	Vadodara	IN	22.3362	73.2263	Asia/Kolkata
 VABP	BHO	Raja Bhoj International Airport	Bhopal	IN	23.2875	77.3374	Asia/Kolkata
 VABV	BHU	Bhavnagar Airport	Bhavnagar	IN	21.7522	72.1852	Asia/Kolkata
-VAHB	HBX	Hubballi Airport	Hubballi	IN	15.3611	75.0821	Asia/Kolkata
 VAHS	HSR	Rajkot International Airport	Rajkot	IN	22.3788	71.0394	Asia/Kolkata
 VAID	IDR	Devi Ahilya Bai Holkar International Airport	Indore	IN	22.7214	75.8005	Asia/Kolkata
 VAJB	JLR	Jabalpur Airport	Jabalpur	IN	23.1778	80.052	Asia/Kolkata
 VAJL	JLG	Jalgaon Airport	Jalgaon	IN	20.9627	75.6275	Asia/Kolkata
 VAJM	JGA	Jamnagar Airport	Jamnagar	IN	22.4655	70.0126	Asia/Kolkata
 VAKE	IXY	Kandla Airport	Kandla	IN	23.1127	70.1003	Asia/Kolkata
-VAKJ	HJR	Khajuraho Airport	Khajuraho	IN	24.8172	79.9186	Asia/Kolkata
 VAKP	KLH	Kolhapur Airport	Kolhapur	IN	16.6647	74.2894	Asia/Kolkata
 VAKS	IXK	Keshod Airport	Keshod	IN	21.3171	70.2704	Asia/Kolkata
 VALT	LTU	Murod Kond Airport	Latur	IN	18.4115	76.4647	Asia/Kolkata
@@ -3178,7 +3175,6 @@ VANP	NAG	Dr. Babasaheb Ambedkar International Airport	Nagpur	IN	21.0922	79.0472	
 VAOZ	ISK	Nashik International Airport	Nashik	IN	20.1191	73.9129	Asia/Kolkata
 VAPO	PNQ	Pune International Airport	Pune	IN	18.5821	73.9197	Asia/Kolkata
 VAPR	PBD	Porbandar Airport	Porbandar	IN	21.6495	69.6564	Asia/Kolkata
-VARP	RPR	Swami Vivekananda Airport	Raipur	IN	21.1804	81.7388	Asia/Kolkata
 VASD	SAG	Shirdi International Airport	Kakadi	IN	19.6892	74.3737	Asia/Kolkata
 VASU	STV	Surat International Airport	Surat	IN	21.1155	72.7433	Asia/Kolkata
 VAUD	UDR	Maharana Pratap Airport	Udaipur	IN	24.6177	73.8961	Asia/Kolkata
@@ -3192,6 +3188,7 @@ VCRI	HRI	Mattala Rajapaksa International Airport	Mattala	LK	6.2839	81.1242	Asia/
 VDBG	BBM	Battambang Airport	Battambang	KH	13.0956	103.224	Asia/Jakarta
 VDSA	SAI	Siem Reap-Angkor International Airport	Siem Reap	KH	13.3697	104.2238	Asia/Jakarta
 VDSV	KOS	Sihanouk International Airport	Preah Sihanouk	KH	10.5706	103.6321	Asia/Jakarta
+VEAB	IXD	Prayagraj Airport	Allahabad	IN	25.4401	81.7339	Asia/Kolkata	VIAL
 VEAT	IXA	Agartala - Maharaja Bir Bikram Airport	Agartala	IN	23.887	91.2404	Asia/Kolkata
 VEBD	IXB	Bagdogra Airport	Siliguri	IN	26.6812	88.3286	Asia/Kolkata
 VEBI	SHL	Shillong Airport	Shillong	IN	25.7036	91.9787	Asia/Kolkata
@@ -3199,6 +3196,7 @@ VEBN	VNS	Lal Bahadur Shastri International Airport	Varanasi	IN	25.4522	82.8625	A
 VEBS	BBI	Biju Patnaik International Airport	Bhubaneswar	IN	20.251	85.8147	Asia/Kolkata
 VEBU	PAB	Bilaspur Airport	Bilaspur	IN	21.9884	82.111	Asia/Kolkata
 VECC	CCU	Netaji Subhash Chandra Bose International Airport	Kolkata	IN	22.654	88.4476	Asia/Kolkata
+VECX	KNU	Kanpur Airport	Kanpur	IN	26.4043	80.4101	Asia/Kolkata	VICX
 VEDG	RDP	Kazi Nazrul Islam Airport	Durgapur	IN	23.6225	87.243	Asia/Kolkata
 VEDH	DBR	Darbhanga Airport	Darbhanga	IN	26.1928	85.9169	Asia/Kolkata
 VEDO	DGH	Deoghar Airport	Deoghar	IN	24.4468	86.705	Asia/Kolkata
@@ -3208,6 +3206,7 @@ VEGY	GAY	Gaya Airport	Gaya	IN	24.7443	84.9512	Asia/Kolkata
 VEIM	IMF	Bir Tikendrajit International Airport	Imphal	IN	24.76	93.8967	Asia/Kolkata
 VEJH	JRG	Jharsuguda Airport	Jharsuguda Airport	IN	21.9135	84.0504	Asia/Kolkata
 VEJT	JRH	Jorhat Airport	Jorhat	IN	26.7305	94.1754	Asia/Kolkata
+VEKO	HJR	Khajuraho Airport	Khajuraho	IN	24.8172	79.9186	Asia/Kolkata	VAKJ
 VEKU	IXS	Silchar Airport	Silchar	IN	24.9129	92.9787	Asia/Kolkata
 VELP	AJL	Lengpui Airport	Aizawl	IN	23.8406	92.6197	Asia/Kolkata
 VELR	IXI	Lilabari North Lakhimpur Airport	Lilabari	IN	27.2957	94.0973	Asia/Kolkata
@@ -3215,6 +3214,7 @@ VEMN	DIB	Dibrugarh Airport	Dibrugarh	IN	27.4839	95.0169	Asia/Kolkata
 VEMR	DMU	Dimapur Airport	Dimapur	IN	25.8839	93.7711	Asia/Kolkata
 VEPT	PAT	Jay Prakash Narayan Airport	Patna	IN	25.5913	85.088	Asia/Kolkata
 VERC	IXR	Birsa Munda Airport	Ranchi	IN	23.3143	85.3217	Asia/Kolkata
+VERP	RPR	Swami Vivekananda Airport	Raipur	IN	21.1804	81.7388	Asia/Kolkata	VARP
 VETZ	TEZ	Tezpur Airport	Tezpur Airport	IN	26.7091	92.7847	Asia/Kolkata
 VEUK	UKE	Utkela Airport	Bhawanipatna	IN	20.0978	83.1833	Asia/Kolkata
 VGBR	BZL	Barisal Airport	Barisal	BD	22.801	90.3012	Asia/Dhaka
@@ -3226,15 +3226,13 @@ VGRJ	RJH	Shah Makhdum Airport	Rajshahi	BD	24.4372	88.6165	Asia/Dhaka
 VGSD	SPD	Saidpur Airport	Saidpur	BD	25.7592	88.9089	Asia/Dhaka
 VGSY	ZYL	Osmany International Airport	Sylhet	BD	24.964	91.8647	Asia/Dhaka
 VHHH	HKG	Hong Kong International Airport	Hong Kong	HK	22.3118	113.9149	Asia/Hong_Kong
-VHST	HHP	Shun Tak Heliport	Central and Western	HK	22.2889	114.1524	Asia/Hong_Kong
+VHSS	HHP	Shun Tak Heliport	Central and Western	HK	22.2889	114.1524	Asia/Hong_Kong	VHST
 VIAG	AGR	Agra Airport / Agra Air Force Station	Agra	IN	27.158	77.961	Asia/Kolkata
-VIAL	IXD	Prayagraj Airport	Allahabad	IN	25.4401	81.7339	Asia/Kolkata
 VIAR	ATQ	Sri Guru Ram Das Ji International Airport	Amritsar	IN	31.7096	74.7973	Asia/Kolkata
 VIAX	AIP	Adampur Airport	Adampur	IN	31.4338	75.7588	Asia/Kolkata
 VIBR	KUU	Kullu Manali Airport	Bhuntar	IN	31.8767	77.1544	Asia/Kolkata
 VIBY	BEK	Bareilly Air Force Station	Bareilly	IN	28.4221	79.4508	Asia/Kolkata
 VICG	IXC	Shaheed Bhagat Singh International Airport	Chandigarh	IN	30.6735	76.7885	Asia/Kolkata
-VICX	KNU	Kanpur Airport	Kanpur	IN	26.4043	80.4101	Asia/Kolkata
 VIDN	DED	Dehradun Jolly Grant Airport	Dehradun	IN	30.1892	78.1767	Asia/Kolkata
 VIDP	DEL	Indira Gandhi International Airport	New Delhi	IN	28.5556	77.0952	Asia/Kolkata
 VIDX	HDO	Hindon Airport / Hindon Air Force Station	Ghaziabad	IN	28.7077	77.3589	Asia/Kolkata
@@ -3282,6 +3280,7 @@ VNTR	TMI	Tumling Tar Airport	Tumling Tar	NP	27.315	87.1933	Asia/Kathmandu
 VNVT	BIR	Biratnagar Airport	Biratnagar	NP	26.4815	87.264	Asia/Kathmandu
 VOAT	AGX	Agatti Airport	Agatti	IN	10.8237	72.176	Asia/Kolkata
 VOBL	BLR	Kempegowda International Airport Bengaluru	Bengaluru	IN	13.1979	77.7063	Asia/Kolkata
+VOBM	IXG	Belagavi Airport	Belgaum	IN	15.8593	74.6183	Asia/Kolkata	VABM
 VOBZ	VGA	Vijayawada International Airport	Vijayawada	IN	16.53	80.8049	Asia/Kolkata
 VOCB	CJB	Coimbatore International Airport	Coimbatore	IN	11.03	77.0434	Asia/Kolkata
 VOCI	COK	Cochin International Airport	Kochi	IN	10.151	76.4008	Asia/Kolkata
@@ -3290,6 +3289,7 @@ VOCP	CDP	Kadapa Airport	Kadapa	IN	14.5132	78.7692	Asia/Kolkata
 VOGA	GOX	Manohar International Airport	Mopa	IN	15.7443	73.8606	Asia/Kolkata
 VOGB	GBI	Kalaburagi Airport	Kalaburagi	IN	17.3082	76.9652	Asia/Kolkata
 VOGO	GOI	Goa Dabolim International Airport	Vasco da Gama	IN	15.3801	73.8333	Asia/Kolkata
+VOHB	HBX	Hubballi Airport	Hubballi	IN	15.3611	75.0821	Asia/Kolkata	VAHB
 VOHS	HYD	Rajiv Gandhi International Airport	Hyderabad	IN	17.2313	78.4299	Asia/Kolkata
 VOKN	CNN	Kannur International Airport	Kannur	IN	11.9163	75.545	Asia/Kolkata
 VOKU	KJB	Kurnool Airport	Orvakal	IN	15.7163	78.1692	Asia/Kolkata
@@ -3402,14 +3402,11 @@ VYTL	THL	Tachileik Airport	Tachileik	MM	20.4838	99.9354	Asia/Yangon
 VYYY	RGN	Yangon International Airport	Yangon	MM	16.9073	96.1332	Asia/Yangon
 WAAA	UPG	Sultan Hasanuddin International Airport	Makassar	ID	-5.0755	119.5537	Asia/Makassar
 WABB	BIK	Frans Kaisiepo Airport	Biak	ID	-1.19	136.108	Asia/Tokyo
-WABP	TIM	Mozes Kilangin Airport	Timika	ID	-4.5298	136.8874	Asia/Tokyo
 WADB	BMU	Sultan Muhammad Salahuddin Airport	Bima	ID	-8.5372	118.685	Asia/Makassar
 WADD	DPS	Denpasar I Gusti Ngurah Rai International Airport	Kuta, Badung	ID	-8.7484	115.1671	Asia/Makassar
 WADE		Lieutenant Colonel Wisnu Airfield	Gerokgak, Buleleng	ID	-8.1393	114.6154	Asia/Makassar
 WADL	LOP	Lombok International Airport	Mataram	ID	-8.76	116.2782	Asia/Makassar
 WADS	SWQ	Sultan Muhammad Kaharuddin III Airport	Sumbawa Besar	ID	-8.489	117.412	Asia/Makassar
-WADT	TMC	Tambolaka Airport	Radamata	ID	-9.4092	119.2426	Asia/Makassar
-WADW	WGP	Umbu Mehang Kunda Airport	Waingapu-Sumba Island	ID	-9.6692	120.302	Asia/Makassar
 WADY	BWX	Banyuwangi Airport	Rogojampi, Banyuwangi	ID	-8.3102	114.3401	Asia/Jakarta
 WAEE	TTE	Sultan Babullah Airport	Ternate	ID	0.831	127.3816	Asia/Tokyo
 WAFB	TRT	Toraja Airport	Toraja	ID	-3.1844	119.9191	Asia/Makassar
@@ -3417,65 +3414,72 @@ WAFD	LLO	Bua - Palopo Lagaligo Airport	Palopo	ID	-3.0823	120.2448	Asia/Makassar
 WAFF	PLW	Mutiara - SIS Al-Jufrie Airport	Palu	ID	-0.9165	119.9086	Asia/Makassar
 WAFL	TLI	Sultan Bantilan Airport	Toli Toli-Celebes Island	ID	1.1234	120.7937	Asia/Makassar
 WAFU	OJU	Tanjung Api Airport	Tojo Una-Una	ID	-0.8654	121.6286	Asia/Makassar
+WAFY	UOL	Buol - Pogogul Airport	Buol	ID	1.1023	121.4134	Asia/Makassar	WAMY
 WAGB	HMS	Haji Muhammad Sidik Airport	Muara Teweh	ID	-1.0258	114.9288	Asia/Pontianak
+WAGD	TJS	Tanjung Harapan Airport	Tanjung Selor-Borneo Island	ID	2.8381	117.3746	Asia/Makassar	WALG
 WAGF	KLP	Seruyan Kuala Pembuang Airport	Seruyan	ID	-3.3761	112.5365	Asia/Pontianak
 WAGG	PKY	Tjilik Riwut Airport	Palangkaraya	ID	-2.2271	113.9434	Asia/Pontianak
+WAGI	PKN	Iskandar Airport	Pangkalanbun	ID	-2.7052	111.673	Asia/Pontianak	WAOI
+WAGS	SMQ	Sampit (H.Asan) Airport	Sampit	ID	-2.4992	112.975	Asia/Pontianak	WAOS
+WAGT	TBM	Tumbang Samba Airport	Tumbang Samba-Borneo Island	ID	-1.469	113.081	Asia/Pontianak	WAOW
+WAHH	JOG	Adisutjipto International Airport	Yogyakarta	ID	-7.7882	110.432	Asia/Jakarta	WARJ
 WAHI	YIA	Yogyakarta International Airport	Yogyakarta	ID	-7.9053	110.0573	Asia/Jakarta
 WAHL	CXP	Tunggul Wulung Airport	Cilacap	ID	-7.6451	109.034	Asia/Jakarta
+WAHQ	SOC	Adisoemarmo International Airport	Surakarta	ID	-7.516	110.7575	Asia/Jakarta	WARQ
+WAHS	SRG	Jenderal Ahmad Yani Airport	Semarang	ID	-6.9707	110.3732	Asia/Jakarta	WARS
 WAHU	KWB	Dewadaru Airport	Karimunjawa	ID	-5.8009	110.4784	Asia/Jakarta
-WAJB	BUI	Bokondini Airport	Bokondini	ID	-3.6846	138.6774	Asia/Tokyo
 WAJJ	DJJ	Dortheys Hiyo Eluay International Airport	Sentani	ID	-2.5796	140.5199	Asia/Tokyo
 WAJK		Kiwirok Airstrip	Kiwirok	ID	-4.7135	140.7403	Asia/Tokyo
 WAJO	OKL	Oksibil Airport	Oksibil	ID	-4.9071	140.6277	Asia/Tokyo
 WAKK	MKQ	Mopah International Airport	Merauke	ID	-8.5239	140.4197	Asia/Tokyo
 WAKT	TMH	Tanah Merah Airport	Tanah Merah	ID	-6.0967	140.3035	Asia/Tokyo
-WALG	TJS	Tanjung Harapan Airport	Tanjung Selor-Borneo Island	ID	2.8381	117.3746	Asia/Makassar
+WALC	BXT	LNG Badak Airport	Bontang-Borneo Island	ID	0.1217	117.4766	Asia/Makassar	WRLC
 WALJ	DTD	Datadawai Airport	Datadawai-Borneo Island	ID	0.807	114.5291	Asia/Makassar
 WALL	BPN	Sultan Aji Muhammad Sulaiman Sepinggan International Airport	Balikpapan	ID	-1.2683	116.8945	Asia/Makassar
-WALR	TRK	Juwata International Airport / Suharnoko Harbani AFB	Tarakan	ID	3.3251	117.5642	Asia/Makassar
 WALS	AAP	Aji Pangeran Tumenggung Pranoto International Airport	Samarinda	ID	-0.3745	117.2501	Asia/Makassar
 WAMG	GTO	Jalaluddin Airport	Gorontalo	ID	0.6371	122.85	Asia/Makassar
 WAMH	NAH	Naha Airport	Tabukan Utara, Sangihe Islands	ID	3.6848	125.5272	Asia/Makassar
 WAMI	LKM	Bolaang Mongondow Airport	Lolak	ID	0.8885	124.0336	Asia/Makassar
 WAMM	MDC	Sam Ratulangi International Airport	Manado	ID	1.5486	124.9262	Asia/Makassar
-WAMY	UOL	Buol - Pogogul Airport	Buol	ID	1.1023	121.4134	Asia/Makassar
 WAOC	BTW	Bersujud Airport	Batu Licin	ID	-3.4124	115.995	Asia/Makassar
-WAOI	PKN	Iskandar Airport	Pangkalanbun	ID	-2.7052	111.673	Asia/Pontianak
 WAOK	KBU	Gusti Syamsir Alam Airport	Stagen	ID	-3.2948	116.1638	Asia/Makassar
 WAON	TJG	Warukin Airport	Tanta-Tabalong	ID	-2.2166	115.436	Asia/Makassar
 WAOO	BDJ	Syamsudin Noor International Airport	Banjarbaru	ID	-3.4401	114.7612	Asia/Makassar
-WAOS	SMQ	Sampit (H.Asan) Airport	Sampit	ID	-2.4992	112.975	Asia/Pontianak
-WAOW	TBM	Tumbang Samba Airport	Tumbang Samba-Borneo Island	ID	-1.469	113.081	Asia/Pontianak
 WAPF	LUV	Karel Sadsuitubun Airport	Langgur	ID	-5.7603	132.7594	Asia/Tokyo
 WAPN	NAM	Namniwel Airport	Namniwel	ID	-3.1432	126.9765	Asia/Tokyo
 WAPP	AMQ	Pattimura International Airport	Ambon	ID	-3.7103	128.089	Asia/Tokyo
+WAPS	SXK	Mathilda Batlayeri Airport	Saumlaki-Yamdena Island	ID	-7.8484	131.3371	Asia/Tokyo	WPAS
+WAQJ	LBW	Yuvai Semaring Airport	Long Bawan	ID	3.9005	115.6901	Asia/Makassar	WRLB
+WAQL	LPU	Long Apung Airport	Long Apung-Borneo Island	ID	1.7069	114.9699	Asia/Makassar	WRLP
 WAQM	LNU	Robert Atty Bessing	Malinau	ID	3.5753	116.6198	Asia/Makassar
+WAQQ	TRK	Juwata International Airport / Suharnoko Harbani AFB	Tarakan	ID	3.3251	117.5642	Asia/Makassar	WALR
 WAQT	BEJ	Kalimarau Airport	Tanjung Redeb - Borneo Island	ID	2.1478	117.4307	Asia/Makassar
 WARA	MLG	Abdul Rachman Saleh Airport	Malang	ID	-7.9291	112.7142	Asia/Jakarta
 WARE	JBB	Notohadinegoro Airport	Jember	ID	-8.2425	113.6935	Asia/Jakarta
-WARJ	JOG	Adisutjipto International Airport	Yogyakarta	ID	-7.7882	110.432	Asia/Jakarta
-WARQ	SOC	Adisoemarmo International Airport	Surakarta	ID	-7.516	110.7575	Asia/Jakarta
 WARR	SUB	Juanda International Airport	Surabaya	ID	-7.3798	112.787	Asia/Jakarta
-WARS	SRG	Jenderal Ahmad Yani Airport	Semarang	ID	-6.9707	110.3732	Asia/Jakarta
 WASF	FKQ	Fakfak Airport	Fakfak	ID	-2.9205	132.267	Asia/Tokyo
 WASK	KNG	Utarom Airport	Kaimana	ID	-3.6446	133.6951	Asia/Tokyo
 WASN	RJM	Marinda Airport	Waisai	ID	-0.425	130.7735	Asia/Tokyo
-WASR	MKW	Rendani Airport	Manokwari	ID	-0.8918	134.049	Asia/Tokyo
 WASS	SOQ	Domine Eduard Osok Airport	Sorong	ID	-0.894	131.287	Asia/Tokyo
 WATA	ABU	AA Bere Tallo (Haliwen) Airport	Atambua	ID	-9.0748	124.9033	Asia/Makassar
 WATC	MOF	Frans Xavier Seda Airport	Waioti	ID	-8.6395	122.2381	Asia/Makassar
 WATE	ENE	H. Hasan Aroeboesman (Ende) Airport	Ende	ID	-8.8491	121.661	Asia/Makassar
 WATG	RTG	Frans Sales Lega Airport	Satar Tacik, Manggarai	ID	-8.5962	120.4782	Asia/Makassar
+WATK	TMC	Tambolaka Airport	Radamata	ID	-9.4092	119.2426	Asia/Makassar	WADT
 WATL	LKA	Larantuka Gewayentana Airport	Tiwatobi	ID	-8.2744	123.002	Asia/Makassar
 WATM	ARD	Alor Island - Mali Airport	Kabola	ID	-8.1323	124.597	Asia/Makassar
 WATO	LBJ	Komodo Airport	Labuan Bajo, Manggarai Barat	ID	-8.4807	119.8883	Asia/Makassar
 WATR	RTI	David Constantijn Saudale Airport	Ba'a - Rote Island	ID	-10.7658	123.076	Asia/Makassar
 WATT	KOE	El Tari Airport	Kupang	ID	-10.1716	123.671	Asia/Makassar
+WATU	WGP	Umbu Mehang Kunda Airport	Waingapu-Sumba Island	ID	-9.6692	120.302	Asia/Makassar	WADW
+WAUU	MKW	Rendani Airport	Manokwari	ID	-0.8918	134.049	Asia/Tokyo	WASR
+WAVB	BUI	Bokondini Airport	Bokondini	ID	-3.6846	138.6774	Asia/Tokyo	WAJB
 WAVV	WMX	Wamena Airport	Wamena	ID	-4.0973	138.9524	Asia/Tokyo
 WAWD	WNI	Matahora Airport	Wangi-wangi Island	ID	-5.2921	123.6362	Asia/Makassar
 WAWH	KSR	Selayar - Haji Aroeppala Airport	Benteng	ID	-6.1792	120.4375	Asia/Makassar
 WAWP	KXB	Sangia Nibandera Airport	Kolaka	ID	-4.3382	121.524	Asia/Makassar
 WAWW	KDI	Haluoleo Airport	Kendari	ID	-4.0816	122.418	Asia/Makassar
+WAYY	TIM	Mozes Kilangin Airport	Timika	ID	-4.5298	136.8874	Asia/Tokyo	WABP
 WBGB	BTU	Bintulu Airport	Bintulu	MY	3.1239	113.02	Asia/Makassar
 WBGF	LGL	Long Lellang Airport	Long Datih	MY	3.421	115.154	Asia/Makassar
 WBGG	KCH	Kuching International Airport	Kuching	MY	1.4874	110.3529	Asia/Makassar
@@ -3504,32 +3508,32 @@ WICC	BDO	Husein Sastranegara International Airport	Bandung	ID	-6.9006	107.576	As
 WICN	CJN	Nusawiru Airport	Cijulang	ID	-7.7199	108.489	Asia/Jakarta
 WIDD	BTH	Hang Nadim International Airport	Batam	ID	1.121	104.119	Asia/Jakarta
 WIDN	TNJ	Raja Haji Fisabilillah International Airport	Tanjung Pinang-Bintan Island	ID	0.924	104.5334	Asia/Jakarta
-WIGM	MPC	Muko Muko Airport	Muko Muko	ID	-2.5411	101.0877	Asia/Jakarta
+WIDO	NTX	Ranai Airport	Ranai-Natuna Besar Island	ID	3.9087	108.388	Asia/Jakarta	WION
+WIEE	PDG	Minangkabau International Airport	Padang	ID	-0.786	100.2804	Asia/Jakarta	WIPT
+WIGG	BKS	Fatmawati Soekarno Airport	Bengkulu	ID	-3.8637	102.339	Asia/Jakarta	WIPL
 WIHH	HLP	Halim Perdanakusuma International Airport	Jakarta	ID	-6.267	106.8903	Asia/Jakarta
 WIII	CGK	Soekarno-Hatta International Airport	Jakarta	ID	-6.1256	106.656	Asia/Jakarta
+WIJB	BUU	Muara Bungo Airport	Muara Bungo	ID	-1.5416	102.1816	Asia/Jakarta	WIPI
+WIJJ	DJB	Sultan Thaha Airport	Jambi	ID	-1.6387	103.6451	Asia/Jakarta	WIPA
+WIKK	PGK	Depati Amir Airport	Pangkal Pinang	ID	-2.1622	106.139	Asia/Jakarta	WIPK
+WIKT	TJQ	H A S Hanandjoeddin International Airport	Tanjung Pandan	ID	-2.7441	107.7545	Asia/Jakarta	WIOD
 WILL	TKG	Radin Inten II International Airport	Bandar Lampung	ID	-5.2468	105.1825	Asia/Jakarta
 WIMA	LSW	Malikus Saleh Airport	Lhok Seumawe-Sumatra Island	ID	5.2267	96.9503	Asia/Jakarta
 WIMB	GNS	Binaka Airport	Gunungsitoli	ID	1.1663	97.7052	Asia/Jakarta
+WIML	LKI	Lasikin Airport	Lubang	ID	2.4113	96.3277	Asia/Jakarta	WITG
 WIMM	KNO	Kualanamu International Airport	Beringin	ID	3.6378	98.8706	Asia/Jakarta
 WIMN	DTB	Silangit Airport	Siborong-Borong	ID	2.2597	98.9919	Asia/Jakarta
 WIMS	FLZ	Dr. Ferdinand Lumban Tobing Airport	Sibolga	ID	1.5571	98.8871	Asia/Jakarta
 WIMU	LSR	Alas Leuser Airport	Kutacane	ID	3.3915	97.8637	Asia/Jakarta
-WIOD	TJQ	H A S Hanandjoeddin International Airport	Tanjung Pandan	ID	-2.7441	107.7545	Asia/Jakarta
 WIOG	NPO	Nanga Pinoh Airport	Nanga Pinoh-Borneo Island	ID	-0.3486	111.7462	Asia/Pontianak
 WIOK	KTG	Rahadi Osman Airport	Ketapang	ID	-1.8172	109.9635	Asia/Pontianak
-WION	NTX	Ranai Airport	Ranai-Natuna Besar Island	ID	3.9087	108.388	Asia/Jakarta
 WIOO	PNK	Supadio International Airport	Pontianak	ID	-0.1523	109.4045	Asia/Pontianak
 WIOP	PSU	Pangsuma Airport	Putussibau-Borneo Island	ID	0.8346	112.9402	Asia/Pontianak
 WIOS	SQG	Tebelian Airport	Sintang	ID	-0.0452	111.458	Asia/Pontianak
-WIPA	DJB	Sultan Thaha Airport	Jambi	ID	-1.6387	103.6451	Asia/Jakarta
-WIPI	BUU	Muara Bungo Airport	Muara Bungo	ID	-1.5416	102.1816	Asia/Jakarta
-WIPK	PGK	Depati Amir Airport	Pangkal Pinang	ID	-2.1622	106.139	Asia/Jakarta
-WIPL	BKS	Fatmawati Soekarno Airport	Bengkulu	ID	-3.8637	102.339	Asia/Jakarta
 WIPP	PLM	Sultan Mahmud Badaruddin II Airport	Palembang	ID	-2.8977	104.6981	Asia/Jakarta
 WIPQ	PDO	Pendopo Airport	Talang Gudang-Sumatra Island	ID	-3.2861	103.88	Asia/Jakarta
-WIPT	PDG	Minangkabau International Airport	Padang	ID	-0.786	100.2804	Asia/Jakarta
+WIPU	MPC	Muko Muko Airport	Muko Muko	ID	-2.5411	101.0877	Asia/Jakarta	WIGM
 WITC	MEQ	Cut Nyak Dhien Airport	Kuala Pesisir	ID	4.041	96.2533	Asia/Jakarta
-WITG	LKI	Lasikin Airport	Lubang	ID	2.4113	96.3277	Asia/Jakarta
 WITK	TXE	Rembele Airport	Takengon	ID	4.7211	96.8519	Asia/Jakarta
 WITT	BTJ	Sultan Iskandar Muda International Airport	Banda Aceh	ID	5.5251	95.42	Asia/Jakarta
 WMBT	TOD	Tioman Airport	Tioman Island	MY	2.8182	104.16	Asia/Singapore
@@ -3545,14 +3549,10 @@ WMKN	TGG	Sultan Mahmud Airport	Kuala Terengganu	MY	5.3826	103.103	Asia/Singapore
 WMKP	PEN	Penang International Airport	Penang	MY	5.2963	100.2762	Asia/Singapore
 WMPA	PKG	Pulau Pangkor Airport	Pangkor Island	MY	4.2447	100.553	Asia/Singapore
 WMSA	SZB	Sultan Abdul Aziz Shah International Airport	Subang	MY	3.1306	101.549	Asia/Singapore
-WPAS	SXK	Mathilda Batlayeri Airport	Saumlaki-Yamdena Island	ID	-7.8484	131.3371	Asia/Tokyo
 WPDB	UAI	Commander in Chief of FALINTIL, Kay Rala Xanana Gusmão, International Airport	Suai	TL	-9.3019	125.2863	Asia/Dili
 WPDL	DIL	Presidente Nicolau Lobato International Airport	Dili	TL	-8.5466	125.5245	Asia/Dili
 WPEC	BCH	Baucau Airport	Baucau	TL	-8.4865	126.4	Asia/Dili
 WPOC	OEC	Oecusse Route of the Sandalwood International Airport	Oecussi-Ambeno	TL	-9.1984	124.3379	Asia/Dili
-WRLB	LBW	Yuvai Semaring Airport	Long Bawan	ID	3.9005	115.6901	Asia/Makassar
-WRLC	BXT	LNG Badak Airport	Bontang-Borneo Island	ID	0.1217	117.4766	Asia/Makassar
-WRLP	LPU	Long Apung Airport	Long Apung-Borneo Island	ID	1.7069	114.9699	Asia/Makassar
 WSSL	XSP	Seletar Airport	Seletar	SG	1.4156	103.8667	Asia/Singapore
 WSSS	SIN	Singapore Changi Airport	Singapore	SG	1.3502	103.994	Asia/Singapore
 YABA	ALH	Albany Airport	Albany	AU	-34.9433	117.8089	Australia/Perth
@@ -3694,8 +3694,8 @@ YSDU	DBO	Dubbo City Regional Airport	Dubbo	AU	-32.2167	148.575	Australia/Sydney
 YSGE	SGO	St George Airport	St George Airport	AU	-28.0497	148.595	Australia/Brisbane
 YSHK	MJK	Shark Bay Airport	Denham	AU	-25.8973	113.5758	Australia/Perth
 YSII	SBR	Saibai Island Airport	Saibai Island	AU	-9.3783	142.625	Australia/Brisbane
-YSNB	SNB	Snake Bay Airport	Milikapiti	AU	-11.4177	130.6485	Australia/Darwin
 YSNF	NLK	Norfolk Island International Airport	Burnt Pine	NF	-29.0418	167.9395	Pacific/Norfolk
+YSNK	SNB	Snake Bay Airport	Milikapiti	AU	-11.4177	130.6485	Australia/Darwin	YSNB
 YSSY	SYD	Sydney Kingsford Smith International Airport	Sydney	AU	-33.9461	151.177	Australia/Sydney
 YSTW	TMW	Tamworth Airport	Tamworth	AU	-31.0779	150.8455	Australia/Sydney
 YSWG	WGA	Wagga Wagga Airport	Forest Hill	AU	-35.1635	147.4683	Australia/Sydney
@@ -3840,6 +3840,7 @@ ZPLJ	LJG	Lijiang Sanyi International Airport	Lijiang	CN	26.6775	100.2449	Asia/Sh
 ZPMS	LUM	Dehong Mangshi International Airport	Dehong	CN	24.4011	98.5317	Asia/Shanghai
 ZPPP	KMG	Kunming Changshui International Airport	Kunming	CN	25.1103	102.9367	Asia/Shanghai
 ZPSM	SYM	Pu'er Simao Airport	Pu'er	CN	22.7933	100.959	Asia/Shanghai
+ZPTC	TCZ	Tengchong Tuofeng Airport	Baoshan	CN	24.9381	98.4858	Asia/Shanghai	ZUTC
 ZPWS	WNH	Wenshan Puzhehei Airport	Wenshan	CN	23.5583	104.3255	Asia/Shanghai
 ZSAM	XMN	Xiamen Gaoqi International Airport	Xiamen	CN	24.5439	118.1275	Asia/Shanghai
 ZSAQ	AQG	Anqing Tianzhushan Airport / Anqing North Air Base	Anqing	CN	30.5822	117.05	Asia/Shanghai
@@ -3912,7 +3913,6 @@ ZUPS	LPF	Liupanshui Yuezhao Airport	Liupanshui	CN	26.6094	104.979	Asia/Shanghai
 ZUQJ	JIQ	Qianjiang Wulingshan Airport	Qianjiang	CN	29.5133	108.8311	Asia/Shanghai
 ZURK	RKZ	Xigaze Peace Airport / Shigatse Air Base	Xigazê	CN	29.3509	89.2992	Asia/Shanghai
 ZUSH	LGZ	Shannan Longzi Airport	Shannan	CN	28.4224	92.3481	Asia/Shanghai
-ZUTC	TCZ	Tengchong Tuofeng Airport	Baoshan	CN	24.9381	98.4858	Asia/Shanghai
 ZUTF	TFU	Chengdu Tianfu International Airport	Chengdu	CN	30.3125	104.4413	Asia/Shanghai
 ZUTR	TEN	Tongren Fenghuang Airport	Tongren	CN	27.8833	109.3089	Asia/Shanghai
 ZUUU	CTU	Chengdu Shuangliu International Airport	Chengdu	CN	30.5583	103.946	Asia/Shanghai

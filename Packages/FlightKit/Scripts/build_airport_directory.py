@@ -5,20 +5,36 @@ The app looks airports up on the device (city names, local times, globe pins, se
 ships the same list the database seeds: supabase/migrations/20261028000002_airports_seed.sql. One line per
 airport, tab separated, in ICAO order:
 
-    ICAO  IATA  name  city  country  lat  lon  tz
+    ICAO  IATA  name  city  country  lat  lon  tz  [former code]
 
+The seed keys airports by their OurAirports ident; where the real ICAO code differs (supabase/seed/airports.csv
+icao_code, renamed in the database by 20261119000001_airport_icao_codes.sql) the line takes the real code and
+keeps the ident as a ninth field, so a code saved before the rename still resolves.
 An empty field is a missing value (no IATA code, no time zone); an airport with no city takes its name.
 The city loses its parenthesised tail ("Paris (Roissy-en-France, Val-d'Oise)" reads "Paris"), so screens
 and searches meet the city people name; coordinates keep 4 decimals (about 11 m). Rerun after the seed changes:
 
     python3 Packages/FlightKit/Scripts/build_airport_directory.py
 """
+import csv
 import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 SRC = ROOT / "supabase/migrations/20261028000002_airports_seed.sql"
 OUT = ROOT / "Packages/FlightKit/Sources/FlightKit/Resources/Reference/airports.tsv"
+CSV = ROOT / "supabase/seed/airports.csv"
+
+
+def renames() -> dict:
+    """OurAirports ident to the real ICAO code, for the airports where they differ."""
+    out = {}
+    with CSV.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            code = (r.get("icao_code") or "").strip().upper()
+            if re.fullmatch(r"[A-Z]{4}", code) and code != r["ident"]:
+                out[r["ident"]] = code
+    return out
 
 # One SQL value: a quoted string ('' is a quote), null, or a number.
 VALUE = re.compile(r"\s*(?:'((?:[^']|'')*)'|(null)|(-?[0-9.]+(?:[eE]-?[0-9]+)?))\s*(,|\))")
@@ -59,14 +75,19 @@ def coord(x: float) -> str:
     return f"{x:.4f}".rstrip("0").rstrip(".")
 
 
+RENAMES = renames()
 rows = []
 for line in SRC.read_text(encoding="utf-8").splitlines():
     v = parse_row(line)
     if v is None:
         continue
     icao, iata, name, town, country, lat, lon, tz = v
-    rows.append("\t".join([clean(icao).upper(), clean(iata).upper(), clean(name), city(town) or clean(name),
-                           clean(country).upper(), coord(lat), coord(lon), clean(tz)]))
+    ident = clean(icao).upper()
+    fields = [RENAMES.get(ident, ident), clean(iata).upper(), clean(name), city(town) or clean(name),
+              clean(country).upper(), coord(lat), coord(lon), clean(tz)]
+    if ident in RENAMES:
+        fields.append(ident)
+    rows.append("\t".join(fields))
 
 rows.sort()
 OUT.write_text("\n".join(rows) + "\n", encoding="utf-8")
