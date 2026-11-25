@@ -17,3 +17,11 @@ Apps/Web/node_modules
 Apps/Web/dist
 Apps/Web/.env*.local
 Apps/Web/.vitest/
+
+# Store visuals: raw captures (rebuilt by sources/scripts/shot.sh), the screenshots pulled back from App Store
+# Connect, the review contact sheet and the image generation script and log (internal endpoint) stay local.
+store/visuals/sources/raw/
+store/visuals/sources/asc-previous/
+store/visuals/sources/bg/calls.log
+store/visuals/sources/scripts/gen_bg.py
+store/visuals/contact-sheet.png
