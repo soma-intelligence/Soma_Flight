@@ -77,7 +77,7 @@ public struct BundledSideViews: BrandAssetService {
     static let familyType: [AircraftFamily: String] = [
         .a220: "BCS3", .a320: "A320", .a330: "A333", .a350: "A359", .a380: "A388", .b737: "B738",
         .b737max: "B38M", .b747: "B748", .b757: "B752", .b767: "B763", .b777: "B77W", .b787: "B789",
-        .ejet: "E190", .crj: "CRJ9", .atr: "AT76", .other: "A320",
+        .ejet: "E190", .crj: "CRJ9", .atr: "AT76", .bizjet: "CL35", .other: "A320",
     ]
 
     /// The closest bundled type of the same family, for variants the bundle may lack.

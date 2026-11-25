@@ -284,4 +284,13 @@ struct LiveryTests {
         #expect(AirlineParents.chain("TAX") == ["TAX", "XAX", "AXM"])
         #expect(AirlineParents.chain("dlh") == ["DLH"])
     }
+
+    @Test func everyBundledTypeHasAPlainSideViewAndJetsFallBackToAJet() {
+        let pairs = BundledSideViews.pairs
+        let missing = ReferenceData.bundled().types.map(\.id).filter { !pairs.contains("ZZZ-\($0)") }
+        #expect(missing.isEmpty, "types with no plain side view: \(missing)")
+        // A business jet the list does not know draws as a business jet, never as an A320.
+        #expect(BundledSideViews.fallbackKey("QQQ", family: .bizjet) == "ZZZ-CL35")
+        #expect(BundledSideViews.fallbackKey(nil, type: "GLF6") == "ZZZ-GLF6")
+    }
 }

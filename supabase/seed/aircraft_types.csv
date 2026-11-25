@@ -2,15 +2,13 @@ icao_type,family,manufacturer,name
 A19N,a320,Airbus,Airbus A319neo
 A20N,a320,Airbus,Airbus A320neo
 A21N,a320,Airbus,Airbus A321neo
+A220,a220,Airbus,Airbus A220
+A306,other,Airbus,Airbus A300-600
+A310,other,Airbus,Airbus A310
 A318,a320,Airbus,Airbus A318
 A319,a320,Airbus,Airbus A319
 A320,a320,Airbus,Airbus A320
 A321,a320,Airbus,Airbus A321
-A220,a220,Airbus,Airbus A220
-BCS1,a220,Airbus,Airbus A220-100
-BCS3,a220,Airbus,Airbus A220-300
-A306,other,Airbus,Airbus A300-600
-A310,other,Airbus,Airbus A310
 A332,a330,Airbus,Airbus A330-200
 A333,a330,Airbus,Airbus A330-300
 A338,a330,Airbus,Airbus A330-800
@@ -20,10 +18,24 @@ A346,other,Airbus,Airbus A340-600
 A359,a350,Airbus,Airbus A350-900
 A35K,a350,Airbus,Airbus A350-1000
 A388,a380,Airbus,Airbus A380
+AR85,other,BAE Systems,Avro RJ85
+AT43,atr,ATR,ATR 42-300
+AT45,atr,ATR,ATR 42-500
+AT46,atr,ATR,ATR 42-600
+AT72,atr,ATR,ATR 72-200
+AT75,atr,ATR,ATR 72-500
+AT76,atr,ATR,ATR 72-600
+B190,other,Beechcraft,Beechcraft 1900
+B350,bizjet,Beechcraft,Beechcraft King Air 350
 B37M,b737max,Boeing,Boeing 737 MAX 7
 B38M,b737max,Boeing,Boeing 737 MAX 8
 B39M,b737max,Boeing,Boeing 737 MAX 9
 B3XM,b737max,Boeing,Boeing 737 MAX 10
+B461,other,BAE Systems,BAE 146-100
+B462,other,BAE Systems,BAE 146-200
+B463,other,BAE Systems,BAE 146-300
+B712,other,Boeing,Boeing 717-200
+B722,other,Boeing,Boeing 727-200
 B732,b737,Boeing,Boeing 737-200
 B733,b737,Boeing,Boeing 737-300
 B734,b737,Boeing,Boeing 737-400
@@ -41,52 +53,96 @@ B762,b767,Boeing,Boeing 767-200
 B763,b767,Boeing,Boeing 767-300
 B764,b767,Boeing,Boeing 767-400
 B772,b777,Boeing,Boeing 777-200
-B77L,b777,Boeing,Boeing 777-200LR
-B77W,b777,Boeing,Boeing 777-300ER
 B773,b777,Boeing,Boeing 777-300
 B778,b777,Boeing,Boeing 777-8
 B779,b777,Boeing,Boeing 777-9
+B77L,b777,Boeing,Boeing 777-200LR
+B77W,b777,Boeing,Boeing 777-300ER
 B788,b787,Boeing,Boeing 787-8
 B789,b787,Boeing,Boeing 787-9
 B78X,b787,Boeing,Boeing 787-10
-B712,other,Boeing,Boeing 717-200
-B722,other,Boeing,Boeing 727-200
-MD11,other,McDonnell Douglas,McDonnell Douglas MD-11
-MD82,other,McDonnell Douglas,McDonnell Douglas MD-82
-MD83,other,McDonnell Douglas,McDonnell Douglas MD-83
-MD88,other,McDonnell Douglas,McDonnell Douglas MD-88
-MD90,other,McDonnell Douglas,McDonnell Douglas MD-90
+BCS1,a220,Airbus,Airbus A220-100
+BCS3,a220,Airbus,Airbus A220-300
+BE20,bizjet,Beechcraft,Beechcraft King Air 200
+BE40,bizjet,Hawker,Hawker 400
+BN2P,other,Britten-Norman,Britten-Norman Islander
+C208,other,Cessna,Cessna 208 Caravan
+C25A,bizjet,Cessna,Cessna Citation CJ2
+C25B,bizjet,Cessna,Cessna Citation CJ3
+C25C,bizjet,Cessna,Cessna Citation CJ4
+C510,bizjet,Cessna,Cessna Citation Mustang
+C525,bizjet,Cessna,Cessna Citation CJ1
+C560,bizjet,Cessna,Cessna Citation V
+C56X,bizjet,Cessna,Cessna Citation Excel
+C680,bizjet,Cessna,Cessna Citation Sovereign
+C68A,bizjet,Cessna,Cessna Citation Latitude
+C700,bizjet,Cessna,Cessna Citation Longitude
+C750,bizjet,Cessna,Cessna Citation X
+C919,other,COMAC,COMAC C919
+CL30,bizjet,Bombardier,Bombardier Challenger 300
+CL35,bizjet,Bombardier,Bombardier Challenger 350
+CL60,bizjet,Bombardier,Bombardier Challenger 600
+CRJ2,crj,Bombardier,Bombardier CRJ200
+CRJ7,crj,Bombardier,Bombardier CRJ700
+CRJ9,crj,Bombardier,Bombardier CRJ900
+CRJX,crj,Bombardier,Bombardier CRJ1000
+D228,other,Dornier,Dornier 228
+DH8A,other,De Havilland Canada,De Havilland Canada Dash 8-100
+DH8B,other,De Havilland Canada,De Havilland Canada Dash 8-200
+DH8C,other,De Havilland Canada,De Havilland Canada Dash 8-300
+DH8D,other,De Havilland Canada,De Havilland Canada Dash 8 Q400
+DHC6,other,De Havilland Canada,De Havilland Canada Twin Otter
+E120,other,Embraer,Embraer EMB 120 Brasilia
+E135,other,Embraer,Embraer ERJ-135
+E145,other,Embraer,Embraer ERJ-145
 E170,ejet,Embraer,Embraer 170
-E75L,ejet,Embraer,Embraer 175 (long wing)
-E75S,ejet,Embraer,Embraer 175 (short wing)
 E175,ejet,Embraer,Embraer 175
 E190,ejet,Embraer,Embraer 190
 E195,ejet,Embraer,Embraer 195
 E290,ejet,Embraer,Embraer 190-E2
 E295,ejet,Embraer,Embraer 195-E2
-E35L,other,Embraer,Embraer Legacy 600
-E145,other,Embraer,Embraer ERJ-145
-E135,other,Embraer,Embraer ERJ-135
-CRJ2,crj,Bombardier,Bombardier CRJ200
-CRJ7,crj,Bombardier,Bombardier CRJ700
-CRJ9,crj,Bombardier,Bombardier CRJ900
-CRJX,crj,Bombardier,Bombardier CRJ1000
-AT43,atr,ATR,ATR 42-300
-AT45,atr,ATR,ATR 42-500
-AT46,atr,ATR,ATR 42-600
-AT72,atr,ATR,ATR 72-200
-AT75,atr,ATR,ATR 72-500
-AT76,atr,ATR,ATR 72-600
-DH8A,other,De Havilland Canada,De Havilland Canada Dash 8-100
-DH8C,other,De Havilland Canada,De Havilland Canada Dash 8-300
-DH8D,other,De Havilland Canada,De Havilland Canada Dash 8 Q400
-SF34,other,Saab,Saab 340
-SB20,other,Saab,Saab 2000
-SU95,other,Sukhoi,Sukhoi Superjet 100
-C919,other,COMAC,COMAC C919
-AR85,other,BAE Systems,Avro RJ85
-B461,other,BAE Systems,BAE 146-100
-B462,other,BAE Systems,BAE 146-200
-B463,other,BAE Systems,BAE 146-300
+E35L,bizjet,Embraer,Embraer Legacy 600
+E50P,bizjet,Embraer,Embraer Phenom 100
+E545,bizjet,Embraer,Embraer Praetor 500
+E550,bizjet,Embraer,Embraer Praetor 600
+E55P,bizjet,Embraer,Embraer Phenom 300
+E75L,ejet,Embraer,Embraer 175 (long wing)
+E75S,ejet,Embraer,Embraer 175 (short wing)
 F100,other,Fokker,Fokker 100
+F2TH,bizjet,Dassault,Dassault Falcon 2000
+F50,other,Fokker,Fokker 50
 F70,other,Fokker,Fokker 70
+F900,bizjet,Dassault,Dassault Falcon 900
+FA50,bizjet,Dassault,Dassault Falcon 50
+FA6X,bizjet,Dassault,Dassault Falcon 6X
+FA7X,bizjet,Dassault,Dassault Falcon 7X
+FA8X,bizjet,Dassault,Dassault Falcon 8X
+G280,bizjet,Gulfstream,Gulfstream G280
+GA5C,bizjet,Gulfstream,Gulfstream G500
+GA6C,bizjet,Gulfstream,Gulfstream G600
+GA7C,bizjet,Gulfstream,Gulfstream G700
+GA8C,bizjet,Gulfstream,Gulfstream G800
+GL5T,bizjet,Bombardier,Bombardier Global 5000
+GL7T,bizjet,Bombardier,Bombardier Global 7500
+GLEX,bizjet,Bombardier,Bombardier Global 6000
+GLF4,bizjet,Gulfstream,Gulfstream IV
+GLF5,bizjet,Gulfstream,Gulfstream G550
+GLF6,bizjet,Gulfstream,Gulfstream G650
+H25B,bizjet,Hawker,Hawker 800
+HDJT,bizjet,Honda,HondaJet
+J328,other,Dornier,Dornier 328JET
+L410,other,Let,Let L-410 Turbolet
+LJ45,bizjet,Bombardier,Learjet 45
+LJ75,bizjet,Bombardier,Learjet 75
+MD11,other,McDonnell Douglas,McDonnell Douglas MD-11
+MD82,other,McDonnell Douglas,McDonnell Douglas MD-82
+MD83,other,McDonnell Douglas,McDonnell Douglas MD-83
+MD88,other,McDonnell Douglas,McDonnell Douglas MD-88
+MD90,other,McDonnell Douglas,McDonnell Douglas MD-90
+PC12,bizjet,Pilatus,Pilatus PC-12
+PC24,bizjet,Pilatus,Pilatus PC-24
+SB20,other,Saab,Saab 2000
+SF34,other,Saab,Saab 340
+SF50,bizjet,Cirrus,Cirrus Vision Jet
+SU95,other,Sukhoi,Sukhoi Superjet 100
+SW4,other,Fairchild,Fairchild Metro

@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
 import { buildReference, generate } from "./build_reference_seed.ts";
 
 const AIRLINES_HEAD = "icao,iata,name,callsign,alliance,country,color_primary,color_secondary,phone,website,x,facebook\n";
@@ -62,6 +62,12 @@ Deno.test("rejects bad colour", () => {
 
 Deno.test("rejects unknown family", () => {
   assertThrows(() => buildReference(input({ types: "A320,a321,Airbus,Airbus A320\n" })), Error, "unknown family a321");
+});
+
+Deno.test("business jets keep their family in the JSON and seed as 'other' in the SQL", () => {
+  const out = buildReference(input({ types: "GLF6,bizjet,Gulfstream,Gulfstream G650\n" }));
+  assert(out.aircraftTypesJson.includes('"icaoType":"GLF6","family":"bizjet"'));
+  assert(out.sql.includes("('GLF6', 'other', 'Gulfstream', 'Gulfstream G650')"));
 });
 
 Deno.test("rejects unknown region", () => {
