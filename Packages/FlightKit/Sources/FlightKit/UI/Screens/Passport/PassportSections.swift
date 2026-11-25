@@ -213,7 +213,16 @@ private struct FlightsBody: View {
             .monospacedDigit()
     }
 
-    private var chart: some View {
+    /// The weekday tab gets its own "busiest day" chart; years and months keep the axis and grid.
+    @ViewBuilder private var chart: some View {
+        if period == .weekday {
+            WeekdayBarsChart(counts: PassportFacts.bars(detail, .weekday).map(\.count))
+        } else {
+            gridChart
+        }
+    }
+
+    private var gridChart: some View {
         let bars = PassportFacts.bars(detail, period)
         let ticks = PassportFacts.ticks(max: bars.map(\.count).max() ?? 0)
         return Chart(Array(bars.enumerated()), id: \.offset) { _, bar in
@@ -234,6 +243,69 @@ private struct FlightsBody: View {
         .frame(height: 180)
         .accessibilityLabel("Flights per \(period.rawValue.lowercased())")
         .accessibilityValue(bars.map { "\($0.label) \($0.count)" }.joined(separator: ", "))
+    }
+}
+
+/// Flights per weekday, Monday first: the busiest day in the passport violet, the others a faint white,
+/// each bar topped with its count, no axis or grid. Above it the busiest weekday ("SATURDAYS") and
+/// "Your busiest day, 10 of 40 flights". On a tie the first of them in week order is the busiest.
+struct WeekdayBarsChart: View {
+    /// Seven counts, Monday to Sunday, as `PassportFacts.bars(_, .weekday)` gives them.
+    var counts: [Int]
+    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 170
+
+    static let pluralNames = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"]
+
+    /// Index of the busiest weekday, the first in week order on a tie; nil when there is no flight.
+    static func busiest(_ counts: [Int]) -> Int? {
+        guard let top = counts.max(), top > 0 else { return nil }
+        return counts.firstIndex(of: top)
+    }
+
+    var body: some View {
+        let total = counts.reduce(0, +)
+        let busiest = Self.busiest(counts)
+        let labels = PassportFacts.weekdayNames
+        let bars = Array(zip(labels, counts).enumerated())
+        VStack(alignment: .leading, spacing: 4) {
+            if let b = busiest {
+                Text(ui: Self.pluralNames[b])
+                    .textCase(.uppercase)
+                    .scaledFont(13, weight: .semibold)
+                    .foregroundStyle(Theme.primary.opacity(0.6))
+                Text("Your busiest day, \(counts[b]) of \(total) flights")
+                    .scaledFont(17, weight: .semibold)
+                    .foregroundStyle(Theme.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Chart(bars, id: \.offset) { i, bar in
+                let top = i == busiest
+                BarMark(x: .value("Day", bar.0), y: .value("Flights", bar.1), width: .ratio(0.62))
+                    .foregroundStyle(top ? Theme.passportAccent : Theme.primary.opacity(0.16))
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 6, topTrailingRadius: 6))
+                    .annotation(position: .top, spacing: 4) {
+                        Text(PassportFacts.count(bar.1))
+                            .scaledFont(13, weight: top ? .bold : .medium)
+                            .monospacedDigit()
+                            .foregroundStyle(top ? Theme.primary : Theme.primary.opacity(0.55))
+                    }
+            }
+            .chartYScale(domain: 0...max(counts.max() ?? 0, 1))
+            .chartYAxis(.hidden)
+            .chartXAxis {
+                AxisMarks { AxisValueLabel().font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.primary.opacity(0.7)) }
+            }
+            .frame(height: height)
+            .scaledPadding(.top, 14)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel(busiest: busiest, total: total))
+        .accessibilityValue(zip(labels, counts).map { "\($0) \($1)" }.joined(separator: ", "))
+    }
+
+    private func accessibilityLabel(busiest: Int?, total: Int) -> Text {
+        guard let b = busiest else { return Text("Flights per weekday, no flights") }
+        return Text("Flights per weekday, busiest \(Text(ui: Self.pluralNames[b])), \(counts[b]) of \(total) flights")
     }
 }
 

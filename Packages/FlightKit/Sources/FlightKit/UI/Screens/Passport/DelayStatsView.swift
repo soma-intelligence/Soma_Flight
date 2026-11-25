@@ -141,20 +141,7 @@ struct DelayReportHero: View {
     }
 
     private var worstAirline: some View {
-        let top = report.airlineLosses[0]
-        let name = reference.airline(top.key)?.name ?? top.key
-        return VStack(alignment: .leading, spacing: 4) {
-            Text("Hardest-hit airline")
-                .scaledFont(24, weight: .bold)
-                .foregroundStyle(.white)
-            Text("\(name) \u{00B7} \(DelayFacts.hoursShort(top.minutes)) late in all")
-                .scaledFont(17)
-                .monospacedDigit()
-                .foregroundStyle(DelayInk.soft)
-                .lineLimit(2)
-            AirlineLossBar(losses: report.airlineLosses)
-                .scaledPadding(.top, 10)
-        }
+        AirlineLossBar(losses: report.airlineLosses, airlines: report.airlines)
     }
 
     private var basis: some View {

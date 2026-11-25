@@ -4,15 +4,16 @@ import SwiftUI
 /// - `.root`: large title on the left, an avatar or one action on the right (My Flights, Friends, Passport).
 /// - `.detail`: a leading mark, a small caps overline, a 20 pt bold title, optional actions and the glass
 ///   close button (flight, airport, friend).
-/// - `.modal`: a centred 17 pt semibold title, Close or Cancel on the left, Done on the right when something
-///   can be saved (Settings, Travel documents, Profile, Search).
+/// - `.modal`: a centred 17 pt semibold title, the glass close or cancel circle on the left, the accent
+///   checkmark circle (`ConfirmButton`) on the right when something can be saved (Settings, Travel documents,
+///   Profile, Search, Booking Details).
 /// Penpot: Header/Root, Header/Detail, Header/Modal
 public struct SheetHeader: View {
     /// What sits on the left of a modal header.
     public enum ModalLeading {
         /// The 44 pt glass close button.
         case close(() -> Void)
-        /// The word "Cancel", in the accent colour.
+        /// The glass `xmark` circle, read as "Cancel": it drops the edits (after asking, when there are some).
         case cancel(() -> Void)
     }
 
@@ -32,6 +33,8 @@ public struct SheetHeader: View {
     /// so the large title sits at one height and a tab change slides it sideways without a hop.
     public static let rootTop: CGFloat = 16
     public static let rootBottom: CGFloat = 6
+    /// The modal header's circles: their room from the sheet's top and side edges.
+    public static let modalInset: CGFloat = 16
 
     /// A root header with a trailing avatar or action.
     public static func root<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> SheetHeader {
@@ -125,30 +128,58 @@ public struct SheetHeader: View {
                 case .close(let action):
                     CloseButton(inset: false, action: action)
                 case .cancel(let action):
-                    textButton("Cancel", weight: .regular, action: action)
+                    RoundButton(systemImage: "xmark", label: "Cancel", action: action)
                 }
                 Spacer(minLength: 8)
                 if let onDone {
-                    textButton("Done", weight: .semibold, action: onDone)
-                        .disabled(disabled)
-                        .opacity(disabled ? 0.4 : 1)
+                    ConfirmButton(disabled: disabled, action: onDone)
                 }
             }
         }
-        .scaledPadding(.horizontal, Theme.gutter)
-        .scaledPadding(.vertical, 6)
-        .frame(minHeight: Theme.metric(56, scale))
+        // The circles sit 16 pt in from the sheet's top and sides, as the system's own sheet buttons do, so
+        // they clear the sheet's rounded corners instead of crowding them.
+        .scaledPadding(.horizontal, Self.modalInset)
+        .scaledPadding(.top, Self.modalInset)
+        .scaledPadding(.bottom, 8)
+    }
+}
+
+/// The one save control of a modal header: a 44 pt Liquid Glass circle tinted with the accent and a white
+/// `checkmark`, the pair of the glass close circle on the left. Faded and inert while there is nothing to
+/// save; a spinner in its place while the save runs. VoiceOver reads it as "Done".
+/// Penpot: Button/Confirm
+public struct ConfirmButton: View {
+    var disabled: Bool
+    var isLoading: Bool
+    var action: () -> Void
+    @Environment(\.metricsScale) private var scale
+
+    public init(disabled: Bool = false, isLoading: Bool = false, action: @escaping () -> Void) {
+        self.disabled = disabled; self.isLoading = isLoading; self.action = action
     }
 
-    private func textButton(_ label: String, weight: Font.Weight, action: @escaping () -> Void) -> some View {
+    public var body: some View {
+        let side = Theme.metric(44, scale)
         Button(action: action) {
-            Text(ui: label)
-                .scaledFont(17, weight: weight)
-                .foregroundStyle(Theme.accent)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+            ZStack {
+                if isLoading {
+                    ProgressView().tint(.white)
+                } else {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: Theme.metric(18, scale), weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: side, height: side)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .roundGlass(tint: Theme.accent)
+        .opacity(disabled ? 0.4 : 1)
+        .disabled(disabled || isLoading)
+        .pointerHighlight(Circle())
+        .accessibilityLabel("Done")
+        .animation(.easeOut(duration: 0.2), value: disabled)
     }
 }
 

@@ -4,7 +4,7 @@ import FlightCore
 
 /// Aircraft stats, opened from the most flown aircraft card: on the light blue page, the totals and the
 /// most flown type, then the blueprint panels (frequented tail, cabin classes and seats); on the dark
-/// page under them, the aircraft types, class, seat and reason donuts, the most frequent tails and,
+/// page under them, the aircraft types, class, seat and reason splits, the most frequent tails and,
 /// when delivery dates are known, the age chart with the newest and oldest aircraft.
 struct AircraftStatsView: View {
     @Bindable var store: PassportStore
@@ -131,170 +131,134 @@ struct AircraftTypesSection: View {
 
 struct ClassSeatSection: View {
     var stats: AircraftStats
-    @Environment(\.dynamicTypeSize) private var typeSize
-    @ScaledMetric(relativeTo: .title) private var bigSide: CGFloat = 290
-    @ScaledMetric(relativeTo: .title) private var smallSide: CGFloat = 140
 
     var body: some View {
-        let donuts = [AircraftStatsCopy.classDonut(stats), AircraftStatsCopy.seatDonut(stats),
+        let splits = [AircraftStatsCopy.classDonut(stats), AircraftStatsCopy.seatDonut(stats),
                       AircraftStatsCopy.reasonDonut(stats)]
-        let shown = donuts.enumerated().filter { !$0.element.isHidden }
+        let shown = splits.enumerated().filter { !$0.element.isHidden }
         if !shown.isEmpty {
             PassportSection(title: "Class and seat") {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(shown, id: \.offset) { i, donut in
+                    ForEach(shown, id: \.offset) { i, split in
                         if i != shown.first?.offset { Rectangle().fill(Theme.separator).frame(height: 1) }
-                        Group {
-                            if i == 0 { bigDonut(donut) } else { sideDonut(donut) }
-                        }
-                        .accessibilityElement(children: .contain)
+                        ShareSplit(donut: split).scaledPadding(.vertical, 20)
                     }
                 }
                 .environment(\.colorScheme, .dark)
             }
         }
     }
-
-    /// The class donut, wide and centered, its legend under it.
-    private func bigDonut(_ d: AircraftStatsCopy.Donut) -> some View {
-        let side = min(bigSide, 330)
-        return VStack(spacing: 16) {
-            DonutChart(donut: d, valueSize: 34)
-                .frame(width: side, height: side)
-                .frame(maxWidth: .infinity)
-            DonutLegend(slices: d.slices)
-        }
-        .scaledPadding(.vertical, 14)
-    }
-
-    /// A smaller donut at the left, its legend at the right. The legend goes under it at accessibility sizes,
-    /// and whenever the two do not fit side by side (a long label in another language, a narrow panel): a
-    /// row that asks for more than the page's width would push the whole page past the screen's edges.
-    private func sideDonut(_ d: AircraftStatsCopy.Donut) -> some View {
-        let side = min(smallSide, 240)
-        let chart = DonutChart(donut: d, valueSize: 24, inner: 0.7).frame(width: side, height: side)
-        let stacked = VStack(alignment: .leading, spacing: 16) { chart; DonutLegend(slices: d.slices) }
-        return Group {
-            if typeSize.isAccessibilitySize {
-                stacked
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .center, spacing: 18) { chart; DonutLegend(slices: d.slices, columnSpacing: 10) }
-                    stacked
-                }
-            }
-        }
-        .scaledPadding(.vertical, 22)
-    }
 }
 
-/// Rounded slices with a gap between them, swept in clockwise the first time the donut shows. A touch on a
-/// slice lifts it, dims the others and puts its label and share in the middle; letting go goes back to the
-/// donut's own title.
-private struct DonutChart: View {
+/// One split (class, seat, reason) as a headline share, a segmented bar and a legend: "67% in Economy",
+/// then one bar cut into parts with a 2 pt gap between them, then a dot, name, count and percent per part.
+/// Parts take distinct hues in a fixed order, so the same slot keeps its colour from year to year.
+private struct ShareSplit: View {
     var donut: AircraftStatsCopy.Donut
-    var valueSize: CGFloat
-    var inner: CGFloat = 0.64
-    @State private var angle: Int?
-    /// Starts whole, so a still render (a snapshot, Reduce Motion) shows the full donut; `onAppear` folds it
-    /// away and sweeps it back in.
-    @State private var sweep: CGFloat = 1
-    @State private var swept = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var dot: CGFloat = 9
 
-    private var shown: [AircraftStatsCopy.Slice] { donut.slices.filter { $0.count > 0 } }
+    struct Part: Identifiable, Equatable {
+        var id: String { label }
+        var label: String
+        var count: UInt32
+        var percent: Int
+        var color: Color
+    }
 
-    /// The slice under a running total of counts, as `chartAngleSelection` reports it.
-    static func slice(at value: Int?, in slices: [AircraftStatsCopy.Slice]) -> AircraftStatsCopy.Slice? {
-        guard let value else { return nil }
-        var total = 0
-        for s in slices where s.count > 0 {
-            total += Int(s.count)
-            if value < total { return s }
+    /// Categorical hues in their fixed order: blue, indigo, purple, orange, teal, pink; grey for "Other".
+    static let hues: [Color] = [
+        Color(light: 0x0A84FF, dark: 0x0A84FF),
+        Color(light: 0x5E5CE6, dark: 0x7D7AFF),
+        Color(light: 0xBF5AF2, dark: 0xDA8FFF),
+        Color(light: 0xFF9F0A, dark: 0xFFB340),
+        Color(light: 0x30B0C7, dark: 0x5DE6FF),
+        Color(light: 0xFF2D55, dark: 0xFF6482),
+    ]
+    static let otherHue = Color(light: 0x8E8E93, dark: 0x98989D)
+    /// Past this many parts, the smallest fold into "Other".
+    static let maxParts = 6
+
+    /// The donut's slices in their own order with a hue each; more than `maxParts` keeps the largest
+    /// `maxParts - 1` and folds the rest into "Other".
+    static func parts(_ donut: AircraftStatsCopy.Donut) -> [Part] {
+        let slices = donut.slices
+        let total = slices.reduce(0) { $0 + $1.count }
+        var parts = slices.enumerated().map { i, s in
+            Part(label: s.label, count: s.count, percent: s.percent, color: hues[i % hues.count])
         }
-        return nil
+        guard parts.count > maxParts else { return parts }
+        let keep = Set(parts.indices.sorted { parts[$0].count > parts[$1].count }.prefix(maxParts - 1))
+        let rest = parts.indices.filter { !keep.contains($0) }.reduce(0) { $0 + parts[$1].count }
+        parts = parts.indices.filter { keep.contains($0) }.map { parts[$0] }
+        parts.append(Part(label: "Other", count: rest, percent: AircraftStatsCopy.percent(rest, of: total),
+                          color: otherHue))
+        return parts
+    }
+
+    /// "Class" from "Top class".
+    static func title(_ donut: AircraftStatsCopy.Donut) -> String {
+        let t = donut.centerTitle.hasPrefix("Top ") ? String(donut.centerTitle.dropFirst(4)) : donut.centerTitle
+        return t.prefix(1).uppercased() + t.dropFirst()
+    }
+
+    /// The first of the largest parts, in the legend's order.
+    static func top(_ parts: [Part]) -> Part? {
+        parts.reduce(nil as Part?) { best, p in p.count > (best?.count ?? 0) ? p : best }
+    }
+
+    /// "Class: Economy 22 flights, 67 percent; Business 3 flights, 9 percent".
+    static func summary(_ donut: AircraftStatsCopy.Donut, _ parts: [Part]) -> String {
+        let rows = parts.filter { $0.count > 0 }.map { "\($0.label) \($0.count), \($0.percent) percent" }
+        return "\(title(donut)): " + rows.joined(separator: "; ")
     }
 
     var body: some View {
-        let picked = Self.slice(at: angle, in: shown)
-        Chart(shown) { s in
-            let lifted = picked?.id == s.id
-            SectorMark(angle: .value("Flights", s.count),
-                       innerRadius: .ratio(inner),
-                       outerRadius: .ratio(picked == nil || lifted ? 1 : 0.94),
-                       angularInset: 2.5)
-                .cornerRadius(6)
-                .foregroundStyle(s.color)
-                .opacity(picked == nil || lifted ? 1 : 0.35)
-        }
-        .chartLegend(.hidden)
-        .chartAngleSelection(value: $angle)
-        .animation(.snappy(duration: 0.25), value: picked?.id)
-        .mask {
-            Circle()
-                .trim(from: 0, to: sweep)
-                .stroke(style: StrokeStyle(lineWidth: 400))
-                .rotationEffect(.degrees(-90))
-        }
-        .overlay {
-            VStack(spacing: 2) {
-                Text(ui: picked?.label ?? donut.centerTitle).scaledFont(13).foregroundStyle(Theme.secondary)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text(ui: picked.map { "\($0.percent)%" } ?? donut.centerValue)
-                    .scaledFont(valueSize, weight: .semibold)
-                    .foregroundStyle(Theme.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .contentTransition(.numericText())
+        let parts = Self.parts(donut)
+        let flown = parts.filter { $0.count > 0 }
+        let total = flown.reduce(0) { $0 + $1.count }
+        VStack(alignment: .leading, spacing: 12) {
+            Text(ui: Self.title(donut)).scaledFont(20, weight: .bold).foregroundStyle(Theme.primary)
+            if let top = Self.top(parts) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(top.percent)%").scaledFont(28, weight: .bold).monospacedDigit()
+                        .foregroundStyle(Theme.primary)
+                        .rollingDigits(Double(top.percent))
+                    Text(ui: "in \(top.label)").scaledFont(15).foregroundStyle(Theme.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .animation(.snappy(duration: 0.25), value: picked?.id)
-            // Inside the hole with room to spare: a long word shrinks before it reaches the ring.
-            .scaledPadding(.horizontal, 32)
-            .allowsHitTesting(false)
-        }
-        .task {
-            guard !swept, !reduceMotion else { return }
-            swept = true
-            var still = Transaction()
-            still.disablesAnimations = true
-            withTransaction(still) { sweep = 0 }
-            // One frame folded, so the sweep has a start to animate from.
-            try? await Task.sleep(for: .milliseconds(16))
-            withAnimation(.easeOut(duration: 0.9)) { sweep = 1 }
+            GeometryReader { g in
+                let gaps = CGFloat(max(flown.count - 1, 0)) * 2
+                HStack(spacing: 2) {
+                    ForEach(flown) { p in
+                        Rectangle().fill(p.color)
+                            .frame(width: max(0, (g.size.width - gaps) * CGFloat(p.count) / CGFloat(max(total, 1))))
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+            .frame(height: 14)
+            VStack(spacing: 8) {
+                ForEach(parts) { p in
+                    HStack(spacing: 8) {
+                        Circle().fill(p.color).frame(width: dot, height: dot)
+                        Text(ui: p.label).scaledFont(15).foregroundStyle(Theme.primary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Text(PassportFacts.count(p.count)).scaledFont(15, weight: .semibold).monospacedDigit()
+                            .foregroundStyle(Theme.primary)
+                            .rollingDigits(Double(p.count))
+                        Text("\(p.percent)%").scaledFont(15).monospacedDigit().foregroundStyle(Theme.secondary)
+                            .rollingDigits(Double(p.percent))
+                            .frame(minWidth: 44, alignment: .trailing)
+                    }
+                }
+            }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(donut.centerTitle), \(donut.centerValue)")
-    }
-}
-
-private struct DonutLegend: View {
-    var slices: [AircraftStatsCopy.Slice]
-    var columnSpacing: CGFloat = 12
-    @ScaledMetric(relativeTo: .body) private var swatch: CGFloat = 22
-
-    var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: columnSpacing, verticalSpacing: 10) {
-            ForEach(slices) { s in
-                GridRow {
-                    RoundedRectangle(cornerRadius: swatch * 0.23, style: .continuous).fill(s.color)
-                        .frame(width: swatch, height: swatch)
-                    // A one-word label ("Business") shrinks before it breaks in the middle of the word.
-                    Text(ui: s.label).scaledFont(18).foregroundStyle(Theme.primary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.75)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(PassportFacts.count(s.count)).scaledFont(18).monospacedDigit().foregroundStyle(Theme.primary)
-                        .rollingDigits(Double(s.count))
-                        .gridColumnAlignment(.trailing)
-                    Text("\(s.percent)%").scaledFont(18).monospacedDigit().foregroundStyle(Theme.secondary)
-                        .rollingDigits(Double(s.percent))
-                        .gridColumnAlignment(.trailing)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(s.label), \(s.count), \(s.percent) percent")
-            }
-        }
+        .accessibilityLabel(Self.summary(donut, parts))
     }
 }
 

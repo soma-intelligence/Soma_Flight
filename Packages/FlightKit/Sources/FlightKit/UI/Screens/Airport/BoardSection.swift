@@ -62,10 +62,8 @@ struct BoardSection: View {
                     .scaledPadding(.bottom, 22)
                 SectionHeader(kind == .departures ? "Departures per hour" : "Arrivals per hour", info: true)
                     .scaledPadding(.bottom, 4)
-                // The chart runs nearly edge to edge, as on the reference board.
+                // The chart carries its own legend and footnote, so it keeps the section's gutter.
                 DelayChart(perHour: perHour, timeZone: timeZone, now: now)
-                    .scaledPadding(.leading, 6 - Theme.gutter)
-                    .scaledPadding(.trailing, 10 - Theme.gutter)
                     .scaledPadding(.bottom, 26)
                 HStack(alignment: .firstTextBaseline) {
                     Text(kind == .departures ? "Departures" : "Arrivals")

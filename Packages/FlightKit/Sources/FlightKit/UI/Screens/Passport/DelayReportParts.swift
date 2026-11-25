@@ -163,78 +163,102 @@ struct LEDStrip: View {
     static let strip = Color(red: 0.11, green: 0.02, blue: 0.02)
 }
 
-// MARK: - Worst airline bar
+// MARK: - Time lost by airline
 
-/// The airlines that lost the most time, side by side, each as wide as its share of the late minutes. The
-/// first carries the tail of its most delayed type rising out of the block; the others their code.
+/// Every airline that ran late, ranked by the minutes it cost: its name, how many of its flights were late,
+/// the time lost, and a thin bar against the worst one. One red throughout, stronger as more of the
+/// airline's flights ran late.
 struct AirlineLossBar: View {
     var losses: [DelayReport.AirlineLoss]
+    /// Each airline's late flights over its flights with times, for "5 of 9 late".
+    var airlines: [DelayReport.Row] = []
     @Environment(\.reference) private var reference
 
-    /// The three that lost the most, largest first.
-    var segments: [(key: String, label: String, minutes: Int)] {
-        losses.prefix(3).map { (key: $0.key, label: code($0.key), minutes: $0.minutes) }
+    /// The worst six, largest first.
+    static let limit = 6
+
+    struct Line: Identifiable {
+        var key: String
+        var minutes: Int
+        var share: DelayReport.Share
+        var id: String { key }
+        /// 0.35 with almost none late, 1 with all late.
+        var opacity: Double { 0.35 + 0.65 * share.fraction }
     }
 
-    /// Up to three rows, worst first: the airline's mark and name, the minutes, and a thin bar against the
-    /// worst one's minutes.
+    var lines: [Line] {
+        let shares = Dictionary(airlines.map { ($0.key, $0.share) }, uniquingKeysWith: { a, _ in a })
+        return losses.prefix(Self.limit).map {
+            Line(key: $0.key, minutes: $0.minutes,
+                 share: shares[$0.key] ?? DelayReport.Share(late: $0.flights, of: $0.flights))
+        }
+    }
+
     var body: some View {
-        let parts = segments
-        let most = max(1, parts.first?.minutes ?? 1)
+        let rows = lines
+        let most = max(1, rows.map(\.minutes).max() ?? 1)
         VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
-                row(i, part, share: CGFloat(part.minutes) / CGFloat(most))
+            Text("Time lost by airline")
+                .scaledFont(20, weight: .bold)
+                .foregroundStyle(.white)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(rows) { line in
+                row(line, share: CGFloat(line.minutes) / CGFloat(most))
             }
+            legend
+        }
+    }
+
+    private func row(_ line: Line, share: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(ui: name(line.key))
+                    .scaledFont(16, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text("\(line.share.late) of \(line.share.of) late")
+                    .scaledFont(13)
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(Self.lost(line.minutes))
+                    .scaledFont(16, weight: .semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+            }
+            GeometryReader { geo in
+                Capsule()
+                    .fill(Theme.splitRed.opacity(line.opacity))
+                    .frame(width: max(8, geo.size.width * share), height: 8)
+            }
+            .frame(height: 8)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(parts.map { "\(name($0.key)), \(DelayFacts.hours($0.minutes)) late" }.joined(separator: "; "))
+        .accessibilityLabel("\(name(line.key)), \(DelayFacts.spoken(line.minutes)) lost, "
+                            + "\(line.share.late) of \(line.share.of) flights late")
     }
 
-    private func row(_ i: Int, _ part: (key: String, label: String, minutes: Int), share: CGFloat) -> some View {
-        HStack(spacing: 12) {
-            AirlineMark(airline: part.key, size: 30, decorative: true)
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(ui: name(part.key))
-                        .scaledFont(15, weight: i == 0 ? .semibold : .regular)
-                        .foregroundStyle(.white.opacity(i == 0 ? 1 : 0.8))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(DelayFacts.hoursShort(part.minutes))
-                        .scaledFont(15, weight: .semibold)
-                        .monospacedDigit()
-                        .foregroundStyle(i == 0 ? DelayInk.soft : .white.opacity(0.7))
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(DelayInk.track)
-                        Capsule()
-                            .fill(DelayInk.late.opacity(i == 0 ? 1 : 0.55))
-                            .frame(width: max(6, geo.size.width * share))
-                    }
-                }
-                .frame(height: 5)
-            }
+    private var legend: some View {
+        HStack(spacing: 6) {
+            Capsule().fill(Theme.splitRed.opacity(0.4)).frame(width: 18, height: 6)
+            Text("few late")
+            Capsule().fill(Theme.splitRed).frame(width: 18, height: 6).padding(.leading, 8)
+            Text("all late")
         }
+        .scaledFont(12)
+        .foregroundStyle(.white.opacity(0.55))
+        .accessibilityHidden(true)
     }
 
-    /// Widths in proportion, none under `minimum` so its label fits.
-    static func widths(_ minutes: [Int], total: Int, width: CGFloat, minimum: CGFloat) -> [CGFloat] {
-        guard !minutes.isEmpty else { return [] }
-        var w = minutes.map { CGFloat($0) / CGFloat(total) * width }
-        let short = w.indices.filter { w[$0] < minimum }
-        let taken = CGFloat(short.count) * minimum
-        let rest = w.indices.filter { w[$0] >= minimum }
-        let restSum = rest.reduce(0) { $0 + w[$1] }
-        for i in short { w[i] = minimum }
-        for i in rest where restSum > 0 { w[i] = w[i] / restSum * max(0, width - taken) }
-        return w
+    /// "3h 00m", "52m".
+    static func lost(_ minutes: Int) -> String {
+        minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h \(String(format: "%02d", minutes % 60))m"
     }
 
     /// How far the worst airline's fin may stand above its block, into the room beside the figure.
     static let rise: CGFloat = 18
 
-    private func code(_ key: String) -> String { reference.airline(key)?.iata ?? key }
     private func name(_ key: String) -> String {
         reference.airline(key)?.name ?? key
     }

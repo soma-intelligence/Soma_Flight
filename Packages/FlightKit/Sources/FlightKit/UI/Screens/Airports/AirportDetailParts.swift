@@ -94,52 +94,20 @@ struct AirportStatusCard: View {
 
 // MARK: - Provider trend
 
-/// The provider's hourly average delay: flown hours solid, the hours ahead lighter (estimated), and a
-/// "Now" line between them.
+/// The provider's hourly average delay, drawn like the board's own trend (`DelayTrendPlot`): flown hours
+/// as an amber curve up to now, the hours ahead dashed (estimated), and a "Now" dot on the curve.
 struct LiveTrendChart: View {
     var trend: [AirportTrendHour]
     var timeZone: TimeZone
     var now: Date
 
-    private func color(_ h: AirportTrendHour) -> Color {
-        if h.estimated { return Theme.trendFuture }
-        if h.avgDelayMinutes >= AirportStatus.majorDelay { return Theme.splitRed }
-        if h.avgDelayMinutes >= AirportStatus.minorDelay { return Theme.trendAmber }
-        return Theme.trendCalm
+    /// One point per provider hour, placed at the middle of the hour.
+    var samples: [DelayTrendPlot.Sample] {
+        trend.map { DelayTrendPlot.Sample(at: $0.hour.addingTimeInterval(1800), minutes: Double($0.avgDelayMinutes)) }
     }
 
     var body: some View {
-        Chart {
-            ForEach(trend) { h in
-                BarMark(x: .value("Hour", h.hour, unit: .hour), y: .value("Average delay", h.avgDelayMinutes))
-                    .foregroundStyle(color(h))
-                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-            }
-            RuleMark(x: .value("Now", now))
-                .foregroundStyle(Theme.primary.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                .annotation(position: .top, alignment: .center, spacing: 2, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
-                    Text("Now").scaledFont(11, weight: .semibold).foregroundStyle(Theme.primary)
-                }
-        }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .hour, count: 3)) { value in
-                AxisGridLine().foregroundStyle(Theme.grid)
-                AxisValueLabel {
-                    if let d = value.as(Date.self) { Text(Self.hour(d, timeZone)).scaledFont(11) }
-                }
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
-                AxisGridLine().foregroundStyle(Theme.grid)
-                AxisValueLabel {
-                    if let m = value.as(Int.self) { Text("\(m)m").scaledFont(11) }
-                }
-            }
-        }
-        .frame(height: 150)
-        .accessibilityLabel("Average delay by hour")
+        DelayTrendPlot(samples: samples, timeZone: timeZone, now: now)
     }
 
     static func hour(_ d: Date, _ tz: TimeZone) -> String {

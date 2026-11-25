@@ -416,13 +416,10 @@ struct EditorHeader: View {
 
     var body: some View {
         SheetHeader(.modal(title: title, leading: .cancel { cancel() }))
-            .overlay(alignment: .trailing) {
-                Button(action: onDone) {
-                    Text(ui: "Done").scaledFont(17, weight: .semibold)
-                }
-                .loadingButton(isLoading: isSaving, variant: .plain)
-                .disabled(!canSave)
-                .scaledPadding(.trailing, Theme.gutter)
+            .overlay(alignment: .topTrailing) {
+                ConfirmButton(disabled: !canSave, isLoading: isSaving, action: onDone)
+                    .scaledPadding(.trailing, SheetHeader.modalInset)
+                    .scaledPadding(.top, SheetHeader.modalInset)
             }
     }
 
