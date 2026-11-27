@@ -1,5 +1,5 @@
 # Board
-<!-- board v1 prefix:FL next:25 -->
+<!-- board v1 prefix:FL next:26 -->
 
 ## Roadmap
 
@@ -38,6 +38,9 @@
   E14 (pushs backend sans date de péremption), phrases NOTAM et météo Rust encore en anglais, verre absent des snapshots macOS.
 - FL-15 P2 Couche proactive : connexion en danger et heure de départ
   Croiser retard entrant, temps de correspondance minimum et distance entre portes ; calcul de "leave now" avec trajet MapKit et attente sécurité.
+- FL-25 P0 Contrôle Nightboard de bout en bout
+  Précision : Test du workflow Nightboard. Étape 1 : ouvre la pièce jointe avec Read, puis passe cette carte en Blocked avec une ligne Bloqué : qui demande si l'onglet visible sur la capture s'appelle bien À toi (propose oui ou non), commite BOARD.md et arrête-toi. Étape 2, seulement si une ligne Réponse : existe : déplace la carte en Done. Ne modifie aucun autre fichier que BOARD.md.
+  Pièce jointe : ios-inbox.png
 
 ## Later
 - FL-16 P3 Plan de jet lag avec Prism
