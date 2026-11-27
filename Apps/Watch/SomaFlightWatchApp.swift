@@ -15,6 +15,10 @@ struct SomaFlightWatchApp: App {
 
     init() {
         let model = WatchFlightsModel { WidgetCenter.shared.reloadAllTimelines() }
+        #if DEBUG
+        // Store screenshots: `-StoreDemo` loads the sample flights instead of waiting for the iPhone.
+        if ProcessInfo.processInfo.arguments.contains("-StoreDemo") { _ = model.receive(.preview()) }
+        #endif
         _model = State(initialValue: model)
         receiver = WatchSessionReceiver(model: model)
         receiver.activate()
