@@ -8,6 +8,9 @@
   Reste : captures finales aux bonnes tailles (slides iPhone 6.9 et 6.3, iPad 13, Mac ajoutées le 2026-11-25), métadonnées, questionnaire d'âge, notes de review avec compte démo, upload et envoi en review.
 - FL-2 P2 Version web (Apps/Web) : premier jet à finir `since:2026-11-11`
   Reste : 30 commits locaux non poussés, rien déployé. Vérifier la connexion email réelle, le décodage du 503 de flight-lookup, les tests Deno des fonctions enveloppées.
+- FL-25 P0 Contrôle Nightboard de bout en bout `since:2026-11-27`
+  Précision : Test du workflow Nightboard. Étape 1 : ouvre la pièce jointe avec Read, puis passe cette carte en Blocked avec une ligne Bloqué : qui demande si l'onglet visible sur la capture s'appelle bien À toi (propose oui ou non), commite BOARD.md et arrête-toi. Étape 2, seulement si une ligne Réponse : existe : déplace la carte en Done. Ne modifie aucun autre fichier que BOARD.md.
+  Pièce jointe : ios-inbox.png
 
 ## Blocked
 - FL-3 P1 Accord développeur Apple et profils de provisioning
@@ -38,9 +41,6 @@
   E14 (pushs backend sans date de péremption), phrases NOTAM et météo Rust encore en anglais, verre absent des snapshots macOS.
 - FL-15 P2 Couche proactive : connexion en danger et heure de départ
   Croiser retard entrant, temps de correspondance minimum et distance entre portes ; calcul de "leave now" avec trajet MapKit et attente sécurité.
-- FL-25 P0 Contrôle Nightboard de bout en bout
-  Précision : Test du workflow Nightboard. Étape 1 : ouvre la pièce jointe avec Read, puis passe cette carte en Blocked avec une ligne Bloqué : qui demande si l'onglet visible sur la capture s'appelle bien À toi (propose oui ou non), commite BOARD.md et arrête-toi. Étape 2, seulement si une ligne Réponse : existe : déplace la carte en Done. Ne modifie aucun autre fichier que BOARD.md.
-  Pièce jointe : ios-inbox.png
 
 ## Later
 - FL-16 P3 Plan de jet lag avec Prism
