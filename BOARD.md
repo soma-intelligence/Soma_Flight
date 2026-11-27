@@ -24,10 +24,6 @@
   Bloqué : choisir le fournisseur (Airhex pour les logos, Logostream ou Airliners Illustrated pour les profils), signer, et trancher la question marque déposée avec un juriste. Les images IA montrent des marques de compagnies.
 - FL-9 P2 Clé MapKit JS pour la version web
   Bloqué : créer la clé MapKit JS, valider le projet Vercel, le DNS flight.somalabs.me et le oui pour déployer les fonctions avec CORS et mapkit-token.
-- FL-25 P0 Contrôle Nightboard de bout en bout `since:2026-11-27`
-  Précision : Test du workflow Nightboard. Étape 1 : ouvre la pièce jointe avec Read, puis passe cette carte en Blocked avec une ligne Bloqué : qui demande si l'onglet visible sur la capture s'appelle bien À toi (propose oui ou non), commite BOARD.md et arrête-toi. Étape 2, seulement si une ligne Réponse : existe : déplace la carte en Done. Ne modifie aucun autre fichier que BOARD.md.
-  Pièce jointe : ios-inbox.png
-  Bloqué : l'onglet visible sur la capture ios-inbox.png s'appelle-t-il bien À toi ? Réponds oui ou non (la capture montre l'onglet À toi sélectionné, titre À toi).
 
 ## Todo
 - FL-10 P1 Vérifications sur appareil réel
@@ -42,6 +38,11 @@
   E14 (pushs backend sans date de péremption), phrases NOTAM et météo Rust encore en anglais, verre absent des snapshots macOS.
 - FL-15 P2 Couche proactive : connexion en danger et heure de départ
   Croiser retard entrant, temps de correspondance minimum et distance entre portes ; calcul de "leave now" avec trajet MapKit et attente sécurité.
+- FL-25 P0 Contrôle Nightboard de bout en bout `since:2026-11-27`
+  Précision : Test du workflow Nightboard. Étape 1 : ouvre la pièce jointe avec Read, puis passe cette carte en Blocked avec une ligne Bloqué : qui demande si l'onglet visible sur la capture s'appelle bien À toi (propose oui ou non), commite BOARD.md et arrête-toi. Étape 2, seulement si une ligne Réponse : existe : déplace la carte en Done. Ne modifie aucun autre fichier que BOARD.md.
+  Pièce jointe : ios-inbox.png
+  Question : l'onglet visible sur la capture ios-inbox.png s'appelle-t-il bien À toi ? Réponds oui ou non (la capture montre l'onglet À toi sélectionné, titre À toi).
+  Réponse : oui
 
 ## Later
 - FL-16 P3 Plan de jet lag avec Prism
